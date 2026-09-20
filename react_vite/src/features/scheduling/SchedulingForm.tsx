@@ -12,7 +12,10 @@ interface SchedulingFormProps {
 }
 
 const HelpIcon: React.FC<{ text: string }> = ({ text }) => (
-    <div className="tooltip tooltip-right ml-1 cursor-help z-50" data-tip={text}>
+    <div
+        className="tooltip tooltip-bottom ml-1 cursor-help before:z-50 before:max-w-64 before:whitespace-normal before:text-left"
+        data-tip={text}
+    >
         <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current text-info shrink-0 w-4 h-4"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
     </div>
 );
@@ -216,13 +219,13 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
 
             <div className="form-control w-full">
                 <label className="label justify-start gap-1 flex-wrap">
-                    <span className="label-text">First Takeoff Time</span>
-                    <HelpIcon text="Defines the start of the scheduling window. Flights before this time are preserved." />
+                    <span className="label-text">Reschedule From</span>
+                    <HelpIcon text="Start of the scheduling window - the scheduler only manages flights ending after this time. Flights before it are left untouched." />
                     <span className="label-text-alt ml-auto">{timeZone}</span>
                 </label>
-                <input 
-                    type="datetime-local" 
-                    className="input input-bordered w-full" 
+                <input
+                    type="datetime-local"
+                    className="input input-bordered w-full"
                     value={formatInTimeZone(firstTakeoffTime, navigationTask?.time_zone)}
                     onChange={e => {
                         const val = e.target.value;
@@ -236,13 +239,13 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
 
             <div className="form-control w-full">
                 <label className="label justify-start gap-1 flex-wrap">
-                    <span className="label-text">Next Takeoff Time</span>
-                    <HelpIcon text="The scheduled start time for the first new contestant." />
+                    <span className="label-text">Takeoff Time</span>
+                    <HelpIcon text="The scheduled takeoff time for the first new contestant." />
                     <span className="label-text-alt ml-auto">{timeZone}</span>
                 </label>
-                <input 
-                    type="datetime-local" 
-                    className="input input-bordered w-full" 
+                <input
+                    type="datetime-local"
+                    className="input input-bordered w-full"
                     value={formatInTimeZone(nextTakeoffTime, navigationTask?.time_zone)}
                     onChange={e => {
                         const val = e.target.value;

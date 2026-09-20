@@ -28,6 +28,26 @@ DURATION = "duration"
 # returns None without one).
 NO_BACKBONE_TASK_SUBTYPES = (CIRCLE, TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT, DURATION)
 
+# Task subtypes whose declaration records predicted gate times as absolute timestamps rather
+# than offsets from takeoff (contract navigation's declared_t_seconds is the one declaration
+# format that's relative, so it's deliberately excluded here). Once such a declaration has been
+# compiled, rescheduling the contestant's takeoff/finish time would leave those predicted times
+# stale without invalidating them - Contestant.get_declared_absolute_times() uses this map to know,
+# per subtype, which declaration_payload key holds the times to check against the new window.
+#
+# Known circuit's turnpoint_time_overrides is the one entry here that's optional rather than
+# required (see KnownCircuitStrategy) - most of its points are speed-derived and move with the
+# schedule automatically, only the explicitly overridden points are absolute and need protecting.
+# Contestant.get_declared_absolute_times() naturally returns an empty list when no overrides were
+# set, so the lock only engages once the contestant has actually declared one.
+ABSOLUTE_TIME_DECLARATION_SUBTYPES = {
+    TURNPOINT_HUNT: "compulsory_point_times",
+    LIMITED_FUEL_TURNPOINT_HUNT: "compulsory_point_times",
+    PRECISION_NAVIGATION: "known_time_gate_predictions",
+    CURVE_NAVIGATION_TIME_ESTIMATION: "known_time_gate_predictions",
+    KNOWN_CIRCUIT: "turnpoint_time_overrides",
+}
+
 LEGACY_PRECISION = "legacy_precision"
 LEGACY_ANR_CORRIDOR = "legacy_anr_corridor"
 LEGACY_AIRSPORTS = "legacy_airsports"

@@ -20,17 +20,19 @@ primitives computed here.
 from django.core.exceptions import ValidationError
 
 from display.utilities.cima_task_type_definitions import (
+    CONTRACT_NAVIGATION_TIME_CONTROLS,
     LEGACY_DEFAULT_SUBTYPE_BY_FAMILY,
     LIMITED_FUEL_TURNPOINT_HUNT,
     TASK_SUBTYPE_DEFINITIONS,
     TURNPOINT_HUNT,
     get_task_subtype_definition,
 )
+from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT
 
 # Bump whenever the ruleset (required/forbidden primitives, or the primitive extraction itself)
 # changes in a way that could change the outcome for an already-saved route, so callers can tell a
 # stale EditableRoute.compatible_task_types apart from a freshly computed one.
-ROUTE_COMPATIBILITY_RULESET_VERSION = 1
+ROUTE_COMPATIBILITY_RULESET_VERSION = 2
 
 # The keys TaskCompiler._build_compiled_primitives has historically returned, in that order. Kept
 # here so the compiler can subset extract_route_primitives() without changing its persisted
@@ -120,6 +122,8 @@ def get_blocking_reasons(primitives: dict[str, list], subtype_key: str, editable
             reasons.append(f"Route feature not allowed for this task type: {primitive}")
     if subtype_key in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
         reasons = reasons + turnpoint_hunt_structural_errors(editable_route, primitives)
+    if subtype_key == CONTRACT_NAVIGATION_TIME_CONTROLS:
+        reasons = reasons + contract_navigation_structural_errors(editable_route, primitives)
     return reasons
 
 
@@ -202,6 +206,44 @@ def turnpoint_hunt_structural_errors(editable_route, primitives: dict) -> list[s
     free_targets = [name for name in primitives.get("catalogue_turnpoint", []) if name]
     if len(free_targets) < 1:
         errors.append("Turnpoint hunt requires at least one free catalogue target.")
+    return errors
+
+
+def contract_navigation_structural_errors(editable_route, primitives: dict) -> list[str]:
+    """
+    Structural rules for CONTRACT_NAVIGATION_TIME_CONTROLS beyond mere primitive presence: exactly
+    three route waypoints, authored in order as SP, MP, FP, plus at least one free catalogue
+    waypoint.
+
+    Shared by TaskCompiler._validate_contract_navigation_structure (which validates a compiled,
+    already-persisted NavigationTask) and get_blocking_reasons (which validates before a
+    NavigationTask exists) so the two validation layers can't drift apart - before this, the
+    pre-creation compatibility check only looked at required_primitives presence (a track, at
+    least one route waypoint, at least one catalogue turnpoint), so it could offer/accept a route
+    with the wrong number or ordering of route waypoints that TaskCompiler's stricter check would
+    then reject anyway once a contestant's declaration tried to compile.
+    """
+    if editable_route is None or not isinstance(editable_route.route, dict) or "features" not in editable_route.route:
+        return []
+    errors = []
+    authored_waypoints = editable_route.get_ordered_track_waypoints()
+    if len(authored_waypoints) != 3:
+        errors.append("Contract navigation requires exactly three route waypoints: SP, MP, and FP.")
+    else:
+        expected = [
+            (STARTINGPOINT, "SP"),
+            (TURNPOINT, "MP"),
+            (FINISHPOINT, "FP"),
+        ]
+        for waypoint, (expected_type, expected_name) in zip(authored_waypoints, expected):
+            point_type = waypoint.get("properties", {}).get("pointType")
+            point_name = waypoint.get("properties", {}).get("name")
+            if point_type != expected_type or point_name != expected_name:
+                errors.append("Contract navigation route waypoints must be authored in order as SP, MP, and FP.")
+                break
+    free_waypoints = [name for name in primitives.get("catalogue_turnpoint", []) if name not in {"SP", "MP", "FP"}]
+    if len(free_waypoints) < 1:
+        errors.append("Contract navigation requires at least one free catalogue waypoint.")
     return errors
 
 

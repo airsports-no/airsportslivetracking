@@ -11,7 +11,6 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, IntegrityError
 from django.db.models import F, Q, QuerySet
-from django.urls import reverse
 from django.utils.safestring import mark_safe
 
 from display.calculators.calculator_utilities import round_time_second
@@ -19,9 +18,11 @@ from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.flymaster_position_builder import build_positions_from_flymaster
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.models.flymaster_data import FlymasterData
+from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
+from display.utilities.cima_task_type_definitions import ABSOLUTE_TIME_DECLARATION_SUBTYPES
 from display.utilities.navigation_task_type_definitions import (
     POKER,
     AIRSPORTS,
@@ -565,7 +566,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             links = []
             for item in pilot_overlaps:
                 links.append(
-                    f'<a href="{reverse("navigationtask_detail", kwargs={"pk": item["task"].pk})}">{item["task"]}</a>'
+                    f'<a href="{fe_url("NAVIGATION_TASK_DETAIL", contestId=item["task"].contest_id, navigationTaskId=item["task"].pk)}">{item["task"]}</a>'
                 )
 
             start_time = min(item["start_time"] for item in pilot_overlaps)
@@ -585,7 +586,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             links = []
             for item in copilot_overlaps:
                 links.append(
-                    f'<a href="{reverse("navigationtask_detail", kwargs={"pk": item["task"].pk})}">{item["task"]}</a>'
+                    f'<a href="{fe_url("NAVIGATION_TASK_DETAIL", contestId=item["task"].contest_id, navigationTaskId=item["task"].pk)}">{item["task"]}</a>'
                 )
 
             start_time = min(item["start_time"] for item in copilot_overlaps)
@@ -628,6 +629,26 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         if overlapping.exists():
             logger.info(f"Terminating concurrent contestants for {self} (IDs: {tracker_ids}): {overlapping}")
             overlapping.update(finished_by_time=termination_time)
+
+    def get_declared_absolute_times(self) -> list[datetime.datetime]:
+        """
+        The contestant's manually declared absolute predicted/override times, for task subtypes
+        where those times don't move with the schedule (see ABSOLUTE_TIME_DECLARATION_SUBTYPES).
+        Empty for every other subtype, and for known_circuit whenever no point has actually been
+        overridden - the lock this backs is only meant to engage once there's something declared
+        that could actually go stale.
+        """
+        declaration_time_key = ABSOLUTE_TIME_DECLARATION_SUBTYPES.get(self.navigation_task.task_subtype)
+        if not declaration_time_key:
+            return []
+        config = getattr(self, "contestanttaskconfiguration", None)
+        if config is None:
+            return []
+        declared_times = []
+        for value in (config.declaration_payload or {}).get(declaration_time_key, {}).values():
+            if isinstance(value, str):
+                declared_times.append(dateutil.parser.parse(value))
+        return declared_times
 
     def clean(self):
         if not isinstance(self.tracker_start_time, datetime.datetime):
@@ -688,6 +709,23 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 if original.minutes_to_starting_point != self.minutes_to_starting_point:
                     raise ValidationError(
                         f"Calculator has started for {self}, it is not possible to change minutes to starting point"
+                    )
+            # Guard against silently stale absolute-time declarations. Keyed off the times
+            # actually declared (not original.schedule_locked, which for known_circuit is set
+            # once ANY valid config compiles, override or not) so this only engages when the
+            # contestant has genuinely declared absolute times that could go stale.
+            if self.takeoff_time != original.takeoff_time or self.finished_by_time != original.finished_by_time:
+                declared_times = original.get_declared_absolute_times()
+                out_of_window = [
+                    declared_time
+                    for declared_time in declared_times
+                    if declared_time < self.takeoff_time or declared_time > self.finished_by_time
+                ]
+                if out_of_window:
+                    raise ValidationError(
+                        f"Contestant {self} has declared predicted times that fall outside the new "
+                        f"takeoff time '{self.takeoff_time}' to finished by time '{self.finished_by_time}'. "
+                        "Clear the declaration before changing the schedule."
                     )
 
     @staticmethod
@@ -987,6 +1025,31 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                     is_simulator = True
             results.append((contestant, is_simulator))
         return results
+
+    def is_currently_visible_on_live_map(self) -> bool:
+        """
+        Whether this contestant's calculator is running AND enough real time has passed for its
+        delayed position data to have actually started appearing on the live map.
+
+        display.calculators.contestant_processor.py's ContestantProcessor withholds every
+        position until device_time + calculation_delay_minutes before processing/transmitting it
+        (self.delay) - calculator_started alone says nothing about whether that delay has
+        elapsed yet. Without this check, a "currently live"/"active now" indicator would tell
+        spectators a contestant can be watched the instant its calculator starts, even though
+        the map has nothing to show for calculation_delay_minutes more minutes.
+
+        tracker_start_time is used as the delay's anchor (rather than the actual first received
+        position's device_time, which isn't modeled relationally) - a reasonable proxy given
+        tracking is expected to begin at or close to that time.
+        """
+        track = getattr(self, "contestanttrack", None)
+        if track is None or not track.calculator_started or track.calculator_finished:
+            return False
+        now = datetime.datetime.now(datetime.timezone.utc)
+        if self.finished_by_time <= now:
+            return False
+        delay = datetime.timedelta(minutes=self.navigation_task.calculation_delay_minutes)
+        return now >= self.tracker_start_time + delay
 
     def is_currently_tracked_by_device(self, device_id: str) -> bool:
         """

@@ -7,9 +7,11 @@ on a GPX point with no <time> element at all, so any caller wrapping it in a bro
 
 - ContestantViewSet.gpx_track (viewsets.py) called contestant.reset_track_and_score() before
   checking track_file was even present, and never invoked GpxTrackSerialiser's base64 validation.
-- upload_gpx_track_for_contesant (views.py, the GUI import form) called reset_track_and_score()
-  before validate_gpx_file() - an invalid GPX destroyed the contestant's positions/score log and
-  left only a form error, with nothing to fall back to.
+  It later (Slice 4 of the navigation-task-detail-spa-migration) also gained the calculator-
+  running guard and the validate_gpx_file() content check that upload_gpx_track_for_contesant
+  (views.py, the classic GUI import form - now deleted, having been the only caller of
+  navigationtask_detail.html's "Upload GPX" link) already had, closing the gap this docstring
+  originally described between the two.
 """
 
 import base64
@@ -17,7 +19,6 @@ import datetime
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.core.files.uploadedfile import SimpleUploadedFile
 from django.test import TestCase
 from django.urls import reverse
 from guardian.shortcuts import assign_perm
@@ -117,72 +118,30 @@ class TestGpxTrackRestActionValidatesBeforeDestroying(APITestCase):
         self.contestant.refresh_from_db()
         self.assertEqual(self.contestant.track_version, track_version_before)
 
+    def test_invalid_gpx_content_does_not_reset_track(self, *args):
+        track_version_before = self.contestant.track_version
+        encoded = base64.b64encode(GPX_TIMELESS_POINT.encode("utf-8")).decode("utf-8")
+        response = self.client.post(self.url, data={"track_file": encoded}, format="json")
+        self.assertEqual(response.status_code, 400)
+        self.contestant.refresh_from_db()
+        self.assertEqual(self.contestant.track_version, track_version_before)
+
+    @patch("display.viewsets.is_calculator_running", return_value=True)
+    def test_refuses_while_calculator_is_running(self, _mock_running, *args):
+        track_version_before = self.contestant.track_version
+        encoded = base64.b64encode(GPX_VALID_TZ_AWARE.encode("utf-8")).decode("utf-8")
+        response = self.client.post(self.url, data={"track_file": encoded}, format="json")
+        self.assertEqual(response.status_code, 409)
+        self.contestant.refresh_from_db()
+        self.assertEqual(self.contestant.track_version, track_version_before)
+
     @patch("display.viewsets.import_gpx_track")
     def test_valid_track_file_resets_track_and_dispatches_import(self, mock_import, *args):
         track_version_before = self.contestant.track_version
-        encoded = base64.b64encode(GPX_NAIVE_TIME.encode("utf-8")).decode("utf-8")
+        encoded = base64.b64encode(GPX_VALID_TZ_AWARE.encode("utf-8")).decode("utf-8")
         response = self.client.post(self.url, data={"track_file": encoded}, format="json")
         self.assertEqual(response.status_code, 201, response.content)
         self.contestant.refresh_from_db()
         self.assertEqual(self.contestant.track_version, track_version_before + 1)
         mock_import.apply_async.assert_called_once()
 
-
-@patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-@patch("display.signals.get_traccar_instance", return_value=TraccarMock)
-class TestGpxUploadFormValidatesBeforeDestroying(TestCase):
-    @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
-    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
-    def setUp(self, *args):
-        self.contest = Contest.objects.create(
-            name="GPX Form Contest",
-            start_time=datetime.datetime.now(datetime.timezone.utc),
-            finish_time=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=1),
-            location="60, 11",
-        )
-        route = Route.objects.create(name="Route")
-        now = datetime.datetime.now(datetime.timezone.utc)
-        self.navigation_task = NavigationTask.create(
-            name="GPX Form Task",
-            original_scorecard=get_default_scorecard(),
-            route=route,
-            contest=self.contest,
-            start_time=now,
-            finish_time=now + datetime.timedelta(days=1),
-        )
-        crew = Crew.objects.create(member1=Person.objects.create(first_name="A", last_name="B", email="gpxform@example.com"))
-        team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration="LN-GPXF"))
-        self.contestant = Contestant.objects.create(
-            team=team,
-            navigation_task=self.navigation_task,
-            takeoff_time=now + datetime.timedelta(hours=1),
-            finished_by_time=now + datetime.timedelta(hours=2),
-            tracker_start_time=now + datetime.timedelta(minutes=30),
-            tracker_device_id="test_device",
-            contestant_number=1,
-        )
-        self.manager = get_user_model().objects.create(email="formmanager@example.com")
-        assign_perm("view_contest", self.manager, self.contest)
-        assign_perm("change_contest", self.manager, self.contest)
-        self.client.force_login(user=self.manager)
-        self.url = reverse("contestant_uploadgpxtrack", kwargs={"pk": self.contestant.pk})
-
-    def test_timeless_gpx_upload_does_not_reset_track(self, *args):
-        track_version_before = self.contestant.track_version
-        response = self.client.post(
-            self.url, data={"track_file": SimpleUploadedFile("track.gpx", GPX_TIMELESS_POINT.encode("utf-8"))}
-        )
-        self.assertEqual(response.status_code, 200)
-        self.contestant.refresh_from_db()
-        self.assertEqual(self.contestant.track_version, track_version_before)
-
-    @patch("display.views.import_gpx_track")
-    def test_valid_gpx_upload_resets_track_and_dispatches_import(self, mock_import, *args):
-        track_version_before = self.contestant.track_version
-        response = self.client.post(
-            self.url, data={"track_file": SimpleUploadedFile("track.gpx", GPX_VALID_TZ_AWARE.encode("utf-8"))}
-        )
-        self.assertEqual(response.status_code, 302, response.content)
-        self.contestant.refresh_from_db()
-        self.assertEqual(self.contestant.track_version, track_version_before + 1)
-        mock_import.apply_async.assert_called_once()

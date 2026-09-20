@@ -40,6 +40,7 @@ export type DeclarationFormState = {
     contractDeclaredTSeconds: string;
     turnpointHuntSequence: string[];
     turnpointTimeOverrides: Record<string, string>;
+    knownTimeGatePredictions: Record<string, string>;
 };
 
 export const toDatetimeLocalValue = (value?: string | null) => {
@@ -173,6 +174,12 @@ export const buildFormState = (contestantData: ContestantDeclarationData): Decla
         return acc;
     }, {});
 
+    const predictionsPayload = declarationPayload.known_time_gate_predictions as Record<string, string> | undefined;
+    const knownTimeGatePredictions = Object.entries(predictionsPayload || {}).reduce((acc: Record<string, string>, [name, value]) => {
+        acc[name] = toDatetimeLocalValue(value);
+        return acc;
+    }, {});
+
     return {
         compulsoryPointTimes,
         declaredEnduranceMinutes: fuelMetadata?.declared_endurance_minutes ? String(fuelMetadata.declared_endurance_minutes) : '',
@@ -182,6 +189,7 @@ export const buildFormState = (contestantData: ContestantDeclarationData): Decla
             : String(compiledPayload.time_model?.t_seconds ?? ''),
         turnpointHuntSequence: getTurnpointHuntSequence(contestantData),
         turnpointTimeOverrides,
+        knownTimeGatePredictions,
     };
 };
 

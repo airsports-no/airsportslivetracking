@@ -16,6 +16,7 @@ from display.services.task_templates import task_template_choices as _task_templ
 from display.utilities.cima_task_type_definitions import (
     ANR_CATALOGUE,
     CIRCLE,
+    CONTRACT_NAVIGATION_TIME_CONTROLS,
     DURATION,
     KNOWN_CIRCUIT,
     LEGACY_AIRSPORTS,
@@ -200,6 +201,81 @@ class TestRouteCompatibilityRuleset(TestCase):
 
         valid_route = turnpoint_hunt_route(with_backbone=False, known_time_gate_count=3)
         self.assertIn(LIMITED_FUEL_TURNPOINT_HUNT, get_compatible_task_subtypes(valid_route))
+
+    def test_turnpoint_hunt_is_not_blocked_by_the_route_editor_canvas_default_empty_track(self):
+        # Regression test: the route editor's canvas includes an empty route_path feature (a
+        # LineString with zero coordinates) by default, even for a route built entirely from the
+        # 2.A6 Turnpoint hunt wizard template, which never asks the user to draw a track at all.
+        # EditableRoute.get_track() used to treat that vestigial feature the same as a real,
+        # drawn backbone, so turnpoint_hunt_structural_errors' "no route backbone" check
+        # permanently rejected every route ever authored in the editor for this subtype - even
+        # ones with exactly the right primitives and genuinely no drawn track.
+        empty_track_feature = {
+            "type": "Feature",
+            "properties": {"featureType": "route_path"},
+            "geometry": {"type": "LineString", "coordinates": []},
+        }
+        features = [
+            empty_track_feature,
+            {
+                "type": "Feature",
+                "properties": {"id": "ctp-1", "name": "TP 1", "featureType": "catalogue_turnpoint"},
+                "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+            },
+        ]
+        for index in range(3):
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": {"id": f"ktg-{index}", "name": f"CP{index + 1}", "featureType": "known_time_gate"},
+                    "geometry": {"type": "Point", "coordinates": [11.1 + index * 0.1, 60.1 + index * 0.1]},
+                }
+            )
+        route = EditableRoute.objects.create(
+            name="Turnpoint hunt with vestigial empty route_path",
+            route={"type": "FeatureCollection", "features": features},
+        )
+
+        self.assertIsNone(route.get_track())
+        compatible = get_compatible_task_subtypes(route)
+        self.assertIn(LIMITED_FUEL_TURNPOINT_HUNT, compatible)
+
+    def test_contract_navigation_structural_rules_apply_to_the_canonical_compatibility_set(self):
+        # A route satisfying required_primitives alone (a track, one route waypoint, one
+        # catalogue turnpoint) is not necessarily a valid contract-navigation route -
+        # contract_navigation_structural_errors' exactly-three-waypoints-as-SP/MP/FP rule must also
+        # be reflected here, not just in TaskCompiler's post-creation compile-time check, or a route
+        # like this could be offered/accepted at task-creation time only to permanently fail every
+        # contestant's declaration compile once the task exists.
+        def contract_navigation_route(*, waypoint_specs: list[tuple[str, str]]) -> EditableRoute:
+            features = [TRACK_FEATURE]
+            for sequence, (point_type, name) in enumerate(waypoint_specs):
+                feature = waypoint_feature(point_type, name)
+                feature["properties"]["sequence"] = sequence
+                features.append(feature)
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": {"id": "ctp-1", "name": "CTP1", "featureType": "catalogue_turnpoint"},
+                    "geometry": {"type": "Point", "coordinates": [11.5, 60.5]},
+                }
+            )
+            return EditableRoute.objects.create(
+                name=f"Contract navigation waypoints={waypoint_specs}",
+                route={"type": "FeatureCollection", "features": features},
+            )
+
+        route_with_extra_waypoint = contract_navigation_route(
+            waypoint_specs=[("sp", "SP"), ("tp", "WP 2"), ("tp", "WP 3"), ("secret", "WP 4"), ("fp", "FP")]
+        )
+        self.assertNotIn(CONTRACT_NAVIGATION_TIME_CONTROLS, get_compatible_task_subtypes(route_with_extra_waypoint))
+        reasons = get_blocking_reasons(
+            extract_route_primitives(route_with_extra_waypoint), CONTRACT_NAVIGATION_TIME_CONTROLS, route_with_extra_waypoint
+        )
+        self.assertIn("Contract navigation requires exactly three route waypoints: SP, MP, and FP.", reasons)
+
+        valid_route = contract_navigation_route(waypoint_specs=[("sp", "SP"), ("tp", "MP"), ("fp", "FP")])
+        self.assertIn(CONTRACT_NAVIGATION_TIME_CONTROLS, get_compatible_task_subtypes(valid_route))
 
     def test_unsaved_route_with_no_features_key_returns_no_primitives(self):
         # Model default for `route` is an empty list, not {"features": []} - must not crash.

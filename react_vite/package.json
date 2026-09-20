@@ -30,6 +30,7 @@
     "react-hook-form": "^7.88.0",
     "react-router-dom": "^7.11.0",
     "react-select": "^5.10.2",
+    "recharts": "^3.10.1",
     "uuid": "^14.0.2",
     "vis-data": "^8.0.3",
     "vis-timeline": "^8.5.0",

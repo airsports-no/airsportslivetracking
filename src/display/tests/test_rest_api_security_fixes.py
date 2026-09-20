@@ -9,6 +9,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.contrib.auth.models import Permission
+from django.urls import reverse
 from guardian.shortcuts import assign_perm
 from rest_framework import status
 from rest_framework.test import APITestCase
@@ -155,7 +156,10 @@ class TestClearContestantsRequiresChangePermission(APITestCase):
         assign_perm("view_contest", self.manager_user, self.contest)
         assign_perm("change_contest", self.manager_user, self.contest)
 
-        self.url = f"/display/navigationtask/{self.navigation_task.pk}/remove_contestants/"
+        self.url = reverse(
+            "navigationtasks-remove-contestants",
+            kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk},
+        )
 
     def test_view_only_user_cannot_clear_contestants(self):
         self.client.force_login(user=self.viewer_user)

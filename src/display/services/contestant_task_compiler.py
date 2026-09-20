@@ -135,6 +135,9 @@ class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
                 normalized_predictions[key] = value.isoformat()
             else:
                 raise serializers.ValidationError({"known_time_gate_predictions": f"Invalid prediction value for {key}."})
+        self.compiler._require_declared_times_within_contestant_window(
+            normalized_predictions, "known_time_gate_predictions"
+        )
         return {"known_time_gate_predictions": normalized_predictions} if normalized_predictions else {}
 
 
@@ -338,6 +341,7 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
                 normalized_point_times[key] = value.isoformat()
             else:
                 raise serializers.ValidationError({"compulsory_point_times": f"Invalid prediction value for {key}."})
+        self.compiler._require_declared_times_within_contestant_window(normalized_point_times, "compulsory_point_times")
         normalized_sequence = [item for item in declared_sequence if isinstance(item, str) and item]
         payload = {}
         if normalized_point_times:
@@ -481,6 +485,10 @@ class KnownCircuitStrategy(ContestantTaskCompilerStrategy):
                 raise serializers.ValidationError(
                     {"turnpoint_time_overrides": f"Invalid override value for '{key}'."}
                 )
+        if normalized_overrides:
+            self.compiler._require_declared_times_within_contestant_window(
+                normalized_overrides, "turnpoint_time_overrides"
+            )
         return {"turnpoint_time_overrides": normalized_overrides} if normalized_overrides else {}
 
 
@@ -498,6 +506,31 @@ class ContestantTaskCompiler:
     @property
     def cima_config(self) -> CimaScoringConfig:
         return CimaScoringConfig.from_scorecard(self.contestant.navigation_task.scorecard)
+
+    def _require_declared_times_within_contestant_window(self, normalized_times: dict[str, str], field_name: str) -> None:
+        """
+        Predicted gate times are declared as absolute timestamps (not offsets from takeoff), so
+        entering one outside the contestant's own [takeoff_time, finished_by_time] window would
+        produce a declaration that's already stale the moment it's saved. See
+        ABSOLUTE_TIME_DECLARATION_SUBTYPES for the other half of this guard, which stops the
+        window itself from being moved out from under an already-declared time.
+        """
+        takeoff_time = self.contestant.takeoff_time
+        finished_by_time = self.contestant.finished_by_time
+        out_of_window = []
+        for key, value in normalized_times.items():
+            declared_time = parser.parse(value)
+            if declared_time < takeoff_time or declared_time > finished_by_time:
+                out_of_window.append(key)
+        if out_of_window:
+            raise serializers.ValidationError(
+                {
+                    field_name: (
+                        f"Declared time(s) for {', '.join(out_of_window)} fall outside the contestant's "
+                        f"takeoff time ({takeoff_time}) to finished by time ({finished_by_time})."
+                    )
+                }
+            )
 
     def _get_strategy(self) -> ContestantTaskCompilerStrategy:
         subtype = self.contestant.navigation_task.task_subtype
@@ -1291,7 +1324,13 @@ class ContestantTaskCompiler:
         # re-run it and adjust the schedule afterward.
         if not self.contestant.navigation_task.requires_contestant_task_configuration():
             return
-        if not config.is_valid or self.contestant.schedule_locked:
+        # Some subtypes that DO require configuration still have an optional declaration (known
+        # circuit's turnpoint_time_overrides, limited fuel turnpoint hunt's compulsory_point_times
+        # - see their strategies' validate_declaration) - is_valid is trivially True for these too
+        # when nothing was declared, for the same reason as above. Requiring a non-empty payload
+        # as well means those contestants stay open to bulk rescheduling until they actually
+        # commit to something.
+        if not config.is_valid or not config.declaration_payload or self.contestant.schedule_locked:
             return
         self.contestant.schedule_locked = True
         self.contestant.save(update_fields=["schedule_locked"])

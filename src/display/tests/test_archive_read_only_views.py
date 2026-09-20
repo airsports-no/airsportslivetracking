@@ -65,13 +65,21 @@ class TestArchiveReadOnlyViews(TestCase):
         self.assertEqual(assignment["token_type_name"], "Archive token")
 
     def test_navigationtask_detail_remains_readable_after_token_expiry(self):
+        # The classic navigationtask_detail.html page this test used to check (via its own
+        # rendered "Archive Mode" banner) was removed in Slice 4 of the
+        # navigation-task-detail-spa-migration - NavigationTaskDetailPage.tsx (React) doesn't
+        # repeat that banner itself since a user reaches it via ContestDashboard.tsx, which
+        # already shows the same archive-mode banner (see
+        # test_contest_detail_api_remains_readable_after_token_expiry above) one level up in the
+        # navigation hierarchy. This just confirms the REST endpoint the new page depends on
+        # still loads normally once the contest's token has expired.
         self.assignment.expires_at = self.expired_at
         self.assignment.save(update_fields=["expires_at"])
         self.client.force_login(self.user)
 
-        response = self.client.get(reverse("navigationtask_detail", kwargs={"pk": self.navigation_task.id}))
+        response = self.client.get(
+            reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.id})
+        )
 
         self.assertEqual(200, response.status_code)
-        self.assertContains(response, "Archive Task")
-        self.assertContains(response, "Archive Mode")
-        self.assertContains(response, "This contest token expired on")
+        self.assertEqual(response.json()["name"], "Archive Task")

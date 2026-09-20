@@ -40,8 +40,10 @@ from display.models import (
     ContestantTrack,
     ContestSummary,
     ContestTeam,
+    ContestUsageLedger,
     Crew,
     EditableRoute,
+    FlightOrderConfiguration,
     GateCumulativeScore,
     HighlightedContest,
     MyUser,
@@ -61,6 +63,12 @@ from display.models import (
     TeamTestScore,
     TrackAnnotation,
     UserTokenGrant,
+)
+from display.convert_route import convert_legacy_json
+from display.flight_order_and_maps.map_constants import LANDSCAPE, MAP_SIZES, ORIENTATIONS, SCALES, SCALE_TO_FIT
+from display.flight_order_and_maps.map_plotter_shared_utilities import (
+    get_available_map_source_definitions_for_navigation_task,
+    validate_map_zoom_level,
 )
 from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES
 from display.services.access_resolver import resolve_contest_access
@@ -1575,6 +1583,202 @@ class GpxTrackSerialiser(serializers.Serializer):
         return value
 
 
+class RecalculateWithStartTimeSerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    starting_point_time = serializers.DateTimeField(
+        write_only=True, required=True, help_text="The new time the contestant is expected to cross the starting point"
+    )
+
+
+class ApplyQuarantinePenaltySerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    points = serializers.FloatField(write_only=True, required=False, default=100.0)
+    reason = serializers.CharField(write_only=True, required=False, allow_blank=True, default="")
+    category = serializers.ChoiceField(
+        write_only=True,
+        required=False,
+        default="quarantine",
+        choices=["quarantine", "fuel", "instructions", "observation", "map"],
+    )
+
+
+class AssignPlayingCardSerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    waypoint_index = serializers.IntegerField(write_only=True, required=True)
+    card = serializers.CharField(
+        write_only=True,
+        required=True,
+        help_text="A two-character playing card code (e.g. 'AS'), or 'random' to draw a random unused card.",
+    )
+
+
+class QuickAddContestantSerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    contest_team = serializers.IntegerField(write_only=True, required=True)
+    starting_point_time = serializers.DateTimeField(
+        write_only=True, required=True, help_text="The time the contestant is expected to cross the starting point"
+    )
+    adaptive_start = serializers.BooleanField(write_only=True, required=False, default=False)
+
+
+class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
+    """
+    Mirrors NavigationTaskForm's editable field set (views.py's NavigationTaskUpdateView),
+    excluding original_scorecard (disabled once the task exists, same as the classic form) and
+    task_subtype (the form gates its choices by the user's visible task-type families - not worth
+    replicating here until this action needs to support changing it).
+    """
+
+    class Meta:
+        model = NavigationTask
+        fields = (
+            "name",
+            "start_time",
+            "finish_time",
+            "display_background_map",
+            "display_secrets",
+            "minutes_to_starting_point",
+            "planning_time",
+            "minutes_to_landing",
+            "wind_speed",
+            "wind_direction",
+            "allow_self_management",
+            "calculation_delay_minutes",
+        )
+        extra_kwargs = {field: {"required": False} for field in fields}
+
+
+class FlightOrderConfigurationSerialiser(serializers.ModelSerializer):
+    """
+    Mirrors FlightOrderConfigurationForm's field set and validation (views.py's
+    update_flight_order_configurations/FlightOrderConfigurationForm.clean_map_source/clean).
+    map_source is declared as a plain CharField (not letting ModelSerializer auto-generate a
+    ChoiceField from the model field's static get_map_choices default) because the valid set is
+    per-navigation-task - see validate() below, which checks it against
+    get_available_map_source_definitions_for_navigation_task the same way the classic form did,
+    and cross-validates map_zoom_level against the resolved source's min/max zoom.
+    """
+
+    map_source = serializers.CharField(required=False, allow_blank=True)
+
+    class Meta:
+        model = FlightOrderConfiguration
+        exclude = ("navigation_task",)
+        extra_kwargs = {
+            field.name: {"required": False}
+            for field in FlightOrderConfiguration._meta.get_fields()
+            if field.name != "navigation_task" and not field.is_relation
+        }
+
+    def validate(self, attrs):
+        map_source = attrs.get("map_source", getattr(self.instance, "map_source", None))
+        if not map_source:
+            return attrs
+        navigation_task = self.instance.navigation_task
+        request = self.context.get("request")
+        valid_keys = {
+            definition["key"]
+            for definition in get_available_map_source_definitions_for_navigation_task(
+                navigation_task,
+                getattr(request, "user", None),
+                uploaded_maps=navigation_task.get_available_user_maps(),
+            )
+        }
+        if map_source not in valid_keys:
+            raise ValidationError({"map_source": "Select a valid choice. That choice is not one of the available choices."})
+        map_zoom_level = attrs.get("map_zoom_level", getattr(self.instance, "map_zoom_level", None))
+        if map_zoom_level is not None:
+            try:
+                validate_map_zoom_level(map_source, None, map_zoom_level)
+            except CoreValidationError as exc:
+                raise ValidationError({"map_zoom_level": str(exc.message if hasattr(exc, "message") else exc)})
+        return attrs
+
+
+class GenerateNavigationTaskMapSerialiser(serializers.Serializer):
+    """
+    Mirrors the now-deleted classic MapForm's field set - the REST equivalent of the
+    now-deleted get_navigation_task_map view's POST handling. Unlike
+    FlightOrderConfigurationSerialiser, this isn't backed by a model - it's a one-off action's
+    input, not persisted state - so every field is required with the same defaults MapForm itself
+    used.
+    """
+
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+    size = serializers.ChoiceField(choices=MAP_SIZES, default=MAP_SIZES[0][0])
+    orientation = serializers.ChoiceField(choices=ORIENTATIONS, default=LANDSCAPE)
+    plot_track_between_waypoints = serializers.BooleanField(default=True)
+    include_meridians_and_parallels_lines = serializers.BooleanField(default=True)
+    scale = serializers.ChoiceField(choices=SCALES, default=SCALE_TO_FIT)
+    map_source = serializers.CharField()
+    include_openaip_overlay = serializers.BooleanField(default=False)
+    zoom_level = serializers.IntegerField(default=12)
+    dpi = serializers.IntegerField(min_value=100, max_value=300, default=150)
+    line_width = serializers.FloatField(min_value=0.1, max_value=10, default=0.5)
+    colour = serializers.CharField(max_length=7, default="#0000ff")
+
+    def validate(self, attrs):
+        navigation_task = self.context["navigation_task"]
+        request = self.context.get("request")
+        valid_keys = {
+            definition["key"]
+            for definition in get_available_map_source_definitions_for_navigation_task(
+                navigation_task,
+                getattr(request, "user", None),
+                uploaded_maps=navigation_task.get_available_user_maps(),
+            )
+        }
+        if attrs["map_source"] not in valid_keys:
+            raise ValidationError({"map_source": "Select a valid choice. That choice is not one of the available choices."})
+        try:
+            validate_map_zoom_level(attrs["map_source"], None, attrs["zoom_level"])
+        except CoreValidationError as exc:
+            raise ValidationError({"zoom_level": str(exc.message if hasattr(exc, "message") else exc)})
+        return attrs
+
+
+class BatchUpdateContestantsSerialiser(serializers.Serializer):
+    def update(self, instance, validated_data):
+        pass
+
+    def create(self, validated_data):
+        pass
+
+    contestant_ids = serializers.ListField(child=serializers.IntegerField(), write_only=True, required=True)
+    update_wind = serializers.BooleanField(write_only=True, required=False, default=False)
+    wind_speed = serializers.FloatField(write_only=True, required=False, min_value=0, max_value=40, allow_null=True)
+    wind_direction = serializers.FloatField(
+        write_only=True, required=False, min_value=0, max_value=360, allow_null=True
+    )
+    shift_times = serializers.BooleanField(write_only=True, required=False, default=False)
+    time_shift_minutes = serializers.FloatField(write_only=True, required=False, allow_null=True)
+
+
 class ContestantTrackWithTrackPointsSerialiser(serializers.ModelSerializer):
     """
     Used for output to the frontend
@@ -1641,6 +1845,13 @@ class ContestantSerialiser(serializers.ModelSerializer):
             self.fields.pop("overlap_warnings", None)
             self.fields.pop("overlapping_tasks", None)
 
+    # ModelSerializer only auto-exposes the model field name ("id"), not the .pk alias every
+    # frontend consumer of this payload (navigation-task-detail's ContestantRow and friends)
+    # actually reads - without this, contestant.pk is silently undefined everywhere in React,
+    # producing URLs like ".../flightordersprogress/?contestant_pk=undefined" and an edit-modal
+    # open(undefined) call that opens create mode instead.
+    pk = serializers.ReadOnlyField()
+
     class Meta:
         model = Contestant
         exclude = ("predefined_gate_times",)
@@ -1663,9 +1874,58 @@ class ContestantSerialiser(serializers.ModelSerializer):
     first_position_time = SerializerMethodField("get_first_position_time", read_only=True)
     last_position_time = SerializerMethodField("get_last_position_time", read_only=True)
     calculator_finished = serializers.SerializerMethodField()
+    declaration_status = serializers.SerializerMethodField()
+    has_locked_absolute_declaration = serializers.SerializerMethodField()
 
     def get_calculator_finished(self, obj) -> bool:
         return getattr(obj, "contestanttrack", None).calculator_finished if hasattr(obj, "contestanttrack") else False
+
+    def get_has_locked_absolute_declaration(self, contestant) -> bool:
+        """
+        Distinct from schedule_locked, which is also set for subtypes (e.g. known_circuit) whose
+        declaration doesn't necessarily contain any absolute time that could go stale - this is
+        specifically "does the takeoff/finish time edit guard actually apply right now," so the
+        frontend can show the warning/"Clear declaration" affordance only when it's meaningful.
+        """
+        return bool(contestant.get_declared_absolute_times())
+
+    def get_declaration_status(self, contestant) -> dict:
+        """
+        Lets the frontend highlight contestants missing a required declaration - e.g. a regular
+        ANR task never requires one, but turnpoint hunt/contract navigation/curve/precision
+        navigation (CIMA task types) do, and ContestantTaskCompilerStrategy.validate_declaration
+        is a no-op for every other subtype. Mirrors ContestantTaskCompiler._get_strategy's own
+        subtype dispatch so this list can't silently drift from what's actually validated.
+
+        Limited fuel turnpoint hunt is deliberately excluded even though it uses the same
+        TurnpointHuntStrategy as plain turnpoint hunt - its declaration is entirely optional (the
+        contestant may have fuel for fewer than the usual three compulsory points, or none), and
+        TurnpointHuntStrategy.validate_declaration never errors on an empty declaration for this
+        subtype (minimum_required=0), so "required" here would never be backed by real enforcement.
+        """
+        from display.utilities.cima_task_type_definitions import (
+            CONTRACT_NAVIGATION_TIME_CONTROLS,
+            CURVE_NAVIGATION_TIME_ESTIMATION,
+            PRECISION_NAVIGATION,
+            TURNPOINT_HUNT,
+        )
+
+        declaration_required_subtypes = {
+            CURVE_NAVIGATION_TIME_ESTIMATION,
+            PRECISION_NAVIGATION,
+            CONTRACT_NAVIGATION_TIME_CONTROLS,
+            TURNPOINT_HUNT,
+        }
+        required = contestant.navigation_task.task_subtype in declaration_required_subtypes
+        config = getattr(contestant, "contestanttaskconfiguration", None)
+        complete = bool(config and config.is_valid)
+        # Without this, a contestant who saved a declaration that's still invalid for a reason
+        # other than "nothing was entered" (e.g. the route itself doesn't fit this subtype's
+        # structural requirements) looked identical to one who never declared at all - same
+        # generic "Missing required declaration" tooltip either way, with no way to tell why a
+        # just-saved declaration didn't fix it.
+        errors = list(config.validation_errors or []) if config else []
+        return {"required": required, "complete": complete, "errors": errors}
 
     def get_first_position_time(self, contestant) -> Optional[datetime.datetime]:
         first = contestant.contestantreceivedposition_set.order_by("time").first()
@@ -1778,12 +2038,16 @@ class OngoingNavigationSerialiser(serializers.ModelSerializer):
 
     @extend_schema_field(ContestantTickerSerialiser(many=True))
     def get_active_contestants(self, navigation_task):
+        # Synchronize with the ongoing_navigation viewset action's own filtering - both must
+        # apply Contestant.is_currently_visible_on_live_map so a contestant can't appear as
+        # "active" in one place while the other still shows the raw, delay-unaware set.
         if hasattr(navigation_task, "prefetched_active_contestants"):
-            active_contestants = navigation_task.prefetched_active_contestants
+            candidates = navigation_task.prefetched_active_contestants
         else:
-            active_contestants = navigation_task.contestant_set.filter(
+            candidates = navigation_task.contestant_set.filter(
                 contestanttrack__calculator_started=True, contestanttrack__calculator_finished=False
-            )
+            ).select_related("contestanttrack", "navigation_task")
+        active_contestants = [c for c in candidates if c.is_currently_visible_on_live_map()]
         serialiser = ContestantTickerSerialiser(active_contestants, many=True, read_only=True)
         return serialiser.data
 
@@ -1916,9 +2180,43 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     score_sorting_direction = serializers.ReadOnlyField()
     user_has_change_permission = SerializerMethodField("get_user_has_change_permission")
     flown_contestants_count = serializers.SerializerMethodField()
+    guest_capacity_status = serializers.SerializerMethodField()
+    is_poker_run = serializers.BooleanField(read_only=True)
+    tracking_link = serializers.CharField(read_only=True)
 
     def get_flown_contestants_count(self, obj) -> int:
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
+
+    def get_guest_capacity_status(self, navigation_task) -> dict:
+        """
+        Mirrors the classic NavigationTaskDetailView's guest-pilot-capacity computation (shown as
+        a warning banner on navigationtask_detail.html, now NavigationTaskDetailPage.tsx) - how
+        many of this task's contestants are guest pilots (not the contest owner) relative to the
+        resolved access tier's contestant limit.
+        """
+        contest = navigation_task.contest
+        owner_person_id = None
+        if contest.created_by_id:
+            try:
+                owner_person_id = contest.created_by.person.id
+            except Exception:
+                owner_person_id = None
+        guest_created_contestants = navigation_task.contestant_set.exclude(
+            team__crew__member1_id=owner_person_id
+        ).count()
+        guest_started_slots = ContestUsageLedger.objects.filter(
+            contest=contest,
+            navigation_task=navigation_task,
+            kind=ContestUsageLedger.TASK_PILOT_STARTED,
+        ).count()
+        guest_capacity_limit = resolve_contest_access(contest).contestant_limit
+        return {
+            "guest_created_contestants": guest_created_contestants,
+            "guest_started_slots": guest_started_slots,
+            "guest_capacity_limit": guest_capacity_limit,
+            "guest_capacity_full": guest_capacity_limit is not None and guest_created_contestants >= guest_capacity_limit,
+            "show_guest_capacity_warning": guest_capacity_limit is not None,
+        }
 
     def get_task_catalogue_targets(self, obj) -> list[dict]:
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
@@ -2475,6 +2773,30 @@ Prohibited, penalty, information zones
 
     """
     )
+
+    def validate_route(self, value):
+        """
+        EditableRoute's internal representation (and every model method that reads it - see
+        get_track()/get_feature_type()/calculate_number_of_waypoints()) has required the GeoJSON
+        FeatureCollection shape since the 0120_auto_20251228_2126 data migration converted every
+        stored row to it. The route field's own help_text above was never updated to match, so a
+        client (Sentry PYTHON-DJANGO-1B: an external script) still submitting the legacy list
+        format it documents got an unhandled 500 deep in a post_save signal instead of either a
+        clean error or actually working - convert_legacy_json() (used by that same migration) can
+        turn it into the same GeoJSON shape, so accept it here rather than just rejecting it.
+        """
+        if isinstance(value, dict) and value.get("type") == "FeatureCollection" and isinstance(value.get("features"), list):
+            return value
+        if isinstance(value, list):
+            try:
+                return convert_legacy_json(value)
+            except (KeyError, TypeError, IndexError) as exc:
+                raise serializers.ValidationError(f"Could not convert legacy route format: {exc}") from exc
+        raise serializers.ValidationError(
+            "route must be a GeoJSON FeatureCollection ({'type': 'FeatureCollection', 'features': [...]}) "
+            "or a list of legacy route layer objects (see this field's description)."
+        )
+
     settings = serializers.JSONField()
     editors = serializers.SerializerMethodField("get_editors", read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)

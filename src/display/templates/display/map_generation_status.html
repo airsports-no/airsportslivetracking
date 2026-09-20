@@ -1,4 +1,5 @@
 {% extends "base_tailwind.html" %}
+{% load frontend_urls %}
 
 {% block content %}
 <div class="max-w-2xl mx-auto mt-10 p-6 bg-base-100 rounded-lg shadow">
@@ -21,7 +22,7 @@
     </div>
 
     <div class="mt-8 border-t pt-4">
-        <a href="{% url 'navigationtask_detail' navigation_task.pk %}" class="btn btn-ghost">Back to Navigation Task</a>
+        <a href="{% fe_url 'NAVIGATION_TASK_DETAIL' contestId=navigation_task.contest.pk navigationTaskId=navigation_task.pk %}" class="btn btn-ghost">Back to Navigation Task</a>
     </div>
 </div>
 

@@ -212,7 +212,7 @@ export const EditableRouteList = () => {
                         onCancel={() => setCreatingTaskForRouteId(null)}
                         onCreated={(contestId, navigationTaskId) => {
                             setCreatingTaskForRouteId(null);
-                            navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId, navigationTaskId }));
+                            navigate(generatePath('NAVIGATION_TASK_DETAIL', { contestId, navigationTaskId }));
                         }}
                     />
                 </div>

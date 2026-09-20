@@ -1,0 +1,13 @@
+/* vis-timeline's own .vis-tooltip rule (vis-timeline/styles/vis-timeline-graph2d.css) sets
+   white-space: nowrap, which collapses every \n in the item's `title` into a single space and
+   forces the whole thing onto one (potentially very wide) line. pre-line keeps that same
+   collapsing/trimming behavior for runs of spaces while still honoring explicit newlines as line
+   breaks.
+   !important because both rules share the exact same div.vis-tooltip selector (equal
+   specificity) - Vite splits this file and the library's own stylesheet into separate CSS
+   chunks, and a same-specificity tie between two different chunks depends on the actual
+   <link> order the bundler emits, which isn't something to rely on when the library's rule
+   winning silently undoes this fix instead of erroring. */
+div.vis-tooltip {
+    white-space: pre-line !important;
+}

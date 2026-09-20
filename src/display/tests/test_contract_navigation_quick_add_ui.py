@@ -7,7 +7,6 @@ from guardian.shortcuts import assign_perm
 from unittest.mock import patch
 
 from display.default_scorecards.create_scorecards import create_scorecards
-from display.forms import ContestantQuickAddForm
 from display.models import (
     Aeroplane,
     Contest,
@@ -77,19 +76,15 @@ class TestContractNavigationQuickAddUI(TestCase):
             aeroplane=Aeroplane.objects.create(registration="LN-QDECL"),
         )
         self.contest_team = ContestTeam.objects.create(contest=self.contest, team=team, air_speed=70)
-        self.quick_add_url = reverse("contestant_quick_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
-
-    def test_quick_add_view_does_not_render_contract_declaration_controls(self):
-        self.client.force_login(self.user)
-        response = self.client.get(self.quick_add_url)
-        self.assertEqual(200, response.status_code)
-        self.assertNotContains(response, 'id="id_declared_before_mp_1"')
-        self.assertNotContains(response, 'id="id_declared_after_mp_1"')
-        self.assertNotContains(response, 'id="add-before-mp-slot"')
-        self.assertNotContains(response, 'id="remove-before-mp-slot"')
-        self.assertNotContains(response, 'id="add-after-mp-slot"')
-        self.assertNotContains(response, 'id="remove-after-mp-slot"')
-        self.assertNotContains(response, "Task-specific declaration")
+        # ContestantQuickAddView/contestant_quick_create (classic) was retired in favour of the
+        # REST navigationtasks-quick-add-contestant action - see the
+        # navigation_task_detail_spa_migration project memory. Its starting_point_time default
+        # (max(task.start_time, now+1h), computed in ContestantQuickAddForm.__init__) was a
+        # classic-form-only UI nicety with no REST equivalent - callers must supply an explicit
+        # starting_point_time, same as any other REST action.
+        self.quick_add_url = reverse(
+            "navigationtasks-quick-add-contestant", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk}
+        )
 
     def test_quick_add_persists_empty_contract_declaration(self):
         self.client.force_login(self.user)
@@ -101,30 +96,9 @@ class TestContractNavigationQuickAddUI(TestCase):
                 "adaptive_start": False,
             },
         )
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(201, response.status_code, response.content)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
-
-    def test_quick_add_defaults_starting_point_time_to_navigation_task_start(self):
-        fake_now = datetime.datetime(2026, 7, 31, 10, 30, tzinfo=self.contest.time_zone)
-        local_start = self.navigation_start.astimezone(self.contest.time_zone)
-        with patch("display.forms.timezone.localtime", side_effect=[local_start, fake_now]):
-            form = ContestantQuickAddForm(navigation_task=self.navigation_task)
-        initial = form.fields["starting_point_time"].initial
-        self.assertEqual(initial.isoformat(), local_start.isoformat())
-
-    def test_quick_add_defaults_to_now_plus_one_hour_when_task_started_in_past(self):
-        past_start = datetime.datetime(2026, 8, 1, 8, 0, tzinfo=datetime.timezone.utc)
-        self.navigation_task.start_time = past_start
-        self.navigation_task.finish_time = past_start + datetime.timedelta(hours=1)
-        self.navigation_task.save(update_fields=["start_time", "finish_time"])
-
-        fake_now = datetime.datetime(2026, 8, 1, 10, 30, tzinfo=self.contest.time_zone)
-        with patch("display.forms.timezone.localtime", side_effect=[past_start.astimezone(self.contest.time_zone), fake_now]):
-            form = ContestantQuickAddForm(navigation_task=self.navigation_task)
-
-        initial = form.fields["starting_point_time"].initial
-        self.assertEqual(initial.isoformat(), (fake_now + datetime.timedelta(hours=1)).isoformat())
 
     def test_quick_add_uses_finish_time_within_24_hour_tracker_limit_when_route_has_no_gate_times(self):
         self.navigation_task.start_time = datetime.datetime(2026, 8, 8, 18, 34, tzinfo=datetime.timezone.utc)
@@ -143,7 +117,7 @@ class TestContractNavigationQuickAddUI(TestCase):
             },
         )
 
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(201, response.status_code, response.content)
         contestant = self.navigation_task.contestant_set.get(team=self.contest_team.team)
         self.assertLessEqual(contestant.finished_by_time - contestant.tracker_start_time, datetime.timedelta(hours=24))
         self.assertEqual(contestant.finished_by_time, contestant.landing_time + datetime.timedelta(minutes=5))

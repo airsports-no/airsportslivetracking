@@ -7,7 +7,7 @@ import ContestantTimetable from './ContestantTimetable';
 import { Loading } from '../route-editor/components/basicComponents';
 import { useToast } from '../competition-map/hooks/useToast';
 import './print.css';
-import { reverse } from '../../urls';
+import { generatePath } from '../../urls';
 
 const ContestantScheduling = () => {
     const { contestId, navigationTaskId } = useParams();
@@ -111,11 +111,11 @@ const ContestantScheduling = () => {
         }
     };
 
-    const handleContestantUpdate = async (contestantId: number, updates: any) => {
+    const handleContestantUpdate = async (contestantId: number, updates: any): Promise<boolean> => {
         try {
             if (contestId && navigationTaskId) {
                 const updatedContestant = await updateContestant(Number(contestId), Number(navigationTaskId), contestantId, updates);
-                
+
                 if (updatedContestant.overlap_warnings && updatedContestant.overlap_warnings.length > 0) {
                     updatedContestant.overlap_warnings.forEach((msg: string) => showToast(msg, 'warning'));
                 }
@@ -125,8 +125,8 @@ const ContestantScheduling = () => {
                     const newContestantSet = prev.contestant_set.map((c: any) => {
                         if (c.id === updatedContestant.id) {
                             // Preserve the nested team object if the response only returns an ID
-                            const team = (typeof updatedContestant.team === 'object' && updatedContestant.team !== null) 
-                                ? updatedContestant.team 
+                            const team = (typeof updatedContestant.team === 'object' && updatedContestant.team !== null)
+                                ? updatedContestant.team
                                 : c.team;
                             return { ...updatedContestant, team };
                         }
@@ -135,6 +135,7 @@ const ContestantScheduling = () => {
                     return { ...prev, contestant_set: newContestantSet };
                 });
             }
+            return true;
         } catch (error: any) {
             showToast(error.message, 'error');
             // Revert to server data for this contestant only
@@ -146,8 +147,8 @@ const ContestantScheduling = () => {
                         const newContestantSet = prev.contestant_set.map((c: any) => {
                             if (c.id === serverContestant.id) {
                                 // Preserve the nested team object if the response only returns an ID
-                                const team = (typeof serverContestant.team === 'object' && serverContestant.team !== null) 
-                                    ? serverContestant.team 
+                                const team = (typeof serverContestant.team === 'object' && serverContestant.team !== null)
+                                    ? serverContestant.team
                                     : c.team;
                                 return { ...serverContestant, team };
                             }
@@ -160,6 +161,7 @@ const ContestantScheduling = () => {
                     loadData(true); // Fallback to full reload if single fetch fails
                 }
             }
+            return false;
         }
     }
 
@@ -218,9 +220,9 @@ const ContestantScheduling = () => {
                         </svg>
                         Print Schedule
                     </button>
-                    <a href={reverse('navigationtask_detail', navigationTaskId )} className="btn btn-secondary btn-sm">
+                    <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-secondary btn-sm">
                         Back to navigation task
-                    </a>
+                    </Link>
                 </div>
             </div>
 
@@ -239,7 +241,7 @@ const ContestantScheduling = () => {
                             </div>
                             {!isInfoCollapsed && (
                                 <ul className="list-disc list-inside space-y-1 mt-2">
-                                    <li>The scheduler manages all flights ending after the <strong>First Takeoff Time</strong>. Flights before this time are untouched.</li>
+                                    <li>The scheduler manages all flights ending after <strong>Reschedule From</strong>. Flights before this time are untouched.</li>
                                     <li><strong>Locked Flights (🔒 / 📡):</strong> 
                                         <ul className="list-disc list-inside ml-4 mt-1">
                                             <li><strong>Manual Lock (🔒):</strong> Double-click a flight in the timeline to lock/unlock. These are never moved or deleted by the scheduler.</li>
@@ -248,11 +250,11 @@ const ContestantScheduling = () => {
                                     </li>
                                     <li><strong>Unlocked Flights:</strong> Flights in the scheduling window will be overwritten. If a team is not selected, their unlocked future flight will be removed.</li>
                                     <li><strong>Manual Adjustment:</strong> After the automatic scheduling process, you can click and drag a contestant along the timeline to change its scheduling manually.</li>
-                                    <li><strong>Initial Scheduling:</strong> Determine the first takeoff time, select all teams that will be flying, and press "Run Scheduler". This will populate all contestants.</li>
+                                    <li><strong>Initial Scheduling:</strong> Set <strong>Takeoff Time</strong>, select all teams that will be flying, and press "Run Scheduler". This will populate all contestants.</li>
                                     <li><strong>Updates During Competition:</strong> If changes are needed (e.g. delays or roster changes):
                                         <ul className="list-disc list-inside ml-4 mt-1">
                                             <li>Lock all contestants that have already flown or whose time should not change.</li>
-                                            <li>Update the <strong>Next Takeoff Time</strong> to the desired time for the first <em>new</em> flight to be scheduled.</li>
+                                            <li>Update <strong>Takeoff Time</strong> to the desired time for the first <em>new</em> flight to be scheduled.</li>
                                             <li>Select/deselect any teams as required for the remaining flights.</li>
                                             <li>Run scheduler again.</li>
                                         </ul>

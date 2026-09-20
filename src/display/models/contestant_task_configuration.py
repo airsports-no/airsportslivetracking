@@ -26,6 +26,23 @@ class ContestantTaskConfiguration(models.Model):
             self.is_locked = True
             self.save(update_fields=["is_locked", "updated_at"])
 
+    def clear_declaration(self) -> None:
+        self.declaration_payload = {}
+        self.compiled_effective_route_payload = {}
+        self.compiled_gate_times_payload = {}
+        self.validation_errors = []
+        self.is_valid = False
+        self.save(
+            update_fields=[
+                "declaration_payload",
+                "compiled_effective_route_payload",
+                "compiled_gate_times_payload",
+                "validation_errors",
+                "is_valid",
+                "updated_at",
+            ]
+        )
+
     def clear_compiled_state(self) -> None:
         self.compiled_effective_route_payload = {}
         self.compiled_gate_times_payload = {}

@@ -6,7 +6,7 @@ import PublicityIcon from './PublicityIcon';
 import { NavigationTask, Route } from '../types';
 import TaskStatistics from './TaskStatistics';
 import { formatDateInterval } from '../../../utils';
-import { reverse } from '../../../urls';
+import { reverse, generatePath } from '../../../urls';
 
 interface TaskCardProps {
     name: string;
@@ -54,13 +54,13 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                     {canManage ? (
                         // Manager-only edit affordance - the pencil + accent color mark this as a
                         // management action, distinct from the contestant-facing controls below.
-                        <a
-                            href={reverse('navigationtask_detail', taskId)}
+                        <Link
+                            to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: String(contestId), navigationTaskId: String(taskId) })}
                             className="flex-1 link link-hover text-accent inline-flex items-center gap-1"
                         >
                             <Pencil size={14} className="shrink-0" />
                             {name}
-                        </a>
+                        </Link>
                     ) : (
                         <span className="flex-1">{name}</span>
                     )}

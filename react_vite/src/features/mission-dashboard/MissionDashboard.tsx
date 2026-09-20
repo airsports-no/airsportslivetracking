@@ -271,12 +271,18 @@ const MissionDashboard = () => {
     }, [fetchContestsFromStore, fetchOngoingNavigationFromStore, fetchMyFutureFlightsFromStore, fetchMyContestTeamsFromStore, fetchMyEditorContestsFromStore, fetchMyPreviousFlightsFromStore]);
 
     const handleSliderChange = (newRange: [number, number]) => {
+        // Only local state here - this fires on every drag tick (once per touchmove pixel on a
+        // touchscreen), and updateURL()'s navigate({replace: true}) call hits the browser's
+        // history.replaceState rate limit (100/10s) well before a drag finishes, throwing a
+        // SecurityError (Sentry JAVASCRIPT-REACT-E). The page/URL reset only needs to happen once,
+        // when the drag actually commits - see handleSliderAfterChange below.
         setDateRange(newRange);
-        setCurrentPage(1);
-        updateURL({ page: 1 });
     };
 
     const handleSliderAfterChange = async (newRange: [number, number]) => {
+        setCurrentPage(1);
+        updateURL({ page: 1 });
+
         const newStartDate = new Date(newRange[0]);
         if (oldestContestDate && newStartDate < oldestContestDate) {
             setLoadingMore(true);
@@ -297,7 +303,10 @@ const MissionDashboard = () => {
 			
     useEffect(() => {
         const interval = setInterval(() => {
-            fetchOngoingNavigationFromStore(true);
+            // Fire-and-forget background refresh - a transient failure (e.g. mobile Safari
+            // losing connectivity while backgrounded) shouldn't surface as an unhandled promise
+            // rejection (Sentry JAVASCRIPT-REACT-B); the next interval tick retries anyway.
+            fetchOngoingNavigationFromStore(true).catch(() => {});
         }, 2 * 60 * 1000);
 
         return () => clearInterval(interval);
@@ -455,11 +464,13 @@ const MissionDashboard = () => {
                 </div>
             </div>
 
-            {/* Live Now Section */}
+            {/* Live Now Section - sticky like the page header, so it stays visible while
+                scrolling the rest of the dashboard. Capped height (with its own scrollbar) so a
+                lot of simultaneously-live tasks can't grow tall enough to dominate the viewport. */}
             {ongoingNavigations.length > 0 && (
-                <div className="mb-8">
-                    <h2 className="text-2xl font-bold mb-4 text-error">🔴 Live Now</h2>
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                <div className="sticky top-0 z-20 bg-base-100 pb-4 mb-8 shadow-sm">
+                    <h2 className="text-2xl font-bold pt-2 pb-4 text-error">🔴 Live Now</h2>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4 max-h-[50vh] overflow-y-auto">
                         {ongoingNavigations.map(live => (
                             <div key={live.pk} className="card bg-base-200 shadow-xl">
                                 <div className="card-body">

@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState, useRef } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useParams } from 'react-router-dom';
 import L from 'leaflet';
 import useMapInit from '../route-editor/components/map/useMapInit';
 import RouteRenderer from './components/track-renderers/RouteRenderer';
@@ -8,7 +8,7 @@ import { fetchNavigationTask, uploadPhotoFile, revertPhotoToSatellite, fetchPhot
 import { NavigationTask, Photo } from './types';
 import { Loading } from '../route-editor/components/basicComponents';
 import { RotateCcw, Upload, ChevronLeft, MapPin, Plus, Trash2, X } from 'lucide-react';
-import { reverse } from '../../urls';
+import { generatePath } from '../../urls';
 
 export default function PhotoManagementPage() {
     const { contestId, navigationTaskId } = useParams();
@@ -24,6 +24,16 @@ export default function PhotoManagementPage() {
     const [decoySaving, setDecoySaving] = useState(false);
     const [decoyError, setDecoyError] = useState<string | null>(null);
     const mapRef = useMapInit();
+    // useMapInit's ref is populated inside its own effect, after this component's initial
+    // render - reading mapRef.current directly in JSX (as ProhibitedRenderer/RouteRenderer's
+    // map prop used to) is a React rules-of-hooks violation (refs aren't meant to drive render
+    // output) and, worse, means those renderers never re-render when the map instance actually
+    // becomes available, since mutating a ref doesn't trigger one. Mirroring it into state here -
+    // set from an effect, not read during render - fixes both.
+    const [mapInstance, setMapInstance] = useState<L.Map | null>(null);
+    useEffect(() => {
+        setMapInstance(mapRef.current);
+    }, [mapRef]);
     const tileLayerRef = useRef<L.TileLayer | null>(null);
     const photoMarkersRef = useRef<Record<number, L.Marker>>({});
     const isUnknownLegsTask = navTask?.task_subtype === 'unknown_legs';
@@ -186,10 +196,10 @@ export default function PhotoManagementPage() {
         <div className="flex flex-col h-full overflow-hidden">
             <div className="bg-base-100 border-b border-base-300 p-4 flex justify-between items-center shadow-sm z-10">
                 <div className="flex items-center gap-4">
-                    <a href={reverse('navigationtask_detail', navigationTaskId!)} className="btn btn-ghost btn-sm">
+                    <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-ghost btn-sm">
                         <ChevronLeft size={16} />
                         Back to Task
-                    </a>
+                    </Link>
                     <h1 className="text-xl font-bold">Photo Management: {navTask?.name || 'Loading...'}</h1>
                 </div>
                 <div className="flex gap-2 text-xs opacity-70">
@@ -434,11 +444,11 @@ export default function PhotoManagementPage() {
                 {/* Map */}
                 <div className="flex-1 relative">
                     <div id="map-container" className="h-full w-full" />
-                    {navTask && (
+                    {navTask && mapInstance && (
                         <>
-                            <ProhibitedRenderer map={mapRef.current} navTask={navTask} />
+                            <ProhibitedRenderer map={mapInstance} navTask={navTask} />
                             <RouteRenderer
-                                map={mapRef.current}
+                                map={mapInstance}
                                 route={navTask.route}
                                 taskCatalogueTargets={navTask.task_catalogue_targets ?? []}
                                 scorecard={navTask.scorecard}

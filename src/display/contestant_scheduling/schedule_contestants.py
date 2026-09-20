@@ -9,34 +9,24 @@ from django.db.models import Q
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.contestant_scheduling.contestant_scheduler import TeamDefinition, Solver
 from display.models import NavigationTask, ContestTeam, Contestant
-from display.services.task_compiler import TaskCompiler
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.utilities.navigation_task_type_definitions import LANDING
 
 logger = logging.getLogger(__name__)
 
-# Scheduler-created contract-navigation contestants are seeded with a conservative
-# placeholder declaration so downstream compilation has an explicit T contract.
-# Organizers are expected to review/edit the declaration in the dedicated editor
-# before using the contestant for real competition operations.
-DEFAULT_CONTRACT_NAVIGATION_T_SECONDS = 600
 
 def _build_default_declaration_payload(navigation_task: NavigationTask) -> dict:
-    if not navigation_task.requires_contestant_task_configuration():
-        return {}
-    compiled_task = TaskCompiler(navigation_task).compile()
-    if compiled_task.compiled_payload.get("validation_errors"):
-        return {}
-    primitives = compiled_task.get_compiled_primitives()
-    if navigation_task.task_subtype == "contract_navigation_time_controls":
-        catalogue_turnpoints = [name for name in primitives.get("catalogue_turnpoint", []) if name not in ("MP", "FP")]
-        if not catalogue_turnpoints:
-            return {}
-        declared_sequence = [catalogue_turnpoints[0], "MP"]
-        if len(catalogue_turnpoints) > 1:
-            declared_sequence.append(catalogue_turnpoints[1])
-        declared_sequence.append("FP")
-        return {"declared_sequence": declared_sequence, "declared_t_seconds": DEFAULT_CONTRACT_NAVIGATION_T_SECONDS}
+    """
+    Scheduler-created contestants requiring a contract-navigation declaration start genuinely
+    undeclared. This previously synthesized a placeholder using only the first two available
+    catalogue turnpoints - which silently looked like a real, valid declaration (hiding the
+    missing-declaration warning) even though no pilot or organizer had ever reviewed it, and per
+    the CIMA 2.A3 rules a pilot's choice of which catalogue turnpoints to declare isn't something
+    a sensible default can stand in for anyway. Kept as its own function (rather than inlining {}
+    at each call site) so the callers below stay declarative about what they're seeding, and so
+    existing tests can still mock it independent of schedule_and_create_contestants' other
+    behavior.
+    """
     return {}
 
 
@@ -265,9 +255,24 @@ def schedule_and_create_contestants_navigation_tasks(
         gate_times = calculate_and_get_relative_gate_times(
             navigation_task.route, speed, navigation_task.wind_speed, navigation_task.wind_direction
         )
+        if gate_times:
+            flight_duration = gate_times[-1][1]
+        else:
+            # No route backbone (2.A6 Turnpoint hunt/2.B2 Limited fuel turnpoint hunt explicitly
+            # forbid one - see cima_task_type_definitions.py - so route.waypoints is empty and
+            # there's no route_waypoint chain to compute a flight duration from). Fall back to
+            # the scorecard's configured maximum task duration instead: the contestant is
+            # allotted this much time to hunt turnpoints, not a fixed route to fly.
+            maximum_task_duration_minutes = navigation_task.scorecard.maximum_task_duration_minutes
+            if maximum_task_duration_minutes is None:
+                raise ValueError(
+                    "This task has no route backbone to compute a flight duration from. Set "
+                    "'Maximum task duration' on the scorecard before scheduling contestants."
+                )
+            flight_duration = datetime.timedelta(minutes=maximum_task_duration_minutes)
         duration = (
             datetime.timedelta(minutes=navigation_task.minutes_to_starting_point + navigation_task.minutes_to_landing)
-            + gate_times[-1][1]
+            + flight_duration
         )
 
         frozen = False
@@ -324,7 +329,23 @@ def schedule_and_create_contestants_navigation_tasks(
         # Sort results by start time for numbering
         solved_teams.sort(key=lambda t: t.start_time)
 
-        new_contestants_created = 0
+        # Temporary numbers below (overwritten by the real renumbering pass further down) used
+        # to just count up from 10001 - if a locked/frozen contestant on this task already held
+        # a number in that range (from history, or a manual edit), the very first new contestant
+        # collided with it and raised IntegrityError on the (navigation_task, contestant_number)
+        # unique constraint (Sentry PYTHON-DJANGO-17), deterministically on every retry. Mirrors
+        # the used_numbers approach schedule_and_create_contestants_landing_task already uses.
+        used_numbers = set(navigation_task.contestant_set.values_list("contestant_number", flat=True))
+        next_temp_number = 10001
+
+        def _next_free_temp_number() -> int:
+            nonlocal next_temp_number
+            while next_temp_number in used_numbers:
+                next_temp_number += 1
+            number = next_temp_number
+            used_numbers.add(number)
+            next_temp_number += 1
+            return number
 
         for team_def in solved_teams:
             contest_team = ContestTeam.objects.get(pk=team_def.pk)
@@ -373,9 +394,7 @@ def schedule_and_create_contestants_navigation_tasks(
                         contestant.tracker_device_id = contest_team.tracker_device_id
                         contestant.tracking_device = contest_team.tracking_device
                         contestant.tracker_start_time = tracking_start_time
-                        contestant.contestant_number = (
-                            10000 + new_contestants_created + 1
-                        )  # Temporary large numbercontestant
+                        contestant.contestant_number = _next_free_temp_number()  # Temporary large number
                         contestant.save()
                         ContestantTaskCompiler(contestant).compile(
                             declaration_payload=_build_default_declaration_payload(navigation_task),
@@ -401,14 +420,13 @@ def schedule_and_create_contestants_navigation_tasks(
                         tracker_device_id=contest_team.tracker_device_id,
                         tracking_device=contest_team.tracking_device,
                         tracker_start_time=tracking_start_time,
-                        contestant_number=10000 + new_contestants_created + 1,  # Temporary large number
+                        contestant_number=_next_free_temp_number(),  # Temporary large number
                     )
                     ContestantTaskCompiler(contestant).compile(
                         declaration_payload=_build_default_declaration_payload(navigation_task),
                         force=True,
                     )
                     optimisation_messages.extend(contestant.get_overlap_warnings())
-                new_contestants_created += 1
 
         # Delete any remaining mutable contestants that were not reused (i.e. team was deselected or schedule reduced)
         for unused_contestant in mutable_contestants:

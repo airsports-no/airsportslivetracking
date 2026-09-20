@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import json
 import logging
+import math
 from collections import OrderedDict
 from urllib import parse
 
@@ -12,30 +13,36 @@ import redis
 import rest_framework.exceptions as drf_exceptions
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
+from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.serializers.json import DjangoJSONEncoder
 from django.db import transaction
-from django.db.models import Count, Prefetch, Q
+from django.db.models import Count, Max, Prefetch, Q
 from django.http import Http404, HttpResponse, StreamingHttpResponse
+from django.urls import reverse
 from django.utils import timezone
 from django.utils.cache import add_never_cache_headers, patch_response_headers
 from django_filters.rest_framework import DjangoFilterBackend
 from drf_spectacular.types import OpenApiTypes
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view, inline_serializer
 from guardian.models import UserObjectPermission
-from guardian.shortcuts import get_objects_for_user
+from guardian.shortcuts import get_objects_for_user, get_user_perms
 from rest_framework import permissions, serializers, status
 from rest_framework.decorators import action
 from rest_framework.exceptions import ValidationError
 from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import CursorPagination
 from rest_framework.response import Response
-from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet
+from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelViewSet, ViewSet
 
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.filters import ContestFilter, NavigationTaskFilter
+from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
+from display.flight_order_and_maps.map_plotter import build_effective_route_distance
+from display.flight_order_and_maps.map_constants import LANDSCAPE
 from display.flight_order_and_maps.map_plotter_shared_utilities import (
+    get_available_map_source_definitions_for_navigation_task,
     get_builtin_map_source_definitions,
     map_source_definition_to_payload,
     source_definition_from_user_uploaded_map,
@@ -56,8 +63,10 @@ from display.models import (
     NewsletterSubscriber,
     Person,
     Photo,
+    PlayingCard,
     Route,
     Scorecard,
+    ScoreLogEntry,
     Task,
     TaskSummary,
     TaskTest,
@@ -65,7 +74,9 @@ from display.models import (
     TeamTestScore,
     UserUploadedMap,
 )
+from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.permissions import (
+    ContestantDestroyPermissions,
     ContestantNavigationTaskContestPermissions,
     ContestantPublicPermissions,
     ContestModificationPermissions,
@@ -74,6 +85,7 @@ from display.permissions import (
     ContestPublicPermissions,
     ContestTeamContestPermissions,
     EditableRoutePermission,
+    IsSuperUser,
     NavigationTaskContestPermissions,
     NavigationTaskPublicPermissions,
     NavigationTaskPublicPutDeletePermissions,
@@ -90,6 +102,9 @@ from display.permissions import (
 from display.serialisers import (
     AdminTeamRegistrationSerialiser,
     AeroplaneSerialiser,
+    ApplyQuarantinePenaltySerialiser,
+    AssignPlayingCardSerialiser,
+    BatchUpdateContestantsSerialiser,
     ClubManagerMembershipCreateSerializer,
     ClubManagerMembershipSerializer,
     ClubSerialiser,
@@ -110,10 +125,13 @@ from display.serialisers import (
     EditableRouteSerialiser,
     ExternalNavigationTaskNestedTeamSerialiser,
     ExternalNavigationTaskTeamIdSerialiser,
+    FlightOrderConfigurationSerialiser,
     FutureContestantNestedTeamSerialiser,
     GateCumulativeScoreSerialiser,
+    GenerateNavigationTaskMapSerialiser,
     GpxTrackSerialiser,
     HighlightedContestSerialiser,
+    NavigationTaskDetailsUpdateSerialiser,
     NavigationTaskEditableRoutReferenceSerialiser,
     NavigationTaskNestedTeamRouteSerialiser,
     NavigationTaskNestedTeamRouteSerialiserNestedContest,
@@ -125,6 +143,8 @@ from display.serialisers import (
     PhotoSerialiser,
     PlayingCardSerialiser,
     PositionSerialiser,
+    QuickAddContestantSerialiser,
+    RecalculateWithStartTimeSerialiser,
     RouteSerialiser,
     ScorecardNestedSerialiser,
     ScoreLogEntrySerialiser,
@@ -140,6 +160,20 @@ from display.serialisers import (
     TrackAnnotationSerialiser,
 )
 from display.services.access_resolver import resolve_contest_access
+from display.services.admin_flight_stats import BIN_GRANULARITIES, build_admin_flight_stats
+from display.services.admin_system_stats import (
+    ACTIVITY_BIN_GRANULARITIES,
+    get_activity_over_time,
+    get_country_stats,
+    get_overview_stats,
+    get_retention_stats,
+    get_task_type_popularity,
+)
+from display.services.admin_upcoming_contestants import get_upcoming_contestants
+from display.services.administrative_penalties import (
+    ADMINISTRATIVE_PENALTY_CATEGORIES,
+    AdministrativePenaltyService,
+)
 from display.services.capacity_enforcement import (
     _assert_can_reserve_task_slot,
     assert_can_register_team,
@@ -165,12 +199,18 @@ from display.services.token_assignment import assign_token_to_contest, replace_t
 from display.tasks import (
     generate_and_maybe_notify_flight_order,
     generate_editable_route_thumbnail,
+    generate_map_async,
     import_gpx_track,
+    recalculate_existing_positions,
+    recalculate_live_data_for_contestant,
 )
+from display.utilities.calculator_running_utilities import is_calculator_running, is_dispatch_pending
+from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map import settings
+from playback_tools.playback import validate_gpx_file
 from websocket_channels import WebsocketFacade, generate_contestant_data_block
 
 logger = logging.getLogger(__name__)
@@ -629,6 +669,29 @@ def get_contest_list_version():
         return int(timezone.now().timestamp())
 
 
+def _parse_points_from_request(request):
+    """
+    Coerce request.data["points"] to a float - every points field it ends up in
+    (ContestSummary/TaskSummary/TeamTestScore) is a FloatField, not an int, so scores with a
+    fractional part are legitimate. Raises a DRF ValidationError (-> 400) on anything that isn't
+    a valid number, rather than letting it crash into an unhandled 500: the results table used to
+    seed an ungraded cell's editable value with the literal string "-" (not an empty value with a
+    placeholder), so merely clicking into and back out of it - no typing at all - sent "-" as the
+    edit. Kept as a general guard (not just for that one case) since EditableCell.tsx's own fix
+    for it is a UX improvement on the frontend, not a substitute for backend validation.
+    """
+    try:
+        points = float(request.data["points"])
+    except (TypeError, ValueError, KeyError):
+        raise drf_exceptions.ValidationError({"points": "Points must be a number."})
+    if not math.isfinite(points):
+        # float() itself accepts "inf"/"-inf"/"nan" (case-insensitively) as valid input - reject
+        # them explicitly, since a stored NaN/Infinity corrupts score sums/rankings and produces
+        # invalid (non-JSON) literals when re-serialized to API consumers.
+        raise drf_exceptions.ValidationError({"points": "Points must be a finite number."})
+    return points
+
+
 class ContestPagination(MyCursorPagination):
     page_size = 50
     ordering = ["-start_time", "-finish_time", "id"]
@@ -691,7 +754,9 @@ class ContestViewSet(ModelViewSet):
         # Cache-Control, even with public_only=true - otherwise one user's personalized response
         # (including their own token inventory) gets cached and served to every other caller.
         is_anonymous_public_request = public_only and not request.user.is_authenticated
-        user_id = "global" if is_anonymous_public_request else (request.user.id if request.user.is_authenticated else "anon")
+        user_id = (
+            "global" if is_anonymous_public_request else (request.user.id if request.user.is_authenticated else "anon")
+        )
         params = request.query_params.dict()
         sorted_params = json.dumps(params, sort_keys=True)
         params_hash = hashlib.md5(sorted_params.encode("utf-8")).hexdigest()
@@ -828,7 +893,14 @@ class ContestViewSet(ModelViewSet):
         # if request.META.get("HTTP_IF_NONE_MATCH") == etag:
         #     return Response(status=status.HTTP_304_NOT_MODIFIED)
 
-        # Synchronize with OngoingNavigationSerialiser definition of 'active'
+        # This DB-level filter is a cheap, deliberately loose narrowing pass (calculator
+        # started, not finished, not yet past nominal finish time) - it does not account for
+        # calculation_delay_minutes, since that requires adding a duration derived from a
+        # FloatField to a datetime, which isn't portable SQL. The stricter "is this contestant's
+        # delayed position data actually visible on the map yet" check
+        # (Contestant.is_currently_visible_on_live_map) is applied in Python below, on this
+        # already-small candidate set. Synchronize with OngoingNavigationSerialiser's own
+        # get_active_contestants, which applies the same method.
         navigation_tasks = (
             NavigationTask.get_visible_navigation_tasks(self.request.user)
             .filter(
@@ -846,13 +918,26 @@ class ContestViewSet(ModelViewSet):
                 finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
                 contestanttrack__calculator_started=True,
                 contestanttrack__calculator_finished=False,
-            ).select_related("team__crew__member1", "team__aeroplane", "contestanttrack"),
+            ).select_related("team__crew__member1", "team__aeroplane", "contestanttrack", "navigation_task"),
             to_attr="prefetched_active_contestants",
         )
 
         navigation_tasks = navigation_tasks.prefetch_related("contest", active_contestants_prefetch)
 
-        data = self.get_serializer_class()(navigation_tasks, many=True, context={"request": self.request}).data
+        # A task whose contestants are all still within their calculation_delay_minutes window
+        # has nothing visibly live yet - drop it entirely rather than showing a "live" task with
+        # zero active contestants.
+        visibly_live_tasks = []
+        for task in navigation_tasks:
+            task.prefetched_active_contestants = [
+                contestant
+                for contestant in task.prefetched_active_contestants
+                if contestant.is_currently_visible_on_live_map()
+            ]
+            if task.prefetched_active_contestants:
+                visibly_live_tasks.append(task)
+
+        data = self.get_serializer_class()(visibly_live_tasks, many=True, context={"request": self.request}).data
         response = Response(data)
         # This is a public-facing list of live tasks. No ETag available.
         # s-maxage=120: CDN shields origin by caching for 2 minutes.
@@ -1118,13 +1203,14 @@ class ContestViewSet(ModelViewSet):
         """
         # I think this is required for the permissions to work
         contest = self.get_object()
+        points = _parse_points_from_request(request)
         summary, created = ContestSummary.objects.get_or_create(
             team_id=request.data["team"],
             contest=contest,
-            defaults={"points": request.data["points"]},
+            defaults={"points": points},
         )
         if not created:
-            summary.points = request.data["points"]
+            summary.points = points
             summary.save()
 
         return Response(status=status.HTTP_200_OK)
@@ -1145,13 +1231,14 @@ class ContestViewSet(ModelViewSet):
         # itself instead, so a task id from another contest 404s rather than
         # letting an organiser overwrite another contest's published results.
         task = get_object_or_404(Task, pk=request.data["task"], contest=contest)
+        points = _parse_points_from_request(request)
         summary, created = TaskSummary.objects.get_or_create(
             team_id=request.data["team"],
             task=task,
-            defaults={"points": request.data["points"]},
+            defaults={"points": points},
         )
         if not created:
-            summary.points = request.data["points"]
+            summary.points = points
             summary.save()
         return Response(status=status.HTTP_200_OK)
 
@@ -1169,13 +1256,14 @@ class ContestViewSet(ModelViewSet):
         # Same cross-contest scoping as update_task_summary above - TaskTest
         # only reaches the authorised contest via task__contest.
         task_test = get_object_or_404(TaskTest, pk=int(request.data["task_test"]), task__contest=contest)
+        points = _parse_points_from_request(request)
         results, created = TeamTestScore.objects.get_or_create(
             team_id=int(request.data["team"]),
             task_test=task_test,
-            defaults={"points": int(request.data["points"])},
+            defaults={"points": points},
         )
         if not created:
-            results.points = request.data["points"]
+            results.points = points
             results.save()
         return Response(status=status.HTTP_200_OK)
 
@@ -1474,6 +1562,114 @@ class GetScorecardsViewSet(ReadOnlyModelViewSet):
         )
 
 
+class AdminFlightStatsViewSet(ViewSet):
+    """
+    Platform-wide (cross-contest) operational view for site admins - not a contest resource, so
+    it's a plain ViewSet rather than ModelViewSet/GenericViewSet.
+    """
+
+    permission_classes = [IsSuperUser]
+    # Shorter than the other admin-stats caches: the awaiting_start/flying/finished split is
+    # meant to reflect near-real-time status, not just historical counts.
+    CACHE_TIMEOUT_SECONDS = 60
+
+    def list(self, request):
+        try:
+            days = int(request.query_params.get("days", 30))
+        except ValueError:
+            raise ValidationError({"days": "Must be an integer."})
+        if days <= 0 or days > 3660:
+            raise ValidationError({"days": "Must be between 1 and 3660."})
+
+        bin_granularity = request.query_params.get("bin", "day")
+        if bin_granularity not in BIN_GRANULARITIES:
+            raise ValidationError({"bin": f"Must be one of {sorted(BIN_GRANULARITIES)}."})
+
+        end = timezone.now()
+        start = end - datetime.timedelta(days=days)
+        payload = cache.get_or_set(
+            f"admin_flight_stats_v1_{days}_{bin_granularity}",
+            lambda: build_admin_flight_stats(start, end, bin_granularity),
+            timeout=self.CACHE_TIMEOUT_SECONDS,
+        )
+        return Response(payload)
+
+
+class AdminUpcomingContestantsViewSet(ViewSet):
+    """
+    Forward-looking companion to AdminFlightStatsViewSet - "what's coming up" rather than "what
+    already happened," for the same site-admin capacity-planning purpose.
+    """
+
+    permission_classes = [IsSuperUser]
+
+    def list(self, request):
+        try:
+            days = int(request.query_params.get("days", 14))
+        except ValueError:
+            raise ValidationError({"days": "Must be an integer."})
+        if days <= 0 or days > 180:
+            raise ValidationError({"days": "Must be between 1 and 180."})
+        return Response(get_upcoming_contestants(days))
+
+
+class AdminSystemStatsViewSet(ViewSet):
+    """
+    Utilization/adoption statistics that don't need a time-range control: headline overview
+    numbers, country breakdown, task-type popularity, and team/pilot retention. See
+    AdminActivityTrendsViewSet for the time-series companion.
+
+    Cached: get_overview_stats() alone includes an 11M+ row approximate count plus several
+    full-table aggregates, and none of this changes fast enough for an admin dashboard to need
+    per-request freshness - repeatedly loading/switching tabs on this page shouldn't cost a fresh
+    scan every time.
+    """
+
+    permission_classes = [IsSuperUser]
+    CACHE_TIMEOUT_SECONDS = 600
+
+    def list(self, request):
+        payload = cache.get_or_set(
+            "admin_system_stats_v1",
+            lambda: {
+                "overview": get_overview_stats(),
+                "country": get_country_stats(),
+                "task_type_popularity": get_task_type_popularity(),
+                "retention": get_retention_stats(),
+            },
+            timeout=self.CACHE_TIMEOUT_SECONDS,
+        )
+        return Response(payload)
+
+
+class AdminActivityTrendsViewSet(ViewSet):
+    """Contests/tasks over time (by start_time) - the growth-trend companion to AdminSystemStatsViewSet."""
+
+    permission_classes = [IsSuperUser]
+    CACHE_TIMEOUT_SECONDS = 300
+
+    def list(self, request):
+        try:
+            days = int(request.query_params.get("days", 90))
+        except ValueError:
+            raise ValidationError({"days": "Must be an integer."})
+        if days <= 0 or days > 3660:
+            raise ValidationError({"days": "Must be between 1 and 3660."})
+
+        bin_granularity = request.query_params.get("bin", "month")
+        if bin_granularity not in ACTIVITY_BIN_GRANULARITIES:
+            raise ValidationError({"bin": f"Must be one of {sorted(ACTIVITY_BIN_GRANULARITIES)}."})
+
+        end = timezone.now()
+        start = end - datetime.timedelta(days=days)
+        payload = cache.get_or_set(
+            f"admin_activity_trends_v1_{days}_{bin_granularity}",
+            lambda: get_activity_over_time(start, end, bin_granularity),
+            timeout=self.CACHE_TIMEOUT_SECONDS,
+        )
+        return Response(payload)
+
+
 class NavigationTaskViewSet(ModelViewSet):
     """
     Main navigation task view set. Used by the front end to load the tracking map.
@@ -1485,6 +1681,12 @@ class NavigationTaskViewSet(ModelViewSet):
         "contestant_self_registration": SelfManagementSerialiser,
         "scorecard": ScorecardNestedSerialiser,
         "create": NavigationTaskEditableRoutReferenceSerialiser,
+        "batch_update_contestants": BatchUpdateContestantsSerialiser,
+        "quick_add_contestant": QuickAddContestantSerialiser,
+        "update_details": NavigationTaskDetailsUpdateSerialiser,
+        "flight_order_configuration": FlightOrderConfigurationSerialiser,
+        "update_flight_order_configuration": FlightOrderConfigurationSerialiser,
+        "generate_map": GenerateNavigationTaskMapSerialiser,
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
@@ -1915,6 +2117,258 @@ class NavigationTaskViewSet(ModelViewSet):
             navigation_task.make_unlisted()
         return Response(serialiser.data, status=status.HTTP_200_OK)
 
+    @action(detail=True, methods=["post"])
+    def refresh_editable_route(self, request, *args, **kwargs):
+        """
+        Updates the navigation task's Route with any changes made to the linked editable route.
+        Mirrors the classic refresh_editable_route_navigation_task view.
+        """
+        navigation_task = self.get_object()
+        try:
+            navigation_task.refresh_editable_route()
+        except DjangoValidationError as e:
+            raise drf_exceptions.ValidationError(str(e))
+        return Response(status=status.HTTP_200_OK)
+
+    @action(detail=True, methods=["post"])
+    def remove_contestants(self, request, *args, **kwargs):
+        """
+        Deletes every contestant from the navigation task. Mirrors the classic clear_contestants view.
+        """
+        navigation_task = self.get_object()
+        candidates = navigation_task.contestant_set.all()
+        deleted_count = candidates.count()
+        candidates.delete()
+        return Response({"deleted": deleted_count})
+
+    @action(detail=True, methods=["post"])
+    def batch_update_contestants(self, request, *args, **kwargs):
+        """
+        Applies a wind speed/direction update and/or a uniform time shift to a selection of the
+        navigation task's contestants. Mirrors the classic BatchContestantUpdateView, except that
+        (matching the underlying form's own choice-filtering logic, not the view's stricter and
+        inconsistent post() guard - see BatchContestantUpdateForm's comment referencing GH #29)
+        it only skips contestants whose calculator is *currently* running or about to be
+        dispatched, not merely ones that have ever started.
+        """
+        navigation_task = self.get_object()
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        data = serialiser.validated_data
+        delta = (
+            datetime.timedelta(minutes=data["time_shift_minutes"])
+            if data.get("shift_times") and data.get("time_shift_minutes") is not None
+            else None
+        )
+        contestants = navigation_task.contestant_set.select_related("contestanttrack").filter(
+            pk__in=data["contestant_ids"]
+        )
+        updated = 0
+        for contestant in contestants:
+            if is_calculator_running(contestant.pk) or is_dispatch_pending(contestant.pk):
+                continue
+            if data.get("update_wind"):
+                contestant.wind_speed = data.get("wind_speed")
+                contestant.wind_direction = data.get("wind_direction")
+                contestant.predefined_gate_times = None
+            if delta is not None:
+                contestant.tracker_start_time += delta
+                contestant.takeoff_time += delta
+                contestant.finished_by_time += delta
+                contestant.predefined_gate_times = None
+            contestant.save()
+            updated += 1
+        return Response({"updated": updated})
+
+    @action(detail=True, methods=["post"])
+    def quick_add_contestant(self, request, *args, **kwargs):
+        """
+        Creates a contestant from an existing ContestTeam and a single starting-point time,
+        deriving the rest of the schedule (takeoff/tracker-start/finished-by times) the same way
+        the classic ContestantQuickAddView did.
+        """
+        navigation_task = self.get_object()
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        data = serialiser.validated_data
+
+        contest_team = get_object_or_404(ContestTeam, pk=data["contest_team"], contest=navigation_task.contest)
+        resolution = resolve_contest_access(navigation_task.contest)
+        _assert_can_reserve_task_slot(navigation_task, contest_team.team, resolution)
+
+        starting_point_time = data["starting_point_time"]
+        adaptive_start = data["adaptive_start"]
+        existing_contestants = navigation_task.contestant_set.all()
+        contestant_number = (
+            max(c.contestant_number for c in existing_contestants) + 1 if existing_contestants.exists() else 1
+        )
+
+        takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
+        if adaptive_start:
+            tracker_start_time = starting_point_time - datetime.timedelta(hours=1)
+            takeoff_time = tracker_start_time
+        else:
+            tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
+
+        contestant = Contestant(
+            team=contest_team.team,
+            navigation_task=navigation_task,
+            contestant_number=contestant_number,
+            adaptive_start=adaptive_start,
+            takeoff_time=takeoff_time,
+            tracker_start_time=tracker_start_time,
+            finished_by_time=tracker_start_time + datetime.timedelta(hours=5),
+            minutes_to_starting_point=navigation_task.minutes_to_starting_point,
+            air_speed=contest_team.air_speed,
+            wind_speed=navigation_task.wind_speed,
+            wind_direction=navigation_task.wind_direction,
+            tracking_service=contest_team.tracking_service,
+            tracking_device=contest_team.tracking_device,
+            tracker_device_id=contest_team.tracker_device_id,
+        )
+
+        if adaptive_start:
+            final_gate_time = contestant.get_final_gate_time()
+            if final_gate_time:
+                duration_delta = datetime.timedelta(
+                    hours=final_gate_time.hour,
+                    minutes=final_gate_time.minute,
+                    seconds=final_gate_time.second,
+                )
+                final_time_abs = starting_point_time + datetime.timedelta(hours=1) + duration_delta
+            else:
+                final_time_abs = starting_point_time + datetime.timedelta(hours=1)
+            contestant.finished_by_time = final_time_abs + datetime.timedelta(
+                minutes=navigation_task.minutes_to_landing + 2
+            )
+        else:
+            contestant.finished_by_time = contestant.landing_time + datetime.timedelta(minutes=5)
+
+        max_finished_by_time = contestant.tracker_start_time + datetime.timedelta(hours=24)
+        if contestant.finished_by_time > max_finished_by_time:
+            contestant.finished_by_time = max_finished_by_time
+
+        contestant.save()
+        ContestantTaskCompiler(contestant).compile(force=True)
+
+        response_serialiser = ContestantNestedTeamSerialiserWithContestantTrack(contestant)
+        return Response(response_serialiser.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def update_details(self, request, *args, **kwargs):
+        """
+        Updates the navigation task's own editable fields (name, times, wind, self-management,
+        etc.) - mirrors the classic NavigationTaskUpdateView/NavigationTaskForm's field set.
+        Deliberately separate from update() (PUT), which stays blocked for whole-object
+        replacement.
+        """
+        navigation_task = self.get_object()
+        serialiser = self.get_serializer(navigation_task, data=request.data, partial=True)
+        serialiser.is_valid(raise_exception=True)
+        serialiser.save()
+        response_serialiser = self.default_serialiser_class(navigation_task, context=self.get_serializer_context())
+        return Response(response_serialiser.data)
+
+    @action(detail=True, methods=["get"])
+    def flight_order_configuration(self, request, *args, **kwargs):
+        """
+        Returns the navigation task's flight order configuration (auto-created on task creation).
+        Requires change_contest, matching the classic update_flight_order_configurations view -
+        this is organizer-only settings, not something every contest viewer should see, so the
+        viewset's default GET->view_contest mapping isn't strict enough here.
+        """
+        navigation_task = self.get_object()
+        if not request.user.has_perm("change_contest", navigation_task.contest):
+            raise drf_exceptions.PermissionDenied()
+        serialiser = self.get_serializer(navigation_task.flightorderconfiguration)
+        return Response(serialiser.data)
+
+    @action(detail=True, methods=["get"], url_path="map-source-options")
+    def map_source_options(self, request, *args, **kwargs):
+        """
+        Returns the map sources actually available for this navigation task's flight order PDF -
+        mirrors the classic update_flight_order_configurations view's
+        get_available_map_source_definitions_for_navigation_task(...) call, which restricts
+        mbtiles-backed sources (built-in and user-uploaded) to ones whose bounds intersect the
+        task's route, and excludes the overlay-only "openaip" source entirely. Same permission
+        rationale as flight_order_configuration above.
+        """
+        navigation_task = self.get_object()
+        if not request.user.has_perm("change_contest", navigation_task.contest):
+            raise drf_exceptions.PermissionDenied()
+        definitions = get_available_map_source_definitions_for_navigation_task(
+            navigation_task,
+            request.user,
+            uploaded_maps=navigation_task.get_available_user_maps(),
+        )
+        return Response(
+            [
+                map_source_definition_to_payload(
+                    definition, origin="user_upload" if definition.get("provider") == "user_uploaded_mbtiles" else "builtin"
+                )
+                for definition in definitions
+            ]
+        )
+
+    @action(detail=True, methods=["post"])
+    def generate_map(self, request, *args, **kwargs):
+        """
+        REST equivalent of the now-deleted classic get_navigation_task_map view's POST handling -
+        dispatches the same async Celery task and reuses its cache-key convention exactly, so the
+        existing check_map_generation_status URL/polling contract needs no changes at all: the
+        frontend polls that plain JSON endpoint directly. Manager-only (change_contest), same as
+        every other navigation-task management action here - the frontend gets its map source
+        list and seed defaults from the existing map_source_options/flight_order_configuration
+        actions above rather than a dedicated one, since both are already change_contest-gated.
+        """
+        navigation_task = self.get_object()
+        if not request.user.has_perm("change_contest", navigation_task.contest):
+            raise drf_exceptions.PermissionDenied()
+        serialiser = self.get_serializer(data=request.data, context={**self.get_serializer_context(), "navigation_task": navigation_task})
+        serialiser.is_valid(raise_exception=True)
+        data = serialiser.validated_data
+
+        map_params = {
+            "size": data["size"],
+            "zoom_level": data["zoom_level"],
+            "landscape": data["orientation"] == LANDSCAPE,
+            "annotations": False,
+            "waypoints_only": not data["plot_track_between_waypoints"],
+            "dpi": data["dpi"],
+            "scale": int(data["scale"]),
+            "map_source": data["map_source"],
+            "line_width": data["line_width"],
+            "colour": data["colour"],
+            "include_meridians_and_parallels_lines": data["include_meridians_and_parallels_lines"],
+            "include_openaip_overlay": data["include_openaip_overlay"],
+            "margin": 10,
+        }
+
+        cache_key = f"map_gen_result_{navigation_task.pk}_None_{request.user.id}"
+        cache.delete(cache_key)
+        generate_map_async.delay(navigation_task.pk, None, map_params, request.user.id)
+
+        return Response(
+            {
+                "status_check_url": reverse(
+                    "check_map_generation_status", kwargs={"task_id": navigation_task.pk, "contestant_id": 0}
+                )
+            },
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    @action(detail=True, methods=["post"])
+    def update_flight_order_configuration(self, request, *args, **kwargs):
+        """
+        Updates the navigation task's flight order configuration - mirrors the classic
+        update_flight_order_configurations view/FlightOrderConfigurationForm's field set.
+        """
+        navigation_task = self.get_object()
+        serialiser = self.get_serializer(navigation_task.flightorderconfiguration, data=request.data, partial=True)
+        serialiser.is_valid(raise_exception=True)
+        serialiser.save()
+        return Response(serialiser.data)
+
 
 class PhotoViewSet(ModelViewSet):
     queryset = Photo.objects.all()
@@ -1943,9 +2397,7 @@ class PhotoViewSet(ModelViewSet):
                 Q(route__navigationtask__is_public=True, route__navigationtask__contest__is_public=True)
                 | Q(route__navigationtask__contest__in=visible_contests)
             ).distinct()
-        return queryset.filter(
-            route__navigationtask__is_public=True, route__navigationtask__contest__is_public=True
-        )
+        return queryset.filter(route__navigationtask__is_public=True, route__navigationtask__contest__is_public=True)
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated & PhotoPermissions])
     def revert(self, request, pk=None):
@@ -2275,11 +2727,19 @@ class ContestantViewSet(ModelViewSet):
         "update": ContestantSerialiser,
         "create_with_team": ContestantNestedTeamSerialiser,
         "update_with_team": ContestantNestedTeamSerialiser,
+        "recalculate_with_start_time": RecalculateWithStartTimeSerialiser,
+        "apply_quarantine_penalty": ApplyQuarantinePenaltySerialiser,
+        "assign_playing_card": AssignPlayingCardSerialiser,
     }
     default_serialiser_class = ContestantNestedTeamSerialiserWithContestantTrack
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
+
+    def get_permissions(self):
+        if self.action == "destroy":
+            return [permissions.IsAuthenticated(), ContestantDestroyPermissions()]
+        return super().get_permissions()
 
     def get_queryset(self):
         navigation_task_id = self.kwargs.get("navigationtask_pk")
@@ -2823,6 +3283,7 @@ class ContestantViewSet(ModelViewSet):
                     "manual_adjudication_categories": payload.get("manual_adjudication_categories", []),
                     "hidden_gate_names": payload.get("hidden_gate_names", []),
                     "unknown_leg_names": payload.get("unknown_leg_names", []),
+                    "compiled_auxiliary_paths": payload.get("compiled_auxiliary_paths", {}),
                 }
             )
         return Response(
@@ -2832,15 +3293,24 @@ class ContestantViewSet(ModelViewSet):
                 "manual_adjudication_categories": [],
                 "hidden_gate_names": [],
                 "unknown_leg_names": [],
+                "compiled_auxiliary_paths": {},
             }
         )
 
     @action(detail=True, methods=["post"])
     def gpx_track(self, request, pk=None, **kwargs):
         """
-        Consumes a FC GPX file that contains the GPS track of a contestant.
+        Consumes a FC GPX file that contains the GPS track of a contestant. Mirrors the classic
+        upload_gpx_track_for_contesant view's guards: refuses while the calculator is running,
+        and validates the GPX content itself (not just its base64 encoding) before wiping the
+        existing track.
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        if is_calculator_running(contestant.pk):
+            return Response(
+                {"detail": "Calculator is running, terminate it or wait until it is terminated."},
+                status=status.HTTP_409_CONFLICT,
+            )
         # Validate (via GpxTrackSerialiser - presence + valid base64) before wiping the
         # existing track: reset_track_and_score() used to run unconditionally first, so a
         # missing or malformed upload destroyed the contestant's positions/score log and
@@ -2848,14 +3318,325 @@ class ContestantViewSet(ModelViewSet):
         serialiser = self.get_serializer(data=request.data)
         serialiser.is_valid(raise_exception=True)
         track_file = serialiser.validated_data["track_file"]
+        decoded_track_file = base64.decodebytes(bytes(track_file, "utf-8")).decode("utf-8")
+        try:
+            validate_gpx_file(decoded_track_file)
+        except Exception as e:
+            raise drf_exceptions.ValidationError(str(e))
         contestant.reset_track_and_score()
-        import_gpx_track.apply_async(
-            (
-                contestant.pk,
-                base64.decodebytes(bytes(track_file, "utf-8")).decode("utf-8"),
-            )
-        )
+        import_gpx_track.apply_async((contestant.pk, decoded_track_file))
         return Response({}, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def terminate(self, request, pk=None, **kwargs):
+        """
+        Request termination of the contestant's calculator. Blocks until termination is
+        confirmed or the request times out.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        try:
+            contestant.blocking_request_calculator_termination()
+        except TimeoutError:
+            return Response(
+                {"detail": "Calculator termination requested, but not stopped in time."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        return Response({"detail": "Calculator terminated successfully."})
+
+    @action(detail=True, methods=["post"])
+    def restart(self, request, pk=None, **kwargs):
+        """
+        Terminates the contestant's calculator, resets the track/score, and re-arms it to start
+        again on the next received position.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        try:
+            contestant.blocking_request_calculator_termination()
+        except TimeoutError:
+            # Do not reset/restart while the old calculator may still be running - that would
+            # race a second ContestantProcessor against it (see GH #29). Let the caller retry
+            # once it has actually stopped.
+            return Response(
+                {
+                    "detail": "Calculator termination requested, but it did not stop in time. "
+                    "Please try restarting again shortly."
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        contestant.reset_track_and_score()
+        cancel_termination_request(contestant.pk)
+        return Response(
+            {"detail": "Calculator should have been restarted. It may take a few minutes for it to come back to life."}
+        )
+
+    @action(detail=True, methods=["post"])
+    def reset(self, request, pk=None, **kwargs):
+        """
+        Same cleanup as restart (terminates the calculator, clears the track/score/results-
+        service state) but deliberately leaves termination in effect afterwards, so no new
+        calculation starts on the next received position. Use this to clear a contestant's
+        flight/data without immediately reopening it for tracking - call restart separately
+        when ready to try again.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        try:
+            contestant.blocking_request_calculator_termination()
+        except TimeoutError:
+            return Response(
+                {
+                    "detail": "Calculator termination requested, but it did not stop in time. "
+                    "Please try resetting again shortly."
+                },
+                status=status.HTTP_409_CONFLICT,
+            )
+        contestant.reset_track_and_score()
+        return Response(
+            {"detail": "Contestant reset. No new calculation will start until the calculator is explicitly restarted."}
+        )
+
+    @action(detail=True, methods=["post"])
+    def recalculate_track(self, request, pk=None, **kwargs):
+        """
+        Resets the track and score, then re-requests the contestant's track from Traccar and
+        recalculates from it - discarding any manually uploaded GPX track in the process.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        if is_calculator_running(contestant.pk):
+            return Response(
+                {"detail": "Calculator is running, terminate it or wait until it is terminated."},
+                status=status.HTTP_409_CONFLICT,
+            )
+        contestant.reset_track_and_score()
+        recalculate_live_data_for_contestant.apply_async((contestant.pk,))
+        return Response({"detail": "Started loading track."})
+
+    @action(detail=True, methods=["post"])
+    def clear_declaration(self, request, pk=None, **kwargs):
+        """
+        Wipes a contestant's declared predicted times and un-locks its schedule (see
+        Contestant.schedule_locked / ABSOLUTE_TIME_DECLARATION_SUBTYPES), so the organizer can
+        move takeoff/finish time again and re-declare afterward. This is the only way to move a
+        schedule-locked contestant's timing once Contestant.clean()'s window guard is rejecting
+        the edit because a declared time would fall outside the new window.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        if hasattr(contestant, "contestanttaskconfiguration"):
+            contestant.contestanttaskconfiguration.clear_declaration()
+        if contestant.schedule_locked:
+            contestant.schedule_locked = False
+            contestant.save(update_fields=["schedule_locked"])
+        return Response(ContestantSerialiser(contestant).data)
+
+    @action(detail=True, methods=["post"])
+    def recalculate_with_start_time(self, request, pk=None, **kwargs):
+        """
+        Replaces the contestant with a new one sharing the same team/positions/uploaded track,
+        but a new starting-point time (and therefore new takeoff/tracker-start/finished-by
+        times derived from it) - the contestant_number unique-per-task constraint means this
+        can't be done as a simple in-place update. All current scores are discarded and
+        recalculation is triggered against the moved positions. Returns the new contestant
+        (its pk differs from the one this action was called on).
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        starting_point_time = serialiser.validated_data["starting_point_time"]
+        navigation_task = contestant.navigation_task
+
+        takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
+        tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
+        finished_by_time = starting_point_time + contestant.flight_duration
+
+        with transaction.atomic():
+            original_number = contestant.contestant_number
+            # Use a temporary contestant number to avoid unique constraint violation
+            temp_number = (
+                navigation_task.contestant_set.aggregate(Max("contestant_number"))["contestant_number__max"] or 0
+            ) + 100
+
+            new_contestant = Contestant.objects.create(
+                team=contestant.team,
+                navigation_task=navigation_task,
+                contestant_number=temp_number,
+                adaptive_start=contestant.adaptive_start,
+                takeoff_time=takeoff_time,
+                tracker_start_time=tracker_start_time,
+                finished_by_time=finished_by_time,
+                minutes_to_starting_point=navigation_task.minutes_to_starting_point,
+                air_speed=contestant.air_speed,
+                wind_speed=contestant.wind_speed,
+                wind_direction=contestant.wind_direction,
+                tracking_service=contestant.tracking_service,
+                tracking_device=contestant.tracking_device,
+                tracker_device_id=contestant.tracker_device_id,
+                competition_class_longform=contestant.competition_class_longform,
+                competition_class_shortform=contestant.competition_class_shortform,
+                schedule_locked=contestant.schedule_locked,
+            )
+            ContestantReceivedPosition.objects.filter(contestant=contestant).update(contestant=new_contestant)
+            try:
+                uploaded_track = contestant.contestantuploadedtrack
+                uploaded_track.contestant = new_contestant
+                uploaded_track.save()
+            except ObjectDoesNotExist:
+                pass
+            new_contestant.track_version = contestant.track_version
+            new_contestant.save(update_fields=["track_version"])
+
+            ws = WebsocketFacade()
+            ws.transmit_delete_contestant(contestant)
+
+            contestant.delete()
+
+            new_contestant.contestant_number = original_number
+            new_contestant.save(update_fields=["contestant_number"])
+
+            transaction.on_commit(lambda: ws.transmit_contestant(new_contestant))
+            transaction.on_commit(lambda: recalculate_existing_positions.delay(new_contestant.pk))
+
+        response_serialiser = ContestantNestedTeamSerialiserWithContestantTrack(new_contestant)
+        return Response(response_serialiser.data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"])
+    def apply_quarantine_penalty(self, request, pk=None, **kwargs):
+        """
+        Applies an administrative penalty (quarantine breach, fuel-check breach, ignored task
+        instructions, or observation/map evidence issue) to the contestant.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        category = serialiser.validated_data["category"]
+        category_config = ADMINISTRATIVE_PENALTY_CATEGORIES[category]
+        reason = serialiser.validated_data["reason"].strip() or category_config["default_reason"]
+
+        entry = AdministrativePenaltyService.apply_contestant_penalty(
+            contestant=contestant,
+            points=serialiser.validated_data["points"],
+            reason=reason,
+            gate=category_config["gate"],
+            category=category_config["category"],
+            actor=request.user,
+        )
+        return Response(ScoreLogEntrySerialiser(entry).data, status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path=r"score_log_entries/(?P<entry_pk>\d+)/remove")
+    def remove_score_log_entry(self, request, pk=None, entry_pk=None, **kwargs):
+        """
+        Deletes a specific score log entry (e.g. an administrative penalty or gate score) and
+        reverses its effect on the contestant's score and gate bookkeeping.
+
+        POST rather than DELETE: ContestantNavigationTaskContestPermissions.has_object_permission
+        maps DELETE requests to the "delete_contest" guardian permission (reserved for deleting
+        the whole contest), whereas this action - like terminate/restart/reset/recalculate_track
+        above - is authorized the same way the classic delete_score_item view was, via
+        "change_contest".
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        entry = get_object_or_404(ScoreLogEntry, pk=entry_pk, contestant=contestant)
+        AdministrativePenaltyService.remove_score_log_entry(entry)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=True, methods=["get"])
+    def gate_times(self, request, pk=None, **kwargs):
+        """
+        Returns the planned/actual gate times, score log entries, and administrative-penalty
+        metadata needed to render the contestant's gate-times management page.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        rendered_waypoints = get_effective_route_waypoints(
+            contestant.navigation_task,
+            contestant=contestant,
+            include_contestant_declarations=True,
+        )
+        distances = {waypoint.name: waypoint.distance_previous for waypoint in rendered_waypoints}
+        log: dict[str, list] = {}
+        for item in contestant.scorelogentry_set.all().order_by("time"):
+            log.setdefault(item.gate, []).append(
+                {
+                    "pk": item.pk,
+                    "text": f"{item.points} points {item.message}",
+                }
+            )
+        actual_times = {item.gate: item.time for item in contestant.actualgatetime_set.all()}
+        can_apply_quarantine_penalty = "change_contest" in get_user_perms(
+            request.user, contestant.navigation_task.contest
+        )
+        compiled_fuel_review = None
+        if hasattr(contestant, "contestanttaskconfiguration"):
+            payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
+            fuel_metadata = payload.get("fuel_metadata") or {}
+            duration_review = payload.get("duration_review") or {}
+            declared_endurance_minutes = fuel_metadata.get("declared_endurance_minutes")
+            if declared_endurance_minutes is not None:
+                compiled_fuel_review = {
+                    "declared_endurance_minutes": declared_endurance_minutes,
+                    "fuel_deadline": contestant.takeoff_time
+                    + datetime.timedelta(minutes=int(declared_endurance_minutes)),
+                }
+            elif duration_review.get("duration_residual_fuel_required"):
+                compiled_fuel_review = {"duration_residual_fuel_required": True}
+
+        return Response(
+            {
+                "rendered_waypoints": [waypoint.name for waypoint in rendered_waypoints],
+                "distances": distances,
+                "total_distance": build_effective_route_distance(rendered_waypoints),
+                "log": log,
+                "actual_times": actual_times,
+                "can_apply_quarantine_penalty": can_apply_quarantine_penalty,
+                "administrative_penalty_categories": ADMINISTRATIVE_PENALTY_CATEGORIES,
+                "compiled_fuel_review": compiled_fuel_review,
+            }
+        )
+
+    @action(detail=True, methods=["get"])
+    def playing_cards(self, request, pk=None, **kwargs):
+        """
+        Returns the poker cards currently assigned to the contestant, plus the contestant's
+        current best hand and relative score.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        cards = sorted(contestant.playingcard_set.all(), key=lambda c: c.waypoint_index)
+        relative_score, hand_description = PlayingCard.get_relative_score(contestant)
+        return Response(
+            {
+                "cards": PlayingCardSerialiser(cards, many=True).data,
+                "current_relative_score": f"{relative_score:.2f}",
+                "current_hand": hand_description,
+            }
+        )
+
+    @action(detail=True, methods=["post"])
+    def assign_playing_card(self, request, pk=None, **kwargs):
+        """
+        Assigns a poker card (or, if `card` is "random", a random unused card) to the contestant
+        at the given waypoint index.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        serialiser = self.get_serializer(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        waypoint_index = serialiser.validated_data["waypoint_index"]
+        waypoints = contestant.navigation_task.route.waypoints
+        if not 0 <= waypoint_index < len(waypoints):
+            raise drf_exceptions.ValidationError({"waypoint_index": "Out of range for this route."})
+        waypoint_name = waypoints[waypoint_index].name
+        card = serialiser.validated_data["card"]
+        if card == "random":
+            card = PlayingCard.get_random_unique_card(contestant)
+        PlayingCard.add_contestant_card(contestant, card, waypoint_name, waypoint_index)
+        return Response(status=status.HTTP_201_CREATED)
+
+    @action(detail=True, methods=["post"], url_path=r"playing_cards/(?P<card_pk>\d+)/remove")
+    def remove_playing_card(self, request, pk=None, card_pk=None, **kwargs):
+        """
+        Removes a single poker card previously assigned to the contestant.
+
+        POST rather than DELETE - see the docstring on remove_score_log_entry above for why.
+        """
+        contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        PlayingCard.remove_contestant_card(contestant, card_pk)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
 
 class ImportFCNavigationTask(ModelViewSet):

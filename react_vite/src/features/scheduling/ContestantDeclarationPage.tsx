@@ -1,9 +1,9 @@
 import React, { useEffect, useMemo, useState } from 'react';
-import { useParams } from 'react-router-dom';
+import { Link, useNavigate, useParams } from 'react-router-dom';
 
 import { Loading } from '../route-editor/components/basicComponents';
-import { fetchContestant, fetchNavigationTask, updateContestantDeclaration } from './api';
-import { reverse } from '../../urls';
+import { clearContestantDeclaration, fetchContestant, fetchNavigationTask, updateContestantDeclaration } from './api';
+import { generatePath } from '../../urls';
 import { useToast } from '../competition-map/hooks/useToast';
 import {
     FreeTarget,
@@ -37,6 +37,7 @@ const EMPTY_FORM_STATE: DeclarationFormState = {
     contractDeclaredTSeconds: '',
     turnpointHuntSequence: [],
     turnpointTimeOverrides: {},
+    knownTimeGatePredictions: {},
 };
 
 function useContestantDeclarationData(
@@ -664,9 +665,59 @@ function KnownCircuitForm({
     );
 }
 
+type KnownTimeGatePredictionsFormProps = {
+    gateNames: string[];
+    predictions: Record<string, string>;
+    required: boolean;
+    tmaxSeconds: number;
+    disabled: boolean;
+    onPredictionChange: (name: string, value: string) => void;
+};
+
+function KnownTimeGatePredictionsForm({
+    gateNames,
+    predictions,
+    required,
+    tmaxSeconds,
+    disabled,
+    onPredictionChange,
+}: KnownTimeGatePredictionsFormProps) {
+    return (
+        <>
+            <p className="text-sm opacity-70">
+                {required
+                    ? 'Declare a predicted time for every gate below.'
+                    : 'Declare a predicted time for at least one gate. Only FP is checked against Tmax.'}
+                {tmaxSeconds > 0 && (
+                    <>
+                        {' '}
+                        Tmax for this task is {Math.round(tmaxSeconds / 60)} minutes from the starting point.
+                    </>
+                )}
+            </p>
+            {gateNames.map((name) => (
+                <label className="form-control w-full" key={name}>
+                    <span className="label-text font-medium">
+                        Predicted time for {name} {required ? '' : '(optional)'}
+                    </span>
+                    <input
+                        type="datetime-local"
+                        step={60}
+                        className="input input-bordered w-full"
+                        value={predictions[name] || ''}
+                        onChange={(e) => onPredictionChange(name, e.target.value)}
+                        disabled={disabled}
+                    />
+                </label>
+            ))}
+        </>
+    );
+}
+
 type DeclarationPreviewProps = {
     isContractNavigation: boolean;
     isKnownCircuit: boolean;
+    isKnownTimeGatePrediction: boolean;
     contractDeclaredTSeconds: string;
     contractNavigation: ContractNavigationFormState;
     freeTargets: FreeTarget[];
@@ -675,11 +726,14 @@ type DeclarationPreviewProps = {
     compulsoryPointNames: string[];
     knownCircuitWaypointNames: string[];
     turnpointTimeOverrides: Record<string, string>;
+    knownTimeGateNames: string[];
+    knownTimeGatePredictions: Record<string, string>;
 };
 
 function DeclarationPreview({
     isContractNavigation,
     isKnownCircuit,
+    isKnownTimeGatePrediction,
     contractDeclaredTSeconds,
     contractNavigation,
     freeTargets,
@@ -688,6 +742,8 @@ function DeclarationPreview({
     compulsoryPointNames,
     knownCircuitWaypointNames,
     turnpointTimeOverrides,
+    knownTimeGateNames,
+    knownTimeGatePredictions,
 }: DeclarationPreviewProps) {
     if (isContractNavigation) {
         const fullContractSequence = buildContractNavigationSequence(contractNavigation);
@@ -716,6 +772,33 @@ function DeclarationPreview({
                                 <tr key={name}>
                                     <td className="font-medium">{name}</td>
                                     <td>{name === 'SP' ? 'Fixed start' : name === 'FP' ? 'Fixed finish' : name === 'MP' ? 'Compulsory midpoint' : 'Free target'}</td>
+                                </tr>
+                            ))}
+                        </tbody>
+                    </table>
+                </div>
+            </>
+        );
+    }
+
+    if (isKnownTimeGatePrediction) {
+        return (
+            <>
+                <h2 className="card-title">Declared gate predictions</h2>
+                <p className="text-sm opacity-70">Gates without a declared prediction have no known target time.</p>
+                <div className="overflow-x-auto mt-2">
+                    <table className="table table-sm">
+                        <thead>
+                            <tr>
+                                <th>Gate</th>
+                                <th>Predicted time</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            {knownTimeGateNames.map((name) => (
+                                <tr key={name}>
+                                    <td className="font-medium">{name}</td>
+                                    <td>{knownTimeGatePredictions[name] || '—'}</td>
                                 </tr>
                             ))}
                         </tbody>
@@ -793,6 +876,7 @@ function DeclarationPreview({
 
 const ContestantDeclarationPage: React.FC = () => {
     const { contestId, navigationTaskId, contestantId } = useParams();
+    const navigate = useNavigate();
     const [saving, setSaving] = useState(false);
     const { showToast, ToastContainer, toasts, removeToast } = useToast();
     const {
@@ -811,7 +895,19 @@ const ContestantDeclarationPage: React.FC = () => {
     const isLimitedFuel = navigationTask?.task_subtype === 'limited_fuel_turnpoint_hunt';
     const isContractNavigation = navigationTask?.task_subtype === 'contract_navigation_time_controls';
     const isKnownCircuit = navigationTask?.task_subtype === 'known_circuit';
+    // Every subtype's compiled_effective_route_payload carries the route's own waypoint_names
+    // (ContestantTaskCompiler._base_effective_route_payload) - for precision navigation this is
+    // exactly the same set validate_declaration requires a prediction for
+    // (_get_precision_navigation_prediction_names is defined as route.waypoints names); curve
+    // navigation doesn't restrict declared gate names at all, but the route's own waypoints are
+    // still the natural set to prompt for. known_circuit's (optional) turnpoint overrides use the
+    // same set too, so all three share this one array instead of each computing their own copy.
     const knownCircuitWaypointNames: string[] = compiledPayload.waypoint_names || [];
+    const isCurveNavigation = navigationTask?.task_subtype === 'curve_navigation_time_estimation';
+    const isPrecisionNavigation = navigationTask?.task_subtype === 'precision_navigation';
+    const isKnownTimeGatePrediction = isCurveNavigation || isPrecisionNavigation;
+    const knownTimeGateNames = knownCircuitWaypointNames;
+    const curveNavigationTmaxSeconds = Number(navigationTask?.task_config?.curve_navigation_tmax_seconds || 0);
     const compulsoryPointTimesByName = formState.compulsoryPointTimes;
     const orderedCompulsoryPointNames = compulsoryPointNames
         .filter((name) => !!compulsoryPointTimesByName[name])
@@ -856,9 +952,17 @@ const ContestantDeclarationPage: React.FC = () => {
             // Every turnpoint override is optional, so the declaration is always saveable.
             return true;
         }
+        if (isPrecisionNavigation) {
+            // validate_declaration requires a prediction for every route waypoint name.
+            return knownTimeGateNames.length > 0 && knownTimeGateNames.every((name) => !!formState.knownTimeGatePredictions[name]);
+        }
+        if (isCurveNavigation) {
+            // validate_declaration only requires the predictions dict to be non-empty.
+            return Object.values(formState.knownTimeGatePredictions).some((value) => !!value);
+        }
         return compulsoryPointNames.every((name) => !!formState.compulsoryPointTimes[name])
             && normalizedTurnpointHuntSequence.length >= orderedCompulsoryPointNames.length;
-    }, [compulsoryPointNames, formState.compulsoryPointTimes, formState.contractNavigation, formState.contractDeclaredTSeconds, isContractNavigation, isKnownCircuit, normalizedTurnpointHuntSequence.length, orderedCompulsoryPointNames.length]);
+    }, [compulsoryPointNames, formState.compulsoryPointTimes, formState.contractNavigation, formState.contractDeclaredTSeconds, formState.knownTimeGatePredictions, isContractNavigation, isKnownCircuit, isCurveNavigation, isPrecisionNavigation, knownTimeGateNames, normalizedTurnpointHuntSequence.length, orderedCompulsoryPointNames.length]);
 
     const handleTimeChange = (name: string, value: string) => {
         setFormState((prev) => {
@@ -895,6 +999,10 @@ const ContestantDeclarationPage: React.FC = () => {
                 declarationPayload.turnpoint_time_overrides = Object.fromEntries(
                     Object.entries(formState.turnpointTimeOverrides).filter(([, value]) => !!value),
                 );
+            } else if (isKnownTimeGatePrediction) {
+                declarationPayload.known_time_gate_predictions = Object.fromEntries(
+                    Object.entries(formState.knownTimeGatePredictions).filter(([, value]) => !!value),
+                );
             } else {
                 declarationPayload.compulsory_point_times = Object.fromEntries(
                     Object.entries(formState.compulsoryPointTimes).filter(([, value]) => !!value),
@@ -920,8 +1028,37 @@ const ContestantDeclarationPage: React.FC = () => {
             setContestant(refreshedContestant);
             setFormState(buildFormState(refreshedContestant));
             showToast('Declaration saved.', 'success');
+            // Brief delay so the success toast is actually visible before this page (and its
+            // toast) unmounts - navigating away immediately would cut it off.
+            setTimeout(() => {
+                navigate(generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! }));
+            }, 800);
         } catch (err: any) {
             const message = err?.message || 'Failed to save declaration.';
+            setError(message);
+            showToast(message, 'error');
+        } finally {
+            setSaving(false);
+        }
+    };
+
+    const handleClearDeclaration = async () => {
+        if (!contestId || !navigationTaskId || !contestantId) return;
+        if (!window.confirm('Clear this declaration? The predicted times will be removed and the schedule unlocked, so takeoff/finish time can be changed again.')) {
+            return;
+        }
+        setSaving(true);
+        try {
+            const refreshedContestant = await clearContestantDeclaration(
+                Number(contestId),
+                Number(navigationTaskId),
+                Number(contestantId),
+            );
+            setContestant(refreshedContestant);
+            setFormState(buildFormState(refreshedContestant));
+            showToast('Declaration cleared.', 'success');
+        } catch (err: any) {
+            const message = err?.message || 'Failed to clear declaration.';
             setError(message);
             showToast(message, 'error');
         } finally {
@@ -948,15 +1085,42 @@ const ContestantDeclarationPage: React.FC = () => {
                     <h1 className="text-3xl font-bold">Contestant declaration</h1>
                     <p className="text-sm opacity-70">{contestant?.team?.crew?.member1?.first_name} {contestant?.team?.crew?.member1?.last_name} · {navigationTask?.name}</p>
                 </div>
-                <a href={reverse('navigationtask_detail', Number(navigationTaskId))} className="btn btn-secondary btn-sm">
-                    Back to navigation task
-                </a>
+                <div className="flex items-center gap-2">
+                    {contestant?.has_locked_absolute_declaration && (
+                        <button
+                            type="button"
+                            className="btn btn-outline btn-error btn-sm"
+                            onClick={handleClearDeclaration}
+                            disabled={saving}
+                        >
+                            Clear declaration
+                        </button>
+                    )}
+                    <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-secondary btn-sm">
+                        Back to navigation task
+                    </Link>
+                </div>
             </div>
+            {contestant?.has_locked_absolute_declaration && (
+                <div className="alert alert-warning text-sm mb-4">
+                    This contestant has declared predicted times that don't move with the schedule. Takeoff/finish
+                    time can only be changed as long as every declared predicted time still falls within the new
+                    window - otherwise, clear the declaration first.
+                </div>
+            )}
 
             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                 <div className="card bg-base-100 shadow-xl">
                     <div className="card-body">
-                        <h2 className="card-title">{isContractNavigation ? 'Declaration sequence and T' : isKnownCircuit ? 'Known circuit turnpoint overrides' : 'Compulsory point declaration'}</h2>
+                        <h2 className="card-title">
+                            {isContractNavigation
+                                ? 'Declaration sequence and T'
+                                : isKnownCircuit
+                                  ? 'Known circuit turnpoint overrides'
+                                  : isKnownTimeGatePrediction
+                                    ? 'Known time gate predictions'
+                                    : 'Compulsory point declaration'}
+                        </h2>
                         <form className="space-y-4" onSubmit={handleSubmit}>
                             {isContractNavigation ? (
                                 <ContractNavigationForm
@@ -975,6 +1139,18 @@ const ContestantDeclarationPage: React.FC = () => {
                                     onOverrideChange={(name, value) => setFormState((prev) => ({
                                         ...prev,
                                         turnpointTimeOverrides: { ...prev.turnpointTimeOverrides, [name]: value },
+                                    }))}
+                                />
+                            ) : isKnownTimeGatePrediction ? (
+                                <KnownTimeGatePredictionsForm
+                                    gateNames={knownTimeGateNames}
+                                    predictions={formState.knownTimeGatePredictions}
+                                    required={isPrecisionNavigation}
+                                    tmaxSeconds={curveNavigationTmaxSeconds}
+                                    disabled={saving}
+                                    onPredictionChange={(name, value) => setFormState((prev) => ({
+                                        ...prev,
+                                        knownTimeGatePredictions: { ...prev.knownTimeGatePredictions, [name]: value },
                                     }))}
                                 />
                             ) : (
@@ -1015,6 +1191,7 @@ const ContestantDeclarationPage: React.FC = () => {
                         <DeclarationPreview
                             isContractNavigation={isContractNavigation}
                             isKnownCircuit={isKnownCircuit}
+                            isKnownTimeGatePrediction={isKnownTimeGatePrediction}
                             contractDeclaredTSeconds={formState.contractDeclaredTSeconds}
                             contractNavigation={formState.contractNavigation}
                             freeTargets={freeTargets}
@@ -1023,6 +1200,8 @@ const ContestantDeclarationPage: React.FC = () => {
                             compulsoryPointNames={orderedCompulsoryPointNames}
                             knownCircuitWaypointNames={knownCircuitWaypointNames}
                             turnpointTimeOverrides={formState.turnpointTimeOverrides}
+                            knownTimeGateNames={knownTimeGateNames}
+                            knownTimeGatePredictions={formState.knownTimeGatePredictions}
                         />
                     </div>
                 </div>

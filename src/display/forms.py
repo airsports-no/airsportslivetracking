@@ -1,6 +1,5 @@
 import datetime
 import json
-from typing import Optional
 
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, ButtonHolder, Submit, Fieldset, Field, HTML
@@ -15,7 +14,6 @@ from django.utils.text import capfirst
 from display.flight_order_and_maps.map_constants import (
     MAP_SIZES,
     ORIENTATIONS,
-    LANDSCAPE,
     SCALES,
     SCALE_TO_FIT,
     A4,
@@ -25,17 +23,15 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_map_choices,
     get_available_map_source_choices_for_navigation_task,
     get_available_map_source_definitions_for_navigation_task,
-    resolve_map_source_definition,
+    validate_map_zoom_level,
 )
 from display.flight_order_and_maps.mbtiles_facade import get_map_details
 
 from display.models import (
     NavigationTask,
-    Contestant,
     Contest,
     Person,
     Team,
-    ContestTeam,
     Scorecard,
     FlightOrderConfiguration,
     UserUploadedMap,
@@ -47,7 +43,6 @@ from display.models import (
 from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES, SCORECARD_CONFIG_FIELDS
 from display.models.user_uploaded_map import validate_file_size
 from display.models.my_user import MyUser
-from display.poker.poker_cards import PLAYING_CARDS
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
 from display.utilities.cima_task_type_definitions import (
     ANR_CATALOGUE,
@@ -60,7 +55,7 @@ from display.utilities.cima_task_type_definitions import (
     CIRCLE,
     get_task_subtypes_for_family,
 )
-from display.services.task_type_visibility import can_user_see_cima_task_types, can_user_see_task_subtype
+from display.services.task_type_visibility import can_user_see_task_subtype
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, NAVIGATION_TASK_TYPES, PRECISION
 
 FILE_TYPE_CSV = "csv"
@@ -92,73 +87,6 @@ class ShareForm(forms.Form):
             Field("publicity"),
             ButtonHolder(Submit("submit", "Save")),
         )
-
-
-class MapForm(forms.Form):
-    size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
-    orientation = forms.ChoiceField(
-        choices=ORIENTATIONS,
-        initial=LANDSCAPE,
-        help_text="WARNING: scale printing is currently only correct for landscape orientation",
-    )
-    plot_track_between_waypoints = forms.BooleanField(
-        initial=True,
-        required=False,
-        help_text="For precision and Air Sport competition types this will draw a line between the waypoints of the track. Without this the precision map will only contain the waypoints, and the Air Sport maps will only contain the corridor without a centreline.",
-    )
-    include_meridians_and_parallels_lines = forms.BooleanField(
-        initial=True,
-        required=False,
-        help_text="If true, navigation map is overlaid with meridians and parallels every 0.1 degrees. Disable if map source already has this",
-    )
-
-    scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
-    map_source = forms.ChoiceField(choices=[], required=False)
-    include_openaip_overlay = forms.BooleanField(
-        initial=False,
-        required=False,
-        help_text="Render OpenAIP on top of the selected map source.",
-    )
-    zoom_level = forms.TypedChoiceField(initial=12, choices=[(x, x) for x in range(1, 15)], coerce=int, empty_value=12)
-    dpi = forms.IntegerField(initial=150, min_value=100, max_value=300)
-    line_width = forms.FloatField(initial=0.5, min_value=0.1, max_value=10)
-    colour = forms.CharField(initial="#0000ff", max_length=7, widget=forms.HiddenInput())
-
-    def __init__(self, *args, **kwargs):
-        self.redirect_url = kwargs.pop("redirect_url", "#")
-        self.map_source_choices = kwargs.pop("map_source_choices", None)
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.form_class = "form mt-4"
-        self.helper.layout = Layout(
-            Fieldset(
-                "Map details",
-                "size",
-                "orientation",
-                "plot_track_between_waypoints",
-                "include_meridians_and_parallels_lines",
-                "scale",
-                "map_source",
-                "include_openaip_overlay",
-                "zoom_level",
-                "dpi",
-                "line_width",
-            ),
-            Field("colour", type="hidden"),
-            HTML(
-                '<h5 class="text-lg font-semibold mt-4">Pick a colour for the route</h5><div id="picker" class="mx-auto mt-2" style="margin-bottom: 15px"></div>'
-            ),
-            HTML(
-                """<div role="alert" class="alert alert-warning mt-4">
-                <svg xmlns="http://www.w3.org/2000/svg" width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" class="lucide lucide-triangle-alert stroke-current shrink-0 h-6 w-6"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><path d="M12 9v4"/><path d="M12 17h.01"/></svg>
-                <span><b>Caution:</b> Map generation may require several minutes. Using large zoom levels (e.g., above 12) with significant scales (e.g., 1:200,000 or higher) could result in an out of memory error. If this occurs, kindly decrease the zoom level (use a lower number).</span>
-            </div>"""
-            ),
-            ButtonHolder(
-                Submit("submit", "Submit"), HTML(f'<a href="{self.redirect_url}" class="btn btn-secondary">Back</a>')
-            ),
-        )
-        self.fields["map_source"].choices = self.map_source_choices or get_map_choices()
 
 
 class ContestantMapForm(forms.Form):
@@ -260,17 +188,6 @@ class UserUploadedMapForm(forms.ModelForm):
             Fieldset("User map", "name", "default_zoom_level", "attribution", "map_file"),
             Field("user", type="hidden"),
             ButtonHolder(Submit("submit", "Submit")),
-        )
-
-
-def validate_map_zoom_level(map_source: str, user_uploaded_map: Optional[UserUploadedMap], zoom_level: int):
-    source = resolve_map_source_definition(map_source, user_uploaded_map)
-    min_zoom = source["min_zoom"]
-    max_zoom = source["max_zoom"]
-    if not min_zoom <= zoom_level <= max_zoom:
-        raise ValidationError(
-            f"The selected zoom level {zoom_level} is not in the valid range [{min_zoom}, "
-            f"{max_zoom}] for the map source {source['label']}"
         )
 
 
@@ -604,128 +521,12 @@ def _known_time_gate_names(navigation_task):
     return result
 
 
-class ContestantForm(forms.ModelForm):
-    def __init__(self, *args, **kwargs):
-        self.navigation_task = kwargs.pop("navigation_task")
-        super().__init__(*args, **kwargs)
-        if not can_user_see_cima_task_types(getattr(self.navigation_task.contest, "created_by", None)):
-            pass
-        self.fields["team"].queryset = self.navigation_task.contest.contest_teams.all()
-        self.fields["contestant_number"].initial = (
-            max([item.contestant_number for item in self.navigation_task.contestant_set.all()]) + 1
-            if self.navigation_task.contestant_set.all().count() > 0
-            else 1
-        )
-        self.fields["wind_speed"].initial = self.navigation_task.wind_speed
-        self.fields["wind_direction"].initial = self.navigation_task.wind_direction
-        self.fields["wind_direction"].initial = self.navigation_task.wind_direction
-
-        datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
-        self.fields["takeoff_time"].widget = datetime_widget
-        self.fields["tracker_start_time"].widget = datetime_widget
-        self.fields["finished_by_time"].widget = datetime_widget
-
-        self.helper = FormHelper()
-        self.helper.attrs = {"enctype": "multipart/form-data"}
-        layout_items = [
-            Fieldset(
-                "Contestant",
-                "contestant_number",
-                "team",
-                "takeoff_time",
-                "adaptive_start",
-                "minutes_to_starting_point",
-                "air_speed",
-                "wind_direction",
-                "wind_speed",
-            ),
-            Fieldset(
-                "Tracking",
-                HTML(
-                    "The below fields can mostly be left alone. Tracker start time and finished by time are calculated automatically to ten minutes prior to the takeoff time with an assumed flight time of maximum two hours with fixed start and five hours with adaptive start. Overwrite this as necessary."
-                ),
-                "tracking_service",
-                "tracking_device",
-                "tracker_device_id",
-                "tracker_start_time",
-                "finished_by_time",
-            ),
-        ]
-        self.helper.layout = Layout(*layout_items, ButtonHolder(Submit("submit", "Submit")))
-
-    def clean(self):
-        return super().clean()
-
-    def get_declaration_payload(self):
-        return {}
-
-    class Meta:
-        model = Contestant
-        fields = (
-            "contestant_number",
-            "team",
-            "tracking_service",
-            "tracking_device",
-            "tracker_device_id",
-            "takeoff_time",
-            "adaptive_start",
-            "tracker_start_time",
-            "finished_by_time",
-            "minutes_to_starting_point",
-            "air_speed",
-            "wind_direction",
-            "wind_speed",
-        )
-
-
-class ContestantQuickAddForm(forms.Form):
-    contest_team = forms.ModelChoiceField(queryset=ContestTeam.objects.none(), label="Team")
-    starting_point_time = forms.DateTimeField(
-        label="Time at starting point",
-        widget=forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M"),
-        help_text="The time the contestant is expected to cross the starting point",
-    )
-    adaptive_start = forms.BooleanField(required=False, initial=False, label="Adaptive start")
-
-    def __init__(self, *args, **kwargs):
-        self.navigation_task = kwargs.pop("navigation_task")
-        super().__init__(*args, **kwargs)
-        self.fields["contest_team"].queryset = self.navigation_task.contest.contestteam_set.all()
-        task_start_local = timezone.localtime(
-            self.navigation_task.start_time,
-            timezone=self.navigation_task.contest.time_zone,
-        )
-        one_hour_from_now = timezone.localtime() + datetime.timedelta(hours=1)
-        self.fields["starting_point_time"].initial = max(one_hour_from_now, task_start_local)
-
-        declaration_fields = []
-
-        self.helper = FormHelper()
-        layout_items = [
-            Fieldset(
-                "Quick Add Contestant",
-                "contest_team",
-                "starting_point_time",
-                "adaptive_start",
-            )
-        ]
-        if declaration_fields:
-            layout_items.append(Fieldset("Task-specific declaration", *declaration_fields))
-        self.helper.layout = Layout(*layout_items, ButtonHolder(Submit("submit", "Create")))
-
-    def clean(self):
-        return super().clean()
-
-    def get_declaration_payload(self):
-        return {}
-
-
 from django import forms
 from django.db.models import QuerySet
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, Fieldset, Submit, HTML, ButtonHolder, Row, Column
 from django.utils.translation import gettext_lazy as _
-from .models import Contestant, ContestTeam, NavigationTask, ContestantTrack
+from .models import NavigationTask, ContestantTrack
 
 
 class BatchContestantUpdateForm(forms.Form):
@@ -814,24 +615,6 @@ class ContestantRecalculateWithStartTimeForm(forms.Form):
                 "<p class='text-error font-bold mb-4'>Warning: This will delete the current contestant and create a new one with the same positions but updated timing. All current scores for this contestant will be lost.</p>"
             ),
             ButtonHolder(Submit("submit", "Recalculate")),
-        )
-
-
-class AssignPokerCardForm(forms.Form):
-    waypoint = forms.ChoiceField(choices=())
-    playing_card = forms.ChoiceField(choices=[("random", "Random")] + PLAYING_CARDS, initial="random")
-
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-        self.helper = FormHelper()
-        self.helper.form_class = "form"
-        self.helper.layout = Layout(
-            Fieldset(
-                "Assign Poker Card",
-                "waypoint",
-                "playing_card",
-            ),
-            ButtonHolder(Submit("submit", "Assign")),
         )
 
 

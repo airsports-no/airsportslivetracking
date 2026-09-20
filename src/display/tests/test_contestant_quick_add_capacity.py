@@ -45,8 +45,15 @@ class TestContestantQuickAddCapacity(TestCase):
             aeroplane=Aeroplane.objects.create(registration="LN-QADD"),
         )
         self.contest_team = ContestTeam.objects.create(contest=self.contest, team=guest_team, air_speed=70)
-        self.url = reverse("contestant_quick_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
-        self.create_url = reverse("contestant_create", kwargs={"navigationtask_pk": self.navigation_task.pk})
+        # ContestantQuickAddView/contestant_quick_create and ContestantCreateView/contestant_create
+        # (both classic) were retired in favour of REST (navigationtasks-quick-add-contestant and
+        # contestants-list respectively) - see the navigation_task_detail_spa_migration project memory.
+        self.url = reverse(
+            "navigationtasks-quick-add-contestant", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk}
+        )
+        self.create_url = reverse(
+            "contestants-list", kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk}
+        )
         self.editable_route = EditableRoute.objects.create(
             name="Quick Add Capacity primitives",
             route={
@@ -60,7 +67,7 @@ class TestContestantQuickAddCapacity(TestCase):
             },
         )
 
-    @patch("display.views._assert_can_reserve_task_slot")
+    @patch("display.viewsets._assert_can_reserve_task_slot")
     def test_quick_add_calls_reservation_guard(self, mock_guard):
         self.client.force_login(self.user)
         response = self.client.post(
@@ -72,10 +79,10 @@ class TestContestantQuickAddCapacity(TestCase):
             },
         )
 
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(201, response.status_code, response.content)
         mock_guard.assert_called_once()
 
-    @patch("display.views._assert_can_reserve_task_slot", side_effect=ValidationError("capacity blocked"))
+    @patch("display.viewsets._assert_can_reserve_task_slot", side_effect=ValidationError("capacity blocked"))
     def test_quick_add_is_blocked_when_reservation_guard_rejects(self, _mock_guard):
         self.client.force_login(self.user)
         response = self.client.post(
@@ -87,8 +94,8 @@ class TestContestantQuickAddCapacity(TestCase):
             },
         )
 
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "capacity blocked")
+        self.assertEqual(400, response.status_code)
+        self.assertIn("capacity blocked", str(response.json()))
         self.assertFalse(Contestant.objects.filter(navigation_task=self.navigation_task, team=self.contest_team.team).exists())
 
     def test_quick_add_is_blocked_when_contest_capacity_is_full_across_other_tasks(self):
@@ -124,7 +131,7 @@ class TestContestantQuickAddCapacity(TestCase):
             gate_times={},
         )
 
-        with patch("display.views.resolve_contest_access") as mock_resolve:
+        with patch("display.viewsets.resolve_contest_access") as mock_resolve:
             mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
             response = self.client.post(
                 self.url,
@@ -135,11 +142,11 @@ class TestContestantQuickAddCapacity(TestCase):
                 },
             )
 
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "active pilot capacity")
+        self.assertEqual(400, response.status_code)
+        self.assertIn("active pilot capacity", str(response.json()))
         self.assertFalse(Contestant.objects.filter(navigation_task=self.navigation_task, team=self.contest_team.team).exists())
 
-    def test_full_create_form_is_blocked_when_contest_capacity_is_full_across_other_tasks(self):
+    def test_full_create_rest_action_is_blocked_when_contest_capacity_is_full_across_other_tasks(self):
         self.client.force_login(self.user)
         other_task = NavigationTask.objects.create(
             name="Other Task 2",
@@ -172,7 +179,7 @@ class TestContestantQuickAddCapacity(TestCase):
             gate_times={},
         )
 
-        with patch("display.views.resolve_contest_access") as mock_resolve:
+        with patch("display.viewsets.resolve_contest_access") as mock_resolve:
             mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 1, "contestants_used": 0, "enforcement_mode": "enforce"})()
             response = self.client.post(
                 self.create_url,
@@ -193,8 +200,8 @@ class TestContestantQuickAddCapacity(TestCase):
                 },
             )
 
-        self.assertEqual(200, response.status_code)
-        self.assertContains(response, "active pilot capacity")
+        self.assertEqual(400, response.status_code)
+        self.assertIn("active pilot capacity", str(response.json()))
         self.assertFalse(Contestant.objects.filter(navigation_task=self.navigation_task, team=self.contest_team.team).exists())
 
     def test_quick_add_keeps_contract_declaration_empty_until_dedicated_editor_is_used(self):
@@ -213,6 +220,6 @@ class TestContestantQuickAddCapacity(TestCase):
             },
         )
 
-        self.assertEqual(302, response.status_code)
+        self.assertEqual(201, response.status_code, response.content)
         contestant = Contestant.objects.get(navigation_task=self.navigation_task, team=self.contest_team.team)
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})

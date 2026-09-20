@@ -3,6 +3,10 @@ from rest_framework_nested import routers
 from django.urls import path, include
 
 from display.viewsets import (
+    AdminActivityTrendsViewSet,
+    AdminFlightStatsViewSet,
+    AdminSystemStatsViewSet,
+    AdminUpcomingContestantsViewSet,
     ContestViewSet,
     ImportFCNavigationTask,
     ImportFCNavigationTaskTeamId,
@@ -55,6 +59,10 @@ router.register(r"teams", TeamViewSet, basename="teams")
 router.register(r"scorecards", GetScorecardsViewSet, basename="scorecards")
 router.register(r"editableroutes", EditableRouteViewSet, basename="editableroutes")
 router.register(r"photos", PhotoViewSet, basename="photos")
+router.register(r"admin/flight-stats", AdminFlightStatsViewSet, basename="admin-flight-stats")
+router.register(r"admin/upcoming-contestants", AdminUpcomingContestantsViewSet, basename="admin-upcoming-contestants")
+router.register(r"admin/system-stats", AdminSystemStatsViewSet, basename="admin-system-stats")
+router.register(r"admin/activity-trends", AdminActivityTrendsViewSet, basename="admin-activity-trends")
 # results_details_router = routers.NestedSimpleRouter(router, r'contestresults', lookup='contest')
 # results_details_router.register(r'details', ContestResultsDetailsViewSet, basename="contestresultsdetails")
 

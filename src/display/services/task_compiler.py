@@ -4,6 +4,7 @@ import json
 from display.models import CompiledNavigationTask
 from display.services.route_compatibility import (
     LEGACY_COMPILER_PRIMITIVE_KEYS,
+    contract_navigation_structural_errors,
     extract_route_primitives,
     turnpoint_hunt_structural_errors,
 )
@@ -141,31 +142,9 @@ class TaskCompiler:
         return errors
 
     def _validate_contract_navigation_structure(self, primitives: dict) -> list[str]:
-        editable_route = self.navigation_task.editable_route
-        if editable_route is None:
-            return []
-
-        errors = []
-        authored_waypoints = editable_route.get_ordered_track_waypoints()
-        if len(authored_waypoints) != 3:
-            errors.append("Contract navigation requires exactly three route waypoints: SP, MP, and FP.")
-        else:
-            expected = [
-                (STARTINGPOINT, "SP"),
-                (TURNPOINT, "MP"),
-                (FINISHPOINT, "FP"),
-            ]
-            for waypoint, (expected_type, expected_name) in zip(authored_waypoints, expected):
-                point_type = waypoint.get("properties", {}).get("pointType")
-                point_name = waypoint.get("properties", {}).get("name")
-                if point_type != expected_type or point_name != expected_name:
-                    errors.append("Contract navigation route waypoints must be authored in order as SP, MP, and FP.")
-                    break
-
-        free_waypoints = [name for name in primitives.get("catalogue_turnpoint", []) if name not in {"SP", "MP", "FP"}]
-        if len(free_waypoints) < 1:
-            errors.append("Contract navigation requires at least one free catalogue waypoint.")
-        return errors
+        # Shared with assert_route_compatible_with_task_type (route_compatibility.py) so the
+        # pre-creation API check and this post-creation compile-time check can't drift apart.
+        return contract_navigation_structural_errors(self.navigation_task.editable_route, primitives)
 
     def _validate_turnpoint_hunt_structure(self, primitives: dict) -> list[str]:
         # Shared with assert_route_compatible_with_task_type (route_compatibility.py) so the

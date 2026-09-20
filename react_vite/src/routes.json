@@ -8,6 +8,7 @@
   "MISSION_DASHBOARD": "",
   "MISSION_DASHBOARD_DETAIL": "mission-dashboard/:contestId",
   "MISSION_DASHBOARD_PHOTOS": "mission-dashboard/:contestId/:navigationTaskId/photos",
+  "NAVIGATION_TASK_DETAIL": "mission-dashboard/:contestId/task/:navigationTaskId",
   "CONTESTANT_DECLARATION": "contestant-declaration/:contestId/:navigationTaskId/:contestantId",
 
   "COMPETITION_MAP": "competition-map",
@@ -17,5 +18,6 @@
   "CONTESTANT_SCHEDULING": "schedule-contestants/:contestId/:navigationTaskId",
   "UPGRADE_ORGANIZER": "upgrade-organizer",
   "UPGRADE_SUCCESS": "upgrade-success",
+  "ADMIN_FLIGHT_ACTIVITY": "management/flight-activity",
   "NOT_FOUND": "*"
 }

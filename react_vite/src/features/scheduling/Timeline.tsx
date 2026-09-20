@@ -2,12 +2,30 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import { Timeline as VisTimeline, TimelineOptions, DataItem, DataGroup } from 'vis-timeline/standalone';
 import { DataSet } from 'vis-data';
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
+import './Timeline.css';
 import { v4 as uuidv4 } from 'uuid';
+
+// Shared by the overtake calculation and the bar itself, so "does #10's bar visually extend
+// past anyone else's" and "is #10 flagged as an overtake" always agree - adaptive-start
+// contestants use their scheduled finish (their actual takeoff isn't fixed either, so a real
+// landing time isn't a like-for-like comparison against everyone else's schedule), everyone
+// else uses their actual landing_time once it's known, falling back to finished_by_time before
+// that.
+export function getBlockEndTime(contestant: any): number {
+    if (contestant.adaptive_start) {
+        return new Date(contestant.finished_by_time).getTime();
+    }
+    return contestant.landing_time
+        ? new Date(contestant.landing_time).getTime()
+        : new Date(contestant.finished_by_time).getTime();
+}
 
 interface TimelineProps {
     navigationTask: any;
     firstTakeoffTime: Date;
-    onUpdate: (contestantId: number, data: any) => void;
+    /** Resolves to false if the update was rejected (e.g. server-side validation) so onMove can
+        cancel the drag instead of leaving the bar sitting at its unsaved position. */
+    onUpdate: (contestantId: number, data: any) => Promise<boolean>;
     onToggleLock?: (contestantId: number, currentLockState: boolean) => void;
     onDelete?: (contestantId: number) => void;
 }
@@ -65,6 +83,43 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
         return Array.from(groupsMap.values()).sort((a, b) => a.minTime - b.minTime);
     }, [contestants]);
 
+    // A contestant "overtakes" another when it takes off later but finishes earlier - i.e. the
+    // finish-time order (sorted by takeoff time, which `contestants` already is) has an
+    // inversion. Informational only: this never affects `editable`, dragging is never blocked.
+    // For each contestant, flag it if either direction of inversion involves it:
+    // - some contestant departing after it finishes before it (it gets overtaken), or
+    // - it finishes before some contestant that departed before it (it does the overtaking).
+    // Both directions reduce to one O(n) pass (after the existing takeoff-time sort) using a
+    // suffix-min and a prefix-max of finish times.
+    //
+    // Uses getBlockEndTime (the same landing-time-preferring end used for the bar itself), not
+    // raw finished_by_time - a contestant who has actually landed shows a bar ending at their
+    // real landing_time, so comparing against everyone else's scheduled finished_by_time could
+    // flag (or miss) an overtake that the bars themselves don't visually show at all.
+    const overtakeContestantIds = useMemo(() => {
+        const n = contestants.length;
+        const flagged = new Set<number>();
+        if (n < 2) return flagged;
+
+        const finishTimes = contestants.map(getBlockEndTime);
+
+        const suffixMinAfter = new Array<number>(n).fill(Infinity);
+        for (let i = n - 2; i >= 0; i--) {
+            suffixMinAfter[i] = Math.min(finishTimes[i + 1], suffixMinAfter[i + 1]);
+        }
+        const prefixMaxBefore = new Array<number>(n).fill(-Infinity);
+        for (let i = 1; i < n; i++) {
+            prefixMaxBefore[i] = Math.max(finishTimes[i - 1], prefixMaxBefore[i - 1]);
+        }
+
+        for (let i = 0; i < n; i++) {
+            if (finishTimes[i] > suffixMinAfter[i] || finishTimes[i] < prefixMaxBefore[i]) {
+                flagged.add(contestants[i].id);
+            }
+        }
+        return flagged;
+    }, [contestants]);
+
     const timelineItems = useMemo(() => {
         const formatTimeLocal = (date: string | number) => new Date(date).toLocaleTimeString([], {hour: '2-digit', minute:'2-digit'});
 
@@ -73,12 +128,12 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             const trackerStart = new Date(contestant.tracker_start_time).getTime();
             const takeoff = new Date(contestant.takeoff_time).getTime();
             const finish = new Date(contestant.finished_by_time).getTime();
-            const landing = contestant.landing_time 
-                ? new Date(contestant.landing_time).getTime() 
+            const landing = contestant.landing_time
+                ? new Date(contestant.landing_time).getTime()
                 : finish;
 
             const blockStartTime = isAdaptive ? trackerStart : takeoff;
-            const blockEndTime = isAdaptive ? finish : landing;
+            const blockEndTime = getBlockEndTime(contestant);
             const isCalculatorLocked = contestant.contestanttrack?.calculator_started;
             const isScheduleLocked = contestant.schedule_locked;
             const isLocked = isCalculatorLocked || isScheduleLocked;
@@ -88,7 +143,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
 
             if (isCalculatorLocked) {
                 lockIcon = '📡 ';
-                lockTooltip = '\nTracking started. Cannot move, but can delete.';
+                lockTooltip = '\nTracking started.\nCannot move, but can delete.';
             } else if (isScheduleLocked) {
                 lockIcon = '🔒 ';
                 lockTooltip = '\nSchedule locked.';
@@ -99,11 +154,27 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             let warningTooltip = '';
 
             if (hasOverlaps) {
-                warningIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:text-bottom; margin-right:2px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
-                warningTooltip = '\nWarning: Overlapping contestants detected on this tracker.';
+                // Not an inline <svg> string: vis-timeline runs item content through an XSS
+                // sanitizer (the bundled `xss` package) whose default tag allowlist doesn't
+                // include svg/path/line, so the raw markup leaked through as literal visible
+                // text instead of being rendered - matches the lockIcon emoji below, which
+                // renders fine for the same reason (plain text needs no allowlisted tags).
+                warningIcon = '⚠️ ';
+                warningTooltip = '\nWarning: Overlapping contestants\ndetected on this tracker.';
             }
 
-            const content = `${warningIcon}${lockIcon}<b>#${contestant.contestant_number}</b> ${contestant.team.crew.member1.last_name}`;
+            const isOvertaking = overtakeContestantIds.has(contestant.id);
+            let overtakeIcon = '';
+            let overtakeTooltip = '';
+
+            if (isOvertaking) {
+                // See the warningIcon comment above - same vis-timeline XSS-sanitizer issue.
+                overtakeIcon = '🔀 ';
+                overtakeTooltip =
+                    "\nNote: this contestant's finishing order crosses\nanother contestant's relative to takeoff order\n(an overtake). Not blocked, just flagged.";
+            }
+
+            const content = `${warningIcon}${overtakeIcon}${lockIcon}<b>#${contestant.contestant_number}</b> ${contestant.team.crew.member1.last_name}`;
 
             const takeoffText = isAdaptive ? 'Adaptive' : formatTimeLocal(takeoff);
             
@@ -127,8 +198,10 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 end: blockEndTime,
                 content: content,
                 editable: itemEditable,
-                className: isLocked ? 'vis-item-locked' : 'vis-item-normal',
-                title: `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} (${contestant.team.aeroplane.registration})\nTake-off: ${takeoffText}${lockTooltip}${warningTooltip}`,
+                className: [isLocked ? 'vis-item-locked' : 'vis-item-normal', isOvertaking ? 'vis-item-overtake' : '']
+                    .filter(Boolean)
+                    .join(' '),
+                title: `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name}\n(${contestant.team.aeroplane.registration})\nTake-off: ${takeoffText}${lockTooltip}${warningTooltip}${overtakeTooltip}`,
                 // Custom data to help with updates
                 data: {
                     trackerStart,
@@ -140,13 +213,18 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 }
             };
         });
-    }, [contestants]);
+    }, [contestants, overtakeContestantIds]);
 
     const timelineItemsRef = useRef(timelineItems);
+    const contestantsRef = useRef(contestants);
 
     useEffect(() => {
         timelineItemsRef.current = timelineItems;
     }, [timelineItems]);
+
+    useEffect(() => {
+        contestantsRef.current = contestants;
+    }, [contestants]);
 
     useEffect(() => {
         if (!containerRef.current) return;
@@ -158,8 +236,22 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
         itemsRef.current = items;
         groupsRef.current = groups;
 
+        // Panning/zooming is bounded to the competition's own start/finish time plus a small
+        // fixed padding either side - enough slack to see a slightly early/late contestant,
+        // not enough to wander off arbitrarily far from the actual event.
+        const PAN_ZOOM_PADDING_MS = 60 * 60 * 1000;
+        const panZoomMin = navigationTask?.start_time
+            ? new Date(new Date(navigationTask.start_time).getTime() - PAN_ZOOM_PADDING_MS)
+            : undefined;
+        const panZoomMax = navigationTask?.finish_time
+            ? new Date(new Date(navigationTask.finish_time).getTime() + PAN_ZOOM_PADDING_MS)
+            : undefined;
+
         const options: TimelineOptions = {
-            moveable: false,
+            moveable: true,
+            zoomable: true,
+            min: panZoomMin,
+            max: panZoomMax,
             groupHeightMode: 'fixed',
             stack: false,
             showCurrentTime: true,
@@ -203,13 +295,16 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 const newTakeoff = new Date(takeoff + delta);
                 const newFinish = new Date(finish + delta);
 
+                // Don't move the bar until the server has actually accepted the new times - a
+                // rejection (e.g. the stale-absolute-declaration guard) would otherwise leave it
+                // sitting at its unsaved position, with only an error toast to notice by.
                 onUpdate(item.id, {
                     tracker_start_time: newTrackerStart.toISOString(),
                     takeoff_time: newTakeoff.toISOString(),
                     finished_by_time: newFinish.toISOString()
+                }).then((success) => {
+                    callback(success ? item : null);
                 });
-
-                callback(item); // Optimistically update UI
             },
             onRemove: (item: any, callback: (item: any) => void) => {
                 if (onDelete) {
@@ -267,23 +362,27 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
         const itemsToRemove = existingItemIds.filter(id => !newItemIds.includes(id));
         items.remove(itemsToRemove);
         items.update(timelineItems);
+    }, [timelineItems, aircraftGroups]);
 
-        // Update timeline window
-        if (firstTakeoffTime) {
-            let maxFinishTime: Date | null = null;
-            if (contestants.length > 0) {
-                const times = contestants.map(c => new Date(c.finished_by_time).getTime());
-                const maxMillis = Math.max(...times);
-                maxFinishTime = new Date(maxMillis + 2 * 60 * 60 * 1000);
-            } else {
-                // Default view if no contestants (e.g. 4 hours)
-                maxFinishTime = new Date(firstTakeoffTime.getTime() + 4 * 60 * 60 * 1000);
-            }
-            
-            timelineRef.current.setWindow(firstTakeoffTime, maxFinishTime, { animation: false });
+    // Frames the visible window around "Reschedule From" - deliberately separate from the data
+    // sync effect above and keyed only on firstTakeoffTime, not on contestants/timelineItems:
+    // dragging a single contestant (which round-trips through onUpdate and updates the
+    // contestants prop) must not reset whatever zoom/pan the organizer currently has.
+    useEffect(() => {
+        if (!timelineRef.current || !firstTakeoffTime) return;
+
+        let maxFinishTime: Date;
+        const currentContestants = contestantsRef.current;
+        if (currentContestants.length > 0) {
+            const times = currentContestants.map(c => new Date(c.finished_by_time).getTime());
+            maxFinishTime = new Date(Math.max(...times) + 2 * 60 * 60 * 1000);
+        } else {
+            // Default view if no contestants (e.g. 4 hours)
+            maxFinishTime = new Date(firstTakeoffTime.getTime() + 4 * 60 * 60 * 1000);
         }
-        
-    }, [timelineItems, aircraftGroups, firstTakeoffTime, contestants]);
+
+        timelineRef.current.setWindow(firstTakeoffTime, maxFinishTime, { animation: false });
+    }, [firstTakeoffTime]);
 
     return (
         <div className="w-full h-full relative">
@@ -301,6 +400,12 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 }
                 .vis-item .vis-item-content {
                     padding: 2px 5px;
+                }
+                .vis-item-overtake {
+                    /* Informational only - layers on top of the locked/normal background,
+                       never changes editability. */
+                    outline: 2px dashed #a855f7;
+                    outline-offset: -2px;
                 }
                 .vis-item.vis-selected {
                     background-color: #2563eb;

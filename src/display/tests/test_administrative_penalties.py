@@ -8,6 +8,7 @@ from guardian.shortcuts import assign_perm
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import (
+    ActualGateTime,
     AdministrativePenalty,
     Aeroplane,
     Contest,
@@ -17,12 +18,14 @@ from display.models import (
     GateCumulativeScore,
     NavigationTask,
     Person,
-    ScoreLogEntry,
     Scorecard,
+    ScoreLogEntry,
     Team,
     TrackAnnotation,
 )
+from display.models.scoring_models import ANOMALY
 from display.services.administrative_penalties import AdministrativePenaltyService
+from display.utilities.gate_definitions import FINISHPOINT
 from display.waypoint import Waypoint
 from utilities.mock_utilities import TraccarMock
 
@@ -73,7 +76,9 @@ class TestAdministrativePenalties(TestCase):
 
     @patch.object(ScoreLogEntry, "push")
     @patch.object(TrackAnnotation, "push")
-    def test_apply_contestant_penalty_creates_score_log_annotation_and_updates_score(self, mock_annotation_push, mock_score_push):
+    def test_apply_contestant_penalty_creates_score_log_annotation_and_updates_score(
+        self, mock_annotation_push, mock_score_push
+    ):
         score_before = self.contestant.contestanttrack.score
         version_before = self.contestant.score_version
 
@@ -132,81 +137,6 @@ class TestAdministrativePenalties(TestCase):
 
     @patch.object(ScoreLogEntry, "push")
     @patch.object(TrackAnnotation, "push")
-    def test_quarantine_penalty_view_applies_penalty_and_redirects(self, mock_annotation_push, mock_score_push):
-        self.client.force_login(self.user)
-        score_before = self.contestant.contestanttrack.score
-        version_before = self.contestant.score_version
-
-        response = self.client.post(
-            reverse("contestant_apply_quarantine_penalty", kwargs={"pk": self.contestant.pk}),
-            {"points": "35", "reason": "late exit from quarantine", "category": "quarantine"},
-        )
-
-        self.assertEqual(response.status_code, 302)
-        self.assertEqual(response.url, reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
-
-        self.contestant.refresh_from_db()
-        self.contestant.contestanttrack.refresh_from_db()
-        entry = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="ADMIN-QUAR").latest("pk")
-        admin_penalty = AdministrativePenalty.objects.get(score_log_entry=entry)
-        self.assertEqual(entry.points, 35.0)
-        self.assertEqual(entry.message, "late exit from quarantine")
-        self.assertEqual(admin_penalty.category, "quarantine")
-        self.assertEqual(admin_penalty.actor, self.user)
-        self.assertEqual(self.contestant.contestanttrack.score, score_before + 35.0)
-        self.assertEqual(self.contestant.score_version, version_before + 1)
-        self.assertEqual(mock_score_push.call_count, 1)
-        self.assertEqual(mock_annotation_push.call_count, 1)
-
-    @patch.object(ScoreLogEntry, "push")
-    @patch.object(TrackAnnotation, "push")
-    def test_penalty_view_supports_other_categories(self, mock_annotation_push, mock_score_push):
-        self.client.force_login(self.user)
-
-        response = self.client.post(
-            reverse("contestant_apply_quarantine_penalty", kwargs={"pk": self.contestant.pk}),
-            {"points": "50", "reason": "ignored task instructions", "category": "instructions"},
-        )
-
-        self.assertEqual(response.status_code, 302)
-        entry = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="ADMIN-INSTR").latest("pk")
-        admin_penalty = AdministrativePenalty.objects.get(score_log_entry=entry)
-        self.assertEqual(entry.points, 50.0)
-        self.assertEqual(entry.message, "ignored task instructions")
-        self.assertEqual(admin_penalty.category, "instructions")
-        self.assertEqual(admin_penalty.actor, self.user)
-        self.assertEqual(mock_score_push.call_count, 1)
-        self.assertEqual(mock_annotation_push.call_count, 1)
-
-    @patch.object(ScoreLogEntry, "push")
-    @patch.object(TrackAnnotation, "push")
-    def test_penalty_view_supports_observation_and_map_categories(self, mock_annotation_push, mock_score_push):
-        self.client.force_login(self.user)
-
-        observation_response = self.client.post(
-            reverse("contestant_apply_quarantine_penalty", kwargs={"pk": self.contestant.pk}),
-            {"points": "20", "reason": "photo evidence mismatch", "category": "observation"},
-        )
-        map_response = self.client.post(
-            reverse("contestant_apply_quarantine_penalty", kwargs={"pk": self.contestant.pk}),
-            {"points": "30", "reason": "map placement mismatch", "category": "map"},
-        )
-
-        self.assertEqual(observation_response.status_code, 302)
-        self.assertEqual(map_response.status_code, 302)
-        observation_entry = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="ADMIN-OBS").latest("pk")
-        map_entry = ScoreLogEntry.objects.filter(contestant=self.contestant, gate="ADMIN-MAP").latest("pk")
-        observation_penalty = AdministrativePenalty.objects.get(score_log_entry=observation_entry)
-        map_penalty = AdministrativePenalty.objects.get(score_log_entry=map_entry)
-        self.assertEqual(observation_entry.message, "photo evidence mismatch")
-        self.assertEqual(map_entry.message, "map placement mismatch")
-        self.assertEqual(observation_penalty.category, "observation")
-        self.assertEqual(map_penalty.category, "map")
-        self.assertEqual(mock_score_push.call_count, 2)
-        self.assertEqual(mock_annotation_push.call_count, 2)
-
-    @patch.object(ScoreLogEntry, "push")
-    @patch.object(TrackAnnotation, "push")
     def test_score_data_includes_structured_administrative_penalties(self, mock_annotation_push, mock_score_push):
         self.client.force_login(self.user)
         self.navigation_task.task_subtype = "known_circuit"
@@ -250,9 +180,29 @@ class TestAdministrativePenalties(TestCase):
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "secret", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
                 ],
             },
         )
@@ -285,7 +235,9 @@ class TestAdministrativePenalties(TestCase):
 
     @patch.object(ScoreLogEntry, "push")
     @patch.object(TrackAnnotation, "push")
-    def test_apply_contestant_penalty_uses_route_location_for_annotation_coordinates(self, mock_annotation_push, mock_score_push):
+    def test_apply_contestant_penalty_uses_route_location_for_annotation_coordinates(
+        self, mock_annotation_push, mock_score_push
+    ):
         waypoint = Waypoint("SP")
         waypoint.latitude = 61.1
         waypoint.longitude = 12.2
@@ -307,15 +259,35 @@ class TestAdministrativePenalties(TestCase):
         self.assertEqual(mock_score_push.call_count, 1)
         self.assertEqual(mock_annotation_push.call_count, 1)
 
-    def test_gate_times_view_exposes_compiled_evidence_context(self):
+    def test_compiled_evidence_action_exposes_evidence_context(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times evidence primitives",
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "secret", "featureType": "route_waypoint", "width": 1852, "isTiming": False, "isPassing": True}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
                 ],
             },
         )
@@ -327,34 +299,53 @@ class TestAdministrativePenalties(TestCase):
         from display.services.contestant_task_compiler import ContestantTaskCompiler
 
         ContestantTaskCompiler(self.contestant).compile(force=True)
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-compiled-evidence",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
-        compiled_evidence = response.context["compiled_evidence"]
+        compiled_evidence = response.json()
         self.assertEqual(compiled_evidence["hidden_gate_names"], ["HG1"])
         self.assertEqual(compiled_evidence["observation_judging_mode"], "external_manual")
         self.assertEqual(compiled_evidence["manual_adjudication_categories"], ["observation", "map"])
         self.assertEqual(compiled_evidence["observation_photos"][0]["name"], "Photo 1")
         self.assertEqual(compiled_evidence["observation_photos"][0]["evidence_category"], "observation")
         self.assertEqual(compiled_evidence["unknown_leg_names"], [])
-        self.assertContains(response, "Compiled evidence review")
-        self.assertContains(response, "HG1")
-        self.assertContains(response, "Photo 1")
-        self.assertContains(response, "observation")
-        self.assertContains(response, "Apply observation penalty")
-        self.assertContains(response, "Apply map-placement penalty")
-        self.assertContains(response, 'value="observation"', html=False)
-        self.assertContains(response, 'value="map"', html=False)
 
-    def test_gate_times_view_exposes_unknown_leg_compiled_evidence_context(self):
+    def test_compiled_evidence_action_exposes_unknown_leg_context(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times unknown leg primitives",
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "ul-1", "name": "UL1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0, "segmentType": "straight"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "ul-1",
+                            "name": "UL1",
+                            "pointType": "ul",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                            "segmentType": "straight",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
                 ],
             },
         )
@@ -366,32 +357,43 @@ class TestAdministrativePenalties(TestCase):
         from display.services.contestant_task_compiler import ContestantTaskCompiler
 
         ContestantTaskCompiler(self.contestant).compile(force=True)
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-compiled-evidence",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
-        compiled_evidence = response.context["compiled_evidence"]
+        compiled_evidence = response.json()
         self.assertEqual(compiled_evidence["unknown_leg_names"], ["UL1"])
         self.assertEqual(compiled_evidence["observation_judging_mode"], "external_manual")
         self.assertEqual(compiled_evidence["manual_adjudication_categories"], ["observation", "map"])
         self.assertEqual(compiled_evidence["observation_photos"][0]["name"], "Photo 1")
         self.assertEqual(compiled_evidence["observation_photos"][0]["evidence_category"], "observation")
         self.assertEqual(compiled_evidence["hidden_gate_names"], [])
-        self.assertContains(response, "Compiled evidence review")
-        self.assertContains(response, "UL1")
-        self.assertContains(response, "Photo 1")
-        self.assertContains(response, "observation")
-        self.assertContains(response, "Apply observation penalty")
-        self.assertContains(response, "Apply map-placement penalty")
 
-    def test_gate_times_view_exposes_anr_auxiliary_path_review_context(self):
+    def test_compiled_evidence_action_exposes_anr_auxiliary_path_review_context(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times ANR auxiliary primitives",
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"}, "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]}},
-                    {"type": "Feature", "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"}, "geometry": {"type": "LineString", "coordinates": [[11.1, 60.1], [11.2, 60.0]]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "rts-1", "name": "Route to SP", "featureType": "route_to_sp_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[10.9, 59.9], [11.0, 60.0]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "rfp-1", "name": "Route from FP", "featureType": "route_from_fp_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.1, 60.1], [11.2, 60.0]]},
+                    },
                 ],
             },
         )
@@ -403,10 +405,15 @@ class TestAdministrativePenalties(TestCase):
         from display.services.contestant_task_compiler import ContestantTaskCompiler
 
         ContestantTaskCompiler(self.contestant).compile(force=True)
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-compiled-evidence",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
-        compiled_evidence = response.context["compiled_evidence"]
+        compiled_evidence = response.json()
         self.assertEqual(
             compiled_evidence["compiled_auxiliary_paths"]["route_to_sp_path"],
             [[[10.9, 59.9], [11.0, 60.0]]],
@@ -415,21 +422,80 @@ class TestAdministrativePenalties(TestCase):
             compiled_evidence["compiled_auxiliary_paths"]["route_from_fp_path"],
             [[[11.1, 60.1], [11.2, 60.0]]],
         )
-        self.assertContains(response, "Route to SP")
-        self.assertContains(response, "Route from FP")
 
-    def test_gate_times_view_uses_effective_waypoints_for_total_distance_and_cards(self):
+    def test_gate_times_action_uses_effective_waypoints_for_total_distance_and_cards(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times contract distance primitives",
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.0, 60.8]]}},
-                    {"type": "Feature", "properties": {"id": "wp-sp", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
-                    {"type": "Feature", "properties": {"id": "wp-mp", "name": "MP", "pointType": "tp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.0, 60.4]}},
-                    {"type": "Feature", "properties": {"id": "wp-fp", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.0, 60.8]}},
-                    {"type": "Feature", "properties": {"id": "cat-a", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.0, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "cat-b", "name": "B", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.0, 60.6]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.0, 60.8]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-sp",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-mp",
+                            "name": "MP",
+                            "pointType": "tp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.4]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-fp",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.8]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-a",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-b",
+                            "name": "B",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.6]},
+                    },
                 ],
             },
         )
@@ -444,25 +510,54 @@ class TestAdministrativePenalties(TestCase):
             declaration_payload={"declared_sequence": ["A", "MP", "B", "FP"], "declared_t_seconds": 600},
             force=True,
         )
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-gate-times",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
-        rendered_names = [gate.name for gate in response.context["rendered_waypoints"]]
-        self.assertEqual(rendered_names, ["SP", "A", "MP", "B", "FP"])
-        self.assertContains(response, "A")
-        self.assertContains(response, "B")
-        self.assertGreater(response.context["total_distance"], 0)
+        data = response.json()
+        self.assertEqual(data["rendered_waypoints"], ["SP", "A", "MP", "B", "FP"])
+        self.assertGreater(data["total_distance"], 0)
 
-    def test_gate_times_view_exposes_fuel_review_for_limited_fuel_turnpoint_hunt(self):
+    def test_gate_times_action_exposes_fuel_review_for_limited_fuel_turnpoint_hunt(self):
         editable_route = EditableRoute.objects.create(
             name="Gate times fuel primitives",
             route={
                 "type": "FeatureCollection",
                 "features": [
-                    {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
-                    {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
-                    {"type": "Feature", "properties": {"id": "kt-1", "name": "TG1", "pointType": "tp", "featureType": "known_time_gate"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
-                    {"type": "Feature", "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "cat-1",
+                            "name": "A",
+                            "pointType": "tp",
+                            "featureType": "catalogue_turnpoint",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "kt-1",
+                            "name": "TG1",
+                            "pointType": "tp",
+                            "featureType": "known_time_gate",
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.25, 60.25]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [11.35, 60.35]},
+                    },
                 ],
             },
         )
@@ -481,18 +576,22 @@ class TestAdministrativePenalties(TestCase):
             },
             force=True,
         )
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-gate-times",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
-        fuel_review = response.context["compiled_fuel_review"]
+        fuel_review = response.json()["compiled_fuel_review"]
         self.assertEqual(fuel_review["declared_endurance_minutes"], 95)
-        self.assertEqual(fuel_review["fuel_deadline"], self.contestant.takeoff_time + datetime.timedelta(minutes=95))
-        self.assertContains(response, "Declared endurance")
-        self.assertContains(response, "95")
-        self.assertContains(response, "Apply fuel-check penalty")
-        self.assertContains(response, 'value="fuel"', html=False)
+        self.assertEqual(
+            datetime.datetime.fromisoformat(fuel_review["fuel_deadline"]),
+            self.contestant.takeoff_time + datetime.timedelta(minutes=95),
+        )
 
-    def test_gate_times_view_exposes_duration_residual_fuel_review(self):
+    def test_gate_times_action_exposes_duration_residual_fuel_review(self):
         self.navigation_task.task_subtype = "duration"
         self.navigation_task.task_config = {"duration_residual_fuel_required": True}
         self.navigation_task.save(update_fields=["task_subtype", "task_config"])
@@ -501,14 +600,171 @@ class TestAdministrativePenalties(TestCase):
         from display.services.contestant_task_compiler import ContestantTaskCompiler
 
         ContestantTaskCompiler(self.contestant).compile(force=True)
-        response = self.client.get(reverse("contestant_gate_times", kwargs={"pk": self.contestant.pk}))
+        response = self.client.get(
+            reverse(
+                "contestants-gate-times",
+                kwargs={"contest_pk": self.contest.pk, "navigationtask_pk": self.navigation_task.pk, "pk": self.contestant.pk},
+            )
+        )
 
         self.assertEqual(response.status_code, 200)
         self.assertEqual(
-            response.context["compiled_fuel_review"],
+            response.json()["compiled_fuel_review"],
             {"duration_residual_fuel_required": True},
         )
-        self.assertContains(response, "Residual fuel review")
-        self.assertContains(response, "Residual fuel required")
-        self.assertContains(response, "Apply fuel-check penalty")
-        self.assertContains(response, 'value="fuel"', html=False)
+
+    def _create_gate_score_log_entry(self, *, gate: str, points: float, gate_type: str, time=None) -> ScoreLogEntry:
+        if time is None:
+            time = datetime.datetime.now(datetime.timezone.utc)
+        entry = ScoreLogEntry.objects.create(
+            contestant=self.contestant,
+            time=time,
+            gate=gate,
+            type=ANOMALY,
+            message="test penalty",
+            points=points,
+            planned=None,
+            actual=None,
+            offset_string="",
+            string=f"{gate}: {points} points",
+            times_string="",
+        )
+        TrackAnnotation.objects.create(
+            contestant=self.contestant,
+            latitude=60.0,
+            longitude=11.0,
+            message=entry.string,
+            type=ANOMALY,
+            gate=gate,
+            gate_type=gate_type,
+            time=time,
+            score_log_entry=entry,
+        )
+        return entry
+
+    def test_remove_score_log_entry_reverses_last_gate_and_finish_flags(self):
+        # SP was passed earlier (unaffected by removing the FP entry below).
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="SP", points=10.0)
+        sp_entry = self._create_gate_score_log_entry(
+            gate="SP",
+            points=10.0,
+            gate_type="sp",
+            time=datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc),
+        )
+        ActualGateTime.objects.create(
+            contestant=self.contestant,
+            gate="SP",
+            time=datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc),
+        )
+
+        # FP is the contestant's last recorded gate.
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="FP", points=50.0)
+        fp_entry = self._create_gate_score_log_entry(
+            gate="FP",
+            points=50.0,
+            gate_type=FINISHPOINT,
+            time=datetime.datetime(2020, 8, 1, 9, 10, tzinfo=datetime.timezone.utc),
+        )
+        ActualGateTime.objects.create(
+            contestant=self.contestant,
+            gate="FP",
+            time=datetime.datetime(2020, 8, 1, 9, 10, tzinfo=datetime.timezone.utc),
+        )
+
+        ct = self.contestant.contestanttrack
+        ct.update_score(60.0)
+        ct.last_gate = "FP"
+        ct.passed_finish_gate = True
+        ct.current_state = "Finished"
+        ct.save()
+
+        version_before = self.contestant.score_version
+        fp_entry_pk = fp_entry.pk
+
+        AdministrativePenaltyService.remove_score_log_entry(fp_entry)
+
+        self.contestant.refresh_from_db()
+        ct.refresh_from_db()
+
+        self.assertFalse(ScoreLogEntry.objects.filter(pk=fp_entry_pk).exists())
+        self.assertFalse(TrackAnnotation.objects.filter(score_log_entry_id=fp_entry_pk).exists())
+        self.assertFalse(ActualGateTime.objects.filter(contestant=self.contestant, gate="FP").exists())
+        self.assertFalse(GateCumulativeScore.objects.filter(contestant=self.contestant, gate="FP").exists())
+
+        # Reverts to the previous recorded gate (SP), and clears the finish flags/state.
+        self.assertEqual(ct.last_gate, "SP")
+        self.assertFalse(ct.passed_finish_gate)
+        self.assertEqual(ct.current_state, "Flying")
+
+        # SP's own records are untouched.
+        self.assertTrue(ActualGateTime.objects.filter(contestant=self.contestant, gate="SP").exists())
+        self.assertEqual(GateCumulativeScore.objects.get(contestant=self.contestant, gate="SP").points, 10.0)
+        self.assertTrue(ScoreLogEntry.objects.filter(pk=sp_entry.pk).exists())
+
+        self.assertEqual(ct.score, 10.0)
+        self.assertEqual(self.contestant.score_version, version_before + 1)
+
+    def test_remove_score_log_entry_decrements_shared_gate_cumulative_score_without_deleting_it(self):
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="TP1", points=30.0)
+        ActualGateTime.objects.create(
+            contestant=self.contestant,
+            gate="TP1",
+            time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc),
+        )
+        first_entry = self._create_gate_score_log_entry(
+            gate="TP1",
+            points=20.0,
+            gate_type="tp",
+            time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc),
+        )
+        second_entry = self._create_gate_score_log_entry(
+            gate="TP1",
+            points=10.0,
+            gate_type="tp",
+            time=datetime.datetime(2020, 8, 1, 8, 31, tzinfo=datetime.timezone.utc),
+        )
+        ct = self.contestant.contestanttrack
+        ct.update_score(30.0)
+        second_entry_pk = second_entry.pk
+
+        AdministrativePenaltyService.remove_score_log_entry(second_entry)
+
+        self.contestant.refresh_from_db()
+        ct.refresh_from_db()
+
+        self.assertFalse(ScoreLogEntry.objects.filter(pk=second_entry_pk).exists())
+        self.assertTrue(ScoreLogEntry.objects.filter(pk=first_entry.pk).exists())
+        # Only one entry remains for the gate, so the actual gate time is preserved...
+        self.assertTrue(ActualGateTime.objects.filter(contestant=self.contestant, gate="TP1").exists())
+        # ...but the cumulative score is decremented rather than deleted outright.
+        self.assertEqual(GateCumulativeScore.objects.get(contestant=self.contestant, gate="TP1").points, 20.0)
+        self.assertEqual(ct.score, 20.0)
+
+    def test_remove_score_log_entry_adjusts_subsequent_gate_cumulative_scores(self):
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="TP1", points=15.0)
+        tp1_entry = self._create_gate_score_log_entry(
+            gate="TP1",
+            points=15.0,
+            gate_type="tp",
+            time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc),
+        )
+        ActualGateTime.objects.create(
+            contestant=self.contestant,
+            gate="TP1",
+            time=datetime.datetime(2020, 8, 1, 8, 30, tzinfo=datetime.timezone.utc),
+        )
+
+        # Downstream gates carry TP1's points forward cumulatively.
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="TP2", points=15.0 + 5.0)
+        self._create_gate_score_log_entry(
+            gate="TP2",
+            points=5.0,
+            gate_type="tp",
+            time=datetime.datetime(2020, 8, 1, 8, 45, tzinfo=datetime.timezone.utc),
+        )
+        GateCumulativeScore.objects.create(contestant=self.contestant, gate="FP", points=15.0 + 5.0)
+
+        AdministrativePenaltyService.remove_score_log_entry(tp1_entry)
+
+        self.assertEqual(GateCumulativeScore.objects.get(contestant=self.contestant, gate="TP2").points, 5.0)
+        self.assertEqual(GateCumulativeScore.objects.get(contestant=self.contestant, gate="FP").points, 5.0)
