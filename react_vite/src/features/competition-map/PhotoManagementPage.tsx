@@ -7,7 +7,7 @@ import ProhibitedRenderer from './components/track-renderers/ProhibitedRenderer'
 import { fetchNavigationTask, uploadPhotoFile, revertPhotoToSatellite, fetchPhotos, createPhoto, deletePhoto } from './api';
 import { NavigationTask, Photo } from './types';
 import { Loading } from '../route-editor/components/basicComponents';
-import { RotateCcw, Upload, ChevronLeft, MapPin, Plus, Trash2, X } from 'lucide-react';
+import { RotateCcw, Upload, ArrowLeft, MapPin, Plus, Trash2, X } from 'lucide-react';
 import { generatePath } from '../../urls';
 
 export default function PhotoManagementPage() {
@@ -196,9 +196,9 @@ export default function PhotoManagementPage() {
         <div className="flex flex-col h-full overflow-hidden">
             <div className="bg-base-100 border-b border-base-300 p-4 flex justify-between items-center shadow-sm z-10">
                 <div className="flex items-center gap-4">
-                    <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-ghost btn-sm">
-                        <ChevronLeft size={16} />
-                        Back to Task
+                    <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-sm btn-outline gap-2">
+                        <ArrowLeft size={16} />
+                        Back to navigation task
                     </Link>
                     <h1 className="text-xl font-bold">Photo Management: {navTask?.name || 'Loading...'}</h1>
                 </div>

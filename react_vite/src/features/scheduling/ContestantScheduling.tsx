@@ -1,5 +1,6 @@
 import React, { useState, useEffect, useCallback } from 'react';
 import { useParams, Link } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 import { fetchContestTeams, fetchNavigationTask, fetchScheduleCapacityPreview, scheduleContestants, updateContestant, fetchTeam, fetchContestant, deleteContestant } from './api';
 import SchedulingForm from './SchedulingForm';
 import Timeline from './Timeline';
@@ -204,14 +205,23 @@ const ContestantScheduling = () => {
         <div className="container mx-auto p-4" data-theme="aviation">
             <ToastContainer toasts={toasts} removeToast={removeToast} />
             <div className="flex justify-between items-center mb-4">
-                <div>
-                    <h1 className="text-3xl font-bold">
-                        <span className="print:hidden">Schedule Contestants: </span>
-                        {navigationTask?.name}
-                    </h1>
-                    <p className="text-sm opacity-70 print:hidden">
-                        Window: {formatTime(navigationTask?.start_time)} - {formatTime(navigationTask?.finish_time)} ({timeZone})
-                    </p>
+                <div className="flex items-center gap-4">
+                    <Link
+                        to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
+                        className="btn btn-sm btn-outline gap-2"
+                    >
+                        <ArrowLeft size={16} />
+                        Back to navigation task
+                    </Link>
+                    <div>
+                        <h1 className="text-3xl font-bold">
+                            <span className="print:hidden">Schedule Contestants: </span>
+                            {navigationTask?.name}
+                        </h1>
+                        <p className="text-sm opacity-70 print:hidden">
+                            Window: {formatTime(navigationTask?.start_time)} - {formatTime(navigationTask?.finish_time)} ({timeZone})
+                        </p>
+                    </div>
                 </div>
                 <div className="flex gap-2">
                     <button onClick={() => window.print()} className="btn btn-primary btn-sm">
@@ -220,9 +230,6 @@ const ContestantScheduling = () => {
                         </svg>
                         Print Schedule
                     </button>
-                    <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-secondary btn-sm">
-                        Back to navigation task
-                    </Link>
                 </div>
             </div>
 

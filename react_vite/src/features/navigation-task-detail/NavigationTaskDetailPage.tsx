@@ -1,6 +1,6 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react';
 import { Link, useParams } from 'react-router-dom';
-import { Calendar, Check, ClipboardList, MapPin, Plus, Trophy } from 'lucide-react';
+import { ArrowLeft, Calendar, Check, ClipboardList, MapPin, Plus, Trophy } from 'lucide-react';
 import { Loading } from '../route-editor/components/basicComponents';
 import { fetchNavigationTask } from '../competition-map/api';
 import { fetchRunningCalculators, shareNavigationTask, NavigationTaskVisibility } from './api';
@@ -92,11 +92,20 @@ const NavigationTaskDetailPage: React.FC = () => {
   const visibility = visibilityOf(task);
 
   return (
-    <div className="p-4 max-w-5xl mx-auto">
+    <div className="container mx-auto p-4">
       {error && <div className="alert alert-error mb-4">{error}</div>}
 
       <div className="flex flex-wrap items-center justify-between gap-2 mb-1">
-        <h1 className="text-2xl font-bold">{task.name}</h1>
+        <div className="flex items-center gap-4">
+          <Link
+            to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestId! })}
+            className="btn btn-sm btn-outline gap-2"
+          >
+            <ArrowLeft size={16} />
+            Back to contest
+          </Link>
+          <h1 className="text-2xl font-bold">{task.name}</h1>
+        </div>
         <a
           href={task.tracking_link}
           target="_blank"
@@ -218,10 +227,6 @@ const NavigationTaskDetailPage: React.FC = () => {
         runningStatus={runningStatus}
         onRefresh={load}
       />
-
-      <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestId! })} className="btn btn-secondary mt-6">
-        Back to contest
-      </Link>
 
       {canManage && (
         <QuickAddContestantModal

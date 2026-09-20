@@ -1,5 +1,6 @@
 import React, { useEffect, useMemo, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
+import { ArrowLeft } from 'lucide-react';
 
 import { Loading } from '../route-editor/components/basicComponents';
 import { clearContestantDeclaration, fetchContestant, fetchNavigationTask, updateContestantDeclaration } from './api';
@@ -1081,9 +1082,18 @@ const ContestantDeclarationPage: React.FC = () => {
         <div className="container mx-auto p-4 max-w-4xl" data-theme="aviation">
             <ToastContainer toasts={toasts} removeToast={removeToast} />
             <div className="flex items-center justify-between mb-4 gap-2">
-                <div>
-                    <h1 className="text-3xl font-bold">Contestant declaration</h1>
-                    <p className="text-sm opacity-70">{contestant?.team?.crew?.member1?.first_name} {contestant?.team?.crew?.member1?.last_name} · {navigationTask?.name}</p>
+                <div className="flex items-center gap-4">
+                    <Link
+                        to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
+                        className="btn btn-sm btn-outline gap-2"
+                    >
+                        <ArrowLeft size={16} />
+                        Back to navigation task
+                    </Link>
+                    <div>
+                        <h1 className="text-3xl font-bold">Contestant declaration</h1>
+                        <p className="text-sm opacity-70">{contestant?.team?.crew?.member1?.first_name} {contestant?.team?.crew?.member1?.last_name} · {navigationTask?.name}</p>
+                    </div>
                 </div>
                 <div className="flex items-center gap-2">
                     {contestant?.has_locked_absolute_declaration && (
@@ -1096,9 +1106,6 @@ const ContestantDeclarationPage: React.FC = () => {
                             Clear declaration
                         </button>
                     )}
-                    <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestId!, navigationTaskId: navigationTaskId! })} className="btn btn-secondary btn-sm">
-                        Back to navigation task
-                    </Link>
                 </div>
             </div>
             {contestant?.has_locked_absolute_declaration && (
