@@ -2,6 +2,7 @@ import React, { useEffect, useRef, useMemo } from 'react';
 import { Timeline as VisTimeline, TimelineOptions, DataItem, DataGroup } from 'vis-timeline/standalone';
 import { DataSet } from 'vis-data';
 import 'vis-timeline/styles/vis-timeline-graph2d.css';
+import './Timeline.css';
 import { v4 as uuidv4 } from 'uuid';
 
 interface TimelineProps {

@@ -1,0 +1,8 @@
+/* vis-timeline's own .vis-tooltip rule (vis-timeline/styles/vis-timeline-graph2d.css) sets
+   white-space: nowrap, which collapses every \n in the item's `title` into a single space and
+   forces the whole thing onto one (potentially very wide) line. pre-line keeps that same
+   collapsing/trimming behavior for runs of spaces while still honoring explicit newlines as line
+   breaks - imported after the library's own stylesheet in Timeline.tsx so it wins the cascade. */
+div.vis-tooltip {
+    white-space: pre-line;
+}
