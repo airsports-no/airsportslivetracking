@@ -23,6 +23,7 @@ import {
 import { groupUpcomingContestants, UpcomingGrouping } from './groupUpcoming';
 import { bucketFormatter } from './bucketFormatter';
 import CountryStatsPanel from './components/CountryStatsPanel';
+import CountryBubbleMap from './components/CountryBubbleMap';
 import ActivityTrendsPanel from './components/ActivityTrendsPanel';
 import TaskTypePopularityPanel from './components/TaskTypePopularityPanel';
 import RetentionPanel from './components/RetentionPanel';
@@ -402,6 +403,7 @@ export default function AdminFlightActivityPage() {
 
             {tab === 'utilization' && (
                 <>
+                    <CountryBubbleMap rows={systemStats?.country ?? null} loading={systemStatsLoading} />
                     <CountryStatsPanel rows={systemStats?.country ?? null} loading={systemStatsLoading} />
                     <ActivityTrendsPanel />
                     <TaskTypePopularityPanel rows={systemStats?.task_type_popularity ?? null} loading={systemStatsLoading} />

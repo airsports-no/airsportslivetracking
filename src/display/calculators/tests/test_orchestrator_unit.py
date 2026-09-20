@@ -123,11 +123,15 @@ class TestOrchestratorUnit(TestCase):
         event = StartingLinePassedEvent(gate, pos, pos.time)
         
         self.orchestrator.handle_event(event)
-        
+
         # last_gate is now updated by StartingLinePassedEvent
         self.assertEqual(self.orchestrator.last_gate, gate)
         # But enroute should be True
         self.assertTrue(self.orchestrator.enroute)
+        # Regression: passed_starting_gate used to never get set anywhere (unlike
+        # passed_finish_gate via passed_finishpoint()), so it stayed False for every
+        # contestant that ever started, forever.
+        self.contestant.contestanttrack.set_passed_starting_gate.assert_called_once()
 
     def test_handle_adaptive_start_event(self):
         pos = self.create_position(60, 11, datetime.datetime(2020, 1, 1, 10, 0))

@@ -58,6 +58,8 @@ export interface CountryStatsRow {
     contests: number;
     tasks: number;
     contestants: number;
+    latitude: number | null;
+    longitude: number | null;
 }
 
 export interface RepeatParticipationStats {

@@ -185,6 +185,7 @@ class Orchestrator:
         """
         if isinstance(event, StartingLinePassedEvent):
             self.has_any_gate_passed = True
+            self.contestant.contestanttrack.set_passed_starting_gate()
             self.contestant.record_actual_gate_time(event.gate.name, event.intersection_time)
             self.previous_last_gate = self.last_gate
             self.last_gate = event.gate

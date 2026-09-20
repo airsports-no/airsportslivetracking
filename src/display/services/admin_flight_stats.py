@@ -8,7 +8,7 @@ result.
 import datetime
 from collections import defaultdict
 
-from django.db.models import Case, CharField, Count, Value, When
+from django.db.models import Case, CharField, Count, Q, Value, When
 from django.db.models.functions import TruncDay, TruncHour, TruncMonth, TruncWeek, TruncYear
 
 from display.models import Contestant
@@ -31,8 +31,11 @@ def build_admin_flight_stats(start: datetime.datetime, end: datetime.datetime, b
     Returns, both bucketed by the same bin_granularity (in UTC - contestants span many contest
     timezones, so there's no single "local" time to bucket a platform-wide view in):
     - series: takeoff_time split into awaiting_start/flying/finished by the contestant's current
-      ContestantTrack state. Only contestants whose calculator has actually started are counted
-      at all (a scheduled-but-never-tracked contestant was never really "flying").
+      ContestantTrack state, treating anyone past their own finished_by_time as finished even if
+      the calculator never explicitly marked them so (see the Case comment below - current_state
+      is a live-calculator-only field that just stops updating, it isn't retroactively
+      corrected). Only contestants whose calculator has actually started are counted at all (a
+      scheduled-but-never-tracked contestant was never really "flying").
     - unique_persons_series: distinct Person count (crew member1 and, when present, member2)
       across those same contestants, per bucket.
     """
@@ -47,8 +50,23 @@ def build_admin_flight_stats(start: datetime.datetime, end: datetime.datetime, b
     status_counts = (
         bucketed_queryset.annotate(
             status=Case(
-                When(contestanttrack__passed_finish_gate=True, then=Value(STATUS_FINISHED)),
-                When(contestanttrack__passed_starting_gate=True, then=Value(STATUS_FLYING)),
+                # A contestant whose scheduled window is over counts as finished regardless of
+                # whether the calculator ever cleanly reached that state itself (crash, timeout,
+                # a task with no real finish gate, ...) - current_state is free-text set by the
+                # live calculator and simply never updates again once it stops running, so
+                # without this a contestant who, say, went off-track and was never resolved
+                # would show as "flying" forever, including weeks after their contest ended.
+                When(Q(contestanttrack__passed_finish_gate=True) | Q(finished_by_time__lt=end), then=Value(STATUS_FINISHED)),
+                # Not contestanttrack__passed_starting_gate: until this session, nothing ever
+                # set it (the StartingLinePassedEvent handler never called the equivalent of
+                # passed_finishpoint()'s set_passed_finish_gate() - see orchestrator.py), so
+                # every contestant that has ever started this task existed with it False. Now
+                # fixed going forward, but that leaves it permanently False for everything
+                # processed before the fix - current_state is the one field that's always been
+                # correctly maintained (updates_current_state, called throughout the live
+                # calculators) for "has this contestant's calculator actually progressed past
+                # its initial waiting state."
+                When(~Q(contestanttrack__current_state="Waiting..."), then=Value(STATUS_FLYING)),
                 default=Value(STATUS_AWAITING_START),
                 output_field=CharField(),
             )

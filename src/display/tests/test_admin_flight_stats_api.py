@@ -60,7 +60,11 @@ class TestAdminFlightStatsApi(TestCase):
             wind_direction=0,
         )
         ContestantTrack.objects.filter(contestant=contestant).update(
-            calculator_started=calculator_started, passed_starting_gate=passed_start, passed_finish_gate=passed_finish
+            calculator_started=calculator_started,
+            # "Crossed the starting line" is read from current_state, not passed_starting_gate -
+            # see the comment in admin_flight_stats.build_admin_flight_stats for why.
+            current_state="Flying" if passed_start else "Waiting...",
+            passed_finish_gate=passed_finish,
         )
         return contestant
 
@@ -100,6 +104,25 @@ class TestAdminFlightStatsApi(TestCase):
         # The non-started contestant contributed 0 to every category, not 1 to any of them.
         self.assertEqual(3, bucket["awaiting_start"] + bucket["flying"] + bucket["finished"])
 
+    def test_a_contestant_stuck_mid_flight_state_is_finished_once_its_window_has_passed(self):
+        # Regression: current_state is set live by the calculator and simply stops updating once
+        # it's no longer running - it is never retroactively corrected. A contestant who went
+        # off-track, crashed the calculator, or flew a task with no real finish gate could get
+        # stuck showing "Flying" forever, including weeks after the contest actually ended.
+        weeks_ago = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(weeks=3)
+        self._make_contestant(
+            1, "stuck-mid-flight@example.com", weeks_ago, calculator_started=True, passed_start=True, passed_finish=False
+        )
+
+        client = APIClient()
+        client.force_authenticate(self.superuser)
+        response = client.get("/api/v1/admin/flight-stats/", {"days": 30, "bin": "day"})
+
+        self.assertEqual(200, response.status_code, response.content)
+        bucket = response.json()["series"][0]
+        self.assertEqual(1, bucket["finished"])
+        self.assertEqual(0, bucket["flying"])
+
     def test_unique_persons_series_counts_both_crew_members_once_each(self):
         now = datetime.datetime.now(datetime.timezone.utc).replace(minute=0, second=0, microsecond=0)
         shared_copilot = Person.objects.create(first_name="Shared", last_name="Copilot", email="shared-copilot@example.com")
@@ -123,8 +146,12 @@ class TestAdminFlightStatsApi(TestCase):
     def test_unique_persons_series_follows_the_selected_bin_not_always_daily(self):
         # Two contestants on different days of the same week - with weekly binning they must
         # land in the same bucket (and their distinct pilots both counted), not one per day.
-        base = datetime.datetime.now(datetime.timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
-        monday = base - datetime.timedelta(days=base.weekday())
+        # Anchored 10 days back (not just "today at 10:00") so monday/monday+2 stay safely
+        # within the query window and in the past regardless of what day/time the suite runs -
+        # a wall-clock-hour anchor broke this same way whenever the real run time fell on a
+        # Monday before that hour (see the identical fix in test_admin_activity_trends_api.py).
+        reference = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=10)
+        monday = reference - datetime.timedelta(days=reference.weekday())
         self._make_contestant(1, "week-pilot-a@example.com", monday, calculator_started=True, passed_start=False, passed_finish=False)
         self._make_contestant(
             2, "week-pilot-b@example.com", monday + datetime.timedelta(days=2), calculator_started=True, passed_start=False, passed_finish=False
@@ -132,7 +159,7 @@ class TestAdminFlightStatsApi(TestCase):
 
         client = APIClient()
         client.force_authenticate(self.superuser)
-        response = client.get("/api/v1/admin/flight-stats/", {"days": 8, "bin": "week"})
+        response = client.get("/api/v1/admin/flight-stats/", {"days": 20, "bin": "week"})
 
         self.assertEqual(200, response.status_code, response.content)
         payload = response.json()

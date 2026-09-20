@@ -208,9 +208,10 @@ class ContestantTrack(models.Model):
         self.__push_change()
 
     def set_passed_starting_gate(self):
-        self.passed_starting_gate = True
-        self.save(update_fields=["passed_starting_gate"])
-        self.__push_change()
+        if not self.passed_starting_gate:
+            self.passed_starting_gate = True
+            self.save(update_fields=["passed_starting_gate"])
+            self.__push_change()
 
     def set_passed_finish_gate(self):
         self.passed_finish_gate = True

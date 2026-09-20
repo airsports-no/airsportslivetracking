@@ -19,6 +19,7 @@ from collections import Counter, defaultdict
 from django.db import connection
 from django.db.models import Avg, Count, Q
 from django.db.models.functions import TruncDay, TruncHour, TruncMonth, TruncWeek, TruncYear
+from django_countries import countries
 
 from display.models import (
     ANOMALY,
@@ -41,7 +42,7 @@ ACTIVITY_BIN_GRANULARITIES = {
     "year": TruncYear,
 }
 
-TEAM_CONTEST_COUNT_OVERFLOW_LABEL = "5+"
+TEAM_CONTEST_COUNT_CEILING = 5
 
 
 def _approximate_row_count(model) -> int:
@@ -74,7 +75,11 @@ def get_overview_stats() -> dict:
     function, so the legacy page's template contract is unaffected until it's deleted outright.
     """
     started_qs = Contestant.objects.filter(contestanttrack__calculator_started=True)
-    crossed_starting_qs = started_qs.filter(contestanttrack__passed_starting_gate=True)
+    # Not contestanttrack__passed_starting_gate: until this session nothing ever set it (see the
+    # comment in admin_flight_stats.py's build_admin_flight_stats), so it's permanently False for
+    # every contestant processed before that fix. current_state has always been correctly
+    # maintained by the live calculators.
+    crossed_starting_qs = started_qs.exclude(contestanttrack__current_state="Waiting...")
     country_rows = get_country_stats()
 
     return {
@@ -106,7 +111,11 @@ def get_overview_stats() -> dict:
 def get_country_stats() -> list[dict]:
     """
     Navigation tasks / contests / contestants per country, keyed by the cached Nominatim
-    reverse-geocode result (ISO alpha-2 country_code plus a display name).
+    reverse-geocode result (ISO alpha-2 country_code), plus a representative latitude/longitude
+    (the average of every task's own geocoded point in that country) for plotting a bubble on a
+    map - deliberately not a static country-centroid table: this is a real, data-derived "where
+    our tasks actually are" point rather than an arbitrary reference point that could land
+    somewhere with no tasks anywhere near it for a large/irregular country.
     """
     task_rows = NavigationTask.objects.annotate(contestant_count=Count("contestant")).values(
         "pk", "contest_id", "_nominatim", "contestant_count"
@@ -122,23 +131,48 @@ def get_country_stats() -> list[dict]:
 
         entry = by_country.setdefault(
             key,
-            {"country_code": country_code, "country_name": country_name, "tasks": 0, "contest_ids": set(), "contestants": 0},
+            {
+                "country_code": country_code,
+                "country_name": country_name,
+                "tasks": 0,
+                "contest_ids": set(),
+                "contestants": 0,
+                "coordinate_sum": [0.0, 0.0],
+                "coordinate_count": 0,
+            },
         )
         entry["tasks"] += 1
         entry["contestants"] += row["contestant_count"]
         if row["contest_id"] is not None:
             entry["contest_ids"].add(row["contest_id"])
+        try:
+            lat, lon = float(nominatim["lat"]), float(nominatim["lon"])
+        except (KeyError, TypeError, ValueError):
+            pass
+        else:
+            entry["coordinate_sum"][0] += lat
+            entry["coordinate_sum"][1] += lon
+            entry["coordinate_count"] += 1
 
-    result = [
-        {
-            "country_code": entry["country_code"],
-            "country_name": entry["country_name"],
-            "contests": len(entry["contest_ids"]),
-            "tasks": entry["tasks"],
-            "contestants": entry["contestants"],
-        }
-        for entry in by_country.values()
-    ]
+    result = []
+    for entry in by_country.values():
+        # Nominatim's own "country" address field is in whichever language matches the queried
+        # location (e.g. "Norge" for a Norwegian point, not "Norway") - prefer the ISO code's
+        # English name when there is one, since a country breakdown mixing languages by chance of
+        # which country's data happened to resolve first reads as a bug.
+        display_name = countries.name(entry["country_code"]) if entry["country_code"] else ""
+        coordinate_count = entry["coordinate_count"]
+        result.append(
+            {
+                "country_code": entry["country_code"],
+                "country_name": display_name or entry["country_name"],
+                "contests": len(entry["contest_ids"]),
+                "tasks": entry["tasks"],
+                "contestants": entry["contestants"],
+                "latitude": entry["coordinate_sum"][0] / coordinate_count if coordinate_count else None,
+                "longitude": entry["coordinate_sum"][1] / coordinate_count if coordinate_count else None,
+            }
+        )
     result.sort(key=lambda row: row["tasks"], reverse=True)
     return result
 
@@ -176,15 +210,21 @@ def get_activity_over_time(start: datetime.datetime, end: datetime.datetime, bin
 
 
 def get_task_type_popularity() -> list[dict]:
-    """Navigation task count grouped by task_subtype - which CIMA/legacy task types actually get used."""
-    counts = (
-        NavigationTask.objects.values("task_subtype")
-        .annotate(count=Count("id"))
-        .order_by("-count")
+    """
+    Navigation task count grouped by effective_task_subtype - which CIMA/legacy task types
+    actually get used. Grouping on the raw task_subtype column would be wrong: a blank value
+    there doesn't mean "no known type," it means "use this task's scorecard family's legacy
+    default" (NavigationTask.effective_task_subtype) - every legacy task on a given scorecard
+    family is really one category, not a generic "unspecified" bucket, and NULL vs "" being
+    distinct raw values would even split that non-category into two.
+    """
+    counts = Counter(
+        task.effective_task_subtype or "unspecified"
+        for task in NavigationTask.objects.select_related("scorecard", "original_scorecard")
     )
     return [
-        {"task_subtype": row["task_subtype"] or "unspecified", "count": row["count"]}
-        for row in counts
+        {"task_subtype": subtype, "count": count}
+        for subtype, count in sorted(counts.items(), key=lambda item: item[1], reverse=True)
     ]
 
 
@@ -222,18 +262,26 @@ def get_retention_stats() -> dict:
 
 
 def _summarize_repeat_participation(contest_counts: list[int]) -> dict:
+    """
+    Cumulative ("attended at least N contests") rather than an exact-count histogram - the usual
+    convention for a retention curve (every product/growth analytics tool presents it this way):
+    a monotonically decreasing "N+" series answers "how many are still engaged at each depth"
+    directly, where an exact-count histogram needs the reader to sum tails themselves.
+    """
     total = len(contest_counts)
     returning = sum(1 for count in contest_counts if count > 1)
-    distribution = Counter(contest_counts)
 
-    overflow = sum(count for value, count in distribution.items() if value >= 5)
-    buckets = [{"contests": value, "count": count} for value, count in sorted(distribution.items()) if value < 5]
-    if overflow:
-        buckets.append({"contests": TEAM_CONTEST_COUNT_OVERFLOW_LABEL, "count": overflow})
+    distribution = []
+    for n in range(1, TEAM_CONTEST_COUNT_CEILING + 1):
+        at_least_n = sum(1 for count in contest_counts if count >= n)
+        if at_least_n == 0:
+            break
+        label = f"{n}+" if n == TEAM_CONTEST_COUNT_CEILING else str(n)
+        distribution.append({"contests": label, "count": at_least_n})
 
     return {
         "total": total,
         "returning": returning,
         "returning_pct": round(100 * returning / total, 1) if total else 0.0,
-        "distribution": buckets,
+        "distribution": distribution,
     }

@@ -26,7 +26,11 @@ class TestAdminActivityTrendsApi(TestCase):
         self.assertEqual(403, response.status_code)
 
     def test_contests_and_tasks_are_counted_in_the_same_bucket(self):
-        now = datetime.datetime.now(datetime.timezone.utc).replace(hour=10, minute=0, second=0, microsecond=0)
+        # A fixed wall-clock hour (e.g. "today at 10:00 UTC") can land in the future relative to
+        # the view's own end=timezone.now() if the test happens to run earlier in the day than
+        # that - start_time__lt=end would then exclude it. An offset from the actual current
+        # time is always safely in the past.
+        now = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1)
         contest = Contest.objects.create(
             name="Trend contest",
             time_zone="Europe/Oslo",

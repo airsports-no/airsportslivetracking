@@ -6,8 +6,8 @@ from django.test import TestCase
 from rest_framework.test import APIClient
 
 from display.default_scorecards.create_scorecards import create_scorecards
-from display.models import Aeroplane, Contest, Contestant, Crew, NavigationTask, Person, Route, Scorecard, Team
-from display.services.admin_system_stats import get_country_stats, get_retention_stats, get_task_type_popularity
+from display.models import Aeroplane, Contest, Contestant, ContestantTrack, Crew, NavigationTask, Person, Route, Scorecard, Team
+from display.services.admin_system_stats import get_country_stats, get_overview_stats, get_retention_stats, get_task_type_popularity
 from display.utilities.cima_task_type_definitions import PRECISION_NAVIGATION, TURNPOINT_HUNT
 
 
@@ -119,6 +119,27 @@ class TestOverviewStats(AdminSystemStatsTestBase):
         self.assertGreaterEqual(overview["total_gps_positions"], 0)
         self.assertIsInstance(overview["total_gps_positions"], int)
 
+    def test_crossed_starting_line_funnel_uses_current_state_not_the_dead_gate_flag(self):
+        # Regression: passed_starting_gate was never set by any calculator (the
+        # StartingLinePassedEvent handler never persisted it, unlike passed_finish_gate) until
+        # this session's orchestrator fix - and that fix only affects contestants processed
+        # from now on, leaving it permanently False for everything already in the database.
+        # current_state is the field that's always been correctly maintained.
+        contest = self._make_contest("Funnel contest", datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc))
+        task = self._make_task(contest, "Funnel task")
+        never_started = self._make_contestant(task, 1, "funnel-never-started@example.com")
+        crossed_start = self._make_contestant(task, 2, "funnel-crossed-start@example.com")
+
+        ContestantTrack.objects.filter(contestant=never_started).update(calculator_started=True, current_state="Waiting...")
+        ContestantTrack.objects.filter(contestant=crossed_start).update(
+            calculator_started=True, current_state="Flying", passed_starting_gate=False
+        )
+
+        overview = get_overview_stats()
+        self.assertEqual(2, overview["number_of_started_contestants"])
+        self.assertEqual(1, overview["number_of_contestants_crossed_starting"])
+        self.assertEqual(1, overview["number_of_persons_crossed_starting"])
+
 
 class TestCountryStats(AdminSystemStatsTestBase):
     def test_tasks_without_a_cached_geocode_are_grouped_as_unknown_without_triggering_a_lookup(self):
@@ -158,6 +179,39 @@ class TestCountryStats(AdminSystemStatsTestBase):
         norway_rows = [row for row in rows if row["country_code"] == "NO"]
         self.assertEqual(1, norway_rows[0]["contests"])
         self.assertEqual(2, norway_rows[0]["tasks"])
+
+    def test_latitude_and_longitude_are_averaged_across_tasks_in_the_country(self):
+        contest = self._make_contest("Bubble map contest", datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc))
+        self._make_task(
+            contest, "Task A", nominatim={"lat": "60.0", "lon": "10.0", "address": {"country": "Norway", "country_code": "no"}}
+        )
+        self._make_task(
+            contest, "Task B", nominatim={"lat": "62.0", "lon": "12.0", "address": {"country": "Norway", "country_code": "no"}}
+        )
+
+        rows = get_country_stats()
+        norway_rows = [row for row in rows if row["country_code"] == "NO"]
+        self.assertAlmostEqual(61.0, norway_rows[0]["latitude"])
+        self.assertAlmostEqual(11.0, norway_rows[0]["longitude"])
+
+    def test_missing_coordinates_do_not_crash_and_report_none(self):
+        contest = self._make_contest("No coords contest", datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc))
+        self._make_task(contest, "Task A", nominatim={"address": {"country": "Norway", "country_code": "no"}})
+
+        rows = get_country_stats()
+        norway_rows = [row for row in rows if row["country_code"] == "NO"]
+        self.assertIsNone(norway_rows[0]["latitude"])
+        self.assertIsNone(norway_rows[0]["longitude"])
+
+    def test_nominatims_localized_country_name_is_normalized_to_english(self):
+        # Nominatim returns the address in whichever language matches the queried location (e.g.
+        # "Norge" for a Norwegian point) - the ISO code's English name should be preferred.
+        contest = self._make_contest("Localized name contest", datetime.datetime(2026, 8, 1, 9, 0, tzinfo=datetime.timezone.utc))
+        self._make_task(contest, "Task A", nominatim={"address": {"country": "Norge", "country_code": "no"}})
+
+        rows = get_country_stats()
+        norway_rows = [row for row in rows if row["country_code"] == "NO"]
+        self.assertEqual("Norway", norway_rows[0]["country_name"])
 
 
 class TestTaskTypePopularity(AdminSystemStatsTestBase):
@@ -205,6 +259,12 @@ class TestRetentionStats(AdminSystemStatsTestBase):
         self.assertEqual(1, stats["teams"]["returning"])
         self.assertEqual(50.0, stats["teams"]["returning_pct"])
         self.assertEqual(1, stats["persons"]["returning"])
+        # Cumulative ("at least N"), not an exact-count histogram: both teams attended at least
+        # 1, only the returning team attended at least 2 - so the "1" bucket must count both.
+        self.assertEqual(
+            [{"contests": "1", "count": 2}, {"contests": "2", "count": 1}],
+            stats["teams"]["distribution"],
+        )
 
     def test_no_participation_returns_zero_without_dividing_by_zero(self):
         stats = get_retention_stats()
