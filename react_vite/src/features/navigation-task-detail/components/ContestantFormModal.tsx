@@ -50,6 +50,20 @@ const toLocalInputValue = (iso: string): string => {
   return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(date.getHours())}:${pad(date.getMinutes())}`;
 };
 
+const TRACKER_START_LEAD_MINUTES = 10;
+
+// Matches the classic contestant_form.html's updateTracking(): whenever takeoff time (or
+// adaptive-start) changes, tracker start time and finished-by time are re-derived from it -
+// tracker start 10 minutes before takeoff, finish 2 hours after (5 hours if adaptive).
+const deriveTrackingTimes = (takeoffValue: string, adaptive: boolean): { trackerStart: string; finishedBy: string } | null => {
+  const takeoffDate = new Date(takeoffValue);
+  if (isNaN(takeoffDate.getTime())) return null;
+  const trackerStart = new Date(takeoffDate.getTime() - TRACKER_START_LEAD_MINUTES * 60 * 1000);
+  const finishHours = adaptive ? 5 : 2;
+  const finishedBy = new Date(takeoffDate.getTime() + finishHours * 60 * 60 * 1000);
+  return { trackerStart: toLocalInputValue(trackerStart.toISOString()), finishedBy: toLocalInputValue(finishedBy.toISOString()) };
+};
+
 const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantFormModalProps>(
   (
     { contestId, navigationTaskId, nextContestantNumber, taskWindSpeed, taskWindDirection, taskMinutesToStartingPoint, onSaved },
@@ -141,6 +155,24 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
         load(targetContestantId);
       },
     }));
+
+    const handleTakeoffTimeChange = (value: string) => {
+      setTakeoffTime(value);
+      const derived = deriveTrackingTimes(value, adaptiveStart);
+      if (derived) {
+        setTrackerStartTime(derived.trackerStart);
+        setFinishedByTime(derived.finishedBy);
+      }
+    };
+
+    const handleAdaptiveStartChange = (checked: boolean) => {
+      setAdaptiveStart(checked);
+      const derived = takeoffTime ? deriveTrackingTimes(takeoffTime, checked) : null;
+      if (derived) {
+        setTrackerStartTime(derived.trackerStart);
+        setFinishedByTime(derived.finishedBy);
+      }
+    };
 
     const handleTeamChange = (value: string) => {
       setTeamId(value);
@@ -244,11 +276,16 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
                     step={60}
                     className="input input-bordered input-sm w-full"
                     value={takeoffTime}
-                    onChange={(e) => setTakeoffTime(e.target.value)}
+                    onChange={(e) => handleTakeoffTimeChange(e.target.value)}
                   />
                 </label>
                 <label className="label cursor-pointer justify-start gap-2 self-end pb-1">
-                  <input type="checkbox" className="checkbox checkbox-sm" checked={adaptiveStart} onChange={(e) => setAdaptiveStart(e.target.checked)} />
+                  <input
+                    type="checkbox"
+                    className="checkbox checkbox-sm"
+                    checked={adaptiveStart}
+                    onChange={(e) => handleAdaptiveStartChange(e.target.checked)}
+                  />
                   <span className="label-text">Adaptive start</span>
                 </label>
               </div>
@@ -347,6 +384,7 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
                     step={60}
                     className="input input-bordered input-sm w-full"
                     value={trackerStartTime}
+                    readOnly={adaptiveStart}
                     onChange={(e) => setTrackerStartTime(e.target.value)}
                   />
                 </label>

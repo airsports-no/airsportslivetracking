@@ -111,11 +111,11 @@ const ContestantScheduling = () => {
         }
     };
 
-    const handleContestantUpdate = async (contestantId: number, updates: any) => {
+    const handleContestantUpdate = async (contestantId: number, updates: any): Promise<boolean> => {
         try {
             if (contestId && navigationTaskId) {
                 const updatedContestant = await updateContestant(Number(contestId), Number(navigationTaskId), contestantId, updates);
-                
+
                 if (updatedContestant.overlap_warnings && updatedContestant.overlap_warnings.length > 0) {
                     updatedContestant.overlap_warnings.forEach((msg: string) => showToast(msg, 'warning'));
                 }
@@ -125,8 +125,8 @@ const ContestantScheduling = () => {
                     const newContestantSet = prev.contestant_set.map((c: any) => {
                         if (c.id === updatedContestant.id) {
                             // Preserve the nested team object if the response only returns an ID
-                            const team = (typeof updatedContestant.team === 'object' && updatedContestant.team !== null) 
-                                ? updatedContestant.team 
+                            const team = (typeof updatedContestant.team === 'object' && updatedContestant.team !== null)
+                                ? updatedContestant.team
                                 : c.team;
                             return { ...updatedContestant, team };
                         }
@@ -135,6 +135,7 @@ const ContestantScheduling = () => {
                     return { ...prev, contestant_set: newContestantSet };
                 });
             }
+            return true;
         } catch (error: any) {
             showToast(error.message, 'error');
             // Revert to server data for this contestant only
@@ -146,8 +147,8 @@ const ContestantScheduling = () => {
                         const newContestantSet = prev.contestant_set.map((c: any) => {
                             if (c.id === serverContestant.id) {
                                 // Preserve the nested team object if the response only returns an ID
-                                const team = (typeof serverContestant.team === 'object' && serverContestant.team !== null) 
-                                    ? serverContestant.team 
+                                const team = (typeof serverContestant.team === 'object' && serverContestant.team !== null)
+                                    ? serverContestant.team
                                     : c.team;
                                 return { ...serverContestant, team };
                             }
@@ -160,6 +161,7 @@ const ContestantScheduling = () => {
                     loadData(true); // Fallback to full reload if single fetch fails
                 }
             }
+            return false;
         }
     }
 

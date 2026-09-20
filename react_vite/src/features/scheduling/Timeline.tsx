@@ -23,7 +23,9 @@ export function getBlockEndTime(contestant: any): number {
 interface TimelineProps {
     navigationTask: any;
     firstTakeoffTime: Date;
-    onUpdate: (contestantId: number, data: any) => void;
+    /** Resolves to false if the update was rejected (e.g. server-side validation) so onMove can
+        cancel the drag instead of leaving the bar sitting at its unsaved position. */
+    onUpdate: (contestantId: number, data: any) => Promise<boolean>;
     onToggleLock?: (contestantId: number, currentLockState: boolean) => void;
     onDelete?: (contestantId: number) => void;
 }
@@ -293,13 +295,16 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 const newTakeoff = new Date(takeoff + delta);
                 const newFinish = new Date(finish + delta);
 
+                // Don't move the bar until the server has actually accepted the new times - a
+                // rejection (e.g. the stale-absolute-declaration guard) would otherwise leave it
+                // sitting at its unsaved position, with only an error toast to notice by.
                 onUpdate(item.id, {
                     tracker_start_time: newTrackerStart.toISOString(),
                     takeoff_time: newTakeoff.toISOString(),
                     finished_by_time: newFinish.toISOString()
+                }).then((success) => {
+                    callback(success ? item : null);
                 });
-
-                callback(item); // Optimistically update UI
             },
             onRemove: (item: any, callback: (item: any) => void) => {
                 if (onDelete) {

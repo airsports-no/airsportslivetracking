@@ -741,6 +741,21 @@ class ContestResultsRestMutationTests(APITransactionTestCase):
         self.assertIn("points", response.data)
         self.assertFalse(TeamTestScore.objects.filter(team=self.team, task_test=self.task_test).exists())
 
+    def test_update_test_result_endpoint_rejects_non_finite_points_with_400(self, *args):
+        # Regression test: float() itself parses "inf"/"-inf"/"nan" (case-insensitively) as valid
+        # numbers, so the malformed-points guard above didn't catch them - a stored NaN/Infinity
+        # corrupts score sums/rankings and produces invalid (non-JSON) literals downstream.
+        for value in ("inf", "-inf", "Infinity", "nan"):
+            with self.subTest(value=value):
+                response = self.client.put(
+                    reverse("contests-update-test-result", kwargs={"pk": self.contest.pk}),
+                    data={"team": self.team.pk, "task_test": self.task_test.pk, "points": value},
+                    format="json",
+                )
+                self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+                self.assertIn("points", response.data)
+                self.assertFalse(TeamTestScore.objects.filter(team=self.team, task_test=self.task_test).exists())
+
     def test_update_task_summary_endpoint_rejects_malformed_points_with_400(self, *args):
         response = self.client.put(
             reverse("contests-update-task-summary", kwargs={"pk": self.contest.pk}),

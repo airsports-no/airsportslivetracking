@@ -13,7 +13,7 @@ from unittest.mock import PropertyMock, patch
 from django.contrib.auth import get_user_model
 from django.urls import reverse
 from guardian.shortcuts import assign_perm
-from rest_framework.test import APITestCase, APITransactionTestCase
+from rest_framework.test import APIClient, APITestCase, APITransactionTestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import (
@@ -182,6 +182,25 @@ class TestContestantCalculatorLifecycleRestActions(APITestCase):
         for action in ("terminate", "restart", "reset"):
             response = self.client.get(self._url(action))
             self.assertEqual(response.status_code, 405, f"{action}: {response.content}")
+
+    def test_actions_reject_cross_site_post_without_csrf_token(self, *args):
+        # Regression test for a coverage gap left by the navigationtask_detail.html -> SPA
+        # migration: the classic views' equivalent test (test_destructive_views_require_post.py)
+        # proved they weren't accidentally @csrf_exempt using a strict enforce_csrf_checks
+        # client; that proof was lost when the legacy views were deleted, even though this
+        # module's own docstring asserts "CSRF is enforced by SessionAuthentication the same as
+        # any other authenticated POST". Pin that claim so a future change (e.g. switching
+        # ContestantViewSet to TokenAuthentication, which doesn't enforce CSRF) fails loudly
+        # instead of silently reopening the hole the deleted test used to catch.
+        strict_client = APIClient(enforce_csrf_checks=True)
+        strict_client.force_login(user=self.manager)
+        for action in ("terminate", "restart", "reset"):
+            with patch(
+                "display.models.contestant.Contestant.blocking_request_calculator_termination"
+            ) as mock_terminate:
+                response = strict_client.post(self._url(action))
+            self.assertEqual(response.status_code, 403, f"{action}: {response.content}")
+            mock_terminate.assert_not_called()
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)

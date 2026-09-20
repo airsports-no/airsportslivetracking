@@ -4,6 +4,7 @@ import datetime
 import hashlib
 import json
 import logging
+import math
 from collections import OrderedDict
 from urllib import parse
 
@@ -680,9 +681,15 @@ def _parse_points_from_request(request):
     for it is a UX improvement on the frontend, not a substitute for backend validation.
     """
     try:
-        return float(request.data["points"])
+        points = float(request.data["points"])
     except (TypeError, ValueError, KeyError):
         raise drf_exceptions.ValidationError({"points": "Points must be a number."})
+    if not math.isfinite(points):
+        # float() itself accepts "inf"/"-inf"/"nan" (case-insensitively) as valid input - reject
+        # them explicitly, since a stored NaN/Infinity corrupts score sums/rankings and produces
+        # invalid (non-JSON) literals when re-serialized to API consumers.
+        raise drf_exceptions.ValidationError({"points": "Points must be a finite number."})
+    return points
 
 
 class ContestPagination(MyCursorPagination):

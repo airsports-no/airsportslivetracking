@@ -15,6 +15,17 @@ const METRIC_OPTIONS: { value: Metric; label: string }[] = [
 const MIN_RADIUS = 6;
 const MAX_RADIUS = 40;
 
+// country_name comes from Nominatim/OSM reverse-geocoding data, not from our own users - escape
+// it before it lands in bindTooltip's HTML string so vandalized upstream data can't inject markup.
+function escapeHtml(value: string): string {
+    return value
+        .replace(/&/g, '&amp;')
+        .replace(/</g, '&lt;')
+        .replace(/>/g, '&gt;')
+        .replace(/"/g, '&quot;')
+        .replace(/'/g, '&#39;');
+}
+
 interface Props {
     rows: CountryStatsRow[] | null;
     loading: boolean;
@@ -54,7 +65,7 @@ export default function CountryBubbleMap({ rows, loading }: Props) {
                 fillOpacity: 0.45,
             });
             marker.bindTooltip(
-                `<strong>${row.country_name}</strong><br/>` +
+                `<strong>${escapeHtml(row.country_name)}</strong><br/>` +
                     `Contests: ${row.contests}<br/>Tasks: ${row.tasks}<br/>Contestants: ${row.contestants}`,
             );
             marker.addTo(layerGroup);
