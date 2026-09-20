@@ -103,7 +103,13 @@ liveCalculator:
   requestCpu: 750m
   requestMemory: 1536Mi
   limitCpu: 3000m
-  limitMemory: 2560Mi
+  # Raised from 2560Mi after a real contest day (2026-09-19, 84 flights): peak observed
+  # container memory was 2290Mi (89% of the old limit, no OOMKill yet but no margin left),
+  # and live-calculator-recommender (the VPA referenced above) reported Target 2599Mi /
+  # Upper Bound 4304Mi from that same day. 4096Mi covers the target with real headroom
+  # without jumping all the way to the upper bound - re-check against the VPA again after
+  # the next big day.
+  limitMemory: 4096Mi
   maxReplicas: 8
   prewarmMinutes: 15
   pollSeconds: 60

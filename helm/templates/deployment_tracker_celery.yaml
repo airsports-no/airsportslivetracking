@@ -63,8 +63,10 @@ spec:
         # GIL-bound Python process can't use more than one core anyway. hpa-tracker-celery
         # (1-10 replicas) covers sustained/concurrent load; this limit is just about not
         # choking a single in-flight heavy task. Memory left untouched - a past OOM incident
-        # sized it, and the VPA target (1332Mi) is close enough to current that touching it
-        # isn't worth the risk.
+        # sized it. tracker-celery-recommender's Target has since grown to 2133Mi (was 1332Mi
+        # when this comment was last checked, 2026-09-19 - a real 84-flight contest day), but
+        # that's still comfortably under this 3Gi limit, so it's not worth bumping the request
+        # over - re-check again if the VPA Target ever approaches the limit.
         resources:
           requests:
             cpu: 250m
