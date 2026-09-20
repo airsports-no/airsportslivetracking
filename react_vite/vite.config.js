@@ -57,18 +57,43 @@ export default defineConfig(({ mode }) => ({
           return 'assets/[name]-[hash][extname]';
         },
         manualChunks: (id) => {
-          if (id.includes('node_modules')) {
-            if (id.includes('vis-timeline') || id.includes('vis-data')) {
-              return 'vis';
-            }
-            if (id.includes('moment')) {
-              return 'moment';
-            }
-            if (id.includes('leaflet')) {
-              return 'leaflet';
-            }
-            return 'vendor';
+          if (!id.includes('node_modules')) return;
+          if (id.includes('vis-timeline') || id.includes('vis-data')) {
+            return 'vis';
           }
+          if (id.includes('moment')) {
+            return 'moment';
+          }
+          if (id.includes('leaflet')) {
+            return 'leaflet';
+          }
+          // recharts (and the d3 internals it pulls in) is only used by the admin-only flight
+          // activity dashboard - splitting it out of the shared vendor chunk means every other
+          // page stops shipping/parsing it on every load.
+          if (id.includes('recharts') || id.includes('/d3-') || id.includes('victory-vendor')) {
+            return 'recharts';
+          }
+          // Only the scheduling/mission-dashboard/contest-management forms use these - keeping
+          // them out of vendor means pages that never render a form skip them entirely.
+          if (
+            id.includes('react-select') ||
+            id.includes('rc-slider') ||
+            id.includes('react-hook-form') ||
+            id.includes('@hookform') ||
+            id.includes('/zod/')
+          ) {
+            return 'forms';
+          }
+          if (id.includes('@tanstack/react-table')) {
+            return 'table';
+          }
+          // Loaded from FrontendApp.tsx on every page regardless, so splitting it out doesn't
+          // reduce first-load bytes - but it does mean a Sentry SDK bump no longer invalidates
+          // every page's cached vendor chunk (and vice versa).
+          if (id.includes('@sentry')) {
+            return 'sentry';
+          }
+          return 'vendor';
         },
       },
     },
