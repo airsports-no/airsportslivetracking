@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DataTable } from '../../components/common/DataTable/DataTable';
 import { useContestResultsWebSocket } from '../../hooks/useContestResultsWebSocket';
@@ -8,12 +8,13 @@ import { EditableCell } from '../../components/common/DataTable/EditableCell';
 import { useScoreUpdates } from '../../hooks/useScoreUpdates';
 import { TaskModal } from './TaskModal';
 import { TestModal } from './TestModal';
-import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon, ArrowLeftIcon, WifiOffIcon } from 'lucide-react';
+import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon, ArrowLeftIcon, WifiOffIcon, Maximize2Icon, Minimize2Icon } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { generatePath, reverse } from '../../urls';
 import { Test } from '../../store/contestResultsStore';
 import { fetchContest } from '../mission-dashboard/api';
 import { Contest } from '../mission-dashboard/types';
+import './print.css';
 
 // TaskViewSet.destroy (viewsets.py) rejects deleting a task once it has a test linked to a
 // navigation task (delete the navigation task instead) - editing/reordering a linked task is
@@ -41,6 +42,23 @@ const columnHelper = createColumnHelper<ContestSummary & { [key: string]: any }>
 export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   const params = useParams<{ contestId: string }>();
   const contestId = params.contestId ? parseInt(params.contestId, 10) : undefined;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(document.fullscreenElement === containerRef.current);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      containerRef.current?.requestFullscreen().catch(() => {});
+    }
+  }, []);
 
   const results = useContestResultsStore((state) => state.results);
   const loading = useContestResultsStore((state) => state.loading);
@@ -511,7 +529,10 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   if (!results) return <div>No Contest Results available.</div>;
 
   return (
-    <div>
+    <div
+      ref={containerRef}
+      className={isFullscreen ? 'bg-base-100 p-4 overflow-auto h-full' : 'container mx-auto p-4'}
+    >
       {!wsConnected && (
         <div role="alert" className="alert alert-warning mb-4 py-2">
           <WifiOffIcon size={16} />
@@ -539,7 +560,11 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
             )}
           </div>
           <h2 className="text-2xl font-bold text-center">{results.name}</h2>
-          <div className="flex-1 flex justify-end">
+          <div className="flex-1 flex justify-end gap-2">
+            <button type="button" onClick={toggleFullscreen} className="btn btn-sm btn-outline gap-2">
+              {isFullscreen ? <Minimize2Icon size={16} /> : <Maximize2Icon size={16} />}
+              {isFullscreen ? 'Exit full screen' : 'Full screen'}
+            </button>
             <a
               href={reverse('contests-results-csv', contestId ?? 0)}
               className="btn btn-sm btn-outline gap-2"
