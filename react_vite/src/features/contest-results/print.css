@@ -1,0 +1,46 @@
+/* Generic screen-chrome reset for printing this page, mirroring the same rules
+   scheduling/print.css established (kept separate here since this page has no
+   use for that file's timeline/timetable-specific selectors). */
+@media print {
+    @page {
+        margin: 1cm;
+        size: a4 landscape;
+    }
+
+    html, body, #root, #root > div {
+        width: 100% !important;
+        height: auto !important;
+        overflow: visible !important;
+        background-color: white !important;
+        margin: 0 !important;
+        padding: 0 !important;
+    }
+
+    /* .btn covers the back link, full-screen toggle and CSV export - none of them mean
+       anything on paper. */
+    .navbar, .btn, .alert, .print\:hidden {
+        display: none !important;
+    }
+
+    /* The on-screen width cap (container mx-auto) exists purely for visual consistency with
+       other pages - printing should use the full page width instead. */
+    .container {
+        width: 100% !important;
+        max-width: none !important;
+        padding: 0 !important;
+        margin: 0 auto !important;
+        overflow: visible !important;
+    }
+
+    tr {
+        break-inside: avoid;
+        page-break-inside: avoid;
+    }
+
+    /* The frozen #/CREW/Σ columns are pinned via inline position:sticky (DataTable.tsx), which
+       has no meaning on paper and would otherwise fight print's own pagination/overflow - the
+       !important here is required to beat that inline style. */
+    table th, table td {
+        position: static !important;
+    }
+}

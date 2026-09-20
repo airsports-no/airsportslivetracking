@@ -261,7 +261,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
 
       {/* Desktop table view */}
       <div className="hidden md:block overflow-visible">
-        <table className="table table-zebra table-xs w-full">
+        <table className="table table-zebra table-sm w-full">
           <thead>
             <tr>
               <th className="w-8">#</th>
@@ -308,7 +308,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                       {contestant.tracker_id_display.map((tracker) => (
                         <div
                           key={tracker.tracker}
-                          className="flex items-center gap-1 whitespace-nowrap overflow-hidden text-[10px] opacity-80"
+                          className="flex items-center gap-1 whitespace-nowrap overflow-hidden text-xs opacity-80"
                           title={tracker.tracker}
                         >
                           <span className="truncate max-w-[120px]">{tracker.tracker}</span>
@@ -321,7 +321,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                       ))}
                     </td>
                     <td>
-                      <div className="text-[10px] leading-tight space-y-0.5 whitespace-nowrap">
+                      <div className="text-xs leading-tight space-y-0.5 whitespace-nowrap">
                         <div>
                           <span className="opacity-50">Trk:</span> {formatTimeInZone(contestant.tracker_start_time, timeZone)}
                         </div>
@@ -340,12 +340,12 @@ const ContestantList: React.FC<ContestantListProps> = ({
                     </td>
                     <td className="font-mono">{formatWholeNumber(contestant.air_speed)}</td>
                     <td>
-                      <div className="font-mono text-[10px]">
+                      <div className="font-mono text-xs">
                         {formatWindDirection(contestant.wind_direction)}/{contestant.wind_speed}
                       </div>
                     </td>
                     <td>
-                      <span className="badge badge-outline badge-xs whitespace-nowrap">{contestant.contestanttrack.current_state}</span>
+                      <span className="badge badge-outline badge-sm whitespace-nowrap">{contestant.contestanttrack.current_state}</span>
                     </td>
                     <td>
                       <ContestantActionsMenu

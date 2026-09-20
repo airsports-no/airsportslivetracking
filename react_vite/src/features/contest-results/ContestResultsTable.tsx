@@ -1,4 +1,4 @@
-import React, { useEffect, useMemo, useState } from 'react';
+import React, { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import { ColumnDef, createColumnHelper } from '@tanstack/react-table';
 import { DataTable } from '../../components/common/DataTable/DataTable';
 import { useContestResultsWebSocket } from '../../hooks/useContestResultsWebSocket';
@@ -8,12 +8,13 @@ import { EditableCell } from '../../components/common/DataTable/EditableCell';
 import { useScoreUpdates } from '../../hooks/useScoreUpdates';
 import { TaskModal } from './TaskModal';
 import { TestModal } from './TestModal';
-import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon, ArrowLeftIcon, WifiOffIcon } from 'lucide-react';
+import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon, ArrowLeftIcon, WifiOffIcon, Maximize2Icon, Minimize2Icon } from 'lucide-react';
 import { Link, useParams } from 'react-router-dom';
 import { generatePath, reverse } from '../../urls';
 import { Test } from '../../store/contestResultsStore';
 import { fetchContest } from '../mission-dashboard/api';
 import { Contest } from '../mission-dashboard/types';
+import './print.css';
 
 // TaskViewSet.destroy (viewsets.py) rejects deleting a task once it has a test linked to a
 // navigation task (delete the navigation task instead) - editing/reordering a linked task is
@@ -36,11 +37,46 @@ const teamRankingTable = (team: any) => {
 interface ContestResultsTableProps {
 }
 
+// Pixel widths for the three frozen leftmost columns (#, CREW, Σ) - fixed rather than measured
+// so each column's sticky `left` offset (the sum of the widths before it) is deterministic. Only
+// the task/test columns after these three scroll horizontally.
+const PINNED_COLUMN_WIDTH = { rank: 40, team: 200, sum: 84 };
+const PINNED_COLUMN_LEFT = {
+  rank: 0,
+  team: PINNED_COLUMN_WIDTH.rank,
+  sum: PINNED_COLUMN_WIDTH.rank + PINNED_COLUMN_WIDTH.team,
+};
+
 const columnHelper = createColumnHelper<ContestSummary & { [key: string]: any }>(); // Extend ContestSummary for dynamic task scores
+
+// Attaches DataTable's pin/classes properties (which ColumnDef doesn't declare, so DataTable
+// reads them back via an `as any` cast) via Object.assign on an already-built, fully-typed
+// ColumnDef - casting the accessor() call's own object literal instead would erase TypeScript's
+// contextual typing for its `cell` callback, making its `info` parameter implicitly `any`.
+function pinned<T extends object>(colDef: T, left: number, width: number, extraClasses?: string): T {
+  return Object.assign(colDef, { pin: { left, width }, classes: ['bg-base-100', extraClasses].filter(Boolean).join(' ') });
+}
 
 export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   const params = useParams<{ contestId: string }>();
   const contestId = params.contestId ? parseInt(params.contestId, 10) : undefined;
+
+  const containerRef = useRef<HTMLDivElement>(null);
+  const [isFullscreen, setIsFullscreen] = useState(false);
+
+  useEffect(() => {
+    const handleFullscreenChange = () => setIsFullscreen(document.fullscreenElement === containerRef.current);
+    document.addEventListener('fullscreenchange', handleFullscreenChange);
+    return () => document.removeEventListener('fullscreenchange', handleFullscreenChange);
+  }, []);
+
+  const toggleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      document.exitFullscreen().catch(() => {});
+    } else {
+      containerRef.current?.requestFullscreen().catch(() => {});
+    }
+  }, []);
 
   const results = useContestResultsStore((state) => state.results);
   const loading = useContestResultsStore((state) => state.loading);
@@ -201,54 +237,68 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
     if (!results) return [];
 
     const baseColumns: ColumnDef<ContestSummary & { [key: string]: any }>[] = [
-      columnHelper.accessor('rank', {
-        header: '#',
-        cell: (info) => <span className="align-middle">{info.getValue()}</span>,
-        enableSorting: false,
-      }),
-      columnHelper.accessor('team', {
-        header: 'CREW',
-        cell: (info) => (
-          <div className="flex items-center gap-2">
-            <span className="align-middle crew-name">{teamRankingTable(info.getValue())}</span>
-            {results.permission_change_contest && info.row.original.team?.id && (
-              <button
-                onClick={(e) => {
-                  e.stopPropagation();
-                  handleDeleteTeamResults(info.row.original.team.id);
-                }}
-                className="btn btn-xs btn-ghost"
-                title="Delete team results"
-              >
-                <Trash2Icon size={12} />
-              </button>
-            )}
-          </div>
-        ),
-        enableSorting: false,
-      }),
-      columnHelper.accessor('contestSummary', {
-        header: () => (
-          <div className="flex items-center gap-2">
-            <span>Σ</span>
-            {results.permission_change_contest && (
-              <button
-                onClick={handleNewTask}
-                className="btn btn-xs btn-ghost"
-                title="Add new task"
-              >
-                <PlusCircleIcon size={12} />
-              </button>
-            )}
-          </div>
-        ),
-        enableSorting: true,
-        sortDescFirst: results.summary_score_sorting_direction?.toUpperCase() === 'DESC',
-        cell: results.permission_change_contest && !results.autosum_scores ? EditableCell : (info) => info.getValue(),
-        meta: {
-          fixedSortDirection: results.summary_score_sorting_direction,
-        },
-      }),
+      pinned(
+        columnHelper.accessor('rank', {
+          header: '#',
+          cell: (info) => <span className="align-middle">{info.getValue()}</span>,
+          enableSorting: false,
+        }),
+        PINNED_COLUMN_LEFT.rank,
+        PINNED_COLUMN_WIDTH.rank
+      ),
+      pinned(
+        columnHelper.accessor('team', {
+          header: 'CREW',
+          cell: (info) => (
+            <div className="flex items-center gap-2">
+              <span className="align-middle crew-name">{teamRankingTable(info.getValue())}</span>
+              {results.permission_change_contest && info.row.original.team?.id && (
+                <button
+                  onClick={(e) => {
+                    e.stopPropagation();
+                    handleDeleteTeamResults(info.row.original.team.id);
+                  }}
+                  className="btn btn-xs btn-ghost"
+                  title="Delete team results"
+                >
+                  <Trash2Icon size={12} />
+                </button>
+              )}
+            </div>
+          ),
+          enableSorting: false,
+        }),
+        PINNED_COLUMN_LEFT.team,
+        PINNED_COLUMN_WIDTH.team,
+        'whitespace-normal break-words'
+      ),
+      pinned(
+        columnHelper.accessor('contestSummary', {
+          header: () => (
+            <div className="flex items-center gap-2">
+              <span>Σ</span>
+              {results.permission_change_contest && (
+                <button
+                  onClick={handleNewTask}
+                  className="btn btn-xs btn-ghost"
+                  title="Add new task"
+                >
+                  <PlusCircleIcon size={12} />
+                </button>
+              )}
+            </div>
+          ),
+          enableSorting: true,
+          sortDescFirst: results.summary_score_sorting_direction?.toUpperCase() === 'DESC',
+          cell: results.permission_change_contest && !results.autosum_scores ? EditableCell : (info) => info.getValue(),
+          meta: {
+            fixedSortDirection: results.summary_score_sorting_direction,
+          },
+        }),
+        PINNED_COLUMN_LEFT.sum,
+        PINNED_COLUMN_WIDTH.sum,
+        'border-r-2 border-base-300'
+      ),
     ];
 
     const expandedTaskId = Object.keys(expandedTasks).find((id) => expandedTasks[id]);
@@ -511,7 +561,10 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   if (!results) return <div>No Contest Results available.</div>;
 
   return (
-    <div>
+    <div
+      ref={containerRef}
+      className={isFullscreen ? 'bg-base-100 p-4 overflow-auto h-full' : 'container mx-auto p-4'}
+    >
       {!wsConnected && (
         <div role="alert" className="alert alert-warning mb-4 py-2">
           <WifiOffIcon size={16} />
@@ -539,7 +592,11 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
             )}
           </div>
           <h2 className="text-2xl font-bold text-center">{results.name}</h2>
-          <div className="flex-1 flex justify-end">
+          <div className="flex-1 flex justify-end gap-2">
+            <button type="button" onClick={toggleFullscreen} className="btn btn-sm btn-outline gap-2">
+              {isFullscreen ? <Minimize2Icon size={16} /> : <Maximize2Icon size={16} />}
+              {isFullscreen ? 'Exit full screen' : 'Full screen'}
+            </button>
             <a
               href={reverse('contests-results-csv', contestId ?? 0)}
               className="btn btn-sm btn-outline gap-2"
@@ -555,7 +612,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
       <DataTable
         columns={columns}
         data={data}
-        className="table table-zebra table-pin-rows table-pin-cols w-full min-w-max"
+        className="table table-zebra table-pin-rows w-full min-w-max"
         updateMyData={updateMyData}
         initialSorting={initialSorting}
       />
