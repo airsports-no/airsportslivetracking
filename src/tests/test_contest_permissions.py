@@ -10,7 +10,7 @@ from rest_framework import status
 from rest_framework.authtoken.models import Token
 from rest_framework.test import APITestCase, APIClient
 
-from display.models import Contest, Team, Aeroplane, Crew, Person, ContestTeam
+from display.models import Contest
 from utilities.mock_utilities import TraccarMock
 
 
@@ -278,43 +278,6 @@ class TestAccessContest(APITestCase):
             reverse("contests-detail", kwargs={"pk": self.contest_id}), data={"name": "TestContest2"}
         )
         self.assertEqual(result.status_code, status.HTTP_200_OK, result.content)
-
-    def test_remove_team_from_contest_without_login(self, *args):
-        team = Team.objects.create(
-            crew=Crew.objects.create(
-                member1=Person.objects.create(first_name="first", last_name="last", email="someone@somewhere.com")
-            ),
-            aeroplane=Aeroplane.objects.create(registration="registration"),
-        )
-        ContestTeam.objects.create(team=team, contest=self.contest)
-        self.client.logout()
-        result = self.client.post(reverse("remove_team", kwargs={"contest_pk": self.contest_id, "team_pk": team.pk}))
-        self.assertEqual(result.status_code, status.HTTP_302_FOUND, result.content)
-
-    def test_remove_team_from_contest_as_someone_else(self, *args):
-        team = Team.objects.create(
-            crew=Crew.objects.create(
-                member1=Person.objects.create(first_name="first", last_name="last", email="someone@somewhere.com")
-            ),
-            aeroplane=Aeroplane.objects.create(registration="registration"),
-        )
-        ContestTeam.objects.create(team=team, contest=self.contest)
-        self.client.force_login(user=self.user_someone_else)
-        result = self.client.post(reverse("remove_team", kwargs={"contest_pk": self.contest_id, "team_pk": team.pk}))
-        self.assertEqual(result.status_code, status.HTTP_302_FOUND, result.content)
-
-    def test_remove_team_from_contest_as_creator(self, *args):
-        team = Team.objects.create(
-            crew=Crew.objects.create(
-                member1=Person.objects.create(first_name="first", last_name="last", email="someone@somewhere.com")
-            ),
-            aeroplane=Aeroplane.objects.create(registration="registration"),
-        )
-        ContestTeam.objects.create(team=team, contest=self.contest)
-        self.client.force_login(user=self.user_owner)
-        result = self.client.post(reverse("remove_team", kwargs={"contest_pk": self.contest_id, "team_pk": team.pk}))
-        print(result)
-        self.assertEqual(result.status_code, status.HTTP_302_FOUND)
 
 
 class TestTokenAuthentication(APITestCase):

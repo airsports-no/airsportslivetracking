@@ -1,11 +1,12 @@
 import React from 'react';
 import { Link } from 'react-router-dom';
-import { MapPin } from 'lucide-react';
+import { MapPin, FileText, Pencil } from 'lucide-react';
 import { Contestant } from '../../competition-map/types';
 import PublicityIcon from './PublicityIcon';
-import { Route } from '../types';
+import { NavigationTask, Route } from '../types';
 import TaskStatistics from './TaskStatistics';
 import { formatDateInterval } from '../../../utils';
+import { reverse } from '../../../urls';
 
 interface TaskCardProps {
     name: string;
@@ -26,9 +27,11 @@ interface TaskCardProps {
     flown_contestants_count: number;
     isRegisteredButNotPilot?: boolean;
     allow_self_management?: boolean;
+    canManage?: boolean;
+    taskSubtypeDefinition?: NavigationTask['task_subtype_definition'];
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management, canManage, taskSubtypeDefinition }) => {
     const getStatusBadge = () => {
         switch (status) {
             case 'Open':
@@ -48,15 +51,40 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
         <div className="card bg-base-100 shadow-xl">
             <div className="card-body">
                 <h3 className="card-title flex flex-wrap items-center gap-2">
-                    <span className="flex-1">{name}</span>
+                    {canManage ? (
+                        // Manager-only edit affordance - the pencil + accent color mark this as a
+                        // management action, distinct from the contestant-facing controls below.
+                        <a
+                            href={reverse('navigationtask_detail', taskId)}
+                            className="flex-1 link link-hover text-accent inline-flex items-center gap-1"
+                        >
+                            <Pencil size={14} className="shrink-0" />
+                            {name}
+                        </a>
+                    ) : (
+                        <span className="flex-1">{name}</span>
+                    )}
                     {getStatusBadge()}
                     <PublicityIcon isPublic={is_public} isFeatured={is_featured} />
                     <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="btn btn-xs btn-outline btn-info gap-1">
                         <MapPin size={14} />
                         Live Map
                     </a>
+                    {canManage && allow_self_management && (
+                        <a href={reverse('hangar_flyer', taskId)} className="btn btn-xs btn-outline btn-accent gap-1">
+                            <FileText size={14} />
+                            Hangar Flyer
+                        </a>
+                    )}
                 </h3>
-                
+                {taskSubtypeDefinition && (
+                    <p className="text-xs uppercase tracking-wide text-gray-400 font-semibold -mt-1">
+                        {taskSubtypeDefinition.coarse_family_label}
+                        <span className="mx-1 opacity-50">·</span>
+                        {taskSubtypeDefinition.display_name}
+                    </p>
+                )}
+
                 <TaskStatistics route={route} flown_contestants_count={flown_contestants_count} />
                 <p className="text-sm text-gray-500">{formatDateInterval(start_time, finish_time)}</p>
 

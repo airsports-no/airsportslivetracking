@@ -52,6 +52,39 @@ class TestTaskLimitWiring(TestCase):
         self.assertEqual(navigation_task.name, "Limited Task")
 
     def test_navigation_task_serializer_accepts_turnpoint_hunt_task_config(self):
+        # limited_fuel_turnpoint_hunt has no route backbone and requires exactly three
+        # known_time_gate markers plus at least one catalogue_turnpoint (see
+        # TASK_SUBTYPE_DEFINITIONS and route_compatibility.turnpoint_hunt_structural_errors) -
+        # self.route (a plain precision CSV import) has neither.
+        turnpoint_hunt_route = EditableRoute.objects.create(
+            name="Turnpoint Hunt Route",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ctp-1", "name": "CTP1", "featureType": "catalogue_turnpoint"},
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ktg-1", "name": "KTG1", "featureType": "known_time_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ktg-2", "name": "KTG2", "featureType": "known_time_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ktg-3", "name": "KTG3", "featureType": "known_time_gate"},
+                        "geometry": {"type": "Point", "coordinates": [11.3, 60.3]},
+                    },
+                ],
+            },
+        )
+        assign_perm("change_editableroute", self.user, turnpoint_hunt_route)
         serializer = NavigationTaskEditableRoutReferenceSerialiser(
             data={
                 "name": "Turnpoint Hunt Task",
@@ -59,7 +92,7 @@ class TestTaskLimitWiring(TestCase):
                 "start_time": "2026-10-01T09:00:00Z",
                 "finish_time": "2026-10-01T17:00:00Z",
                 "allow_self_management": True,
-                "editable_route": self.route.pk,
+                "editable_route": turnpoint_hunt_route.pk,
                 "task_subtype": "limited_fuel_turnpoint_hunt",
                 "task_config": {
                     "maximum_task_duration_minutes": 45,
@@ -70,7 +103,7 @@ class TestTaskLimitWiring(TestCase):
             },
             context={"request": self.request, "contest": self.contest},
         )
-        serializer.fields["editable_route"].queryset = EditableRoute.objects.filter(pk=self.route.pk)
+        serializer.fields["editable_route"].queryset = EditableRoute.objects.filter(pk=turnpoint_hunt_route.pk)
         self.assertTrue(serializer.is_valid(), serializer.errors)
         navigation_task = serializer.save()
         self.assertEqual(navigation_task.task_subtype, "limited_fuel_turnpoint_hunt")
@@ -166,6 +199,38 @@ class TestTaskLimitWiring(TestCase):
         )
 
     def test_navigation_task_serializer_accepts_circle_radius_config(self):
+        # circle has no route backbone - it requires the editable route to carry all four
+        # standalone circle_*_marker features instead (see TASK_SUBTYPE_DEFINITIONS), which
+        # self.route (a plain precision CSV import) doesn't have.
+        circle_route = EditableRoute.objects.create(
+            name="Circle Route",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "cm-1", "name": "CM", "featureType": "circle_center_marker"},
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "cs-1", "name": "CS", "featureType": "circle_start_marker"},
+                        "geometry": {"type": "Point", "coordinates": [11.01, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "ce-1", "name": "CE", "featureType": "circle_entry_marker"},
+                        "geometry": {"type": "Point", "coordinates": [11.02, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "cx-1", "name": "CX", "featureType": "circle_exit_marker"},
+                        "geometry": {"type": "Point", "coordinates": [11.03, 60.0]},
+                    },
+                ],
+            },
+        )
+        assign_perm("change_editableroute", self.user, circle_route)
         serializer = NavigationTaskEditableRoutReferenceSerialiser(
             data={
                 "name": "Circle Task",
@@ -173,7 +238,7 @@ class TestTaskLimitWiring(TestCase):
                 "start_time": "2026-10-01T09:00:00Z",
                 "finish_time": "2026-10-01T17:00:00Z",
                 "allow_self_management": True,
-                "editable_route": self.route.pk,
+                "editable_route": circle_route.pk,
                 "task_subtype": "circle",
                 "task_config": {
                     "circle_radius_min_m": 250,
@@ -182,7 +247,7 @@ class TestTaskLimitWiring(TestCase):
             },
             context={"request": self.request, "contest": self.contest},
         )
-        serializer.fields["editable_route"].queryset = EditableRoute.objects.filter(pk=self.route.pk)
+        serializer.fields["editable_route"].queryset = EditableRoute.objects.filter(pk=circle_route.pk)
         self.assertTrue(serializer.is_valid(), serializer.errors)
         self.assertEqual(serializer.validated_data["task_subtype"], "circle")
         self.assertEqual(

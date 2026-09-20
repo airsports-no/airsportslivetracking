@@ -141,7 +141,7 @@ class Person(models.Model):
         if response.status_code == requests.codes.ok:
             self.picture.save("nobg_" + self.picture.name, ContentFile(response.content))
             return None
-        logger.error("Error:", response.status_code, response.text)
+        logger.error("Error: %s %s", response.status_code, response.text)
         return response.text
 
     def validate(self):
@@ -189,7 +189,7 @@ class Club(models.Model):
     A Club represents a physical flying club. It is tied to a team to reflect the club the team is representing in
     the competition.
     """
-    name = models.CharField(max_length=200)
+    name = models.CharField(max_length=200, unique=True)
     country = CountryField(blank=True)
     logo = models.ImageField(null=True, blank=True)
 
@@ -211,7 +211,7 @@ class Aeroplane(models.Model):
     """
     Represents a physical aeroplane. Aeroplanes are part of teams.
     """
-    registration = models.CharField(max_length=20)
+    registration = models.CharField(max_length=20, unique=True)
     colour = models.CharField(max_length=40, blank=True)
     type = models.CharField(max_length=50, blank=True)
     picture = models.ImageField(null=True, blank=True)

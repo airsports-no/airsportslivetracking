@@ -14,6 +14,7 @@
         ...document.configuration,
         is_superuser: {{ user.is_superuser | lower }},
         isAuthenticated: {{ user.is_authenticated | lower }},
+        userId: {{ user.id|default_if_none:"null" }},
         {% if perms.display.add_contest %}
         isOrganizer: true,
         {% else %}

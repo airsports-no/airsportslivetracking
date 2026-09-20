@@ -220,8 +220,14 @@ export const fetchAircrafts = async (): Promise<Aircraft[]> => {
     return response.json();
 };
 
-export const fetchPilots = async (): Promise<Copilot[]> => {
-    const url = reverse('get_persons_for_signup');
+export const fetchPilots = async (options?: { excludeSelf?: boolean }): Promise<Copilot[]> => {
+    // excludeSelf defaults true (the backend's own default) for self-registration's copilot
+    // search - pass false for the admin team-registration flow, where the organizer themselves
+    // must be selectable as a pilot/copilot too. See get_persons_for_signup's docstring.
+    let url = reverse('get_persons_for_signup');
+    if (options?.excludeSelf === false) {
+        url += '?exclude_self=false';
+    }
     const response = await fetch(url, { headers: getAuthHeaders() });
     if (!response.ok) {
         const errorMessages = await getErrorMessages(response);
@@ -295,6 +301,96 @@ export const replaceContestToken = async (contestId: number, tokenGrantId: numbe
         throw new Error(`Failed to replace token on contest: ${errorMessages}`);
     }
     return response.json();
+};
+
+export const updateContest = async (contestId: number, payload: Partial<Contest>): Promise<Contest> => {
+    const url = reverse('contests-detail', contestId);
+    const response = await fetch(url, {
+        method: 'PATCH',
+        headers: getAuthHeaders(),
+        body: JSON.stringify(payload),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to update contest: ${errorMessages}`);
+    }
+    return response.json();
+};
+
+export const shareContest = async (contestId: number, visibility: 'public' | 'private' | 'unlisted'): Promise<any> => {
+    const url = reverse('contests-share', contestId);
+    const response = await fetch(url, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ visibility }),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to update contest publicity: ${errorMessages}`);
+    }
+    return response.json();
+};
+
+export const deleteContest = async (contestId: number): Promise<void> => {
+    const url = reverse('contests-detail', contestId);
+    const response = await fetch(url, { method: 'DELETE', headers: getAuthHeaders() });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to delete contest: ${errorMessages}`);
+    }
+};
+
+export interface ContestPermissionGrant {
+    user_id: number;
+    email: string;
+    level: 'nothing' | 'view' | 'change' | 'delete';
+}
+
+export const fetchContestPermissions = async (contestId: number): Promise<ContestPermissionGrant[]> => {
+    const url = reverse('contests-permission-grants', contestId);
+    const response = await fetch(url, { headers: getAuthHeaders() });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to fetch contest permissions: ${errorMessages}`);
+    }
+    return response.json();
+};
+
+export const addContestPermission = async (contestId: number, identifier: string, level: string): Promise<ContestPermissionGrant> => {
+    const url = reverse('contests-permission-grants', contestId);
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ identifier, level }),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to add contest permission: ${errorMessages}`);
+    }
+    return response.json();
+};
+
+export const changeContestPermission = async (contestId: number, userId: number, level: string): Promise<ContestPermissionGrant> => {
+    const url = `${reverse('contests-permission-grants', contestId)}${userId}/`;
+    const response = await fetch(url, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ level }),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to change contest permission: ${errorMessages}`);
+    }
+    return response.json();
+};
+
+export const removeContestPermission = async (contestId: number, userId: number): Promise<void> => {
+    const url = `${reverse('contests-permission-grants', contestId)}${userId}/`;
+    const response = await fetch(url, { method: 'DELETE', headers: getAuthHeaders() });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to remove contest permission: ${errorMessages}`);
+    }
 };
 
 export const scheduleFlight = async (contestId: number, navigationTaskId: number, payload: ScheduleFlightPayload): Promise<Contestant> => {

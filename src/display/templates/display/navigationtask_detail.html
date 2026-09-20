@@ -29,7 +29,7 @@
             <!-- Unified Toolbar -->
             <div class="flex flex-wrap items-center bg-base-200 rounded-lg mt-6 p-1 gap-1 md:gap-2 md:flex-nowrap">
                 <div class="flex-1 flex items-center gap-1">
-                    <a href="{% url 'contest_details' object.contest.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Back to contest">
+                    <a href="{% fe_url 'MISSION_DASHBOARD_DETAIL' contestId=object.contest.pk %}" class="btn btn-sm btn-ghost gap-1 px-2" title="Back to contest">
                         {% lucide "chevron-left" size=16 class="lucide lucide-chevron-left" %}
                         <span class="hidden sm:inline">Back</span>
                     </a>

@@ -4,7 +4,7 @@ from django.test import TestCase
 from django.urls import reverse
 
 from display.forms import ContestForm
-from display.models import Club, ClubManagerMembership, Contest
+from display.models import Club, ClubManagerMembership
 
 
 class TestContestFormOrganizingClubChoices(TestCase):
@@ -43,20 +43,7 @@ class TestContestFormOrganizingClubChoices(TestCase):
             set(create_form.fields["organizing_club"].queryset.values_list("pk", flat=True)),
         )
 
-        contest = Contest.objects.create(
-            name="Existing contest",
-            time_zone="Europe/Oslo",
-            start_time="2026-10-01T09:00:00+00:00",
-            finish_time="2026-10-01T17:00:00+00:00",
-            location="60.0,11.0",
-            created_by=self.user,
-        )
-        from guardian.shortcuts import assign_perm
-        assign_perm("change_contest", self.user, contest)
-        update_response = self.client.get(reverse("contest_update", kwargs={"pk": contest.pk}))
-        self.assertEqual(200, update_response.status_code)
-        update_form = update_response.context["form"]
-        self.assertEqual(
-            {self.club.pk, self.manager_club.pk},
-            set(update_form.fields["organizing_club"].queryset.values_list("pk", flat=True)),
-        )
+        # contest_update (the classic ContestUpdateView) was retired when contest management
+        # moved into the SPA contest dashboard - ContestForm's managed_club_queryset kwarg logic
+        # itself (exercised by both create and update in the same way) is already pinned down by
+        # test_form_can_receive_managed_club_queryset above.
