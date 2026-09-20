@@ -120,7 +120,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
 
             if (isCalculatorLocked) {
                 lockIcon = '📡 ';
-                lockTooltip = '\nTracking started. Cannot move, but can delete.';
+                lockTooltip = '\nTracking started.\nCannot move, but can delete.';
             } else if (isScheduleLocked) {
                 lockIcon = '🔒 ';
                 lockTooltip = '\nSchedule locked.';
@@ -137,7 +137,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 // text instead of being rendered - matches the lockIcon emoji below, which
                 // renders fine for the same reason (plain text needs no allowlisted tags).
                 warningIcon = '⚠️ ';
-                warningTooltip = '\nWarning: Overlapping contestants detected on this tracker.';
+                warningTooltip = '\nWarning: Overlapping contestants\ndetected on this tracker.';
             }
 
             const isOvertaking = overtakeContestantIds.has(contestant.id);
@@ -147,7 +147,8 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             if (isOvertaking) {
                 // See the warningIcon comment above - same vis-timeline XSS-sanitizer issue.
                 overtakeIcon = '🔀 ';
-                overtakeTooltip = "\nNote: this contestant's finishing order crosses another contestant's relative to takeoff order (an overtake). Not blocked, just flagged.";
+                overtakeTooltip =
+                    "\nNote: this contestant's finishing order crosses\nanother contestant's relative to takeoff order\n(an overtake). Not blocked, just flagged.";
             }
 
             const content = `${warningIcon}${overtakeIcon}${lockIcon}<b>#${contestant.contestant_number}</b> ${contestant.team.crew.member1.last_name}`;
@@ -177,7 +178,7 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
                 className: [isLocked ? 'vis-item-locked' : 'vis-item-normal', isOvertaking ? 'vis-item-overtake' : '']
                     .filter(Boolean)
                     .join(' '),
-                title: `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} (${contestant.team.aeroplane.registration})\nTake-off: ${takeoffText}${lockTooltip}${warningTooltip}${overtakeTooltip}`,
+                title: `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name}\n(${contestant.team.aeroplane.registration})\nTake-off: ${takeoffText}${lockTooltip}${warningTooltip}${overtakeTooltip}`,
                 // Custom data to help with updates
                 data: {
                     trackerStart,
