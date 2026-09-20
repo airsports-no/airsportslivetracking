@@ -8,7 +8,7 @@ import { useMissionDashboardStore } from '../../mission-dashboard/store';
 import { Contest } from '../../mission-dashboard/types';
 import { contestSettingsSchema, ContestSettingsFormValues } from '../schemas/contestSettingsSchema';
 import { contestLocalTimeToIso } from '../navigationTaskFlow';
-import { updateContest, shareContest } from '../../mission-dashboard/api';
+import { updateContest, updateContestImages, shareContest } from '../../mission-dashboard/api';
 import LocationMapField from './LocationMapField';
 
 interface Props {
@@ -40,11 +40,29 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
     const [sharing, setSharing] = useState(false);
+    const [logoFile, setLogoFile] = useState<File | null>(null);
+    const [headerImageFile, setHeaderImageFile] = useState<File | null>(null);
+    const [logoPreview, setLogoPreview] = useState<string | null>(null);
+    const [headerImagePreview, setHeaderImagePreview] = useState<string | null>(null);
 
     useEffect(() => {
         fetchManagedClubs().catch(() => {});
         // eslint-disable-next-line react-hooks/exhaustive-deps
     }, []);
+
+    useEffect(() => {
+        if (!logoFile) return;
+        const url = URL.createObjectURL(logoFile);
+        setLogoPreview(url);
+        return () => URL.revokeObjectURL(url);
+    }, [logoFile]);
+
+    useEffect(() => {
+        if (!headerImageFile) return;
+        const url = URL.createObjectURL(headerImageFile);
+        setHeaderImagePreview(url);
+        return () => URL.revokeObjectURL(url);
+    }, [headerImageFile]);
 
     const {
         register,
@@ -80,6 +98,14 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
                 start_time: contestLocalTimeToIso(values.start_time, values.time_zone),
                 finish_time: contestLocalTimeToIso(values.finish_time, values.time_zone),
             } as Partial<Contest>);
+            if (logoFile || headerImageFile) {
+                await updateContestImages(contest.id, {
+                    logo: logoFile ?? undefined,
+                    header_image: headerImageFile ?? undefined,
+                });
+                setLogoFile(null);
+                setHeaderImageFile(null);
+            }
             onSaved();
         } catch (err) {
             setError((err as Error).message);
@@ -145,6 +171,43 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
             </div>
 
             <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="form-control w-full">
+                        <div className="label"><span className="label-text">Logo</span></div>
+                        {(logoPreview || contest.logo) && (
+                            <img
+                                src={logoPreview || contest.logo}
+                                alt="Contest logo"
+                                className="w-24 h-24 object-contain rounded-box border border-base-300 bg-base-100 mb-2"
+                            />
+                        )}
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="file-input file-input-bordered file-input-sm w-full"
+                            onChange={e => setLogoFile(e.target.files?.[0] ?? null)}
+                        />
+                        <span className="text-xs opacity-70 mt-1">Quadratic logo shown next to the event in listings.</span>
+                    </div>
+                    <div className="form-control w-full">
+                        <div className="label"><span className="label-text">Header image</span></div>
+                        {(headerImagePreview || contest.header_image) && (
+                            <img
+                                src={headerImagePreview || contest.header_image}
+                                alt="Contest header"
+                                className="w-full h-24 object-cover rounded-box border border-base-300 bg-base-100 mb-2"
+                            />
+                        )}
+                        <input
+                            type="file"
+                            accept="image/*"
+                            className="file-input file-input-bordered file-input-sm w-full"
+                            onChange={e => setHeaderImageFile(e.target.files?.[0] ?? null)}
+                        />
+                        <span className="text-xs opacity-70 mt-1">Wide banner shown at the top of the contest/results pages.</span>
+                    </div>
+                </div>
+
                 <label className="form-control w-full">
                     <div className="label"><span className="label-text">Contest name</span></div>
                     <input className="input input-bordered w-full" {...register('name')} />
