@@ -419,6 +419,40 @@ class NavigationTaskResultsServiceTests(APITransactionTestCase):
         self.assertEqual(TaskSummary.objects.get(task=task_test.task, team=team).points, 0)
         self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=team).points, 0)
 
+    def test_deleting_contestant_updates_results_service_score(self, *_args):
+        # Regression test: TeamTestScore/TaskSummary/ContestSummary are keyed on team, not
+        # Contestant, so deleting a contestant used to leave the team's score for this
+        # navigation task's auto-generated TaskTest (i.e. its penalties) stuck on the
+        # leaderboard forever - same class of bug as the restart case above, just for
+        # deletion instead of reset.
+        team = Team.objects.create(
+            crew=Crew.objects.create(
+                member1=_create_person(first_name="Pilot", last_name="Delete", email="delete@example.com")
+            ),
+            aeroplane=Aeroplane.objects.create(registration="LN-DEL"),
+        )
+        now = datetime.datetime.now(datetime.timezone.utc)
+        contestant = Contestant.objects.create(
+            navigation_task=self.navigation_task,
+            team=team,
+            takeoff_time=now,
+            finished_by_time=now + datetime.timedelta(hours=1),
+            tracker_start_time=now,
+            tracker_device_id="delete-test-device",
+            contestant_number=1,
+        )
+        contestant.contestanttrack.update_score(99)
+
+        task_test = self.navigation_task.tasktest
+        self.assertEqual(TaskSummary.objects.get(task=task_test.task, team=team).points, 99)
+        self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=team).points, 99)
+
+        contestant.delete()
+
+        self.assertFalse(TeamTestScore.objects.filter(task_test=task_test, team=team).exists())
+        self.assertEqual(TaskSummary.objects.get(task=task_test.task, team=team).points, 0)
+        self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=team).points, 0)
+
     def test_results_details_includes_navigation_task_results_service_entries(self, *_args):
         response = self.client.get(reverse("contests-results-details", kwargs={"pk": self.contest.pk}))
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
@@ -472,7 +506,36 @@ class NavigationTaskResultsServiceTests(APITransactionTestCase):
         self.navigation_task.tasktest.refresh_from_db()
         self.assertEqual(self.navigation_task.tasktest.name, "Navigation")
 
-    def test_navigation_backed_task_cannot_be_updated_via_results_api(self, *_args):
+    def test_navigation_backed_test_weight_can_still_be_changed_via_results_api(self, *_args):
+        # Only renaming/deleting a navigation-linked test is blocked - TestModal.tsx's own
+        # design already locks the name field (and hides sorting) for one of these but leaves
+        # weight editable, so the backend must accept a weight-only change (name/heading
+        # unchanged) rather than rejecting the whole update outright.
+        task_test = self.navigation_task.tasktest
+        response = self.client.put(
+            reverse("tasktests-detail", kwargs={"contest_pk": self.contest.pk, "pk": task_test.id}),
+            data={
+                "id": task_test.id,
+                "task": task_test.task_id,
+                "name": task_test.name,
+                "heading": task_test.heading,
+                "weight": 2.5,
+                "sorting": task_test.sorting,
+                "index": task_test.index,
+                "navigation_task": self.navigation_task.id,
+            },
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        task_test.refresh_from_db()
+        self.assertEqual(task_test.weight, 2.5)
+        self.assertEqual(task_test.name, "Navigation")
+
+    def test_navigation_backed_task_can_still_be_updated_via_results_api(self, *_args):
+        # Unlike a navigation-backed TEST (name/heading locked, see
+        # test_navigation_backed_test_cannot_be_updated_via_results_api), a navigation-backed
+        # TASK has no such restriction - only deleting one is blocked. Renaming/reweighting/
+        # reordering it in the results table is a normal, allowed edit.
         linked_task = self.navigation_task.tasktest.task
         response = self.client.put(
             reverse("tasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": linked_task.id}),
@@ -481,16 +544,17 @@ class NavigationTaskResultsServiceTests(APITransactionTestCase):
                 "contest": self.contest.id,
                 "name": linked_task.name,
                 "heading": "Changed Task Heading",
-                "weight": linked_task.weight,
+                "weight": 3,
                 "index": linked_task.index,
                 "autosum_scores": linked_task.autosum_scores,
                 "summary_score_sorting_direction": linked_task.summary_score_sorting_direction,
             },
             format="json",
         )
-        self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         linked_task.refresh_from_db()
-        self.assertEqual(linked_task.heading, self.navigation_task.name)
+        self.assertEqual(linked_task.heading, "Changed Task Heading")
+        self.assertEqual(linked_task.weight, 3)
 
 
 class ContestResultsEndpointBroadcastTests(APITransactionTestCase):
@@ -532,6 +596,29 @@ class ContestResultsEndpointBroadcastTests(APITransactionTestCase):
         transmit_results.assert_called_once_with(self.auth_user, self.contest)
         self.assertEqual(transmit_teams.call_count, 1)
         transmit_teams.assert_called_with(self.contest)
+
+    @patch.object(WebsocketFacade, "transmit_contest_results")
+    @patch.object(WebsocketFacade, "transmit_teams")
+    def test_team_results_delete_also_clears_task_summary_and_team_test_score(self, transmit_teams, transmit_results):
+        # ContestTeam/ContestSummary alone aren't the whole "results" picture - TaskSummary/
+        # TeamTestScore are keyed on team, not ContestTeam/Contestant, so they used to survive
+        # this call and leave orphaned rows a re-added team could inherit a stale score from.
+        task = Task.objects.create(name="Navigation", heading="Navigation", contest=self.contest)
+        task_test = TaskTest.objects.create(task=task, name="Navigation", heading="Navigation")
+        contest_summary = ContestSummary.objects.create(team=self.team, contest=self.contest, points=42)
+        task_summary = TaskSummary.objects.create(team=self.team, task=task, points=42)
+        team_test_score = TeamTestScore.objects.create(team=self.team, task_test=task_test, points=42)
+
+        response = self.client.post(
+            reverse("contests-team-results-delete", kwargs={"pk": self.contest.pk}),
+            data={"team_id": self.team.pk},
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT, response.content)
+        self.assertFalse(ContestSummary.objects.filter(pk=contest_summary.pk).exists())
+        self.assertFalse(TaskSummary.objects.filter(pk=task_summary.pk).exists())
+        self.assertFalse(TeamTestScore.objects.filter(pk=team_test_score.pk).exists())
 
 
 class ContestResultsRestMutationTests(APITransactionTestCase):

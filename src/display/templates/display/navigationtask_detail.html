@@ -283,6 +283,7 @@
                                         {% if "change_contest" in contest_permissions %}
                                             {% if contestant.contestanttrack.calculator_finished %}
                                                 <li><form method="post" action="{% url 'contestant_restart_calculator' contestant.pk %}" onsubmit="return confirm('Restart?')">{% csrf_token %}<button type="submit" class="w-full text-left">Restart Calculator</button></form></li>
+                                                <li><form method="post" action="{% url 'contestant_reset_calculator' contestant.pk %}" onsubmit="return confirm('Reset? This clears the track/score and does not restart tracking - use Restart Calculator for that.')">{% csrf_token %}<button type="submit" class="w-full text-left">Reset Calculator</button></form></li>
                                             {% else %}
                                                  <li><form method="post" action="{% url 'contestant_stop_calculator' contestant.pk %}" onsubmit="return confirm('Stop?')">{% csrf_token %}<button type="submit" class="w-full text-left">Stop Calculator</button></form></li>
                                             {% endif %}

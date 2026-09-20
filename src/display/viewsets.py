@@ -1189,6 +1189,13 @@ class ContestViewSet(ModelViewSet):
         team_id = request.data["team_id"]
         ContestTeam.objects.filter(contest=contest, team__pk=team_id).delete()
         ContestSummary.objects.filter(contest=contest, team__pk=team_id).delete()
+        # TaskSummary/TeamTestScore used to survive this call (they're keyed on team, not
+        # ContestTeam/Contestant, per the results service's intentional decoupling - see
+        # scoring_table_models.py's module docstring), leaving orphaned rows that didn't
+        # display anywhere by themselves but meant a re-added team could inherit a stale
+        # prior score, and required manual DB cleanup to fully remove a team's history.
+        TaskSummary.objects.filter(task__contest=contest, team__pk=team_id).delete()
+        TeamTestScore.objects.filter(task_test__task__contest=contest, team__pk=team_id).delete()
         ws = WebsocketFacade()
         ws.transmit_contest_results(request.user, contest)
         return Response(status=status.HTTP_204_NO_CONTENT)
@@ -2404,19 +2411,24 @@ class ContestantViewSet(ModelViewSet):
     )
     @action(detail=True, methods=["get"], url_path=r"score_data/(?P<version>[^/]+)")
     def score_data_versioned(self, request, pk=None, version=None, **kwargs):
-        return self.score_data(request, pk=pk, **kwargs)
+        return self.score_data(request, pk=pk, requested_version=version, **kwargs)
 
     @extend_schema(
         responses={200: OpenApiTypes.OBJECT},
         description="Return consolidated score data, including compiled task payload and administrative penalties, for the contestant score view.",
     )
     @action(detail=True, methods=["get"])
-    def score_data(self, request, *args, **kwargs):
+    def score_data(self, request, *args, requested_version: str = None, **kwargs):
         """
         Used by the front end to load initial data
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
         is_finished = hasattr(contestant, "contestanttrack") and contestant.contestanttrack.calculator_finished
+        # A caller could otherwise request an arbitrary/future version, have today's data
+        # cached under that URL for a year, and get served that stale response once the
+        # contestant's real version genuinely reaches it later - so the long-cache branch
+        # below is only reachable when the path actually matches the canonical version.
+        is_versioned = requested_version == f"{contestant.track_version}-{contestant.score_version}"
         if not hasattr(contestant, "contestanttaskconfiguration"):
             from display.services.contestant_task_compiler import ContestantTaskCompiler
 
@@ -2439,12 +2451,20 @@ class ContestantViewSet(ModelViewSet):
 
         if not is_public:
             response["Cache-Control"] = "private, no-cache"
-        elif is_finished:
+        elif is_finished and is_versioned:
             response["ETag"] = etag
-            # Finished scores are static.
-            # s-maxage=31536000: CDN caches for 1 year (explicit invalidation)
+            # Finished scores are static, and the URL embeds the version - a restart
+            # (which bumps track_version/score_version) produces a URL the CDN has never
+            # seen, so there's no stale entry to revalidate.
+            # s-maxage=31536000: CDN caches for 1 year.
             # max-age=0: Browser always checks CDN (no disk cache).
             response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+        elif is_finished:
+            response["ETag"] = etag
+            # Unversioned URL: its cache key can't change when track_version/score_version
+            # does, so it must never be marked immutable - short cache only, relying on the
+            # ETag above to correctly 304/refresh once the CDN revalidates with origin.
+            response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
         else:
             # Live scores change frequently.
             # No ETag sent to avoid stale 304s from CDN.
@@ -2472,11 +2492,42 @@ class ContestantViewSet(ModelViewSet):
             ),
         ],
         responses={200: OpenApiTypes.OBJECT},
+        description="Same payload as slice, with the contestant's track version embedded in the path. The "
+        "frontend already knows the current track_version from the navigation task's contestant list before "
+        "it ever calls this, so it can always request the current version directly - the CDN then sees a "
+        "distinct URL per version instead of long-caching one URL that silently goes stale when a "
+        "contestant's calculator is restarted.",
+    )
+    @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)/(?P<version>[^/]+)")
+    def slice_versioned(self, request, minute_index, version=None, **kwargs):
+        return self.slice(request, minute_index, requested_version=version, **kwargs)
+
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name="minute_index",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.PATH,
+                description="Minute index to inspect",
+            ),
+            OpenApiParameter(
+                name="count",
+                type=OpenApiTypes.INT,
+                location=OpenApiParameter.QUERY,
+                description="Number of contiguous one-minute slices to return. Must be between 1 and 60.",
+            ),
+        ],
+        responses={200: OpenApiTypes.OBJECT},
         description="Return one or more cached minute-aligned telemetry slices for a contestant track.",
     )
     @action(detail=True, methods=["get"], url_path=r"slice/(?P<minute_index>\d+)")
-    def slice(self, request, minute_index, **kwargs):
+    def slice(self, request, minute_index, requested_version: str = None, **kwargs):
         contestant = self.get_object()
+        # A caller could otherwise request an arbitrary/future version, have today's data
+        # cached under that URL for a year, and get served that stale response once the
+        # contestant's real version genuinely reaches it later - so the long-cache branch
+        # below is only reachable when the path actually matches the canonical version.
+        is_versioned = requested_version == str(contestant.track_version)
         minute_index = int(minute_index)
         try:
             count = int(request.query_params.get("count", 1))
@@ -2536,10 +2587,17 @@ class ContestantViewSet(ModelViewSet):
         if not is_public:
             # Private telemetry must never reach the shared CDN cache.
             response["Cache-Control"] = "private, no-cache"
-        elif is_immutable and current_count > 0:
-            # ONLY cache for 1 year if it's immutable AND we actually have data.
+        elif is_immutable and current_count > 0 and is_versioned:
+            # ONLY cache for 1 year if it's immutable, we actually have data, AND the URL
+            # embeds track_version - a restart bumps that version, producing a URL the CDN
+            # has never seen, so there's no stale entry to revalidate.
             # If current_count is 0, someone might have requested a slice before the flight started.
             response["Cache-Control"] = "public, max-age=120, s-maxage=31536000, stale-while-revalidate=86400"
+        elif is_immutable and current_count > 0:
+            # Unversioned URL: its cache key can't change when track_version does, so it
+            # must never be marked immutable - short cache only, relying on the ETag above
+            # to correctly 304/refresh once the CDN revalidates with origin.
+            response["Cache-Control"] = "public, max-age=60, s-maxage=60, stale-while-revalidate=600"
         else:
             # If the flight is ongoing, or the slice is empty, use short-term caching.
             response["Cache-Control"] = "public, max-age=5, s-maxage=10, must-revalidate"
@@ -2658,12 +2716,29 @@ class ContestantViewSet(ModelViewSet):
         """
         return self.score_data(request, pk=pk, **kwargs)
 
+    @extend_schema(
+        responses={200: OpenApiTypes.OBJECT},
+        description="Same payload as track, with the contestant's track version embedded in the path. The "
+        "frontend already knows the current track_version from the navigation task's contestant list before "
+        "it ever calls this, so it can always request the current version directly - the CDN then sees a "
+        "distinct URL per version instead of long-caching one URL that silently goes stale when a "
+        "contestant's calculator is restarted.",
+    )
+    @action(detail=True, methods=["get"], url_path=r"track/(?P<version>[^/]+)")
+    def track_versioned(self, request, pk=None, version=None, **kwargs):
+        return self.track(request, pk=pk, requested_version=version, **kwargs)
+
     @action(detail=True, methods=["get"])
-    def track(self, request, pk=None, **kwargs):
+    def track(self, request, pk=None, requested_version: str = None, **kwargs):
         """
         Returns the GPS track for the contestant
         """
         contestant = self.get_object()  # This is important, this is where the object permissions are checked
+        # A caller could otherwise request an arbitrary/future version, have today's data
+        # cached under that URL for a year, and get served that stale response once the
+        # contestant's real version genuinely reaches it later - so the long-cache branch
+        # below is only reachable when the path actually matches the canonical version.
+        is_versioned = requested_version == str(contestant.track_version)
         ct = contestant.contestanttrack
 
         position_data = contestant.get_track()
@@ -2685,10 +2760,18 @@ class ContestantViewSet(ModelViewSet):
 
         if not is_public:
             response["Cache-Control"] = "private, no-cache"
+        elif is_finished and is_versioned:
+            response["ETag"] = etag
+            # Finished tracks are static, and the URL embeds the version - a restart (which
+            # bumps track_version) produces a URL the CDN has never seen, so there's no
+            # stale entry to revalidate.
+            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         elif is_finished:
             response["ETag"] = etag
-            # Finished tracks are static.
-            response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
+            # Unversioned URL: its cache key can't change when track_version does, so it
+            # must never be marked immutable - short cache only, relying on the ETag above
+            # to correctly 304/refresh once the CDN revalidates with origin.
+            response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
         else:
             # Live tracks change as the flight progresses.
             # No ETag sent to avoid stale 304s from CDN.
@@ -2851,14 +2934,6 @@ class TaskViewSet(ModelViewSet):
             )
         return super().destroy(request, *args, **kwargs)
 
-    def update(self, request, *args, **kwargs):
-        task = self.get_object()
-        if task.tasktest_set.filter(navigation_task__isnull=False).exists():
-            raise drf_exceptions.ValidationError(
-                "Cannot modify a task that is linked to a navigation task. Modify the navigation task instead."
-            )
-        return super().update(request, *args, **kwargs)
-
 
 _CONTEST_NESTED_PATH_PARAMETERS = [
     OpenApiParameter(name="contest_pk", type=OpenApiTypes.INT, location=OpenApiParameter.PATH),
@@ -2904,9 +2979,18 @@ class TaskTestViewSet(ModelViewSet):
     def update(self, request, *args, **kwargs):
         task_test = self.get_object()
         if task_test.navigation_task_id is not None:
-            raise drf_exceptions.ValidationError(
-                "Cannot modify a test that is linked to a navigation task. Modify the navigation task instead."
-            )
+            # Only the name/heading are locked to the navigation task's own naming - weight
+            # (how much this test counts toward the task summary) and index (its column order)
+            # are still organiser-editable, matching TestModal.tsx's own field-level design
+            # (it already disables the name input and hides sorting for a navigation-linked
+            # test, but leaves weight editable). Comparing against the current stored value
+            # rather than outright rejecting the whole request lets those fields through.
+            new_name = request.data.get("name", task_test.name)
+            new_heading = request.data.get("heading", task_test.heading)
+            if new_name != task_test.name or new_heading != task_test.heading:
+                raise drf_exceptions.ValidationError(
+                    "Cannot rename a test that is linked to a navigation task. Rename the navigation task instead."
+                )
         contest_id = self.kwargs.get("contest_pk")
         new_task_id = request.data.get("task")
         if new_task_id is not None and not Task.objects.filter(pk=new_task_id, contest_id=contest_id).exists():

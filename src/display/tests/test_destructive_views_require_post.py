@@ -179,3 +179,17 @@ class TestDestructiveViewsRequirePost(TestCase):
             response = strict_client.post(url)
             self.assertEqual(response.status_code, 403)
             mock_refresh.assert_not_called()
+
+    def test_reset_calculator_rejects_get(self, *args):
+        url = reverse("contestant_reset_calculator", kwargs={"pk": self.contestant.pk})
+        with patch("display.models.contestant.Contestant.blocking_request_calculator_termination") as mock_terminate:
+            response = self.client.get(url)
+            self.assertEqual(response.status_code, 405)
+            mock_terminate.assert_not_called()
+
+    def test_reset_calculator_post_succeeds(self, *args):
+        url = reverse("contestant_reset_calculator", kwargs={"pk": self.contestant.pk})
+        with patch("display.models.contestant.Contestant.blocking_request_calculator_termination") as mock_terminate:
+            response = self.client.post(url)
+            self.assertEqual(response.status_code, 302)
+            mock_terminate.assert_called_once()

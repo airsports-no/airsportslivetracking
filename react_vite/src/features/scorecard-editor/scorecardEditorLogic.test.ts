@@ -3,7 +3,10 @@ import {
     buildSavePayload,
     emptyEditorState,
     formatCardSummary,
+    formatFieldValueForDisplay,
     getGateFieldValue,
+    getOriginalGateFieldValue,
+    getOriginalScalarValue,
     getScalarValue,
     isDirty,
     isGateFieldOverridden,
@@ -227,5 +230,49 @@ describe('formatCardSummary', () => {
 
     it('does not skip a real falsy numeric value like 0', () => {
         expect(formatCardSummary([{ label: 'Backtracking penalty', value: 0 }])).toBe('Backtracking penalty: 0');
+    });
+});
+
+describe('getOriginalScalarValue / getOriginalGateFieldValue', () => {
+    it('returns undefined when there is no original scorecard to compare against', () => {
+        const scorecard = makeScorecard({ backtracking_penalty: 200, original_scorecard: null });
+        expect(getOriginalScalarValue(scorecard, 'backtracking_penalty')).toBeUndefined();
+        expect(getOriginalGateFieldValue(scorecard, 'tp', 'graceperiod_before')).toBeUndefined();
+    });
+
+    it("returns the original scorecard's own value regardless of what's currently set", () => {
+        const scorecard = makeScorecard({
+            backtracking_penalty: 999,
+            original_scorecard: makeScorecard({
+                backtracking_penalty: 200,
+                gatescore_set: [{ gate_type: 'tp', graceperiod_before: 2, visible_fields: [] }],
+            }),
+        });
+        expect(getOriginalScalarValue(scorecard, 'backtracking_penalty')).toBe(200);
+        expect(getOriginalGateFieldValue(scorecard, 'tp', 'graceperiod_before')).toBe(2);
+    });
+});
+
+describe('formatFieldValueForDisplay', () => {
+    it('renders Yes/No for a boolean field', () => {
+        expect(formatFieldValueForDisplay({ label: 'Per leg', kind: 'boolean' }, true)).toBe('Yes');
+        expect(formatFieldValueForDisplay({ label: 'Per leg', kind: 'boolean' }, false)).toBe('No');
+    });
+
+    it("renders a choice field's matching option label, falling back to the raw value", () => {
+        const meta = { label: 'Rounding', kind: 'choice' as const, choices: [{ value: 'up', label: 'Round up' }] };
+        expect(formatFieldValueForDisplay(meta, 'up')).toBe('Round up');
+        expect(formatFieldValueForDisplay(meta, 'unknown')).toBe('unknown');
+    });
+
+    it('renders a numeric field with its unit', () => {
+        expect(formatFieldValueForDisplay({ label: 'Grace time', kind: 'number', unit: 's' }, 5)).toBe('5 s');
+        expect(formatFieldValueForDisplay({ label: 'Penalty', kind: 'number' }, 200)).toBe('200');
+    });
+
+    it('renders "not set" for null/undefined/empty', () => {
+        expect(formatFieldValueForDisplay({ label: 'Penalty', kind: 'number' }, null)).toBe('not set');
+        expect(formatFieldValueForDisplay({ label: 'Penalty', kind: 'number' }, undefined)).toBe('not set');
+        expect(formatFieldValueForDisplay({ label: 'Name', kind: 'number' }, '')).toBe('not set');
     });
 });

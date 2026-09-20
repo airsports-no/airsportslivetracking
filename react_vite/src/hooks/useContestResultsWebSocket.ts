@@ -2,7 +2,7 @@ import { useEffect, useRef, useCallback } from 'react';
 import { useContestResultsStore } from '../store/contestResultsStore';
 
 export const useContestResultsWebSocket = (contestId: number | null) => {
-  const { applyRealtimeMessage, setError } = useContestResultsStore();
+  const { applyRealtimeMessage, setWsConnected } = useContestResultsStore();
   const ws = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Always holds the latest connectWebSocket. The reconnect timeout below can fire up to 3s
@@ -33,11 +33,18 @@ export const useContestResultsWebSocket = (contestId: number | null) => {
 
     socket.onopen = () => {
       console.log('WebSocket connected for contest:', contestId);
+      setWsConnected(true);
       socket.send(JSON.stringify({ type: 'ping' }));
     };
 
     socket.onmessage = (event) => {
-      const data = JSON.parse(event.data);
+      let data;
+      try {
+        data = JSON.parse(event.data);
+      } catch (parseError) {
+        console.error('Failed to parse WebSocket message:', parseError);
+        return;
+      }
       if (data.type === 'pong') {
         return;
       }
@@ -45,8 +52,11 @@ export const useContestResultsWebSocket = (contestId: number | null) => {
     };
 
     socket.onerror = (error) => {
+      // Deliberately not setWsConnected(false) here too - a WebSocket error event is always
+      // followed by a close event per spec, and onclose below is what actually decides
+      // whether this is worth reconnecting from (a deliberate close() can itself surface as
+      // an error/unclean-looking close, per the GH #762 note below).
       console.error('WebSocket error:', error);
-      setError('WebSocket connection error.');
     };
 
     socket.onclose = (event) => {
@@ -61,10 +71,15 @@ export const useContestResultsWebSocket = (contestId: number | null) => {
       }
       console.log('WebSocket disconnected:', event.code, event.reason);
       if (!event.wasClean && event.code !== 1000) {
+        // Surfaced as a small non-blocking banner (ContestResultsTable.tsx), not the page-
+        // replacing `error` state - live-update connectivity dropping is not the same class
+        // of problem as the initial results fetch failing, and must not hide the table while
+        // the reconnect below is already in flight.
+        setWsConnected(false);
         reconnectTimeoutRef.current = setTimeout(() => connectWebSocketRef.current(), 3000);
       }
     };
-  }, [contestId, applyRealtimeMessage, setError]);
+  }, [contestId, applyRealtimeMessage, setWsConnected]);
 
   useEffect(() => {
     // Refs must not be written during render (react-hooks/refs) - keep this updated from an

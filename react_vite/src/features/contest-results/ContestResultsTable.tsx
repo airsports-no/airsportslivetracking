@@ -8,12 +8,18 @@ import { EditableCell } from '../../components/common/DataTable/EditableCell';
 import { useScoreUpdates } from '../../hooks/useScoreUpdates';
 import { TaskModal } from './TaskModal';
 import { TestModal } from './TestModal';
-import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon } from 'lucide-react';
-import { useParams } from 'react-router-dom';
-import { reverse } from '../../urls';
+import { PencilIcon, Trash2Icon, ChevronLeftIcon, ChevronRightIcon, ChevronDownIcon, PlusCircleIcon, DownloadIcon, ArrowLeftIcon, WifiOffIcon } from 'lucide-react';
+import { Link, useParams } from 'react-router-dom';
+import { generatePath, reverse } from '../../urls';
 import { Test } from '../../store/contestResultsStore';
 import { fetchContest } from '../mission-dashboard/api';
 import { Contest } from '../mission-dashboard/types';
+
+// TaskViewSet.destroy (viewsets.py) rejects deleting a task once it has a test linked to a
+// navigation task (delete the navigation task instead) - editing/reordering a linked task is
+// fine, only removing it is blocked. Matches destroy's own
+// tasktest_set.filter(navigation_task__isnull=False).exists() check.
+const isNavigationLinkedTask = (task: Task) => (task.tasktest_set || []).some((test) => test.navigation_task !== null);
 
 const teamRankingTable = (team: any) => {
   if (!team) return 'N/A';
@@ -39,6 +45,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   const results = useContestResultsStore((state) => state.results);
   const loading = useContestResultsStore((state) => state.loading);
   const error = useContestResultsStore((state) => state.error);
+  const wsConnected = useContestResultsStore((state) => state.wsConnected);
   const fetchResults = useContestResultsStore((state) => state.fetchResults);
   const createOrUpdateTask = useContestResultsStore((state) => state.createOrUpdateTask);
   const createOrUpdateTest = useContestResultsStore((state) => state.createOrUpdateTest);
@@ -109,6 +116,9 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   };
 
   const handleMoveTask = async (task: Task, direction: 'left' | 'right') => {
+    // Editing/reordering a navigation-linked task is allowed - only deleting one is blocked
+    // (TaskViewSet.destroy rejects it when it has a linked test), so no navigation-link guard
+    // here.
     if (!results) return;
     const tasks = (results.task_set || []).sort((a, b) => ((a.index || 0) > (b.index || 0) ? 1 : -1));
     const currentIndex = tasks.findIndex((t) => t.id === task.id);
@@ -127,6 +137,9 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
   };
 
   const handleMoveTest = async (test: Test, task: Task, direction: 'left' | 'right') => {
+    // Reordering (index) and weight are still allowed for a navigation-linked test - only
+    // renaming/deleting it is blocked (TaskTestViewSet.update only rejects an actual name/
+    // heading change) - so no navigation_task guard here, unlike handleMoveTask.
     if (!task.tasktest_set) return;
     const tests = [...task.tasktest_set].sort((a, b) => ((a.index || 0) > (b.index || 0) ? 1 : -1));
     const currentIndex = tests.findIndex((t) => t.id === test.id);
@@ -296,7 +309,8 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                           handleDeleteTest(test.id);
                         }}
                         className="btn btn-xs btn-ghost"
-                        title="Delete test"
+                        disabled={test.navigation_task !== null}
+                        title={test.navigation_task !== null ? 'Linked to a navigation task - cannot be deleted' : 'Delete test'}
                       >
                         <Trash2Icon size={12} />
                       </button>
@@ -378,7 +392,8 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                       handleDeleteTask(task.id);
                     }}
                     className="btn btn-xs btn-ghost"
-                    title="Delete task"
+                    disabled={isNavigationLinkedTask(task)}
+                    title={isNavigationLinkedTask(task) ? 'Linked to a navigation task - cannot be deleted' : 'Delete task'}
                   >
                     <Trash2Icon size={12} />
                   </button>
@@ -497,6 +512,12 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
 
   return (
     <div>
+      {!wsConnected && (
+        <div role="alert" className="alert alert-warning mb-4 py-2">
+          <WifiOffIcon size={16} />
+          <span>Live updates disconnected - reconnecting...</span>
+        </div>
+      )}
       <div className="mb-8">
         {(contest?.header_image || contest?.logo) && (
           <img
@@ -506,7 +527,17 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
           />
         )}
         <div className="flex items-center justify-between mb-4">
-          <div className="flex-1" />
+          <div className="flex-1">
+            {contestId !== undefined && (
+              <Link
+                to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId })}
+                className="btn btn-sm btn-outline gap-2"
+              >
+                <ArrowLeftIcon size={16} />
+                Back to contest
+              </Link>
+            )}
+          </div>
           <h2 className="text-2xl font-bold text-center">{results.name}</h2>
           <div className="flex-1 flex justify-end">
             <a

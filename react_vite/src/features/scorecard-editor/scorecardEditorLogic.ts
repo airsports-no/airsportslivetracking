@@ -1,4 +1,4 @@
-import { GATE_FIELD_ORDER } from './fieldMetadata';
+import { FieldMeta, GATE_FIELD_ORDER } from './fieldMetadata';
 import { GateFieldName, GateScoreData, ScalarFieldName, ScorecardData, ScorecardEditorState } from './types';
 
 export function emptyEditorState(): ScorecardEditorState {
@@ -82,6 +82,40 @@ export function isGateFieldOverridden(
     const originalGate = original.gatescore_set.find((g) => g.gate_type === gateType);
     const originalValue = originalGate?.[field];
     return getGateFieldValue(scorecard, state, gateType, field) !== originalValue;
+}
+
+// The standard scorecard's own value for a field - what the "differs from standard" badge's
+// tooltip shows alongside "differs", so the user doesn't have to reset-and-compare to find out
+// what the default actually was.
+export function getOriginalScalarValue(
+    scorecard: ScorecardData,
+    field: ScalarFieldName,
+): number | boolean | string | null | undefined {
+    return scorecard.original_scorecard?.[field] as number | boolean | string | null | undefined;
+}
+
+export function getOriginalGateFieldValue(
+    scorecard: ScorecardData,
+    gateType: string,
+    field: GateFieldName,
+): number | undefined {
+    const originalGate = scorecard.original_scorecard?.gatescore_set.find((g) => g.gate_type === gateType);
+    return originalGate?.[field] as number | undefined;
+}
+
+// Renders a raw field value the same way a human reads it elsewhere on this page: Yes/No for
+// booleans, the matching option label for a choice field, otherwise the raw value plus its unit.
+export function formatFieldValueForDisplay(
+    meta: FieldMeta,
+    value: number | boolean | string | null | undefined,
+): string {
+    if (value === null || value === undefined || value === '') return 'not set';
+    if (meta.kind === 'boolean') return value ? 'Yes' : 'No';
+    if (meta.kind === 'choice') {
+        const choice = meta.choices?.find((option) => option.value === String(value));
+        return choice ? choice.label : String(value);
+    }
+    return `${value}${meta.unit ? ` ${meta.unit}` : ''}`;
 }
 
 // Stage the original scorecard's value for one field into edit state (applied on the next

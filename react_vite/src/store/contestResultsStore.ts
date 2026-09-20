@@ -2,6 +2,24 @@ import { create } from 'zustand';
 import { reverse } from '../urls';
 import { getCookie } from '../utils/csrf';
 
+// DRF's default exception handler serializes a bare ValidationError("some string") (e.g.
+// TaskViewSet/TaskTestViewSet's "linked to a navigation task" guards) as a JSON array of
+// strings, not {"detail": ...} - without this, those specific, helpful messages were being
+// discarded in favor of a generic "Failed to save task"/"Failed to save test".
+async function getErrorMessage(response: Response): Promise<string> {
+  try {
+    const errorData = await response.json();
+    if (Array.isArray(errorData) && errorData.every((item) => typeof item === 'string')) {
+      return errorData.join(' ');
+    } else if (typeof errorData === 'object' && errorData !== null && 'detail' in errorData) {
+      return String(errorData.detail);
+    }
+    return JSON.stringify(errorData);
+  } catch {
+    return response.statusText;
+  }
+}
+
 export interface ContestSummary {
   id: number;
   team_name: string;
@@ -82,12 +100,20 @@ export interface ContestResultsState {
   results: ContestResults | null;
   loading: boolean;
   error: string | null;
+  // Separate from `error` on purpose: `error` drives ContestResultsTable's full-page
+  // "Error: ..." replacement (see the crash report this was added for - a websocket
+  // disconnect used to call setError, blanking the whole page, with nothing ever clearing it
+  // even after the socket successfully reconnected). Live-update connectivity is a much
+  // smaller concern than "the fetch that loaded this page failed" and must never hide the
+  // table - useContestResultsWebSocket only ever touches this field, never `error`.
+  wsConnected: boolean;
 
   fetchResults: (id: number) => Promise<void>;
   setContestId: (id: number) => void;
   setResults: (results: ContestResultsState['results']) => void;
   setLoading: (loading: boolean) => void;
   setError: (error: string | null) => void;
+  setWsConnected: (connected: boolean) => void;
   applyRealtimeMessage: (message: any) => void;
   createOrUpdateTask: (contestId: number, task: Task) => Promise<void>;
   createOrUpdateTest: (contestId: number, taskId: number, test: Test) => Promise<void>;
@@ -231,11 +257,13 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
   results: null,
   loading: false,
   error: null,
+  wsConnected: true,
 
   setContestId: (id) => set({ contestId: id }),
   setResults: (results) => set({ results }),
   setLoading: (loading) => set({ loading }),
   setError: (error) => set({ error }),
+  setWsConnected: (wsConnected) => set({ wsConnected }),
 
   applyRealtimeMessage: (message) => {
     if (!message || typeof message !== 'object') {
@@ -313,7 +341,7 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save task');
+        throw new Error(await getErrorMessage(response));
       }
     } catch (error: any) {
       console.error('Error creating/updating task:', error);
@@ -341,7 +369,7 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to save test');
+        throw new Error(await getErrorMessage(response));
       }
     } catch (error: any) {
       console.error('Error creating/updating test:', error);
@@ -360,7 +388,7 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete task');
+        throw new Error(await getErrorMessage(response));
       }
     } catch (error: any) {
       console.error('Error deleting task:', error);
@@ -379,7 +407,7 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
       });
 
       if (!response.ok) {
-        throw new Error('Failed to delete test');
+        throw new Error(await getErrorMessage(response));
       }
     } catch (error: any) {
       console.error('Error deleting test:', error);
@@ -388,13 +416,20 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
   },
 
   deleteTeamResults: async (contestId: number, teamId: number) => {
-    const url = reverse('contestteams-detail', contestId, teamId);
+    // Was previously DELETE-ing contestteams-detail with the *team* id, but that viewset's
+    // pk is the ContestTeam row's own id (a separate model/id space from Team), so this always
+    // 404ed. contests-team-results-delete (ContestViewSet.team_results_delete, viewsets.py)
+    // is the correct endpoint - it removes both the ContestTeam signup and the team's
+    // ContestSummary row, and broadcasts the update over the results websocket.
+    const url = reverse('contests-team-results-delete', contestId);
     try {
       const response = await fetch(url, {
-        method: 'DELETE',
+        method: 'POST',
         headers: {
+          'Content-Type': 'application/json',
           'X-CSRFToken': getCookie('csrftoken')!,
         },
+        body: JSON.stringify({ team_id: teamId }),
       });
 
       if (!response.ok) {

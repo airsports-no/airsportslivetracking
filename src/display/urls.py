@@ -54,6 +54,7 @@ from display.views import (
     UserUploadedMapUpdate,
     UserUploadedMapDelete,
     restart_contestant_calculator,
+    reset_contestant_calculator,
     download_navigation_task_orders,
     generatenavigation_task_orders_template,
     delete_user_useruploadedmap_permissions,
@@ -186,6 +187,7 @@ urlpatterns = [
     path(
         "contestant/<int:pk>/restart_calculator/", restart_contestant_calculator, name="contestant_restart_calculator"
     ),
+    path("contestant/<int:pk>/reset_calculator/", reset_contestant_calculator, name="contestant_reset_calculator"),
     path("contestant/<int:pk>/list_cards/", contestant_cards_list, name="contestant_cards_list"),
     path("contestant/<int:pk>/remove_card/<int:card_pk>/", contestant_card_remove, name="contestant_card_remove"),
     path(
