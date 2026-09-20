@@ -442,6 +442,19 @@ function renderUnknownLegDummyBranches(map: L.Map, targets: NavigationTaskCatalo
   return layers;
 }
 
+// Entry/exit circle markers are only populated once a contestant actually crosses them, so
+// their `coordinates` can be missing/null at render time despite the (optimistic) TS type -
+// guards against building L.circle/L.polyline from a NaN/undefined coordinate pair, which
+// Leaflet doesn't validate itself and would otherwise surface much later as an opaque
+// "Invalid LatLng object: (NaN, NaN)" crash out of map.fitBounds (Sentry JAVASCRIPT-REACT-A).
+function hasValidCoordinates(target: NavigationTaskCatalogueTarget | undefined): target is NavigationTaskCatalogueTarget {
+  if (!target || !Array.isArray(target.coordinates) || target.coordinates.length !== 2) {
+    return false;
+  }
+  const [lng, lat] = target.coordinates;
+  return Number.isFinite(lng) && Number.isFinite(lat);
+}
+
 function renderCircleTaskGeometry(map: L.Map, targets: NavigationTaskCatalogueTarget[], scorecard?: Scorecard): L.Layer[] {
   const layers: L.Layer[] = [];
   const byKind = new Map((targets || []).map((target) => [target.kind, target]));
@@ -450,13 +463,16 @@ function renderCircleTaskGeometry(map: L.Map, targets: NavigationTaskCatalogueTa
   const entry = byKind.get('circle_entry_marker');
   const exit = byKind.get('circle_exit_marker');
 
-  if (!center) {
+  if (!hasValidCoordinates(center)) {
     return layers;
   }
 
   const [centerLng, centerLat] = center.coordinates;
   const minRadiusM = Number(scorecard?.circle_radius_min_m ?? 200);
   const maxRadiusM = Number(scorecard?.circle_radius_max_m ?? 750);
+  if (!Number.isFinite(minRadiusM) || !Number.isFinite(maxRadiusM)) {
+    return layers;
+  }
 
   const innerBoundary = L.circle([centerLat, centerLng], {
     radius: minRadiusM,
@@ -476,17 +492,20 @@ function renderCircleTaskGeometry(map: L.Map, targets: NavigationTaskCatalogueTa
 
   const segmentStyle = { color: '#2563eb', weight: 3, dashArray: '8 6' };
   const spokeStyle = { color: '#7c3aed', weight: 2, dashArray: '4 4' };
-  if (start && entry) {
-    const [startLng, startLat] = start.coordinates;
-    const [entryLng, entryLat] = entry.coordinates;
+  const validStart = hasValidCoordinates(start) ? start : undefined;
+  const validEntry = hasValidCoordinates(entry) ? entry : undefined;
+  const validExit = hasValidCoordinates(exit) ? exit : undefined;
+  if (validStart && validEntry) {
+    const [startLng, startLat] = validStart.coordinates;
+    const [entryLng, entryLat] = validEntry.coordinates;
     layers.push(L.polyline([[startLat, startLng], [entryLat, entryLng]], segmentStyle).addTo(map));
   }
-  if (entry) {
-    const [entryLng, entryLat] = entry.coordinates;
+  if (validEntry) {
+    const [entryLng, entryLat] = validEntry.coordinates;
     layers.push(L.polyline([[entryLat, entryLng], [centerLat, centerLng]], spokeStyle).addTo(map));
   }
-  if (exit) {
-    const [exitLng, exitLat] = exit.coordinates;
+  if (validExit) {
+    const [exitLng, exitLat] = validExit.coordinates;
     layers.push(L.polyline([[centerLat, centerLng], [exitLat, exitLng]], spokeStyle).addTo(map));
   }
 
@@ -584,12 +603,22 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, scorec
     map.on('zoomend', handleZoom);
     handleZoom(); // Initial check
 
-    if (layers.length > 0) {
+    if (layers.length > 0 && isInitialLoad) {
         const bounds = new L.FeatureGroup(layers).getBounds();
-        if (isInitialLoad && bounds.isValid()) { // Only fit bounds on initial load
+        // bounds.isValid() only checks that the bounds were ever extended - it does not check
+        // that the resulting corners are finite, so a single layer built from a bad coordinate
+        // (e.g. a malformed catalogue-target marker) can pass isValid() yet still crash
+        // map.fitBounds() -> ...unproject() with "Invalid LatLng object: (NaN, NaN)" (Sentry
+        // JAVASCRIPT-REACT-A), taking down the whole map via the page's error boundary.
+        const boundsAreFinite =
+            bounds.isValid() &&
+            [bounds.getSouth(), bounds.getNorth(), bounds.getEast(), bounds.getWest()].every(Number.isFinite);
+        if (boundsAreFinite) {
             map.fitBounds(bounds, { padding: [50, 50] });
-            onMapFit(true); // Signal that initial fit has occurred
+        } else {
+            console.warn('RouteRenderer: skipping initial map.fitBounds - computed bounds are not finite', bounds);
         }
+        onMapFit(true); // Signal that initial fit has occurred (or been skipped) either way
     }
 
 

@@ -55,6 +55,9 @@ export const terminateCalculator = (contestId: number, navigationTaskId: number,
 export const restartCalculator = (contestId: number, navigationTaskId: number, contestantId: number) =>
   postContestantAction('contestants-restart', contestId, navigationTaskId, contestantId, 'restart the calculator');
 
+export const resetCalculator = (contestId: number, navigationTaskId: number, contestantId: number) =>
+  postContestantAction('contestants-reset', contestId, navigationTaskId, contestantId, 'reset the calculator');
+
 export const recalculateTrack = (contestId: number, navigationTaskId: number, contestantId: number) =>
   postContestantAction('contestants-recalculate-track', contestId, navigationTaskId, contestantId, 'recalculate the live track');
 

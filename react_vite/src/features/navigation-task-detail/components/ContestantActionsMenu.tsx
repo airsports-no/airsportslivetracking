@@ -2,7 +2,7 @@ import React, { useRef, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { EllipsisVertical } from 'lucide-react';
 import { reverse, generatePath } from '../../../urls';
-import { deleteContestant, recalculateTrack } from '../api';
+import { deleteContestant, recalculateTrack, resetCalculator } from '../api';
 import { ContestantRow, supportsDeclarationEditing } from '../types';
 import GateTimesModal, { GateTimesModalHandle } from './GateTimesModal';
 import PlayingCardsModal, { PlayingCardsModalHandle } from './PlayingCardsModal';
@@ -37,6 +37,7 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
   iconTrigger,
 }) => {
   const [recalculating, setRecalculating] = useState(false);
+  const [resetting, setResetting] = useState(false);
   const [deleting, setDeleting] = useState(false);
   const startTimeModalRef = useRef<HTMLDialogElement>(null);
   const gpxModalRef = useRef<HTMLDialogElement>(null);
@@ -53,6 +54,23 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
       window.alert(err.message || 'Failed to recalculate the live track');
     } finally {
       setRecalculating(false);
+    }
+  };
+
+  const handleResetCalculator = async () => {
+    if (
+      resetting ||
+      !window.confirm('Reset? This clears the track/score and does not restart tracking - use Restart Calculator for that.')
+    )
+      return;
+    setResetting(true);
+    try {
+      await resetCalculator(contestId, navigationTaskId, contestant.pk);
+      onRefresh();
+    } catch (err: any) {
+      window.alert(err.message || 'Failed to reset the calculator');
+    } finally {
+      setResetting(false);
     }
   };
 
@@ -121,6 +139,11 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
             <li>
               <button type="button" onClick={() => startTimeModalRef.current?.showModal()} className="w-full text-left">
                 Recalculate with new start time
+              </button>
+            </li>
+            <li>
+              <button type="button" disabled={resetting} onClick={handleResetCalculator} className="w-full text-left">
+                Reset Calculator
               </button>
             </li>
             <li>
