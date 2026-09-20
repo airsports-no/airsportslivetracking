@@ -425,7 +425,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 let currentMinute = startMinute;
                 while (currentMinute <= endMinute) {
                     const size = getBestChunkSize(currentMinute, endMinute, now);
-                    const p = await fetchContestantSlice(c.id, currentMinute, size).finally(() => updateProgress());
+                    const p = await fetchContestantSlice(c.id, currentMinute, size, c.track_version).finally(() => updateProgress());
                     sliceResults.push(p);
                     currentMinute += size;
                 }
