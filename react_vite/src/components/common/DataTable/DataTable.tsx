@@ -10,6 +10,19 @@ import {
 } from '@tanstack/react-table';
 import { ChevronDown, ChevronUp } from 'lucide-react';
 
+// A pinned column stays fixed while the rest of the table scrolls horizontally underneath it -
+// `left`/`width` must be explicit (rather than measured) so every pinned column's offset is
+// deterministic: column N's `left` is the sum of the `width`s of the pinned columns before it.
+// zIndex only needs to separate pinned cells from their unpinned siblings (both within a body
+// row, and within the header row) - it's compared against DaisyUI's table-pin-rows thead
+// (z-index: 1), so the header's own pinned cells go one higher to also win over pinned body
+// cells scrolling past underneath during vertical scroll.
+export interface PinnedColumnConfig {
+  left: number;
+  width: number;
+  zIndex?: number;
+}
+
 // Define the props for the DataTable component
 interface DataTableProps<TData extends object> {
   data: TData[];
@@ -88,12 +101,20 @@ export function DataTable<TData extends object>({
                 // Cast header.column.columnDef as any to access custom properties like headerHidden
                 const customHeaderDef = header.column.columnDef as any;
                 if (customHeaderDef.headerHidden) return null;
+                const headerPin = customHeaderDef.pin as PinnedColumnConfig | undefined;
 
                 return (
                   <th
                     key={header.id}
                     colSpan={header.colSpan}
-                    style={{ position: 'relative', height: '100%' }}
+                    className={customHeaderDef.classes}
+                    style={{
+                      position: headerPin ? 'sticky' : 'relative',
+                      height: '100%',
+                      ...(headerPin
+                        ? { left: headerPin.left, width: headerPin.width, minWidth: headerPin.width, maxWidth: headerPin.width, zIndex: (headerPin.zIndex ?? 1) + 1 }
+                        : {}),
+                    }}
                     onClick={(e) => {
                       const meta = header.column.columnDef.meta as any;
                       if (meta?.fixedSortDirection) {
@@ -131,11 +152,17 @@ export function DataTable<TData extends object>({
               {row.getVisibleCells().map((cell) => {
                 // Cast cell.column.columnDef as any to access custom properties like classes and style
                 const customCellDef = cell.column.columnDef as any;
+                const cellPin = customCellDef.pin as PinnedColumnConfig | undefined;
                 return (
                   <td
                     key={cell.id}
                     className={customCellDef.classes}
-                    style={customCellDef.style ? customCellDef.style(row.original) : undefined}
+                    style={{
+                      ...(customCellDef.style ? customCellDef.style(row.original) : undefined),
+                      ...(cellPin
+                        ? { position: 'sticky', left: cellPin.left, width: cellPin.width, minWidth: cellPin.width, maxWidth: cellPin.width, zIndex: cellPin.zIndex ?? 1 }
+                        : {}),
+                    }}
                   >
                     {flexRender(cell.column.columnDef.cell, cell.getContext())}
                   </td>

@@ -36,4 +36,11 @@
         break-inside: avoid;
         page-break-inside: avoid;
     }
+
+    /* The frozen #/CREW/Σ columns are pinned via inline position:sticky (DataTable.tsx), which
+       has no meaning on paper and would otherwise fight print's own pagination/overflow - the
+       !important here is required to beat that inline style. */
+    table th, table td {
+        position: static !important;
+    }
 }
