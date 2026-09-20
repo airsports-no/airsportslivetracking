@@ -317,6 +317,29 @@ export const updateContest = async (contestId: number, payload: Partial<Contest>
     return response.json();
 };
 
+// Separate from updateContest (JSON) because logo/header_image are ImageFields - sending them
+// requires multipart/form-data, and the browser must set that Content-Type itself (with the
+// correct boundary) rather than the JSON header getAuthHeaders() applies everywhere else.
+export const updateContestImages = async (
+    contestId: number,
+    files: { logo?: File; header_image?: File }
+): Promise<Contest> => {
+    const url = reverse('contests-detail', contestId);
+    const formData = new FormData();
+    if (files.logo) formData.append('logo', files.logo);
+    if (files.header_image) formData.append('header_image', files.header_image);
+    const response = await fetch(url, {
+        method: 'PATCH',
+        headers: { 'X-CSRFToken': getCookie('csrftoken')! },
+        body: formData,
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to update contest images: ${errorMessages}`);
+    }
+    return response.json();
+};
+
 export const shareContest = async (contestId: number, visibility: 'public' | 'private' | 'unlisted'): Promise<any> => {
     const url = reverse('contests-share', contestId);
     const response = await fetch(url, {
