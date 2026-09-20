@@ -131,7 +131,12 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             let warningTooltip = '';
 
             if (hasOverlaps) {
-                warningIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#fbbf24" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:text-bottom; margin-right:2px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+                // Not an inline <svg> string: vis-timeline runs item content through an XSS
+                // sanitizer (the bundled `xss` package) whose default tag allowlist doesn't
+                // include svg/path/line, so the raw markup leaked through as literal visible
+                // text instead of being rendered - matches the lockIcon emoji below, which
+                // renders fine for the same reason (plain text needs no allowlisted tags).
+                warningIcon = '⚠️ ';
                 warningTooltip = '\nWarning: Overlapping contestants detected on this tracker.';
             }
 
@@ -140,7 +145,8 @@ const Timeline: React.FC<TimelineProps> = ({ navigationTask, firstTakeoffTime, o
             let overtakeTooltip = '';
 
             if (isOvertaking) {
-                overtakeIcon = `<svg xmlns="http://www.w3.org/2000/svg" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="#a855f7" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="display:inline-block; vertical-align:text-bottom; margin-right:2px;"><path d="m21.73 18-8-14a2 2 0 0 0-3.48 0l-8 14A2 2 0 0 0 4 21h16a2 2 0 0 0 1.73-3Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/></svg>`;
+                // See the warningIcon comment above - same vis-timeline XSS-sanitizer issue.
+                overtakeIcon = '🔀 ';
                 overtakeTooltip = "\nNote: this contestant's finishing order crosses another contestant's relative to takeoff order (an overtake). Not blocked, just flagged.";
             }
 
