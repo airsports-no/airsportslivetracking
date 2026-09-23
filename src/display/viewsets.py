@@ -237,6 +237,24 @@ def _normalize_contest_team_ids(values):
     return list(OrderedDict.fromkeys(normalized_ids))
 
 
+def _ensure_plausible_schedule_datetime(
+    value: datetime.datetime, navigation_task: "NavigationTask", field_name: str
+) -> None:
+    """
+    A native <input type="datetime-local"> widget can commit an incomplete year sub-field
+    (e.g. typing "26" into the year and clicking away commits "0026", not "2026") with no
+    client-side validation, and dateutil.parser.parse accepts the result without complaint.
+    That produced a takeoff time in the year 26 in production (Sentry PYTHON-DJANGO-1F),
+    which silently corrupted a contestant's schedule/compiled gate times and later crashed
+    the navigation task detail API for every viewer. Reject anything implausibly far from
+    the task's own scheduled window instead of persisting it.
+    """
+    if abs((value - navigation_task.start_time).days) > 366:
+        raise ValidationError(
+            f"{field_name} ({value.isoformat()}) is implausibly far from the navigation task's scheduled start time."
+        )
+
+
 class ScheduleCapacityPreviewQuerySerializer(serializers.Serializer):
     contest_teams = serializers.CharField(required=False, allow_blank=True, default="")
     first_takeoff_time = serializers.CharField(required=False, allow_blank=True, allow_null=True)
@@ -1900,6 +1918,8 @@ class NavigationTaskViewSet(ModelViewSet):
         first_takeoff_time = query_serializer.validated_data.get("first_takeoff_time")
         if first_takeoff_time is not None and first_takeoff_time.tzinfo is None:
             first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
+        if first_takeoff_time is not None:
+            _ensure_plausible_schedule_datetime(first_takeoff_time, navigation_task, "first_takeoff_time")
         try:
             preview = scheduling_capacity_preview(
                 navigation_task,
@@ -1926,6 +1946,7 @@ class NavigationTaskViewSet(ModelViewSet):
             first_takeoff_time = dateutil.parser.parse(data.get("first_takeoff_time"))
             if first_takeoff_time.tzinfo is None:
                 first_takeoff_time = first_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
+            _ensure_plausible_schedule_datetime(first_takeoff_time, navigation_task, "first_takeoff_time")
 
             # The frontend has sent this since SchedulingForm.tsx's "Next Takeoff Time" field
             # was added, but it was never read here - schedule_and_create_contestants has always
@@ -1936,6 +1957,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 next_takeoff_time = dateutil.parser.parse(data.get("next_takeoff_time"))
                 if next_takeoff_time.tzinfo is None:
                     next_takeoff_time = next_takeoff_time.replace(tzinfo=navigation_task.contest.time_zone)
+                _ensure_plausible_schedule_datetime(next_takeoff_time, navigation_task, "next_takeoff_time")
 
             capacity_preview = scheduling_capacity_preview(
                 navigation_task,

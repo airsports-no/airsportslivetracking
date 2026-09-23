@@ -256,6 +256,46 @@ class TestCapacityViewsetIntegration(APITestCase):
     @patch("display.viewsets.scheduling_capacity_preview")
     @patch("display.viewsets.schedule_and_create_contestants")
     @patch("display.permissions.NavigationTaskContestPermissions.has_object_permission", return_value=True)
+    def test_schedule_contestants_rejects_implausible_first_takeoff_time(
+        self, _mock_permission, mock_schedule, mock_preview, *_args
+    ):
+        # Regression test for Sentry PYTHON-DJANGO-1F: a native <input type="datetime-local">
+        # widget silently zero-pads an incompletely-typed year sub-field (typing "26" and
+        # clicking away commits "0026", not "2026") with no client-side validation.
+        # dateutil.parser.parse happily accepted that string server-side and the resulting
+        # year-26 takeoff time flowed straight into a contestant's schedule and compiled gate
+        # times, which later crashed the navigation task detail API for every viewer.
+        mock_preview.return_value = {
+            "contestant_limit": 2,
+            "reserved_before_count": 1,
+            "reserved_after_count": 1,
+            "additional_selected_count": 0,
+            "remaining_before_count": 1,
+            "remaining_after_count": 1,
+            "would_exceed": False,
+        }
+        self.navigation_task.make_public()
+        self.navigation_task.save(update_fields=["is_public"])
+        url = reverse(
+            "navigationtasks-schedule-contestants",
+            kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
+        )
+
+        response = self.client.post(
+            url,
+            {
+                "contest_teams": [self.contest_team.pk],
+                "first_takeoff_time": "0026-04-01T10:00:00Z",
+            },
+            format="json",
+        )
+
+        self.assertEqual(status.HTTP_400_BAD_REQUEST, response.status_code)
+        mock_schedule.assert_not_called()
+
+    @patch("display.viewsets.scheduling_capacity_preview")
+    @patch("display.viewsets.schedule_and_create_contestants")
+    @patch("display.permissions.NavigationTaskContestPermissions.has_object_permission", return_value=True)
     def test_schedule_contestants_deduplicates_repeated_contest_team_ids(self, _mock_permission, mock_schedule, mock_preview, *_args):
         mock_preview.return_value = {
             "contestant_limit": 2,
