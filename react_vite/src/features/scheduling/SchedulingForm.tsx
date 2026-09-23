@@ -53,6 +53,42 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
         return `${getPart('year')}-${getPart('month')}-${getPart('day')}T${getPart('hour')}:${getPart('minute')}`;
     };
 
+    // The inverse of formatInTimeZone: `wallTime` ("YYYY-MM-DDTHH:mm") is a wall-clock
+    // reading in `tz`, not in the browser's own timezone. `new Date(wallTime)` would parse
+    // it as browser-local time, silently shifting it by the browser/contest offset whenever
+    // they differ. UTC offset for `tz` is found by round-tripping a guess through Intl - the
+    // same technique date-fns-tz's zonedTimeToUtc uses - since no timezone-conversion library
+    // is a dependency here.
+    const getTimeZoneOffsetMs = (utcMillis: number, tz: string) => {
+        const parts = new Intl.DateTimeFormat('en-US', {
+            timeZone: tz,
+            hourCycle: 'h23',
+            year: 'numeric', month: '2-digit', day: '2-digit',
+            hour: '2-digit', minute: '2-digit', second: '2-digit'
+        }).formatToParts(new Date(utcMillis));
+        const getPart = (type: string) => Number(parts.find(p => p.type === type)?.value);
+        const asIfUtc = Date.UTC(getPart('year'), getPart('month') - 1, getPart('day'), getPart('hour'), getPart('minute'), getPart('second'));
+        return asIfUtc - utcMillis;
+    };
+
+    const zonedWallTimeToDate = (wallTime: string, tz: string): Date => {
+        const [datePart, timePart] = wallTime.split('T');
+        const [year, month, day] = datePart.split('-').map(Number);
+        const [hour, minute] = timePart.split(':').map(Number);
+        const utcGuess = Date.UTC(year, month - 1, day, hour, minute);
+
+        const offsetMs = getTimeZoneOffsetMs(utcGuess, tz);
+        let corrected = utcGuess - offsetMs;
+
+        // A second pass in case the offset itself changes between the guess and the
+        // corrected instant (e.g. the wall time falls right around a DST transition).
+        const offsetMs2 = getTimeZoneOffsetMs(corrected, tz);
+        if (offsetMs2 !== offsetMs) {
+            corrected = utcGuess - offsetMs2;
+        }
+        return new Date(corrected);
+    };
+
     const sortedContestTeams = React.useMemo(() => {
         return [...contestTeams].sort((a, b) => {
             const nameA = `${a.team?.crew?.member1?.first_name || ''} ${a.team?.crew?.member1?.last_name || ''}`.toLowerCase();
@@ -230,7 +266,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
                     onChange={e => {
                         const val = e.target.value;
                         if (val) {
-                            setFirstTakeoffTime(new Date(val));
+                            setFirstTakeoffTime(zonedWallTimeToDate(val, timeZone));
                         }
                     }}
                     required
@@ -250,7 +286,7 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
                     onChange={e => {
                         const val = e.target.value;
                         if (val) {
-                            setNextTakeoffTime(new Date(val));
+                            setNextTakeoffTime(zonedWallTimeToDate(val, timeZone));
                         }
                     }}
                     required
