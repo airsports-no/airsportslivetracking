@@ -867,6 +867,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         """
         Return the traccar IDs that are tied to this contestant in simulation mode.
         """
+        if self.tracking_device == TRACKING_DEVICE:
+            # A raw physical tracker has no associated Person, so there is no simulator ID to report.
+            return []
         if self.tracking_device in (TRACKING_PILOT, TRACKING_PILOT_AND_COPILOT):
             trackers = [self.team.crew.member1.simulator_tracking_id]
             if self.team.crew.member2 is not None:
