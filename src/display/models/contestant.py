@@ -799,9 +799,18 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         if hasattr(self, "contestanttaskconfiguration") and self.contestanttaskconfiguration.is_valid:
             payload = self.contestanttaskconfiguration.compiled_gate_times_payload or {}
             if payload:
-                return {
-                    key: dateutil.parser.parse(value) if isinstance(value, str) else value for key, value in payload.items()
-                }
+                try:
+                    return {
+                        key: dateutil.parser.parse(value) if isinstance(value, str) else value
+                        for key, value in payload.items()
+                    }
+                except (ValueError, OverflowError, TypeError):
+                    # A malformed persisted value here must not 500 every reader of this
+                    # contestant (e.g. the navigation task detail API) - fall back to
+                    # predefined_gate_times below and surface the bad payload for cleanup.
+                    logger.exception(
+                        f"Contestant {self.pk} ({self.team}) has an unparsable compiled_gate_times_payload: {payload}"
+                    )
         if not self.predefined_gate_times or not len(self.predefined_gate_times):
             self.predefined_gate_times = round_gate_times(self.calculate_missing_gate_times({}))
             if self.pk is not None:

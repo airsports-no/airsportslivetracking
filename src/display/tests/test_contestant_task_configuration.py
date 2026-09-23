@@ -1903,3 +1903,22 @@ class TestContestantTaskConfiguration(TestCase):
                 "duration_residual_fuel_required": True,
             },
         )
+
+    def test_gate_times_falls_back_to_predefined_when_compiled_payload_is_unparsable(self):
+        # Regression test: a malformed compiled_gate_times_payload value (seen in production
+        # as e.g. "0026-09-23T00:22:07.608034-00:14:44") made dateutil.parser.parse raise,
+        # which propagated straight out of Contestant.gate_times and 500'd every reader of
+        # this contestant (including the navigation task detail API) instead of just this
+        # one contestant's config being unusable.
+        compiled = ContestantTaskCompiler(self.contestant).compile(
+            declaration_payload={"known_time_gate_predictions": {"SP": "2020-08-01T08:11:00Z"}}
+        )
+        compiled.compiled_gate_times_payload["SP"] = "0026-09-23T00:22:07.608034-00:14:44"
+        compiled.save(update_fields=["compiled_gate_times_payload"])
+        self.contestant.refresh_from_db()
+
+        gate_times = self.contestant.gate_times
+
+        self.assertIsInstance(gate_times, dict)
+        self.assertIn("SP", gate_times)
+        self.assertEqual(gate_times, self.contestant.predefined_gate_times)
