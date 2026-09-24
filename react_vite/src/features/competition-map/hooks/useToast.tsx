@@ -1,5 +1,6 @@
 import React, { useState, useCallback, useRef } from 'react';
 import { createPortal } from 'react-dom';
+import { getPortalRoot } from '../../../utils/portalRoot';
 
 export interface ToastMessage {
   id: string;
@@ -26,7 +27,7 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeToast }) 
         </div>
       ))}
     </div>,
-    document.body
+    getPortalRoot()
   );
 };
 

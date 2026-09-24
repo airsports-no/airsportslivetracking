@@ -1,6 +1,8 @@
 import React, { useState, useEffect, useMemo, useLayoutEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
 import { useParams, Link, useNavigate } from 'react-router-dom';
+import { getPortalRoot } from '../../utils/portalRoot';
+import ModalErrorBoundary from '../../components/common/ModalErrorBoundary';
 import { Contest, NavigationTask, ContestResults, MyContestTeam } from './types';
 import { Contestant } from '../competition-map/types';
 import { Loading } from '../route-editor/components/basicComponents';
@@ -298,20 +300,23 @@ const ContestDashboard = () => {
             )}
             {/* Modals for forms */}
             {showCreateTask && createPortal(
-                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
-                    <NavigationTaskCreationFlow
-                        entry={{ kind: 'contest', contestId: contest.id }}
-                        initialContest={contest}
-                        onCancel={() => setShowCreateTask(false)}
-                        onCreated={createdContestId => {
-                            setShowCreateTask(false);
-                            fetchContest(createdContestId, true);
-                        }}
-                    />
-                </div>,
-                document.body
+                <ModalErrorBoundary onReset={() => setShowCreateTask(false)}>
+                    <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                        <NavigationTaskCreationFlow
+                            entry={{ kind: 'contest', contestId: contest.id }}
+                            initialContest={contest}
+                            onCancel={() => setShowCreateTask(false)}
+                            onCreated={createdContestId => {
+                                setShowCreateTask(false);
+                                fetchContest(createdContestId, true);
+                            }}
+                        />
+                    </div>
+                </ModalErrorBoundary>,
+                getPortalRoot()
             )}
             {editingContestTeam && createPortal(
+                <ModalErrorBoundary onReset={() => setEditingContestTeam(null)}>
                 <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
                     <TeamRegistrationFlow
                         contestId={contest.id}
@@ -337,126 +342,139 @@ const ContestDashboard = () => {
                             await fetchMyContestTeams(true);
                         }}
                     />
-                </div>,
-                document.body
+                </div>
+                </ModalErrorBoundary>,
+                getPortalRoot()
             )}
             {showImportTeams && createPortal(
-                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
-                    <ImportTeamsPanel
-                        contestId={contest.id}
-                        onCancel={() => setShowImportTeams(false)}
-                        onImported={() => {
-                            setShowImportTeams(false);
-                            refreshTeams();
-                        }}
-                    />
-                </div>,
-                document.body
+                <ModalErrorBoundary onReset={() => setShowImportTeams(false)}>
+                    <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                        <ImportTeamsPanel
+                            contestId={contest.id}
+                            onCancel={() => setShowImportTeams(false)}
+                            onImported={() => {
+                                setShowImportTeams(false);
+                                refreshTeams();
+                            }}
+                        />
+                    </div>
+                </ModalErrorBoundary>,
+                getPortalRoot()
             )}
             {showSettingsModal && createPortal(
-                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
-                    <div className="card bg-base-100 shadow-xl max-w-2xl w-full mx-auto">
-                        <div className="card-body">
-                            <div className="flex items-center justify-between">
-                                <h2 className="card-title">Contest settings</h2>
-                                <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={() => setShowSettingsModal(false)}>
-                                    ✕
-                                </button>
+                <ModalErrorBoundary onReset={() => setShowSettingsModal(false)}>
+                    <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                        <div className="card bg-base-100 shadow-xl max-w-2xl w-full mx-auto">
+                            <div className="card-body">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="card-title">Contest settings</h2>
+                                    <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={() => setShowSettingsModal(false)}>
+                                        ✕
+                                    </button>
+                                </div>
+                                <ContestSettingsForm
+                                    contest={contest}
+                                    onSaved={() => {
+                                        fetchContest(contest.id, true);
+                                        setShowSettingsModal(false);
+                                    }}
+                                />
                             </div>
-                            <ContestSettingsForm
-                                contest={contest}
-                                onSaved={() => {
-                                    fetchContest(contest.id, true);
-                                    setShowSettingsModal(false);
-                                }}
-                            />
                         </div>
                     </div>
-                </div>,
-                document.body
+                </ModalErrorBoundary>,
+                getPortalRoot()
             )}
             {showPermissionsModal && canManageThisContest && createPortal(
-                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
-                    <div className="card bg-base-100 shadow-xl max-w-2xl w-full mx-auto">
-                        <div className="card-body">
-                            <div className="flex items-center justify-between">
-                                <h2 className="card-title">Permissions</h2>
-                                <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={() => setShowPermissionsModal(false)}>
-                                    ✕
-                                </button>
+                <ModalErrorBoundary onReset={() => setShowPermissionsModal(false)}>
+                    <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                        <div className="card bg-base-100 shadow-xl max-w-2xl w-full mx-auto">
+                            <div className="card-body">
+                                <div className="flex items-center justify-between">
+                                    <h2 className="card-title">Permissions</h2>
+                                    <button type="button" className="btn btn-sm btn-circle btn-ghost" onClick={() => setShowPermissionsModal(false)}>
+                                        ✕
+                                    </button>
+                                </div>
+                                {permissionsError && <div className="alert alert-error mb-2">{permissionsError}</div>}
+                                <ContestPermissionsPanel
+                                    grants={permissionGrants}
+                                    currentUserId={document.configuration.userId ?? -1}
+                                    loading={permissionsLoading}
+                                    onAdd={async (identifier, level) => {
+                                        await addContestPermission(contest.id, identifier, level);
+                                        refreshPermissions();
+                                    }}
+                                    onChange={async (userId, level) => {
+                                        await changeContestPermission(contest.id, userId, level);
+                                        refreshPermissions();
+                                    }}
+                                    onRemove={async userId => {
+                                        await removeContestPermission(contest.id, userId);
+                                        refreshPermissions();
+                                    }}
+                                />
                             </div>
-                            {permissionsError && <div className="alert alert-error mb-2">{permissionsError}</div>}
-                            <ContestPermissionsPanel
-                                grants={permissionGrants}
-                                currentUserId={document.configuration.userId ?? -1}
-                                loading={permissionsLoading}
-                                onAdd={async (identifier, level) => {
-                                    await addContestPermission(contest.id, identifier, level);
-                                    refreshPermissions();
-                                }}
-                                onChange={async (userId, level) => {
-                                    await changeContestPermission(contest.id, userId, level);
-                                    refreshPermissions();
-                                }}
-                                onRemove={async userId => {
-                                    await removeContestPermission(contest.id, userId);
-                                    refreshPermissions();
-                                }}
-                            />
                         </div>
                     </div>
-                </div>,
-                document.body
+                </ModalErrorBoundary>,
+                getPortalRoot()
             )}
             {showRegistrationForm && createPortal(
-                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
-                    <ContestRegistrationForm
-                        contest={contest}
-                        myContestTeams={myContestTeams}
-                        onClose={async () => {
-                            setShowRegistrationForm(false);
-                            await fetchMyContestTeams(true);
-                            await fetchContest(contest.id, true);
-                        }}
-                    />
-                </div>,
-                document.body
+                <ModalErrorBoundary onReset={() => setShowRegistrationForm(false)}>
+                    <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                        <ContestRegistrationForm
+                            contest={contest}
+                            myContestTeams={myContestTeams}
+                            onClose={async () => {
+                                setShowRegistrationForm(false);
+                                await fetchMyContestTeams(true);
+                                await fetchContest(contest.id, true);
+                            }}
+                        />
+                    </div>
+                </ModalErrorBoundary>,
+                getPortalRoot()
             )}
             {showScheduleForm && createPortal(
-                 <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
-                    <ScheduleFlightForm
-                        contest={contest}
-                        navigationTaskId={showScheduleForm.pk}
-                        myContestTeams={myContestTeams}
-                        onClose={async (warnings?: string[]) => {
-                            if (warnings && warnings.length > 0) {
-                                setToastMessage(warnings);
-                            }
-                            setShowScheduleForm(null);
-                            await fetchMyContestTeams(true);
-                            await fetchMyFutureFlights(true);
-                            await fetchContest(contest.id, true);
-                        }}
-                    />
-                </div>,
-                document.body
+                <ModalErrorBoundary onReset={() => setShowScheduleForm(null)}>
+                    <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                        <ScheduleFlightForm
+                            contest={contest}
+                            navigationTaskId={showScheduleForm.pk}
+                            myContestTeams={myContestTeams}
+                            onClose={async (warnings?: string[]) => {
+                                if (warnings && warnings.length > 0) {
+                                    setToastMessage(warnings);
+                                }
+                                setShowScheduleForm(null);
+                                await fetchMyContestTeams(true);
+                                await fetchMyFutureFlights(true);
+                                await fetchContest(contest.id, true);
+                            }}
+                        />
+                    </div>
+                </ModalErrorBoundary>,
+                getPortalRoot()
             )}
             {viewingScoresForTask && createPortal(
-                <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
-                    <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
-                        <div className="card-body">
-                            {loadingTaskScores ? (
-                                <Loading />
-                            ) : (
-                                <TaskScoreDisplay task={viewingScoresForTask} myContestantIds={myContestantIds} />
-                            )}
-                            <div className="card-actions justify-end">
-                                <button onClick={() => setViewingScoresForTask(null)} className="btn">Close</button>
+                <ModalErrorBoundary onReset={() => setViewingScoresForTask(null)}>
+                    <div className="fixed inset-0 bg-black/50 z-[9999] flex justify-center items-start overflow-y-auto p-4">
+                        <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
+                            <div className="card-body">
+                                {loadingTaskScores ? (
+                                    <Loading />
+                                ) : (
+                                    <TaskScoreDisplay task={viewingScoresForTask} myContestantIds={myContestantIds} />
+                                )}
+                                <div className="card-actions justify-end">
+                                    <button onClick={() => setViewingScoresForTask(null)} className="btn">Close</button>
+                                </div>
                             </div>
                         </div>
                     </div>
-                </div>,
-                document.body
+                </ModalErrorBoundary>,
+                getPortalRoot()
             )}
 
             {/* Contest Header */}
