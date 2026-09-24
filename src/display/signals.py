@@ -250,9 +250,17 @@ def post_task_summary_change(sender, instance: TaskSummary, **kwargs):
     if getattr(instance, "_skip_results_broadcast", False):
         return
 
+    # Resolve eagerly, not inside send_update: if this TaskSummary is being cascade-deleted
+    # along with its Task/Contest (e.g. DELETE /api/v1/contests/{pk}/), instance.task.contest
+    # is already gone by the time on_commit fires, since that only runs after the whole
+    # cascade has committed - raising Task.DoesNotExist from inside Contest.delete() itself
+    # (Sentry PYTHON-DJANGO-1M). Contest still exists at signal time since children are
+    # deleted before parents.
+    contest = instance.task.contest
+
     def send_update():
         ws = WebsocketFacade()
-        ws.transmit_contest_results(None, instance.task.contest)
+        ws.transmit_contest_results(None, contest)
 
     transaction.on_commit(send_update)
 
@@ -265,9 +273,12 @@ def push_contest_summary_change(sender, instance: ContestSummary, **kwargs):
     if getattr(instance, "_skip_results_broadcast", False):
         return
 
+    # See post_task_summary_change above - resolve eagerly, not inside send_update.
+    contest = instance.contest
+
     def send_update():
         ws = WebsocketFacade()
-        ws.transmit_contest_results(None, instance.contest)
+        ws.transmit_contest_results(None, contest)
 
     transaction.on_commit(send_update)
 
@@ -311,9 +322,12 @@ def push_test_change(sender, instance: TaskTest, **kwargs):
     if getattr(instance, "_skip_results_broadcast", False):
         return
 
+    # See post_task_summary_change above - resolve eagerly, not inside send_update.
+    contest = instance.task.contest
+
     def send_update():
         ws = WebsocketFacade()
-        ws.transmit_contest_results(None, instance.task.contest)
+        ws.transmit_contest_results(None, contest)
 
     transaction.on_commit(send_update)
 

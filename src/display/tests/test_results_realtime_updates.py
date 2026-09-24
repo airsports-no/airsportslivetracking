@@ -104,6 +104,21 @@ class ResultsRealtimeUpdateTests(TransactionTestCase):
         self.assertEqual(payload["content"]["team_id"], self.team.id)
 
     @patch.object(WebsocketFacade, "_safe_group_send")
+    def test_deleting_contest_with_existing_results_does_not_raise(self, safe_group_send):
+        # Regression test for Sentry PYTHON-DJANGO-1M: post_task_summary_change and
+        # push_test_change deferred their websocket broadcast via transaction.on_commit but
+        # re-traversed instance.task.contest INSIDE the deferred closure, instead of
+        # resolving it eagerly like queue_team_test_score_update does. When the whole chain
+        # (TeamTestScore/TaskSummary/TaskTest -> Task -> Contest) is cascade-deleted in one
+        # transaction, that FK is already gone by the time the commit hook actually runs
+        # (on_commit only fires after the whole delete has committed) - raising
+        # Task.DoesNotExist/Contest.DoesNotExist from inside Contest.delete() itself, on
+        # DELETE /api/v1/contests/{pk}/.
+        TeamTestScore.objects.create(team=self.team, task_test=self.task_test, points=12)
+
+        self.contest.delete()
+
+    @patch.object(WebsocketFacade, "_safe_group_send")
     def test_task_test_create_emits_full_results_refresh(self, safe_group_send):
         extra_test = TaskTest.objects.create(
             task=self.task,
