@@ -11,6 +11,7 @@ from display.flight_order_and_maps.generate_flight_orders import (
     _photo_gallery_cells,
     _unknown_leg_gallery_cells,
 )
+from display.flight_order_and_maps.map_constants import A4, PORTRAIT, SCALE_TO_FIT
 from display.flight_order_and_maps.map_plotter_shared_utilities import resolve_map_source_definition
 from display.models import Contest, NavigationTask, Route
 from display.utilities.task_information import build_navigation_task_information
@@ -135,6 +136,31 @@ class FlightOrderConfigurationFormTests(TestCase):
 
         self.assertEqual(contestant_form.fields["map_source"].choices, unified_choices)
         self.assertNotIn("user_map_source", contestant_form.fields)
+
+    def test_contestant_map_form_reports_field_error_instead_of_crashing_when_zoom_level_missing(self):
+        # Regression test for Sentry PYTHON-DJANGO-1N: zoom_level is a required field, so an
+        # omitted/invalid submission makes its own field-level validation fail and leaves it
+        # absent from cleaned_data (not None) - clean() then did cleaned_data.get("zoom_level"),
+        # got None, and passed that straight into validate_map_zoom_level's
+        # `min_zoom <= zoom_level <= max_zoom`, raising a raw
+        # TypeError: '<=' not supported between instances of 'int' and 'NoneType'
+        # instead of leaving the user with zoom_level's own "This field is required." error.
+        form = ContestantMapForm(
+            data={
+                "size": A4,
+                "dpi": 150,
+                "orientation": PORTRAIT,
+                "scale": SCALE_TO_FIT,
+                "map_source": "",
+                "line_width": 0.5,
+                "minute_mark_line_width": 0.5,
+                "colour": "#0000ff",
+                # zoom_level intentionally omitted
+            }
+        )
+
+        self.assertFalse(form.is_valid())
+        self.assertIn("zoom_level", form.errors)
 
     @patch(
         "display.flight_order_and_maps.map_plotter_shared_utilities.resolve_map_source_definition",

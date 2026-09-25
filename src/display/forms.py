@@ -121,7 +121,13 @@ class ContestantMapForm(forms.Form):
 
     def clean(self):
         cleaned_data = super().clean()
-        validate_map_zoom_level(cleaned_data.get("map_source"), None, cleaned_data.get("zoom_level"))
+        # zoom_level is absent from cleaned_data (not None) when its own field-level
+        # validation already failed - e.g. missing/invalid submission - in which case the
+        # user already sees that field's own error and this cross-field check would just
+        # crash with a raw TypeError (int <= None) instead of a graceful validation error.
+        if "zoom_level" in cleaned_data:
+            validate_map_zoom_level(cleaned_data.get("map_source"), None, cleaned_data["zoom_level"])
+        return cleaned_data
 
     def __init__(self, *args, **kwargs):
         self.redirect_url = kwargs.pop("redirect_url", "#")
