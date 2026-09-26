@@ -147,6 +147,7 @@ export const EditableRouteList = () => {
     const [showAll, setShowAll] = useState(false);
     const [subtypeCatalog, setSubtypeCatalog] = useState<TaskCompatibilitySubtype[]>([]);
     const [taskTypeFilter, setTaskTypeFilter] = useState('');
+    const [searchQuery, setSearchQuery] = useState('');
     const [creatingTaskForRouteId, setCreatingTaskForRouteId] = useState<number | null>(null);
 
     useEffect(() => {
@@ -193,13 +194,16 @@ export const EditableRouteList = () => {
             .sort((left, right) => (left.group === right.group ? left.display_name.localeCompare(right.display_name) : left.group.localeCompare(right.group)));
     }, [data, subtypeCatalog, visibleSubtypeKeys]);
 
+    const trimmedSearchQuery = searchQuery.trim().toLowerCase();
+
     const filteredData = useMemo(() => {
         return data
             .filter((item) => showAll || item.is_editor)
             .filter((item) => !taskTypeFilter || (item.compatible_task_types ?? []).includes(taskTypeFilter))
+            .filter((item) => !trimmedSearchQuery || item.name.toLowerCase().includes(trimmedSearchQuery))
             .slice()
             .sort((left, right) => left.name.localeCompare(right.name));
-    }, [data, showAll, taskTypeFilter]);
+    }, [data, showAll, taskTypeFilter, trimmedSearchQuery]);
 
     return (
         <div className="w-full flex flex-col items-center mt-10 px-4">
@@ -222,6 +226,14 @@ export const EditableRouteList = () => {
                         <p className="text-sm text-base-content/70">Large route tiles with quick actions and overlay details.</p>
                     </div>
                     <div className="flex flex-wrap items-center gap-4">
+                        <input
+                            type="search"
+                            value={searchQuery}
+                            onChange={(e) => setSearchQuery(e.target.value)}
+                            placeholder="Search by name..."
+                            aria-label="Search routes by name"
+                            className="input input-bordered input-sm w-56"
+                        />
                         {document.configuration.is_superuser && (
                             <div className="flex items-center">
                                 <input
@@ -288,11 +300,13 @@ export const EditableRouteList = () => {
                         <div className="card-body items-center text-center py-12">
                             <h2 className="card-title">No routes to show</h2>
                             <p className="text-base-content/70 max-w-md">
-                                {taskTypeFilter
-                                    ? "No routes match this task type filter."
-                                    : showAll
-                                        ? "No editable routes are available yet."
-                                        : "You do not currently have any editable routes. Create or import one to get started."}
+                                {trimmedSearchQuery
+                                    ? `No routes match "${searchQuery.trim()}".`
+                                    : taskTypeFilter
+                                        ? "No routes match this task type filter."
+                                        : showAll
+                                            ? "No editable routes are available yet."
+                                            : "You do not currently have any editable routes. Create or import one to get started."}
                             </p>
                         </div>
                     </div>
