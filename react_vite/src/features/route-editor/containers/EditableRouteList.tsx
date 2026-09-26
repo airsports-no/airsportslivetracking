@@ -4,7 +4,7 @@ import { Loading } from "../components/basicComponents";
 import { Route } from "../../../types";
 import { MoreVertical, Plus, Copy, Shield, Trash2 } from "lucide-react";
 import { fetchEditableRoutes, fetchTaskSubtypeCatalog, TaskCompatibilitySubtype } from "../api";
-import { isTaskSubtypeVisible } from "../taskTemplates";
+import { COARSE_FAMILY_BADGE_CLASS, COARSE_FAMILY_LABELS, groupTaskTypesByFamily, isTaskSubtypeVisible } from "../taskTemplates";
 import { reverse, generatePath } from "../../../urls";
 import routes from "../../../routes.json";
 import NavigationTaskCreationFlow from "../../contest-management/components/NavigationTaskCreationFlow";
@@ -19,29 +19,26 @@ const getEditorSummary = (route: Route) => {
         .join(", ");
 };
 
-// Caps the number of task-type badges shown per tile before collapsing the rest into a "+N" badge,
-// so a route compatible with many legacy families doesn't dominate the card.
-const MAX_TASK_TYPE_BADGES = 3;
-
 const EditableRouteTile: React.FC<{
     route: Route;
-    subtypeLabels: Record<string, string>;
+    subtypeByKey: Record<string, TaskCompatibilitySubtype>;
     visibleSubtypeKeys: Set<string>;
     onCreateNavigationTask: (routeId: number) => void;
-}> = ({ route, subtypeLabels, visibleSubtypeKeys, onCreateNavigationTask }) => {
+}> = ({ route, subtypeByKey, visibleSubtypeKeys, onCreateNavigationTask }) => {
     const hasThumbnail = Boolean(route.thumbnail);
     const managePermissionsLabel = route.editors.length > 1 ? `${route.editors.length} editors` : route.is_editor ? "You can edit" : "Shared route";
     const titleClassName = "card-title text-base sm:text-lg leading-tight line-clamp-2 hover:underline break-words";
-    const badgeClassName = "badge badge-outline";
+    const badgeClassName = "badge badge-sm badge-outline";
 
     // Prefer the route creator's declared intent; an undeclared route (empty intended_task_types)
     // falls back to showing everything the route's content actually supports. Never show a CIMA
     // type the viewer doesn't have access to, even if the route happens to support it.
     const taskTypeKeys = ((route.intended_task_types?.length ? route.intended_task_types : route.compatible_task_types) ?? [])
         .filter((key) => visibleSubtypeKeys.has(key));
-    const taskTypeLabels = taskTypeKeys.map((key) => subtypeLabels[key] ?? key);
-    const shownTaskTypeLabels = taskTypeLabels.slice(0, MAX_TASK_TYPE_BADGES);
-    const hiddenTaskTypeCount = taskTypeLabels.length - shownTaskTypeLabels.length;
+    // Collapsed to coarse families (at most 6) instead of individual subtypes (up to 16) so the
+    // card shows a handful of short, distinctly-colored chips instead of a wall of long subtype
+    // names - the specific subtypes remain available via each chip's tooltip.
+    const taskTypeFamilies = groupTaskTypesByFamily(taskTypeKeys, subtypeByKey);
 
     return (
         <div className={`card shadow-xl border border-base-300 overflow-hidden h-[300px] ${hasThumbnail ? "image-full bg-base-300" : "bg-base-200"}`}>
@@ -110,16 +107,17 @@ const EditableRouteTile: React.FC<{
                         {route.is_editor && <div className={badgeClassName}>Editor</div>}
                     </div>
 
-                    {taskTypeLabels.length > 0 && (
+                    {taskTypeFamilies.length > 0 && (
                         <div className="flex flex-wrap gap-1.5">
-                            {shownTaskTypeLabels.map((label) => (
-                                <div key={label} className="badge badge-sm badge-primary badge-outline">{label}</div>
-                            ))}
-                            {hiddenTaskTypeCount > 0 && (
-                                <div className="badge badge-sm badge-ghost" title={taskTypeLabels.slice(MAX_TASK_TYPE_BADGES).join(', ')}>
-                                    +{hiddenTaskTypeCount}
+                            {taskTypeFamilies.map(({ family, subtypeNames }) => (
+                                <div
+                                    key={family}
+                                    className={`badge badge-sm ${COARSE_FAMILY_BADGE_CLASS[family] ?? 'badge-ghost'}`}
+                                    title={subtypeNames.join(', ')}
+                                >
+                                    {COARSE_FAMILY_LABELS[family] ?? family}
                                 </div>
-                            )}
+                            ))}
                         </div>
                     )}
 
@@ -165,8 +163,8 @@ export const EditableRouteList = () => {
             .catch((err) => console.error('Failed to load task type catalog', err));
     }, []);
 
-    const subtypeLabels = useMemo(
-        () => Object.fromEntries(subtypeCatalog.map((subtype) => [subtype.key, subtype.display_name])),
+    const subtypeByKey = useMemo(
+        () => Object.fromEntries(subtypeCatalog.map((subtype) => [subtype.key, subtype])),
         [subtypeCatalog],
     );
 
@@ -277,7 +275,7 @@ export const EditableRouteList = () => {
                             <EditableRouteTile
                                 key={route.id}
                                 route={route}
-                                subtypeLabels={subtypeLabels}
+                                subtypeByKey={subtypeByKey}
                                 visibleSubtypeKeys={visibleSubtypeKeys}
                                 onCreateNavigationTask={setCreatingTaskForRouteId}
                             />

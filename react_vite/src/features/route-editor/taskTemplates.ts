@@ -314,6 +314,64 @@ export const getVisibleTaskTemplates = (visibleTaskTypeGroups: string[] | undefi
 export const getTaskTemplateById = (id: string | null | undefined): TaskTemplate | undefined =>
   TASK_TEMPLATES.find((template) => template.id === id);
 
+// Human-readable labels for the coarse task-type families (display.utilities.
+// navigation_task_type_definitions's PRECISION/ANR_CORRIDOR/AIRSPORTS/AIRSPORT_CHALLENGE/
+// POKER/LANDING string values) - matching the labels already established in the Django model's
+// historic choices, spaced for readability (e.g. "Air Sports Challenge", not "AirSport Challenge").
+export const COARSE_FAMILY_LABELS: Record<string, string> = {
+  precision: 'Precision',
+  anr_corridor: 'ANR Corridor',
+  airsports: 'Air Sports Race',
+  airsportchallenge: 'Air Sports Challenge',
+  poker: 'Poker Run',
+  landing: 'Landing',
+};
+
+// A distinct DaisyUI badge color per family, so a route's footer badges are visually
+// distinguishable at a glance instead of reading as one undifferentiated block.
+export const COARSE_FAMILY_BADGE_CLASS: Record<string, string> = {
+  precision: 'badge-primary',
+  anr_corridor: 'badge-info',
+  airsports: 'badge-accent',
+  airsportchallenge: 'badge-secondary',
+  poker: 'badge-warning',
+  landing: 'badge-neutral',
+};
+
+// Fixed display order so a given family always lands in the same visual position across cards.
+export const COARSE_FAMILY_ORDER: string[] = ['precision', 'anr_corridor', 'airsports', 'airsportchallenge', 'poker', 'landing'];
+
+export interface TaskTypeFamilyGroup {
+  family: string;
+  subtypeNames: string[];
+}
+
+// Collapses a route's (possibly many) specific task-subtype keys down to their coarse families,
+// so a card can show a handful of short, distinctly-colored chips instead of a wall of long
+// subtype names - the full subtype list per family remains available (e.g. as a tooltip) via
+// subtypeNames. Families are returned in COARSE_FAMILY_ORDER; any family not in that fixed order
+// (e.g. one the backend added before the frontend's static maps above were updated) is appended
+// at the end rather than silently dropped.
+export const groupTaskTypesByFamily = (
+  taskTypeKeys: string[],
+  subtypeByKey: Record<string, { coarse_family: string; display_name: string }>,
+): TaskTypeFamilyGroup[] => {
+  const namesByFamily = new Map<string, string[]>();
+  for (const key of taskTypeKeys) {
+    const subtype = subtypeByKey[key];
+    if (!subtype) continue;
+    const names = namesByFamily.get(subtype.coarse_family) ?? [];
+    names.push(subtype.display_name);
+    namesByFamily.set(subtype.coarse_family, names);
+  }
+
+  const orderedFamilies = [
+    ...COARSE_FAMILY_ORDER.filter((family) => namesByFamily.has(family)),
+    ...[...namesByFamily.keys()].filter((family) => !COARSE_FAMILY_ORDER.includes(family)),
+  ];
+  return orderedFamilies.map((family) => ({ family, subtypeNames: namesByFamily.get(family)! }));
+};
+
 export const countWizardStepMatches = (
   step: WizardStep,
   routePoints: RoutePoint[],

@@ -1,4 +1,4 @@
-import { countWizardStepMatches, getVisibleTaskTemplates, getTaskTemplateById, getWizardRouteInsertLabel, isTaskSubtypeVisible, TASK_TEMPLATES } from './taskTemplates';
+import { countWizardStepMatches, getVisibleTaskTemplates, getTaskTemplateById, getWizardRouteInsertLabel, groupTaskTypesByFamily, isTaskSubtypeVisible, TASK_TEMPLATES } from './taskTemplates';
 import type { RoutePoint } from '../../types';
 import type { WizardStep } from './taskTemplates';
 
@@ -130,5 +130,47 @@ describe('getWizardRouteInsertLabel', () => {
     expect(getWizardRouteInsertLabel({ ...baseStep, pointType: 'tp' })).toBe(
       'Click the existing route line to insert the required point.',
     );
+  });
+});
+
+describe('groupTaskTypesByFamily', () => {
+  const subtypeByKey = {
+    cima_a2: { coarse_family: 'precision', display_name: '2.A2 Precision navigation' },
+    cima_a8: { coarse_family: 'precision', display_name: '2.A8 Precision navigation Air Nav Race (ANR)' },
+    legacy_precision: { coarse_family: 'precision', display_name: 'Legacy precision navigation' },
+    legacy_anr_corridor: { coarse_family: 'anr_corridor', display_name: 'Legacy ANR corridor' },
+  };
+
+  it('collapses multiple subtypes from the same family into a single group', () => {
+    const groups = groupTaskTypesByFamily(['cima_a2', 'cima_a8', 'legacy_precision'], subtypeByKey);
+
+    expect(groups).toEqual([
+      {
+        family: 'precision',
+        subtypeNames: ['2.A2 Precision navigation', '2.A8 Precision navigation Air Nav Race (ANR)', 'Legacy precision navigation'],
+      },
+    ]);
+  });
+
+  it('keeps distinct families separate and orders them by COARSE_FAMILY_ORDER regardless of input order', () => {
+    const groups = groupTaskTypesByFamily(['legacy_anr_corridor', 'cima_a2'], subtypeByKey);
+
+    expect(groups.map((group) => group.family)).toEqual(['precision', 'anr_corridor']);
+  });
+
+  it('appends a family outside the known COARSE_FAMILY_ORDER instead of dropping it', () => {
+    const groups = groupTaskTypesByFamily(
+      ['cima_a2', 'future_key'],
+      { ...subtypeByKey, future_key: { coarse_family: 'future_family', display_name: 'Some future subtype' } },
+    );
+
+    expect(groups.map((group) => group.family)).toEqual(['precision', 'future_family']);
+    expect(groups[1].subtypeNames).toEqual(['Some future subtype']);
+  });
+
+  it('ignores keys missing from subtypeByKey rather than throwing', () => {
+    const groups = groupTaskTypesByFamily(['unknown_key'], subtypeByKey);
+
+    expect(groups).toEqual([]);
   });
 });
