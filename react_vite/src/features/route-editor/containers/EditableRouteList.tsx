@@ -11,14 +11,6 @@ import NavigationTaskCreationFlow from "../../contest-management/components/Navi
 
 const formatRouteLength = (meters: number) => `${(meters / 1852).toFixed(2)} NM`;
 
-const getEditorSummary = (route: Route) => {
-    if (route.editors.length === 0) return "No named editors";
-    return route.editors
-        .slice(0, 2)
-        .map((editor) => `${editor.first_name} ${editor.last_name}`.trim() || editor.email)
-        .join(", ");
-};
-
 const EditableRouteTile: React.FC<{
     route: Route;
     subtypeByKey: Record<string, TaskCompatibilitySubtype>;
@@ -120,11 +112,6 @@ const EditableRouteTile: React.FC<{
                             ))}
                         </div>
                     )}
-
-                    <div className="rounded-lg p-3 backdrop-blur-sm bg-base-100 text-base-content border border-base-300">
-                        <div className="text-xs font-semibold uppercase tracking-wide opacity-80 mb-1">Editors</div>
-                        <div className="text-sm line-clamp-2">{getEditorSummary(route)}</div>
-                    </div>
 
                     <div className="flex gap-2">
                         <Link to={`edit/${route.id}`} className="btn btn-primary btn-sm flex-1">
