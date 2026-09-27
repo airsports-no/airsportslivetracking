@@ -11,7 +11,15 @@ RUN curl -sL daisyui.com/fast | bash
 COPY react_vite /app/react_vite
 WORKDIR /app/react_vite
 RUN --mount=type=cache,target=/root/.npm npm ci
-RUN npm run build
+# SENTRY_RELEASE (the same short git SHA later injected at runtime as BUILD_ID, see
+# live_tracking_map/settings.py) tags the uploaded sourcemaps so a production JS error's release
+# tag matches what Sentry has artifacts for. The auth token is a BuildKit secret (never a build
+# ARG - those persist in image layer history) and optional (`required=false`) so a local
+# `docker build` with no Sentry access still succeeds; the vite plugin itself also no-ops without
+# a token, so an empty value here is safe either way.
+ARG SENTRY_RELEASE
+RUN --mount=type=secret,id=sentry_auth_token,required=false \
+    SENTRY_RELEASE=${SENTRY_RELEASE} SENTRY_AUTH_TOKEN="$(cat /run/secrets/sentry_auth_token 2>/dev/null || true)" npm run build
 
 # Build Astro marketing site
 COPY airsports_static /app/airsports_static

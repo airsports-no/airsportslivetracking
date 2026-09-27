@@ -1,5 +1,6 @@
 import { defineConfig } from 'vite'
 import react from '@vitejs/plugin-react'
+import { sentryVitePlugin } from '@sentry/vite-plugin'
 import path from 'path';
 import fs from 'fs';
 import { fileURLToPath } from 'url';
@@ -10,7 +11,29 @@ const __dirname = dirname(__filename);
 
 // https://vite.dev/config/
 export default defineConfig(({ mode }) => ({
-  plugins: [react()],
+  plugins: [
+    react(),
+    // Uploads this build's sourcemaps to Sentry (tagged with the same release string the
+    // frontend runtime reports - see BUILD_ID in live_tracking_map/settings.py, injected via
+    // display.context_processors.sentry_settings) so production JS crashes symbolicate to real
+    // file/line/function instead of minified names. Only active when SENTRY_AUTH_TOKEN is set
+    // (the Docker build passes it via a BuildKit secret, see Dockerfile) - a local `npm run
+    // build`/`watch` without it just skips this plugin entirely, same as how the backend and
+    // frontend Sentry SDKs stay inactive without a DSN.
+    process.env.SENTRY_AUTH_TOKEN &&
+      sentryVitePlugin({
+        org: 'airports-live-tracking',
+        project: 'javascript-react',
+        authToken: process.env.SENTRY_AUTH_TOKEN,
+        release: { name: process.env.SENTRY_RELEASE },
+        // Deliberately NOT using sourcemaps.filesToDeleteAfterUpload here: verified locally that
+        // it deletes the local .map files even when the Sentry upload itself fails (e.g. a bad
+        // token - 401), which would silently ship a release with no sourcemaps anywhere (not in
+        // Sentry, not in /static/) instead of today's status quo of "unused but at least present"
+        // public maps. Leaving them in /static/ is an existing, pre-this-change tradeoff (source
+        // is already exposed there today), not one this fix should risk making worse.
+      }),
+  ],
   test: {
     globals: true,
     // Pure-logic tests run fine in plain node; a file that needs a DOM
