@@ -58,13 +58,20 @@ const ContestantScheduling = () => {
     }, [contestId, navigationTaskId]);
 
     useEffect(() => {
-        const visitCountStr = localStorage.getItem('scheduling_info_visits');
-        let visitCount = visitCountStr ? parseInt(visitCountStr, 10) : 0;
-        visitCount++;
-        localStorage.setItem('scheduling_info_visits', visitCount.toString());
-        
-        if (visitCount > 3) {
-            setIsInfoCollapsed(true);
+        // localStorage can be null (or throw) when DOM storage is disabled - seen in production
+        // from a Chrome Mobile WebView (Sentry JAVASCRIPT-REACT-Y). This is just a UX nicety to
+        // auto-collapse the info panel after a few visits, so fail silently and leave it expanded.
+        try {
+            const visitCountStr = localStorage.getItem('scheduling_info_visits');
+            let visitCount = visitCountStr ? parseInt(visitCountStr, 10) : 0;
+            visitCount++;
+            localStorage.setItem('scheduling_info_visits', visitCount.toString());
+
+            if (visitCount > 3) {
+                setIsInfoCollapsed(true);
+            }
+        } catch {
+            // Ignore - see comment above.
         }
     }, []);
 
