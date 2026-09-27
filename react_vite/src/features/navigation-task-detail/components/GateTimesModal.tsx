@@ -94,7 +94,7 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
 
     return (
       <dialog ref={dialogRef} className="modal">
-        <div className="modal-box max-w-2xl">
+        <div className="modal-box max-w-3xl">
           <form method="dialog">
             <button
               type="button"
@@ -120,15 +120,21 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
                     <tr>
                       <th>Gate</th>
                       <th>Distance</th>
+                      <th>Planned time</th>
                       <th>Actual time</th>
                       <th>Score log</th>
                     </tr>
                   </thead>
                   <tbody>
-                    {data.rendered_waypoints.map((gate) => (
+                    {data.rendered_waypoints.map((gate, index) => (
                       <tr key={gate}>
                         <td className="font-medium whitespace-nowrap">{gate}</td>
-                        <td className="whitespace-nowrap">{data.distances[gate]?.toFixed(1) ?? '-'}</td>
+                        <td className="whitespace-nowrap">
+                          {index === 0 ? '-' : data.distances[gate]?.toFixed(1) ?? '-'}
+                        </td>
+                        <td className="whitespace-nowrap">
+                          {data.planned_times[gate] ? formatTimeInZone(data.planned_times[gate], timeZone) : '-'}
+                        </td>
                         <td className="whitespace-nowrap">
                           {data.actual_times[gate] ? formatTimeInZone(data.actual_times[gate], timeZone) : '-'}
                         </td>
@@ -156,6 +162,7 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
                       .map((gate) => (
                         <tr key={gate}>
                           <td className="font-medium whitespace-nowrap">{gate}</td>
+                          <td>-</td>
                           <td>-</td>
                           <td>-</td>
                           <td>

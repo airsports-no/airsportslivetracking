@@ -3571,7 +3571,7 @@ class ContestantViewSet(ModelViewSet):
             contestant=contestant,
             include_contestant_declarations=True,
         )
-        distances = {waypoint.name: waypoint.distance_previous for waypoint in rendered_waypoints}
+        distances = {waypoint.name: waypoint.distance_previous / 1852 for waypoint in rendered_waypoints}
         log: dict[str, list] = {}
         for item in contestant.scorelogentry_set.all().order_by("time"):
             log.setdefault(item.gate, []).append(
@@ -3581,6 +3581,7 @@ class ContestantViewSet(ModelViewSet):
                 }
             )
         actual_times = {item.gate: item.time for item in contestant.actualgatetime_set.all()}
+        planned_times = contestant.gate_times
         can_apply_quarantine_penalty = "change_contest" in get_user_perms(
             request.user, contestant.navigation_task.contest
         )
@@ -3603,8 +3604,9 @@ class ContestantViewSet(ModelViewSet):
             {
                 "rendered_waypoints": [waypoint.name for waypoint in rendered_waypoints],
                 "distances": distances,
-                "total_distance": build_effective_route_distance(rendered_waypoints),
+                "total_distance": build_effective_route_distance(rendered_waypoints) / 1852,
                 "log": log,
+                "planned_times": planned_times,
                 "actual_times": actual_times,
                 "can_apply_quarantine_penalty": can_apply_quarantine_penalty,
                 "administrative_penalty_categories": ADMINISTRATIVE_PENALTY_CATEGORIES,

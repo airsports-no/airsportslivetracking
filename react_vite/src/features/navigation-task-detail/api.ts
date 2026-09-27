@@ -119,6 +119,7 @@ export interface GateTimesResponse {
   distances: Record<string, number>;
   total_distance: number;
   log: Record<string, { pk: number; text: string }[]>;
+  planned_times: Record<string, string>;
   actual_times: Record<string, string>;
   can_apply_quarantine_penalty: boolean;
   administrative_penalty_categories: Record<string, AdministrativePenaltyCategory>;
