@@ -257,6 +257,11 @@ class TestAdaptiveStartCompileDoesNotRevertToPlaceholder(TestCase):
             orchestrator = Orchestrator(self.contestant, Queue(), [], live_processing=False)
         event = AdaptiveStartEvent(intersection_time, position=None, gate_times=absolute_gate_times)
         orchestrator.handle_event(event)
+        # StartingLinePassedEvent (fired alongside AdaptiveStartEvent in real crossings, see
+        # gate_calculator.py's check_intersections) is what records the actual SP gate time -
+        # reproduce that here rather than firing the full event, to keep this test focused on
+        # the compile()-clobbering bug.
+        self.contestant.record_actual_gate_time("SP", intersection_time)
 
         contestant = Contestant.objects.get(pk=self.contestant.pk)
         contestant.contestanttrack.calculator_started = True
@@ -270,3 +275,45 @@ class TestAdaptiveStartCompileDoesNotRevertToPlaceholder(TestCase):
             absolute_gate_times["SP"],
         )
         self.assertEqual(contestant.gate_times["SP"], absolute_gate_times["SP"])
+
+    def test_routine_field_update_after_crossing_does_not_revert_predefined_gate_times(self, *args):
+        # The more likely real-world trigger for the reported bug: ContestantSerialiser.update()
+        # (src/display/serialisers.py) always pops "gate_times" from validated_data defaulting to
+        # {} when the request body doesn't include it, and update_contestant_with_related_state
+        # then does `instance.gate_times = parsed_gate_times; instance.save()` unconditionally -
+        # i.e. every PATCH to a contestant, even one only touching an unrelated field like
+        # contestant_number (allowed by Contestant.clean()'s guard even after calculator_started,
+        # unlike takeoff_time/wind/adaptive_start/minutes_to_starting_point), runs the
+        # Contestant.gate_times setter with an empty override. Before the calculate_missing_gate_times
+        # fix, that silently reverted predefined_gate_times to the midnight-anchored placeholder -
+        # with no explicit "compile" or declaration edit involved at all.
+        from display.services.contestant_persistence import update_contestant_with_related_state
+
+        intersection_time = datetime.datetime(2026, 1, 1, 8, 5, 30, tzinfo=datetime.timezone.utc)
+        absolute_gate_times = self.contestant.calculate_missing_gate_times({}, round_time_minute(intersection_time))
+
+        with patch("display.calculators.orchestrator.WebsocketFacade"):
+            orchestrator = Orchestrator(self.contestant, Queue(), [], live_processing=False)
+        event = AdaptiveStartEvent(intersection_time, position=None, gate_times=absolute_gate_times)
+        orchestrator.handle_event(event)
+        self.contestant.record_actual_gate_time("SP", intersection_time)
+
+        contestant = Contestant.objects.get(pk=self.contestant.pk)
+        contestant.contestanttrack.calculator_started = True
+        contestant.contestanttrack.current_state = "Enroute"
+        contestant.contestanttrack.save(update_fields=["calculator_started", "current_state"])
+        self.assertTrue(contestant.has_crossed_starting_line)
+        self.assertEqual(contestant.predefined_gate_times["SP"], absolute_gate_times["SP"])
+
+        # An edit to a completely unrelated field, with no "gate_times" key in the request at
+        # all - exactly what ContestantSerialiser.update() receives for e.g. a contestant number
+        # correction after the flight.
+        update_contestant_with_related_state(
+            contestant,
+            {"contestant_number": contestant.contestant_number + 1},
+            gate_times=None,
+            partial=True,
+        )
+
+        refreshed = Contestant.objects.get(pk=self.contestant.pk)
+        self.assertEqual(refreshed.predefined_gate_times["SP"], absolute_gate_times["SP"])

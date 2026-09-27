@@ -1295,26 +1295,13 @@ class ContestantTaskCompiler:
         correct_gate_directions_to_the_right(effective_waypoints)
 
     def _build_gate_times_payload(self, declaration_payload: dict, compiled_task, compiled_effective_route_payload: dict) -> dict[str, str]:
-        # For an adaptive-start contestant that has already crossed the starting line, the
-        # orchestrator (AdaptiveStartEvent handling in orchestrator.py/gate_calculator.py) has
-        # already recalculated absolute gate times from the real crossing time and persisted them
-        # to predefined_gate_times. calculate_missing_gate_times({}) with no override recomputes
-        # the midnight-anchored relative placeholder every adaptive-start contestant starts with -
-        # without seeding it with that real crossing time, any later compile() call (e.g. the
-        # compiled_evidence endpoint, or a declaration PATCH) would overwrite the correct absolute
-        # times back with that placeholder, even though nothing about the contestant's declaration
-        # actually changed.
-        start_point_override = None
-        if self.contestant.adaptive_start and self.contestant.has_crossed_starting_line:
-            start_waypoint = next(
-                (wp for wp in self.contestant.navigation_task.route.waypoints if wp.type == STARTINGPOINT),
-                None,
-            )
-            if start_waypoint and self.contestant.predefined_gate_times:
-                start_point_override = self.contestant.predefined_gate_times.get(start_waypoint.name)
+        # calculate_missing_gate_times({}) anchors an adaptive-start contestant's times on the
+        # real starting-line crossing once it has one (see Contestant._actual_starting_line_crossing_time),
+        # instead of always reproducing the midnight-anchored placeholder - otherwise any later
+        # compile() call (e.g. the compiled_evidence endpoint, or a declaration PATCH) would
+        # overwrite the already-correct absolute times back to that placeholder.
         gate_times = {
-            key: value.isoformat()
-            for key, value in self.contestant.calculate_missing_gate_times({}, start_point_override).items()
+            key: value.isoformat() for key, value in self.contestant.calculate_missing_gate_times({}).items()
         }
         # Subtype strategies may add synthesized declaration times here as a
         # compatibility bridge for the existing gate-based calculators. Keeping

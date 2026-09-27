@@ -13,7 +13,7 @@ from django.db import models, IntegrityError
 from django.db.models import F, Q, QuerySet
 from django.utils.safestring import mark_safe
 
-from display.calculators.calculator_utilities import round_time_second
+from display.calculators.calculator_utilities import round_time_minute, round_time_second
 from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.flymaster_position_builder import build_positions_from_flymaster
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -23,6 +23,7 @@ from display.utilities.calculate_gate_times import calculate_and_get_relative_ga
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
 from display.utilities.cima_task_type_definitions import ABSOLUTE_TIME_DECLARATION_SUBTYPES
+from display.utilities.gate_definitions import STARTINGPOINT
 from display.utilities.navigation_task_type_definitions import (
     POKER,
     AIRSPORTS,
@@ -752,6 +753,25 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             crossing_times[gate.name] = finished_by_time - datetime.timedelta(minutes=1)
         return crossing_times
 
+    def _actual_starting_line_crossing_time(self) -> Optional[datetime.datetime]:
+        """
+        Returns the actually recorded starting-line crossing time (rounded to the minute, like
+        the orchestrator's own AdaptiveStartEvent handling), or None if the contestant has not
+        crossed the starting line yet.
+        """
+        if self.pk is None:
+            # An unsaved instance (e.g. self-registration computing flight_duration before the
+            # contestant is persisted) has no reverse actualgatetime_set relation to query yet.
+            return None
+        start_waypoint = next(
+            (waypoint for waypoint in self.navigation_task.route.waypoints if waypoint.type == STARTINGPOINT),
+            None,
+        )
+        if start_waypoint is None:
+            return None
+        actual = self.actualgatetime_set.filter(gate=start_waypoint.name).first()
+        return round_time_minute(actual.time) if actual else None
+
     def calculate_missing_gate_times(
         self, predefined_gate_times: dict, start_point_override: Optional[datetime.datetime] = None
     ) -> dict:
@@ -764,8 +784,18 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             previous_crossing_time = start_point_override
         else:
             if self.adaptive_start:
-                previous_crossing_time = self.takeoff_time.astimezone(self.navigation_task.contest.time_zone).replace(
-                    hour=0, minute=0, second=0, microsecond=0
+                # Once the contestant has actually crossed the starting line, every gate time
+                # from here on must be anchored to that real crossing - not the midnight-anchored
+                # relative placeholder used before the start is known. Without this, any caller
+                # that recomputes from scratch with no explicit start_point_override (the
+                # gate_times setter on a routine contestant edit, a lazy gate_times property
+                # recompute, ContestantTaskCompiler._build_gate_times_payload on a later
+                # compile()) would silently revert an adaptive-start contestant's absolute gate
+                # times back to that placeholder long after the real crossing was recorded.
+                previous_crossing_time = self._actual_starting_line_crossing_time() or (
+                    self.takeoff_time.astimezone(self.navigation_task.contest.time_zone).replace(
+                        hour=0, minute=0, second=0, microsecond=0
+                    )
                 )
             else:
                 previous_crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
