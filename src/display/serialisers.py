@@ -239,6 +239,12 @@ class PersonSerialiserExcludingTracking(CountryFieldMixin, serializers.ModelSeri
     class Meta:
         model = Person
         exclude = ("app_tracking_id", "simulator_tracking_id")
+        # Person.email is unique at the model level, which makes ModelSerializer auto-attach a
+        # UniqueValidator to it. This serializer is only ever used nested and unbound (no
+        # instance) inside CrewSerialiser, whose create() calls Person.get_or_create() to reuse an
+        # existing Person with a matching email - the auto-validator would otherwise reject that
+        # same input as a duplicate before create() ever runs.
+        extra_kwargs = {"email": {"validators": []}}
 
 
 class ClubManagerMembershipSerializer(serializers.ModelSerializer):

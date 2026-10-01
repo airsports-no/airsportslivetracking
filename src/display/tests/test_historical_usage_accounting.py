@@ -1,11 +1,18 @@
-from django.test import TestCase
+from django.test import TestCase, TransactionTestCase
 from django.utils import timezone
 
 from display.models import Contest, TokenType, UserTokenGrant, ContestUsageLedger, NavigationTask, Route, Scorecard, ContestantTrack, Contestant, Team, Crew, Person, Aeroplane, MyUser, ContestTokenAssignment
 from display.services.access_resolver import resolve_contest_access
+from utilities.mock_utilities import allow_duplicate_person_emails
 
 
-class TestHistoricalUsageAccounting(TestCase):
+class _HistoricalUsageAccountingFixture:
+    """
+    Shared by TestHistoricalUsageAccounting (TestCase) and
+    TestHistoricalUsageAccountingDuplicatePersonEmail (TransactionTestCase) - see the latter for
+    why that one test needs a different base class.
+    """
+
     def setUp(self):
         self.user = MyUser.objects.create(email="usage-owner@example.com")
         self.owner_person = Person.objects.create(first_name="Owner", last_name="Pilot", email=self.user.email)
@@ -87,6 +94,8 @@ class TestHistoricalUsageAccounting(TestCase):
         track = ContestantTrack.objects.get(contestant=self.owner_contestant)
         track.set_calculator_started()
 
+
+class TestHistoricalUsageAccounting(_HistoricalUsageAccountingFixture, TestCase):
     def test_starting_contestant_consumes_contest_team_slot_and_task_team_slot(self):
         self._start_contestant()
 
@@ -136,27 +145,6 @@ class TestHistoricalUsageAccounting(TestCase):
         resolution = resolve_contest_access(self.contest)
         self.assertEqual(0, resolution.contestants_used)
 
-    def test_backfill_does_not_crash_when_contest_creator_has_duplicate_person_rows(self):
-        """Regression test for the live MultipleObjectsReturned crash at
-        /display/contest/<id>/: Person.email has no DB-level uniqueness
-        constraint, so a contest creator can end up with more than one Person
-        row sharing their email. _backfill_missing_historical_usage must fall
-        back to "no owner" instead of letting MyUser.person's
-        Person.objects.get(email=...) raise MultipleObjectsReturned and crash
-        the whole request. With no owner identifiable, the owner's own
-        started contestant is (correctly, if conservatively) counted as
-        regular usage rather than skipped."""
-        # bulk_create bypasses the pre_save signal that normally enforces email uniqueness at the
-        # app level (Person.validate(), itself racy under concurrent requests - see the matching
-        # comment in test_capacity_enforcement.py) - the simplest way to reproduce the resulting
-        # "already duplicated" data state without fighting that check.
-        Person.objects.bulk_create([Person(first_name="Owner", last_name="Duplicate", email=self.owner_person.email)])
-        self._start_owner_contestant()
-
-        resolution = resolve_contest_access(self.contest)
-
-        self.assertEqual(1, resolution.contestants_used)
-
     def test_same_primary_pilot_with_new_team_reuses_slot(self):
         self._start_contestant()
         recreated_contestant = Contestant.objects.create(
@@ -198,3 +186,34 @@ class TestHistoricalUsageAccounting(TestCase):
 
         resolution = resolve_contest_access(self.contest)
         self.assertEqual(2, resolution.contestants_used)
+
+
+class TestHistoricalUsageAccountingDuplicatePersonEmail(_HistoricalUsageAccountingFixture, TransactionTestCase):
+    """
+    Separate from TestHistoricalUsageAccounting (TransactionTestCase, not TestCase):
+    constructing the fixture needs allow_duplicate_person_emails(), whose constraint-toggling DDL
+    causes an implicit commit on MySQL - see that helper's docstring for why TestCase's
+    rollback-based cleanup can't be used here.
+    """
+
+    def test_backfill_does_not_crash_when_contest_creator_has_duplicate_person_rows(self):
+        """Regression test for the live MultipleObjectsReturned crash at
+        /display/contest/<id>/: Person.email has no DB-level uniqueness
+        constraint, so a contest creator can end up with more than one Person
+        row sharing their email. _backfill_missing_historical_usage must fall
+        back to "no owner" instead of letting MyUser.person's
+        Person.objects.get(email=...) raise MultipleObjectsReturned and crash
+        the whole request. With no owner identifiable, the owner's own
+        started contestant is (correctly, if conservatively) counted as
+        regular usage rather than skipped."""
+        # The assertion must happen inside this block: the code under test doesn't delete the
+        # duplicate, it just falls back to "no owner", so both rows are still there when the
+        # block exits and prunes them back to one - by then it's too late to tell whether the
+        # fallback actually ran or there was never a duplicate.
+        with allow_duplicate_person_emails():
+            Person.objects.bulk_create([Person(first_name="Owner", last_name="Duplicate", email=self.owner_person.email)])
+            self._start_owner_contestant()
+
+            resolution = resolve_contest_access(self.contest)
+
+            self.assertEqual(1, resolution.contestants_used)

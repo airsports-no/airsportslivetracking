@@ -9,7 +9,7 @@ from django.urls import reverse
 from guardian.shortcuts import assign_perm, remove_perm
 from pprint import pprint
 from rest_framework import status
-from rest_framework.test import APITestCase
+from rest_framework.test import APITestCase, APITransactionTestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import (
@@ -23,7 +23,7 @@ from display.models import (
     Contestant,
     EditableRoute,
 )
-from utilities.mock_utilities import TraccarMock
+from utilities.mock_utilities import TraccarMock, allow_duplicate_person_emails
 
 
 @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -245,12 +245,33 @@ class TestContestantGatesCalculation(APITestCase):
             dateutil.parser.parse(data["takeoff_time"]),
         )
 
+
+class TestUserProfileDuplicatePersonEmail(APITransactionTestCase):
+    """
+    Separate from TestContestantGatesCalculation (and APITransactionTestCase rather than
+    APITestCase/TestCase): constructing the fixture needs allow_duplicate_person_emails(), whose
+    constraint-toggling DDL causes an implicit commit on MySQL. That would permanently commit
+    TestCase's rollback-isolated fixtures instead of discarding them, leaking this test's
+    duplicate-emailed Person into every later test in the suite. TransactionTestCase instead
+    truncates tables after each test, which cleans up regardless.
+    """
+
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
     def test_profile_endpoint_tolerates_duplicate_person_emails(self, *args):
+        user = get_user_model().objects.create(email="duplicate-person@example.com")
+        self.client.force_login(user=user)
         # Person.email has no DB-level uniqueness constraint, so two rows can end up sharing an
         # email (see Sentry PYTHON-DJANGO-1Q: a race in get_or_create left one account with two
-        # Person rows, 500ing on every request). bulk_create bypasses the pre_save signal that
-        # would otherwise reject this via Person.validate(), reproducing that pre-existing state.
-        Person.objects.bulk_create([Person(first_name="Duplicate", last_name="Person", email="objectpermissions")])
-        self.client.force_login(user=self.user_owner)
-        response = self.client.get("/api/v1/userprofile/retrieve_profile/")
-        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
+        # Person rows, 500ing on every request). The request must happen inside this block: the
+        # get_queryset() fallback under test doesn't delete the duplicate, it just picks one, so
+        # both rows are still there when the block exits and prunes them back to one - by then
+        # it's too late to tell whether the fallback actually ran or there was never a duplicate.
+        with allow_duplicate_person_emails():
+            Person.objects.bulk_create(
+                [
+                    Person(first_name="Duplicate", last_name="One", email=user.email),
+                    Person(first_name="Duplicate", last_name="Two", email=user.email),
+                ]
+            )
+            response = self.client.get("/api/v1/userprofile/retrieve_profile/")
+            self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)

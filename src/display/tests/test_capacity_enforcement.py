@@ -1,7 +1,7 @@
 from unittest.mock import patch
 import datetime
 
-from django.test import TestCase, override_settings
+from django.test import TestCase, TransactionTestCase, override_settings
 from rest_framework.exceptions import ValidationError
 
 from display.models import Contest, NavigationTask, Scorecard, Route, ContestTeam, Team, Crew, Person, Aeroplane, MyUser, ContestUsageLedger, Contestant
@@ -11,6 +11,7 @@ from display.services.capacity_enforcement import (
     assert_can_self_register_contestant,
     assert_can_start_contestant,
 )
+from utilities.mock_utilities import allow_duplicate_person_emails
 
 @override_settings(
     DEFAULT_FREE_CONTESTANT_LIMIT=1,
@@ -90,41 +91,6 @@ class TestCapacityEnforcement(TestCase):
         # unhandled Person.DoesNotExist while checking ownership.
         with self.assertRaises(ValidationError):
             assert_can_register_team(contest_without_owner_person, self.team)
-
-    @patch("display.services.capacity_enforcement.resolve_contest_access")
-    def test_owner_team_check_does_not_crash_when_contest_creator_has_duplicate_person_rows(self, mock_resolve):
-        """Regression test for the live MultipleObjectsReturned crash at
-        /display/contest/<id>/: Person.email has no DB-level uniqueness
-        constraint, so a contest creator can end up with more than one Person
-        row sharing their email (e.g. from repeated auto-created-on-app-login
-        rows). _get_owner_person_id must fall back to "no owner" instead of
-        letting MyUser.person's Person.objects.get(email=...) raise
-        MultipleObjectsReturned and crash the whole request."""
-        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
-        duplicate_owner_creator = MyUser.objects.create(email="duplicate-person-creator@example.com")
-        # Person.email has no DB-level uniqueness constraint, and the model-level check in
-        # Person.validate() (wired up via the register_personal_tracker pre_save signal) is itself
-        # racy under concurrent requests - that TOCTOU gap is how duplicate rows arise for real (as
-        # happened in production). bulk_create bypasses pre_save/that check entirely, which is the
-        # simplest way to reproduce the resulting "already duplicated" data state in a test without
-        # fighting the signal.
-        Person.objects.bulk_create(
-            [
-                Person(first_name="Dup", last_name="One", email=duplicate_owner_creator.email),
-                Person(first_name="Dup", last_name="Two", email=duplicate_owner_creator.email),
-            ]
-        )
-        contest_with_ambiguous_owner_person = Contest.objects.create(
-            name="Ambiguous Owner Capacity Contest",
-            time_zone="Europe/Oslo",
-            start_time="2026-03-01T09:00:00+00:00",
-            finish_time="2026-03-01T17:00:00+00:00",
-            location="60.0,11.0",
-            created_by=duplicate_owner_creator,
-        )
-
-        with self.assertRaises(ValidationError):
-            assert_can_register_team(contest_with_ambiguous_owner_person, self.team)
 
     @patch("display.services.capacity_enforcement.resolve_contest_access")
     def test_self_registration_blocks_guest_pilot_when_limit_is_zero(self, mock_resolve):
@@ -455,3 +421,53 @@ class TestCapacityEnforcement(TestCase):
         resolution = assert_can_start_contestant(contestant)
 
         self.assertEqual(1, resolution.contestant_limit)
+
+
+class TestCapacityEnforcementDuplicatePersonEmail(TransactionTestCase):
+    """
+    Separate from TestCapacityEnforcement (TransactionTestCase, not TestCase): constructing the
+    fixture needs allow_duplicate_person_emails(), whose constraint-toggling DDL causes an
+    implicit commit on MySQL - see that helper's docstring for why TestCase's rollback-based
+    cleanup can't be used here.
+    """
+
+    @patch("display.services.capacity_enforcement.resolve_contest_access")
+    def test_owner_team_check_does_not_crash_when_contest_creator_has_duplicate_person_rows(self, mock_resolve):
+        """Regression test for the live MultipleObjectsReturned crash at
+        /display/contest/<id>/: Person.email has no DB-level uniqueness
+        constraint, so a contest creator can end up with more than one Person
+        row sharing their email (e.g. from repeated auto-created-on-app-login
+        rows). _get_owner_person_id must fall back to "no owner" instead of
+        letting MyUser.person's Person.objects.get(email=...) raise
+        MultipleObjectsReturned and crash the whole request."""
+        mock_resolve.return_value = type("Resolution", (), {"contestant_limit": 0, "contestants_used": 0, "enforcement_mode": "enforce"})()
+        team = Team.objects.create(
+            crew=Crew.objects.create(member1=Person.objects.create(first_name="Pilot", last_name="One", email="pilot@example.com")),
+            aeroplane=Aeroplane.objects.create(registration="LN-TEST"),
+        )
+        duplicate_owner_creator = MyUser.objects.create(email="duplicate-person-creator@example.com")
+        contest_with_ambiguous_owner_person = Contest.objects.create(
+            name="Ambiguous Owner Capacity Contest",
+            time_zone="Europe/Oslo",
+            start_time="2026-03-01T09:00:00+00:00",
+            finish_time="2026-03-01T17:00:00+00:00",
+            location="60.0,11.0",
+            created_by=duplicate_owner_creator,
+        )
+        # Person.email has no DB-level uniqueness constraint, and the model-level check in
+        # Person.validate() (wired up via the register_personal_tracker pre_save signal) is itself
+        # racy under concurrent requests - that TOCTOU gap is how duplicate rows arise for real (as
+        # happened in production). The assertion must happen inside this block: the code under
+        # test doesn't delete the duplicate, it just falls back to "no owner", so both rows are
+        # still there when the block exits and prunes them back to one - by then it's too late to
+        # tell whether the fallback actually ran or there was never a duplicate.
+        with allow_duplicate_person_emails():
+            Person.objects.bulk_create(
+                [
+                    Person(first_name="Dup", last_name="One", email=duplicate_owner_creator.email),
+                    Person(first_name="Dup", last_name="Two", email=duplicate_owner_creator.email),
+                ]
+            )
+
+            with self.assertRaises(ValidationError):
+                assert_can_register_team(contest_with_ambiguous_owner_person, team)

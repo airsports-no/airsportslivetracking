@@ -30,7 +30,7 @@ class Person(models.Model):
     """
     first_name = models.CharField(max_length=200)
     last_name = models.CharField(max_length=200)
-    email = models.EmailField()
+    email = models.EmailField(unique=True)
     phone = PhoneNumberField(blank=True, null=True)
     creation_time = models.DateTimeField(
         auto_now_add=True,
