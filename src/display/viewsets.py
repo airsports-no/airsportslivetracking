@@ -290,22 +290,34 @@ class UserPersonViewSet(GenericViewSet):
         return instance
 
     def get_queryset(self):
-        return Person.objects.get_or_create(
-            email=self.request.user.email,
-            defaults={
-                "first_name": (
-                    self.request.user.first_name
-                    if self.request.user.first_name and len(self.request.user.first_name) > 0
-                    else ""
-                ),
-                "last_name": (
-                    self.request.user.last_name
-                    if self.request.user.last_name and len(self.request.user.last_name) > 0
-                    else ""
-                ),
-                "validated": False,
-            },
-        )[0]
+        try:
+            return Person.objects.get_or_create(
+                email=self.request.user.email,
+                defaults={
+                    "first_name": (
+                        self.request.user.first_name
+                        if self.request.user.first_name and len(self.request.user.first_name) > 0
+                        else ""
+                    ),
+                    "last_name": (
+                        self.request.user.last_name
+                        if self.request.user.last_name and len(self.request.user.last_name) > 0
+                        else ""
+                    ),
+                    "validated": False,
+                },
+            )[0]
+        except Person.MultipleObjectsReturned:
+            # email has no DB-level uniqueness constraint, so a prior race (concurrent
+            # get_or_create calls both missing the row and both inserting) can leave two Person
+            # rows sharing an email. Fall back to the oldest one deterministically instead of
+            # 500ing on every request for this account; the duplicate still needs manual
+            # cleanup/merging in the admin.
+            logger.warning(
+                "Multiple Person rows found for email %s; using the oldest. These need manual deduplication.",
+                self.request.user.email,
+            )
+            return Person.objects.filter(email=self.request.user.email).order_by("pk").first()
 
     # def create(self, request, *args, **kwargs):
     #     if request.user.person is not None:

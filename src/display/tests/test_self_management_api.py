@@ -244,3 +244,13 @@ class TestContestantGatesCalculation(APITestCase):
             (start_time - datetime.timedelta(minutes=self.navigation_task.minutes_to_starting_point)),
             dateutil.parser.parse(data["takeoff_time"]),
         )
+
+    def test_profile_endpoint_tolerates_duplicate_person_emails(self, *args):
+        # Person.email has no DB-level uniqueness constraint, so two rows can end up sharing an
+        # email (see Sentry PYTHON-DJANGO-1Q: a race in get_or_create left one account with two
+        # Person rows, 500ing on every request). bulk_create bypasses the pre_save signal that
+        # would otherwise reject this via Person.validate(), reproducing that pre-existing state.
+        Person.objects.bulk_create([Person(first_name="Duplicate", last_name="Person", email="objectpermissions")])
+        self.client.force_login(user=self.user_owner)
+        response = self.client.get("/api/v1/userprofile/retrieve_profile/")
+        self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
