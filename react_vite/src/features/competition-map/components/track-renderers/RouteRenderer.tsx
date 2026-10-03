@@ -603,6 +603,7 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, scorec
     map.on('zoomend', handleZoom);
     handleZoom(); // Initial check
 
+    let pendingFitCleanup: (() => void) | null = null;
     if (layers.length > 0 && isInitialLoad) {
         const bounds = new L.FeatureGroup(layers).getBounds();
         // bounds.isValid() only checks that the bounds were ever extended - it does not check
@@ -613,8 +614,25 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, scorec
         const boundsAreFinite =
             bounds.isValid() &&
             [bounds.getSouth(), bounds.getNorth(), bounds.getEast(), bounds.getWest()].every(Number.isFinite);
+        // Finite bounds aren't enough: Leaflet derives the zoom by dividing by the map's pixel
+        // size, so fitting while the container is still 0x0 (not laid out yet, e.g. iOS Safari)
+        // yields a NaN centre and the same "Invalid LatLng object: (NaN, NaN)" crash. Wait for
+        // the first real size instead.
+        const fitWhenSized = () => {
+            const size = map.getSize();
+            if (size.x > 0 && size.y > 0) {
+                map.off('resize', fitWhenSized);
+                map.fitBounds(bounds, { padding: [50, 50] });
+            }
+        };
         if (boundsAreFinite) {
-            map.fitBounds(bounds, { padding: [50, 50] });
+            const size = map.getSize();
+            if (size.x > 0 && size.y > 0) {
+                map.fitBounds(bounds, { padding: [50, 50] });
+            } else {
+                map.on('resize', fitWhenSized);
+                pendingFitCleanup = () => map.off('resize', fitWhenSized);
+            }
         } else {
             console.warn('RouteRenderer: skipping initial map.fitBounds - computed bounds are not finite', bounds);
         }
@@ -626,6 +644,7 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, scorec
       layersRef.current.forEach(layer => layer.remove());
       layersRef.current = [];
       map.off('zoomend', handleZoom);
+      pendingFitCleanup?.();
       map.getContainer().classList.remove('hide-waypoint-labels');
     };
   }, [map, route, taskCatalogueTargets, scorecard, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
