@@ -9,8 +9,10 @@ interface RouteErrorBoundaryProps {
 
 // Browsers phrase a failed dynamic import() differently (Chrome: "Failed to fetch dynamically
 // imported module", Firefox: "error loading dynamically imported module", Safari: "Importing a
-// module script failed") - match all three rather than one browser's wording.
-const CHUNK_LOAD_ERROR_PATTERN = /failed to fetch dynamically imported module|error loading dynamically imported module|importing a module script failed/i;
+// module script failed") - match all three rather than one browser's wording. Vite's own
+// "Unable to preload CSS for <url>" is the same stale-deploy failure for a chunk's stylesheet
+// (Sentry JAVASCRIPT-REACT-K, JAVASCRIPT-REACT-16).
+const CHUNK_LOAD_ERROR_PATTERN = /failed to fetch dynamically imported module|error loading dynamically imported module|importing a module script failed|unable to preload css/i;
 
 function isChunkLoadError(error: unknown): boolean {
     const message = error instanceof Error ? error.message : String(error);
