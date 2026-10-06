@@ -315,6 +315,9 @@ DATABASES = {
         "PASSWORD": MYSQL_PASSWORD,
         "HOST": MYSQL_HOST,
         "CONN_MAX_AGE": 60,
+        # Probe a persistent connection before reuse, so one the server has closed
+        # ("MySQL server has gone away") is replaced instead of failing the request.
+        "CONN_HEALTH_CHECKS": True,
     }
 }
 

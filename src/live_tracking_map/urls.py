@@ -17,8 +17,11 @@ from display.views import (
     firebase_password_change,
     firebase_password_reset,
     signup,
+    page_not_found,
 )
 from . import api
+
+handler404 = page_not_found
 
 urlpatterns = [
     path("admin/", admin.site.urls),
