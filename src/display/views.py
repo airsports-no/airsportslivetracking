@@ -42,6 +42,7 @@ from django.forms import ModelForm
 
 from django.http import HttpResponseRedirect, JsonResponse, HttpResponse, Http404
 from django.shortcuts import render, redirect, get_object_or_404
+from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.views import View
@@ -1893,3 +1894,13 @@ def generate_hangar_flyer_pdf(request, pk):
     except Exception as e:
         logger.error(f"Error finalizing PDF: {e}")
         return HttpResponse(f"Error generating PDF: {e}", content_type="text/plain", status=500)
+
+
+def page_not_found(request, exception=None):
+    """
+    404 handler that renders without the request, so no context processors run and the template's
+    `perms`/`user` checks resolve to anonymous. The default handler renders with the request, which
+    makes the permission lookup hit the database (guardian) - scanner probes of nonexistent paths
+    would then fail with a 500 whenever a persistent MySQL connection had gone away.
+    """
+    return HttpResponse(render_to_string("404.html"), status=404)
