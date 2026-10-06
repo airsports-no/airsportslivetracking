@@ -82,6 +82,18 @@ Contestants see only disjoint route segments that run through each unknown-leg t
 The flight order includes a section with the unknown-leg photos (course printed on each) in arbitrary order. On the
 live map, hiding secrets shows the contestant's view; showing secrets shows the editor's full view.
 
+**False (decoy) photos.** To make identification harder, add photos that match no real feature:
+
+1. In the navigation task's management menu, open **Flight orders & documents → Manage photos**.
+2. In the **False photos** section (shown for unknown-legs tasks only), click **Add false photo**.
+3. Click the map where the decoy should be taken, then give it a **name** and, optionally, a **course** in degrees
+   (0-359) to print on it. The name must not match a real route feature or an existing photo.
+4. Repeat for as many decoys as you want. Decoys can be deleted from the same list.
+
+When flight orders are generated, the decoys are mixed in with the real unknown-leg photos in random order. The
+order is re-randomised for each contestant's flight order. Decoys belong to the route, so every navigation task made
+from the same route shares them.
+
 ### 2.A6 Turnpoint hunt
 
 No route backbone. Place:
