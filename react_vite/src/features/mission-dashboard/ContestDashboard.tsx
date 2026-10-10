@@ -549,7 +549,12 @@ const ContestDashboard = () => {
                             } else {
                                 return (
                                     <div className="text-sm text-gray-500 p-2 border border-gray-300 rounded-md">
-                                        Please <a href={`${reverse('login')}?next=/`} className="link link-primary">log in</a> to participate in the contest.
+                                        {(() => {
+                                            const next = encodeURIComponent(window.location.pathname + window.location.search);
+                                            return (<>
+                                                Please <a href={`${reverse('login')}?next=${next}`} className="link link-primary">log in</a> or <a href={`/accounts/signup/?next=${next}`} className="link link-primary">create an account</a> to participate in the contest.
+                                            </>);
+                                        })()}
                                     </div>
                                 );
                             }

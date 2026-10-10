@@ -45,6 +45,7 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
 from django.views import View
 from django.views.generic import (
     ListView,
@@ -1401,6 +1402,13 @@ def signup(request):
     from display.models import MyUser, Person
     import requests
 
+    # Keep the page the user came from (e.g. a flight QR code) so they can resume after verifying.
+    next_url = request.POST.get("next") or request.GET.get("next") or ""
+    if next_url and not url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        next_url = ""
+
     if request.method == "POST":
         form = SignUpForm(request.POST)
         if form.is_valid():
@@ -1482,7 +1490,7 @@ def signup(request):
                     person.save()
 
                 # Do NOT log the user in automatically. They must verify email first.
-                return render(request, "registration/signup_success.html", {"email": email})
+                return render(request, "registration/signup_success.html", {"email": email, "next": next_url})
 
             except Exception as e:
                 # Handle cases like Email already exists in Firebase
@@ -1495,7 +1503,7 @@ def signup(request):
     else:
         form = SignUpForm()
 
-    return render(request, "registration/signup.html", {"form": form})
+    return render(request, "registration/signup.html", {"form": form, "next": next_url})
 
 
 @csrf_exempt

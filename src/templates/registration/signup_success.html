@@ -13,7 +13,7 @@
         <div class="divider"></div>
         <p class="text-sm opacity-60 italic">Didn't get the email? Check your spam folder or wait a few minutes.</p>
         <div class="card-actions justify-center mt-6">
-          <a href="{% url 'login' %}" class="btn btn-outline">Back to Login</a>
+          <a href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="btn btn-outline">Back to Login</a>
         </div>
       </div>
     </div>

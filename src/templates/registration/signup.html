@@ -19,9 +19,10 @@
       <div class="card-body">
         <h2 class="card-title text-2xl mb-4">Create your account</h2>
         {% crispy form %}
+        {% if next %}<p class="text-xs opacity-70 mt-2">After verifying your email, log in to continue where you left off.</p>{% endif %}
         <div class="divider">OR</div>
         <div class="text-center">
-          <p>Already have an account? <a href="{% url 'login' %}" class="link link-primary font-bold">Log in here</a></p>
+          <p>Already have an account? <a href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="link link-primary font-bold">Log in here</a></p>
         </div>
       </div>
     </div>
