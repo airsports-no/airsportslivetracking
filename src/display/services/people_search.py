@@ -88,6 +88,7 @@ def _to_results(rows: list, persons_by_email: dict[str, Person], reveal_hint: bo
                 "id": row.pk,
                 "name": name,
                 "country": country,
+                "picture": person.picture.url if person is not None and person.picture else None,
                 "email_hint": mask_email_heavily(row.email) if ambiguous else "",
             }
         )
@@ -96,6 +97,24 @@ def _to_results(rows: list, persons_by_email: dict[str, Person], reveal_hint: bo
 
 def _tokens(query: str) -> list[str]:
     return [token.casefold() for token in query.split() if token]
+
+
+def user_identities(users: Iterable[MyUser]) -> dict[int, dict]:
+    """
+    How to show an existing account to someone who may not know its email: its name (falling back to
+    the matching Person's) and always a heavily masked email, so two namesakes in a list of grantees
+    can still be told apart. Keyed by user pk.
+    """
+    users = list(users)
+    persons = _persons_by_email(user.email for user in users)
+    identities = {}
+    for user in users:
+        person = persons.get(user.email.lower())
+        name = f"{user.first_name} {user.last_name}".strip()
+        if not name and person:
+            name = f"{person.first_name} {person.last_name}".strip()
+        identities[user.pk] = {"name": name, "email_hint": mask_email_heavily(user.email)}
+    return identities
 
 
 def search_persons(query: str, exclude_email: Optional[str] = None) -> list[dict]:

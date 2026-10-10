@@ -22,20 +22,23 @@ class TestPermissionsPageEmailJsEscaping(TestCase):
     def setUp(self):
         self.viewer_person = Person.objects.create(first_name="Viewer", last_name="Person", email="viewer@example.com")
         self.viewer = get_user_model().objects.create(email="viewer@example.com")
-        self.target_person = Person.objects.create(
-            first_name="Target", last_name="Person", email="o'hare@example.com"
+        self.target_person = Person.objects.create(first_name="Pat", last_name="O'Hare", email="o'hare@example.com")
+        self.target_user = get_user_model().objects.create(
+            email="o'hare@example.com", first_name="Pat", last_name="O'Hare"
         )
-        self.target_user = get_user_model().objects.create(email="o'hare@example.com")
 
     def _assert_email_is_js_escaped_not_raw(self, response):
+        # The page now identifies people by name plus a masked email hint instead of the address
+        # itself, so the user-controlled value that reaches the confirm('...') string is the name.
         content = response.content.decode()
         self.assertNotIn(
-            "o'hare@example.com?');",
+            "Pat O'Hare?');",
             content,
-            "The raw apostrophe-containing email must not appear inside the JS string literal - "
+            "The raw apostrophe-containing name must not appear inside the JS string literal - "
             "it must be escapejs-escaped so it can't break out of confirm('...').",
         )
-        self.assertIn("o\\u0027hare@example.com", content)
+        self.assertIn("Pat O\\u0027Hare", content)
+        self.assertNotIn("hare@example.com", content, "Raw email addresses must not be shown")
 
     def test_editableroute_permissions_page_escapes_email_for_js(self):
         route = EditableRoute.objects.create(

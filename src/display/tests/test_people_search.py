@@ -67,7 +67,7 @@ class TestPersonSearch(PeopleSearchBase):
 
     def test_never_returns_an_email(self):
         for result in self.search("anna").json():
-            self.assertEqual(set(result), {"id", "name", "country", "email_hint"})
+            self.assertEqual(set(result), {"id", "name", "country", "picture", "email_hint"})
             self.assertNotIn("@example.com", str(result))
 
     def test_no_hint_when_name_is_unique(self):

@@ -1,10 +1,11 @@
 import React, { useState, useEffect } from 'react';
-import Select from 'react-select';
 import CreatableSelect from 'react-select/creatable';
 import { selectStyles } from '../../../utils/selectStyles';
 import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload, ScheduleFlightPayload, MyContestTeam, Team } from '../types';
 import * as api from '../api';
 import { useMissionDashboardStore } from '../store';
+import PersonPicker from '../../../components/common/PersonPicker';
+import { PersonOption, personOptionFromPerson } from '../../../components/common/personOption';
 import ConceptHint from '../../../components/common/ConceptHint';
 import HelpIcon from '../../../components/common/HelpIcon';
 
@@ -44,12 +45,12 @@ interface ScheduleFlightFormProps {
 }
 
 const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, navigationTaskId, myContestTeams, onClose }) => {
-    const { clubs, aircrafts, pilots, fetchClubs, fetchAircrafts, fetchPilots } = useMissionDashboardStore();
+    const { clubs, aircrafts, fetchClubs, fetchAircrafts } = useMissionDashboardStore();
     const [prefillRegistration, setPrefillRegistration] = useState<MyParticipatingContest | null>(null);
     const [loadingPrefillData, setLoadingPrefillData] = useState<boolean>(false);
 
     // Form state
-    const [copilot, setCopilot] = useState<number | null>(null);
+    const [copilot, setCopilot] = useState<PersonOption | null>(null);
     const [aircraft, setAircraft] = useState<string>('');
     const [airspeed, setAirspeed] = useState<number>(65);
     const [club, setClub] = useState<string>('');
@@ -98,7 +99,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
 
     useEffect(() => {
         if (prefillRegistration) {
-            setCopilot(prefillRegistration.team.crew.member2?.id || null);
+            setCopilot(prefillRegistration.team.crew.member2 ? personOptionFromPerson(prefillRegistration.team.crew.member2) : null);
             setAircraft(prefillRegistration.team.aeroplane.registration || '');
             setAirspeed(prefillRegistration.air_speed || 65);
             setClub(prefillRegistration.team.club?.name || '');
@@ -114,13 +115,12 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
         const promise = Promise.all([
             fetchClubs(),
             fetchAircrafts(),
-            fetchPilots()
         ]);
         promise.catch(err => {
             setError(err.message);
             console.error("Fetching autocomplete data:", err);
         });
-    }, [fetchClubs, fetchAircrafts, fetchPilots]);
+    }, [fetchClubs, fetchAircrafts]);
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
@@ -161,7 +161,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                 club_name: club,
                 aircraft_registration: aircraft,
                 airspeed: airspeed,
-                copilot_id: copilot,
+                copilot_id: copilot?.value ?? null,
             };
 
             let registrationDetailsChanged = false;
@@ -256,14 +256,11 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                         <div className="divider">Team Registration</div>
                         <label className="form-control w-full">
                             <div className="label"><span className="label-text">Co-pilot (optional)</span></div>
-                            <Select
-                                options={pilots.map(p => ({ value: p.id, label: `${p.first_name} ${p.last_name} (${p.email})` }))}
-                                value={copilot ? { value: copilot, label: pilots.find(p => p.id === copilot)?.first_name + ' ' + pilots.find(p => p.id === copilot)?.last_name + ' (' + pilots.find(p => p.id === copilot)?.email + ')' } : null}
-                                onChange={selectedOption => setCopilot(selectedOption ? selectedOption.value : null)}
-                                isClearable
-                                placeholder="Select a co-pilot"
-                                classNamePrefix="my-react-select"
-                                styles={selectStyles}
+                            <PersonPicker
+                                kind="person"
+                                value={copilot}
+                                onChange={setCopilot}
+                                placeholder="Type a name to search"
                             />
                         </label>
                         <label className="form-control w-full">

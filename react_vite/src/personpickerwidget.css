@@ -1,0 +1,13 @@
+/* Theme variables for react-select (see frontendapp.css); the widget deliberately does not load
+   frontendapp.css itself because its html/body rules are meant for the single-page app only. */
+:root, [data-theme='light'] {
+  --rs-bg: #ffffff;
+  --rs-text: #000000;
+  --rs-border: rgba(0, 0, 0, 0.2);
+}
+
+[data-theme='dark'], [data-theme='aviation'] {
+  --rs-bg: #1d232a;
+  --rs-text: #ffffff;
+  --rs-border: rgba(255, 255, 255, 0.2);
+}
