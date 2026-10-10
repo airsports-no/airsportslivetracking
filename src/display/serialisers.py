@@ -1058,7 +1058,7 @@ class SignupSerialiser(serializers.Serializer):
         ).exclude(pk=contest_team.pk)
         if teams.exists():
             raise ValidationError(
-                f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+                f"You are already signed up to the contest {contest} in a different team: {', '.join(str(item) for item in teams)}"
             )
         if validated_data["copilot_id"]:
             teams = ContestTeam.objects.filter(
@@ -1068,7 +1068,7 @@ class SignupSerialiser(serializers.Serializer):
             ).exclude(pk=contest_team.pk)
             if teams.exists():
                 raise ValidationError(
-                    f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+                    f"The co-pilot is already signed up to the contest {contest} in a different team: {', '.join(str(item) for item in teams)}"
                 )
 
         team = Team.get_or_create_from_signup(
@@ -1111,7 +1111,7 @@ class SignupSerialiser(serializers.Serializer):
             )
             if teams.exists():
                 raise ValidationError(
-                    f"You are already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+                    f"You are already signed up to the contest {contest} in a different team: {', '.join(str(item) for item in teams)}"
                 )
             if validated_data["copilot_id"]:
                 teams = ContestTeam.objects.filter(
@@ -1121,7 +1121,7 @@ class SignupSerialiser(serializers.Serializer):
                 )
                 if teams.exists():
                     raise ValidationError(
-                        f"The co-pilot is already signed up to the contest {contest} in a different team: f{[str(item) for item in teams]}"
+                        f"The co-pilot is already signed up to the contest {contest} in a different team: {', '.join(str(item) for item in teams)}"
                     )
             return contest.replace_team(None, team, {"air_speed": validated_data["airspeed"]})
 

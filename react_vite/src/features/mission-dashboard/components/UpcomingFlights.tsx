@@ -23,8 +23,19 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myFutureFlights, cont
                 const contest = contests.find(c => c.id === flight.contest_id);
                 const navTask = contest?.navigationtask_set.find(t => t.pk === flight.navigation_task);
 
-                if (!contest || !navTask) {
-                    return null; 
+                if (!contest) {
+                    return null;
+                }
+                if (!navTask) {
+                    // Tasks not loaded (yet): show a minimal row rather than silently dropping the flight.
+                    return (
+                        <div key={flight.id} className="card bg-base-100 shadow-xl">
+                            <div className="card-body">
+                                <h3 className="card-title">{contest.name}</h3>
+                                <p>Flight scheduled. Details are loading...</p>
+                            </div>
+                        </div>
+                    );
                 }
 
                 return (

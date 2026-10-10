@@ -254,7 +254,19 @@ const MissionDashboard = () => {
                         else if (f.contest && typeof f.contest === 'number') requiredContestIds.add(f.contest);
                     });
 
-                    const missingContestIds = Array.from(requiredContestIds).filter(id => !loadedContestIds.has(id));
+                    // Contests loaded with excludeTasks have an empty navigationtask_set; upcoming flights
+                    // need the tasks to render, so refetch those too rather than only the unloaded ones.
+                    const contestsMissingTasks = new Set<number>(
+                        updatedState.contests
+                            .filter(c => !c.navigationtask_set || c.navigationtask_set.length === 0)
+                            .map(c => c.id)
+                    );
+                    const futureFlightContestIds = new Set<number>(
+                        updatedState.myFutureFlights.map((f: any) => f.contest_id).filter(Boolean)
+                    );
+                    const missingContestIds = Array.from(requiredContestIds).filter(
+                        id => !loadedContestIds.has(id) || (futureFlightContestIds.has(id) && contestsMissingTasks.has(id))
+                    );
 
                     if (missingContestIds.length > 0) {
                         await fetchContestsFromStore({ pks: missingContestIds });

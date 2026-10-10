@@ -1632,7 +1632,7 @@ def quick_register(request, pk):
             # Tracker lead time 15 mins
             tracker_start_time = takeoff_time - datetime.timedelta(minutes=15)
             
-            Contestant.objects.create(
+            contestant = Contestant.objects.create(
                 team=team,
                 navigation_task=navigation_task,
                 takeoff_time=takeoff_time,
@@ -1651,7 +1651,8 @@ def quick_register(request, pk):
             return render(request, "display/quick_register_success.html", {
                 "contest": contest,
                 "navigation_task": navigation_task,
-                "tail_number": tail_number
+                "tail_number": tail_number,
+                "contestant": contestant,
             })
 
     return render(request, "display/quick_register.html", {"contest": contest, "navigation_task": navigation_task})
