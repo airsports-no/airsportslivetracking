@@ -17,7 +17,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import transaction
+import pytz
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Prefetch, Q
 from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.urls import reverse
@@ -334,6 +335,51 @@ class UserPersonViewSet(GenericViewSet):
     def perform_update(self, serializer):
         serializer.save()
 
+    @action(detail=False, methods=["post"])
+    def register_device(self, request, *args, **kwargs):
+        """
+        Registers (or refreshes) the phone's FCM push token for the signed-in person. A token belongs to one person at
+        a time, so signing in with another account on the same phone moves it.
+        Body: ``{"platform": "android"|"ios", "push_token": "...", "app_version": "100"}``.
+        """
+        from display.models.mobile_device import MOBILE_PLATFORMS, MobileDevice
+
+        platform = request.data.get("platform")
+        token = str(request.data.get("push_token", "")).strip()
+        if platform not in {key for key, _ in MOBILE_PLATFORMS}:
+            return Response({"detail": "platform must be 'android' or 'ios'."}, status=status.HTTP_400_BAD_REQUEST)
+        if not token or len(token) > 512:
+            return Response({"detail": "push_token is required (max 512 characters)."}, status=status.HTTP_400_BAD_REQUEST)
+        person = self.get_object()
+        for attempt in range(2):
+            try:
+                with transaction.atomic():
+                    MobileDevice.objects.update_or_create(
+                        token_hash=MobileDevice.hash_token(token),
+                        defaults={
+                            "push_token": token,
+                            "person": person,
+                            "platform": platform,
+                            "app_version": str(request.data.get("app_version", ""))[:40],
+                        },
+                    )
+                break
+            except IntegrityError:
+                # A concurrent registration of the same token won the race; the retry updates that row.
+                if attempt:
+                    raise
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["post"])
+    def unregister_device(self, request, *args, **kwargs):
+        """Forgets a push token (called on sign-out). Only removes tokens that belong to the signed-in person."""
+        from display.models.mobile_device import MobileDevice
+
+        person = self.get_object()
+        token = str(request.data.get("push_token", "")).strip()
+        MobileDevice.objects.filter(person=person, token_hash=MobileDevice.hash_token(token)).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=False, methods=["delete"])
     def delete_account(self, request, *args, **kwargs):
         """
@@ -455,7 +501,12 @@ class UserPersonViewSet(GenericViewSet):
                     "active_contestants": [],
                 }
             tasks_map[task.pk]["active_contestants"].append(
-                ContestantSerialiser(contestant, context={"request": request}).data
+                {
+                    **ContestantSerialiser(contestant, context={"request": request}).data,
+                    # Same definition as the organizer endpoint (views_api.get_running_calculators): the live calculator
+                    # is started by the first received position, so "running" proves the pilot's positions are scored.
+                    "calculator_running": is_calculator_running(contestant.pk) or is_dispatch_pending(contestant.pk),
+                }
             )
 
         return Response(list(tasks_map.values()))
@@ -996,6 +1047,25 @@ class ContestViewSet(ModelViewSet):
         # s-maxage=120: CDN shields origin by caching for 2 minutes.
         # max-age=0: Browser always checks CDN (no disk cache).
         response["Cache-Control"] = "public, max-age=0, s-maxage=120"
+        return response
+
+    @action(detail=False, methods=["get"])
+    def open_registration_today(self, request, *args, **kwargs):
+        """
+        Public list of tasks happening today that pilots can register a flight for themselves (self registration), with
+        the contest's name and location so a pilot can find the place to register before flying.
+        Query: ``timezone`` (IANA name; the calendar day to use, default UTC).
+        """
+        from display.services.open_registration import describe, open_registration_tasks_today
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        timezone_name = request.query_params.get("timezone")
+        if timezone_name and timezone_name not in pytz.all_timezones_set:
+            return Response({"detail": "Unknown timezone."}, status=status.HTTP_400_BAD_REQUEST)
+        tasks = open_registration_tasks_today(timezone_name, now)
+        response = Response([describe(task, now) for task in tasks])
+        # Public list; the CDN may keep it for a short while.
+        response["Cache-Control"] = "public, max-age=0, s-maxage=60"
         return response
 
     @action(detail=False, methods=["get"])

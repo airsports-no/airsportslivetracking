@@ -4,6 +4,7 @@
   "ROUTE_EDITOR_EDIT": "routeeditor/edit/:routeId",
   "ROUTE_EDITOR_CREATE": "routeeditor/create",
   "SCHEDULE_FLIGHT": "schedule-flight",
+  "OPEN_TODAY": "open-today",
   "PAST_FLIGHTS": "past-flights",
   "MISSION_DASHBOARD": "",
   "MISSION_DASHBOARD_DETAIL": "mission-dashboard/:contestId",

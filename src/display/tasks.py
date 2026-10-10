@@ -143,6 +143,21 @@ def setup_periodic_tasks(sender, **kwargs):
         delete_old_flight_orders.s(),
     )
     sender.add_periodic_task(10, debug.s())
+    # Push notifications to the mobile apps (no-ops unless PUSH_NOTIFICATIONS_ENABLED).
+    sender.add_periodic_task(60, send_pilot_push_notifications.s())
+
+
+@app.task
+def send_pilot_push_notifications():
+    from display.services.push_notifications import (
+        notify_not_tracking,
+        notify_scoring_started,
+        notify_upcoming_tracking_windows,
+    )
+
+    notify_upcoming_tracking_windows()
+    notify_not_tracking()
+    notify_scoring_started()
 
 
 @app.task

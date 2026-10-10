@@ -144,3 +144,30 @@ class Log500ErrorsMiddleware:
         exc_info = (type(exception), exception, exception.__traceback__)
         logger.error("Intercepted 500 error", exc_info=exc_info)
         return None  # Let other middlewares do further processing
+
+
+class EmbedModeMiddleware:
+    """
+    The mobile apps show website pages inside their own screens, which already have a navigation bar. ``?embed=app``
+    switches the site's own navigation bar off (``skip_nav``, see display.context_processors.embed_mode) and is
+    remembered in a cookie, so later full page loads in the same web view stay embedded. ``?embed=off`` clears it.
+    """
+
+    COOKIE = "embed"
+    MAX_AGE = 60 * 60 * 24 * 30
+
+    def __init__(self, get_response):
+        self.get_response = get_response
+
+    def __call__(self, request):
+        flag = request.GET.get("embed")
+        request.embed_app = flag == "app" or (flag is None and request.COOKIES.get(self.COOKIE) == "app")
+        response = self.get_response(request)
+        if response.get("Content-Type", "").startswith("text/html"):
+            # Only pages differ by embed mode; keep public API responses cacheable.
+            patch_vary_headers(response, ("Cookie",))
+        if flag == "app":
+            response.set_cookie(self.COOKIE, "app", max_age=self.MAX_AGE, samesite="Lax", httponly=True, secure=request.is_secure())
+        elif flag == "off":
+            response.delete_cookie(self.COOKIE)
+        return response

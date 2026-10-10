@@ -20,3 +20,4 @@ from .usage_accounting import *
 from .user_uploaded_map import *
 from .flymaster_data import *
 from .newsletter import *
+from .mobile_device import *

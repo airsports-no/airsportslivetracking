@@ -101,6 +101,24 @@ ACCESS_ENFORCEMENT_MODE = os.environ.get("ACCESS_ENFORCEMENT_MODE", "audit")
 if ACCESS_ENFORCEMENT_MODE not in {"audit", "enforce"}:
     ACCESS_ENFORCEMENT_MODE = "audit"
 
+# Mobile app integration. Versions are the Android versionCode / iOS build number; the app shows a blocking
+# "update required" screen when its own version is below the minimum.
+MOBILE_ANDROID_MIN_VERSION = int(os.environ.get("MOBILE_ANDROID_MIN_VERSION", "0"))
+MOBILE_ANDROID_LATEST_VERSION = int(os.environ.get("MOBILE_ANDROID_LATEST_VERSION", "0"))
+MOBILE_IOS_MIN_VERSION = int(os.environ.get("MOBILE_IOS_MIN_VERSION", "0"))
+MOBILE_IOS_LATEST_VERSION = int(os.environ.get("MOBILE_IOS_LATEST_VERSION", "0"))
+MOBILE_ANDROID_STORE_URL = os.environ.get(
+    "MOBILE_ANDROID_STORE_URL", "https://play.google.com/store/apps/details?id=no.airsports.android.livetracking"
+)
+MOBILE_IOS_STORE_URL = os.environ.get("MOBILE_IOS_STORE_URL", "https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686")
+MOBILE_TRACCAR_URL = os.environ.get("MOBILE_TRACCAR_URL", "https://traccarclient.airsports.no/")
+MOBILE_TRACKING_INTERVAL_MS = int(os.environ.get("MOBILE_TRACKING_INTERVAL_MS", "1000"))
+
+# Push notifications to the mobile apps via FCM. Off by default so deploying the code never notifies anyone.
+PUSH_NOTIFICATIONS_ENABLED = os.environ.get("PUSH_NOTIFICATIONS_ENABLED", "false").lower() in {"1", "true", "yes"}
+PUSH_TRACKING_WINDOW_LEAD_MINUTES = int(os.environ.get("PUSH_TRACKING_WINDOW_LEAD_MINUTES", "15"))
+PUSH_NOT_TRACKING_GRACE_MINUTES = int(os.environ.get("PUSH_NOT_TRACKING_GRACE_MINUTES", "3"))
+
 DEFAULT_FREE_TASK_TYPE_GROUPS = [
     item.strip() for item in os.environ.get("DEFAULT_FREE_TASK_TYPE_GROUPS", "legacy,cima").split(",") if item.strip()
 ]
@@ -229,6 +247,7 @@ MIDDLEWARE = [
     "django.middleware.security.SecurityMiddleware",
     "whitenoise.middleware.WhiteNoiseMiddleware",
     "django.contrib.sessions.middleware.SessionMiddleware",
+    "live_tracking_map.middleware.EmbedModeMiddleware",
     "django.middleware.common.CommonMiddleware",
     "django.middleware.csrf.CsrfViewMiddleware",
     "django.contrib.auth.middleware.AuthenticationMiddleware",
@@ -255,6 +274,7 @@ TEMPLATES = [
                 "django.contrib.auth.context_processors.auth",
                 "django.contrib.messages.context_processors.messages",
                 "display.context_processors.firebase_settings",
+                "display.context_processors.embed_mode",
                 "display.context_processors.sentry_settings",
                 "display.context_processors.user_profile",
             ],

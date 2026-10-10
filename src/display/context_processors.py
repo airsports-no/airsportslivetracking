@@ -28,3 +28,8 @@ def sentry_settings(request):
         "SENTRY_DSN_FRONTEND": getattr(settings, "SENTRY_DSN_FRONTEND", ""),
         "BUILD_ID": getattr(settings, "BUILD_ID", ""),
     }
+
+
+def embed_mode(request):
+    """Hides the website's navigation bar when a page is embedded in the mobile apps (EmbedModeMiddleware)."""
+    return {"skip_nav": getattr(request, "embed_app", False)}

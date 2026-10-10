@@ -41,6 +41,8 @@ storageAccountName: airsportsstorage2
 mediaLocation: media
 traccarUsername: frankose@ifi.uio.no
 
+pushNotificationsEnabled: true
+
 secretKey: secret
 
 # Sentry DSNs (backend Python project, frontend JS project - normally two separate Sentry
