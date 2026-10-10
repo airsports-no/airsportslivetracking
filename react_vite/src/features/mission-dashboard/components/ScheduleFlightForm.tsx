@@ -42,9 +42,11 @@ interface ScheduleFlightFormProps {
     navigationTaskId: number;
     myContestTeams: MyContestTeam[];
     onClose: (warnings?: string[]) => void;
+    /** Called instead of onClose after a successful registration (Cancel still uses onClose). */
+    onRegistered?: (warnings?: string[]) => void;
 }
 
-const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, navigationTaskId, myContestTeams, onClose }) => {
+const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, navigationTaskId, myContestTeams, onClose, onRegistered }) => {
     const { clubs, aircrafts, fetchClubs, fetchAircrafts } = useMissionDashboardStore();
     const [prefillRegistration, setPrefillRegistration] = useState<MyParticipatingContest | null>(null);
     const [loadingPrefillData, setLoadingPrefillData] = useState<boolean>(false);
@@ -225,10 +227,11 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     wind_direction: windDirection,
                 };
                 const result = await api.scheduleFlight(contest.id, navigationTaskId, schedulePayload);
+                const done = onRegistered ?? onClose;
                 if (result && result.overlap_warnings && result.overlap_warnings.length > 0) {
-                    onClose(result.overlap_warnings);
+                    done(result.overlap_warnings);
                 } else {
-                    onClose();
+                    done();
                 }
             } else {
                 setError("Failed to obtain contest team ID for scheduling flight.");

@@ -3,6 +3,7 @@ declare global {
     configuration: {
       is_superuser: boolean;
       isAuthenticated: boolean;
+      embeddedInApp?: boolean;
       isOrganizer: boolean;
       userId: number | null;
       userEmail?: string;

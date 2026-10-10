@@ -109,3 +109,15 @@ class TestEmbedMode(TestCase):
     def test_a_different_cookie_value_does_nothing(self):
         self.client.cookies["embed"] = "yes"
         self.assertContains(self.client.get(self.PAGE), self.NAVBAR)
+
+
+class TestEmbeddedFlagForTheReactApp(TestCase):
+    HOST = "app.airsports.no"
+
+    def test_react_app_knows_when_it_is_shown_inside_the_mobile_app(self):
+        embedded = self.client.get("/", {"embed": "app"}, HTTP_HOST=self.HOST)
+        self.assertContains(embedded, "embeddedInApp: true")
+
+    def test_and_when_it_is_not(self):
+        normal = self.client.get("/", HTTP_HOST=self.HOST)
+        self.assertContains(normal, "embeddedInApp: false")

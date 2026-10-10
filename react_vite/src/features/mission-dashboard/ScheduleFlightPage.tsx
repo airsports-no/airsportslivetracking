@@ -5,6 +5,7 @@ import { Contest, MyContestTeam } from './types';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import { Loading } from '../route-editor/components/basicComponents';
 import { generatePath, reverse } from '../../urls';
+import { isEmbeddedInApp, signalApp } from '../../utils/appBridge';
 
 const ScheduleFlightPage = () => {
     const [searchParams] = useSearchParams();
@@ -63,13 +64,20 @@ const ScheduleFlightPage = () => {
                     contest={contest}
                     navigationTaskId={navigationTaskId}
                     myContestTeams={myContestTeams}
-                    onClose={(warnings?: string[]) => {
+                    onClose={() => {
+                        // Cancel: inside the app go back to where the pilot came from (e.g. the open-today list).
+                        if (isEmbeddedInApp()) navigate(-1);
+                        else navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId, navigationTaskId }));
+                    }}
+                    onRegistered={(warnings?: string[]) => {
                         if (warnings && warnings.length > 0) {
                             // In a real app we might want to pass these back via state or toast
                             console.warn("Warnings from scheduling:", warnings);
                         }
-                        // Navigate back to the competition map
-                        navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId, navigationTaskId }));
+                        // In the app the pilot returns to the app's home page, which refreshes the upcoming flights;
+                        // on the website the live tracking map is the natural next page.
+                        if (isEmbeddedInApp()) signalApp('registered', { contestId, navigationTaskId });
+                        else navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId, navigationTaskId }));
                     }}
                 />
             </div>
