@@ -148,3 +148,32 @@ def notify_not_tracking(now: datetime.datetime = None) -> int:
             ):
                 sent += 1
     return sent
+
+
+def notify_scoring_started(now: datetime.datetime = None) -> int:
+    """
+    'Scoring has started - your flight is being tracked' once the live calculator has been started by the first received
+    position. This is the positive confirmation that the whole chain (phone, Traccar, processor, calculator) works.
+    """
+    if not settings.PUSH_NOTIFICATIONS_ENABLED:
+        return 0
+    now = now or timezone.now()
+    contestants = Contestant.objects.filter(
+        finished_by_time__gt=now,
+        tracking_device__in=(TRACKING_PILOT, TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT),
+        contestanttrack__calculator_started=True,
+        contestanttrack__calculator_finished=False,
+    ).select_related("team__crew__member1", "team__crew__member2", "navigation_task")
+    sent = 0
+    for contestant in contestants:
+        for person in _app_tracked_people(contestant):
+            if _notify_once(
+                PushNotificationLog.KIND_SCORING_STARTED,
+                contestant,
+                person,
+                "Your flight is being scored",
+                f"{contestant.navigation_task.name}: your positions are arriving and scoring has started. "
+                "Everything is working.",
+            ):
+                sent += 1
+    return sent

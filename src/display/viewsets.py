@@ -492,7 +492,12 @@ class UserPersonViewSet(GenericViewSet):
                     "active_contestants": [],
                 }
             tasks_map[task.pk]["active_contestants"].append(
-                ContestantSerialiser(contestant, context={"request": request}).data
+                {
+                    **ContestantSerialiser(contestant, context={"request": request}).data,
+                    # Same definition as the organizer endpoint (views_api.get_running_calculators): the live calculator
+                    # is started by the first received position, so "running" proves the pilot's positions are scored.
+                    "calculator_running": is_calculator_running(contestant.pk) or is_dispatch_pending(contestant.pk),
+                }
             )
 
         return Response(list(tasks_map.values()))

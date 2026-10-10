@@ -162,6 +162,21 @@ class TestPushNotifications(TransactionTestCase):
         self.contestant(start_in_min=-5, takeoff_in_min=-1, number=2)  # inside the grace period
         self.assertEqual(push_notifications.notify_not_tracking(self.now), 0)
 
+    def test_confirms_once_the_calculator_has_been_started_by_positions(self):
+        from display.models import ContestantTrack
+
+        started = self.contestant(start_in_min=-30, takeoff_in_min=-10, number=1)
+        ContestantTrack.objects.filter(contestant=started).update(calculator_started=True)
+        waiting = self.contestant(start_in_min=-30, takeoff_in_min=-10, number=2)  # calculator never started
+        done = self.contestant(start_in_min=-30, takeoff_in_min=-10, number=3)
+        ContestantTrack.objects.filter(contestant=done).update(calculator_started=True, calculator_finished=True)
+
+        self.assertEqual(push_notifications.notify_scoring_started(self.now), 1)
+        self.assertEqual(push_notifications.notify_scoring_started(self.now), 0)
+        data = self.send.call_args.args[3]
+        self.assertEqual((data["type"], data["contestant_id"]), ("scoring_started", str(started.pk)))
+        self.assertNotEqual(data["contestant_id"], str(waiting.pk))
+
 
 class TestSendOne(TestCase):
     def setUp(self):
@@ -205,3 +220,60 @@ class TestSendOne(TestCase):
         with patch("display.services.push_notifications._send_one", side_effect=flaky):
             reached = push_notifications.send_to_person(self.device.person, "T", "B", {})
         self.assertEqual((reached, sorted(calls)), (1, ["tok", "tok2"]))
+
+
+class TestCalculatorStatusInNowEndpoint(TestCase):
+    """The pilot app polls get_current_app_navigation_task; it must tell whether the live calculator is running."""
+
+    def setUp(self):
+        for target in ("display.models.contestant.get_traccar_instance", "display.signals.get_traccar_instance"):
+            patcher = patch(target, return_value=TraccarMock)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        now = datetime.datetime.now(datetime.timezone.utc)
+        contest = Contest.objects.create(name="Cup", start_time=now, finish_time=now)
+        task = NavigationTask.create(
+            name="Day 1",
+            original_scorecard=get_default_scorecard(),
+            start_time=now,
+            finish_time=now + datetime.timedelta(hours=3),
+            route=Route.objects.create(name="Route"),
+            contest=contest,
+        )
+        self.user = MyUser.objects.create(username="p", email="p@example.com")
+        self.pilot = Person.objects.create(first_name="Pi", last_name="Lot", email="p@example.com")
+        team = Team.objects.create(crew=Crew.objects.create(member1=self.pilot), aeroplane=Aeroplane.objects.create(registration="LN-Y"))
+        self.contestant = Contestant.objects.create(
+            team=team,
+            navigation_task=task,
+            tracking_device=TRACKING_PILOT,
+            contestant_number=1,
+            tracker_start_time=now - datetime.timedelta(minutes=5),
+            takeoff_time=now + datetime.timedelta(minutes=5),
+            finished_by_time=now + datetime.timedelta(hours=2),
+        )
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+
+    def current(self):
+        response = self.client.get("/api/v1/userprofile/get_current_app_navigation_task/")
+        self.assertEqual(response.status_code, 200)
+        return response.json()[0]["active_contestants"][0]
+
+    def test_reports_calculator_not_running_before_positions_arrive(self):
+        with patch("display.viewsets.is_calculator_running", return_value=False), patch(
+            "display.viewsets.is_dispatch_pending", return_value=False
+        ):
+            self.assertIs(self.current()["calculator_running"], False)
+
+    def test_reports_calculator_running_once_the_heartbeat_is_alive(self):
+        with patch("display.viewsets.is_calculator_running", return_value=True):
+            active = self.current()
+        self.assertIs(active["calculator_running"], True)
+        self.assertEqual(active["id"], self.contestant.pk)
+
+    def test_a_dispatched_but_not_yet_heartbeating_calculator_counts_as_running(self):
+        with patch("display.viewsets.is_calculator_running", return_value=False), patch(
+            "display.viewsets.is_dispatch_pending", return_value=True
+        ):
+            self.assertIs(self.current()["calculator_running"], True)

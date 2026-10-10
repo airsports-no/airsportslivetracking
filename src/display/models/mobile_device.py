@@ -44,9 +44,11 @@ class PushNotificationLog(models.Model):
 
     KIND_TRACKING_WINDOW_OPENS = "tracking_window_opens"
     KIND_NOT_TRACKING = "not_tracking"
+    KIND_SCORING_STARTED = "scoring_started"
     KINDS = (
         (KIND_TRACKING_WINDOW_OPENS, "Tracking window opens soon"),
         (KIND_NOT_TRACKING, "Flight started but no positions received"),
+        (KIND_SCORING_STARTED, "Scoring started for the flight"),
     )
 
     kind = models.CharField(max_length=40, choices=KINDS)

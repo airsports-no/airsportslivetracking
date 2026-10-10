@@ -149,10 +149,15 @@ def setup_periodic_tasks(sender, **kwargs):
 
 @app.task
 def send_pilot_push_notifications():
-    from display.services.push_notifications import notify_not_tracking, notify_upcoming_tracking_windows
+    from display.services.push_notifications import (
+        notify_not_tracking,
+        notify_scoring_started,
+        notify_upcoming_tracking_windows,
+    )
 
     notify_upcoming_tracking_windows()
     notify_not_tracking()
+    notify_scoring_started()
 
 
 @app.task
