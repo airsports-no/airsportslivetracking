@@ -30,14 +30,15 @@ def open_registration_tasks_today(
     """
     Tasks that allow self registration and are not over yet, whose time window reaches into "today" (the calendar day
     in ``timezone_name``, default UTC). Public tasks of public contests are listed for everybody; a signed-in ``user``
-    also gets the tasks of private contests (or private tasks) they may view, e.g. their own as an organizer. Sorted by
-    contest, then start time.
+    also gets the tasks of private contests (or private tasks) they may change, e.g. their own as an organizer: those
+    are the ones they can register a flight for (NavigationTaskContestPermissions), view access is not enough. Sorted
+    by contest, then start time.
     """
     now = now or timezone.now()
     _, end_of_day = _day_bounds(now, timezone_name)
     visible = Q(is_public=True, contest__is_public=True)
     if user is not None and user.is_authenticated:
-        viewable = get_objects_for_user(user, "display.view_contest", klass=Contest, accept_global_perms=False)
+        viewable = get_objects_for_user(user, "display.change_contest", klass=Contest, accept_global_perms=False)
         visible |= Q(contest__in=viewable.values("pk"))
     return (
         NavigationTask.objects.filter(

@@ -1063,7 +1063,7 @@ class ContestViewSet(ModelViewSet):
         """
         Tasks happening today that pilots can register a flight for themselves (self registration), with the contest's
         name and location so a pilot can find the place to register before flying. Public tasks for everybody, plus the
-        private ones a signed-in user may view.
+        private ones a signed-in user may register for (change permission).
         Query: ``timezone`` (IANA name; the calendar day to use, default UTC).
         """
         from display.services.open_registration import describe, open_registration_tasks_today

@@ -49,17 +49,20 @@ class TestOpenRegistrationToday(TestCase):
         make_task(private_contest, "In private contest", 1, 3)
         self.assertEqual(self.names(timezone_name="UTC"), [])
 
-    def test_private_tasks_are_listed_for_users_who_may_view_the_contest(self):
+    def test_private_tasks_are_listed_for_users_who_may_change_the_contest(self):
         private_contest = Contest.objects.create(name="Private", start_time=NOW, finish_time=NOW, is_public=False)
         make_task(private_contest, "Mine", 1, 3)
         make_task(self.contest, "Private task", 1, 3, public=False)
         make_task(self.contest, "Public", 1, 3)
         organizer = MyUser.objects.create_user(email="org@example.com", password="pw")
         other = MyUser.objects.create_user(email="other@example.com", password="pw")
-        assign_perm("display.view_contest", organizer, private_contest)
-        assign_perm("display.view_contest", organizer, self.contest)
+        viewer = MyUser.objects.create_user(email="viewer@example.com", password="pw")
+        assign_perm("display.change_contest", organizer, private_contest)
+        assign_perm("display.change_contest", organizer, self.contest)
+        assign_perm("display.view_contest", viewer, private_contest)  # may look, but cannot register
         self.assertEqual(self.names(timezone_name="UTC"), ["Public"])
         self.assertEqual(self.names(timezone_name="UTC", user=other), ["Public"])
+        self.assertEqual(self.names(timezone_name="UTC", user=viewer), ["Public"])
         self.assertEqual(sorted(self.names(timezone_name="UTC", user=organizer)), ["Mine", "Private task", "Public"])
 
     def test_today_follows_the_callers_time_zone(self):
