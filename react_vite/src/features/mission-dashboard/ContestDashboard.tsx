@@ -465,7 +465,7 @@ const ContestDashboard = () => {
                                 {loadingTaskScores ? (
                                     <Loading />
                                 ) : (
-                                    <TaskScoreDisplay task={viewingScoresForTask} myContestantIds={myContestantIds} />
+                                    <TaskScoreDisplay task={viewingScoresForTask} myContestantIds={myContestantIds} contestId={contest.id} />
                                 )}
                                 <div className="card-actions justify-end">
                                     <button onClick={() => setViewingScoresForTask(null)} className="btn">Close</button>

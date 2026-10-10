@@ -1,12 +1,14 @@
 import React from 'react';
 import { NavigationTask } from '../types';
+import { generatePath } from '../../../urls';
 
 interface TaskScoreDisplayProps {
     task: NavigationTask;
     myContestantIds: Set<number>;
+    contestId?: number;
 }
 
-const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantIds }) => {
+const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantIds, contestId }) => {
     if (!task.contestant_set || task.contestant_set.length === 0) {
         return <p>No scores recorded for this task yet.</p>;
     }
@@ -25,7 +27,7 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantI
                         return scoreA - scoreB;
                     }
                 })
-                .map(contestant => {
+                .map((contestant, index, sorted) => {
                     const isCurrentUser = myContestantIds.has(contestant.id);
 
                     const isStrikethrough =
@@ -44,7 +46,22 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantI
                                 {contestant.team.crew.member2 && ` & ${contestant.team.crew.member2.first_name} ${contestant.team.crew.member2.last_name}`}
                                 ({contestant.team.aeroplane.registration})
                             </span>
-                            <span>Score: {contestant.contestanttrack.score.toFixed(0)}</span>
+                            <span className="flex items-center gap-3">
+                                {isCurrentUser && !isStrikethrough && (
+                                    <span>Rank {index + 1} of {sorted.length}</span>
+                                )}
+                                {isCurrentUser && contestId !== undefined && (
+                                    <a
+                                        href={generatePath('COMPETITION_MAP_DETAIL', { contestId, navigationTaskId: task.pk })}
+                                        className="link"
+                                        target="_blank"
+                                        rel="noopener noreferrer"
+                                    >
+                                        Replay track
+                                    </a>
+                                )}
+                                <span>Score: {contestant.contestanttrack.score.toFixed(0)}</span>
+                            </span>
                         </div>
                     );
                 })}

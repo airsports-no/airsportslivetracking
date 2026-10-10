@@ -2,6 +2,7 @@ import React from 'react';
 import { Contestant } from '../../competition-map/types';
 import { Contest } from '../types';
 import UpcomingFlightCard from './UpcomingFlightCard';
+import AppHandoff from './AppHandoff';
 
 interface UpcomingFlightsProps {
     myFutureFlights: Contestant[];
@@ -14,11 +15,22 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myFutureFlights, cont
     const upcomingFlights = myFutureFlights.filter(flight => new Date(flight.finished_by_time) > new Date());
 
     if (upcomingFlights.length === 0) {
-        return <div className="card bg-base-100 shadow-xl"><div className="card-body"><p>No upcoming flights scheduled.</p></div></div>;
+        return (
+            <div className="card bg-base-100 shadow-xl">
+                <div className="card-body">
+                    <p>No upcoming flights scheduled.</p>
+                    <p className="text-sm opacity-70">
+                        Open a contest from the <em>All Contests</em> tab and choose <em>Register team</em>, then <em>Book start time</em> for a task.
+                        Expecting a flight the organizer set up for you? Make sure they used {document.configuration.userEmail || 'your login email'}.
+                    </p>
+                </div>
+            </div>
+        );
     }
 
     return (
         <div className="space-y-4">
+            <AppHandoff />
             {upcomingFlights.map(flight => {
                 const contest = contests.find(c => c.id === flight.contest_id);
                 const navTask = contest?.navigationtask_set.find(t => t.pk === flight.navigation_task);

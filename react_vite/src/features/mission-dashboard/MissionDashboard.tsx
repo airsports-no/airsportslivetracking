@@ -271,6 +271,12 @@ const MissionDashboard = () => {
                     if (missingContestIds.length > 0) {
                         await fetchContestsFromStore({ pks: missingContestIds });
                     }
+
+                    // Land pilots with a booked flight on their flights instead of the all-contests list,
+                    // unless the URL explicitly asked for a tab.
+                    if (!new URLSearchParams(window.location.search).get('tab') && useMissionDashboardStore.getState().myFutureFlights.length > 0) {
+                        setActiveTab('upcoming');
+                    }
                 }
             } catch (err) {
                 setError((err as Error).message);
