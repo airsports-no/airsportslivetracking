@@ -263,6 +263,22 @@ export const registerForContest = async (payload: RegisterTeamPayload): Promise<
     return response.json();
 };
 
+/** Edit an existing registration in place; keeps the team's flights, unlike withdraw + register. */
+export const updateContestRegistration = async (payload: RegisterTeamPayload & { contestTeamId: number }): Promise<any> => {
+    const { contestId, contestTeamId, ...apiPayload } = payload;
+    const url = reverse('contests-signup', contestId);
+    const response = await fetch(url, {
+        method: 'PUT',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ ...apiPayload, contest_team: contestTeamId }),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to update registration: ${errorMessages}`);
+    }
+    return response.json();
+};
+
 export const fetchContest = async (contestId: number): Promise<Contest> => {
     const url = reverse('contests-detail', contestId);
     const response = await fetch(url, { headers: getAuthHeaders() });

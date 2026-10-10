@@ -1050,8 +1050,15 @@ class SignupSerialiser(serializers.Serializer):
         request = self.context["request"]
         contest = self.context["contest"]  # type: Contest
 
-        contest_team = validated_data["contest_team"]
+        contest_team = validated_data.get("contest_team")
+        if contest_team is None:
+            raise ValidationError("contest_team is required when updating a registration")
+        # Without this a caller could pass any ContestTeam pk and replace someone else's team.
+        if contest_team.contest_id != contest.pk:
+            raise ValidationError("That team is not registered for this contest")
         original_team = contest_team.team
+        if request.user.person.pk != original_team.crew.member1_id:
+            raise ValidationError("Only the pilot of a team can change its registration")
         teams = ContestTeam.objects.filter(
             Q(team__crew__member1=request.user.person.pk) | Q(team__crew__member2=request.user.person.pk),
             contest=contest,
@@ -1077,7 +1084,17 @@ class SignupSerialiser(serializers.Serializer):
             validated_data["aircraft_registration"],
             validated_data["club_name"],
         )
-        new_contest_team = contest.replace_team(original_team, team, {"air_speed": validated_data["airspeed"]})
+        new_contest_team = contest.replace_team(
+            original_team,
+            team,
+            {
+                "air_speed": validated_data["airspeed"],
+                # Keep the tracker configuration the organizer may have set on the registration
+                "tracking_service": contest_team.tracking_service,
+                "tracking_device": contest_team.tracking_device,
+                "tracker_device_id": contest_team.tracker_device_id,
+            },
+        )
 
         return new_contest_team
 

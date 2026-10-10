@@ -5,6 +5,7 @@ import { selectStyles } from '../../../utils/selectStyles';
 import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload, MyContestTeam } from '../types';
 import * as api from '../api';
 import { useMissionDashboardStore } from '../store';
+import ConceptHint from '../../../components/common/ConceptHint';
 
 interface ContestRegistrationFormProps {
     contest: Contest;
@@ -13,7 +14,7 @@ interface ContestRegistrationFormProps {
 }
 
 const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ contest, myContestTeams, onClose }) => {
-    const { clubs, aircrafts, pilots, fetchClubs, fetchAircrafts, fetchPilots, withdraw } = useMissionDashboardStore();
+    const { clubs, aircrafts, pilots, fetchClubs, fetchAircrafts, fetchPilots } = useMissionDashboardStore();
     const existingRegistration = myContestTeams.find(mc => mc.contest === contest.id);
 
     // Form state for registration
@@ -26,6 +27,26 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
     const [error, setError] = useState<string | null>(null);
     const [aircraftError, setAircraftError] = useState<string | null>(null);
     const [clubError, setClubError] = useState<string | null>(null);
+
+    // Pre-fill when editing an existing registration
+    useEffect(() => {
+        if (!existingRegistration) return;
+        let cancelled = false;
+        api.fetchTeam(existingRegistration.team)
+            .then(team => {
+                if (cancelled) return;
+                setCopilot(team.crew.member2?.id || null);
+                setAircraft(team.aeroplane.registration || '');
+                setClub(team.club?.name || '');
+                setAirspeed(existingRegistration.air_speed || 65);
+            })
+            .catch(err => {
+                if (!cancelled) setError(`Could not load your current registration: ${err.message}`);
+            });
+        return () => {
+            cancelled = true;
+        };
+    }, [existingRegistration?.id]);
 
     useEffect(() => {
         const promise = Promise.all([
@@ -58,34 +79,16 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
                 copilot_id: copilot,
             };
 
-            // Check if registration details have changed if an existing registration exists
-            let registrationDetailsChanged = false;
+            const registrationPayload: RegisterTeamPayload = {
+                contestId: contest.id,
+                ...currentRegistrationDetails,
+            };
             if (existingRegistration) {
-                // This logic needs to be adapted as we don't have the full team details here.
-                // For simplicity, we'll assume if there is an existing registration, we withdraw and re-register.
-                registrationDetailsChanged = true;
-            }
-            
-            // Logic for handling registration
-            if (existingRegistration && registrationDetailsChanged) {
-                // withdraw existing and register new
-                await withdraw(contest.id);
-                const registrationPayload: RegisterTeamPayload = {
-                    contestId: contest.id,
-                    ...currentRegistrationDetails,
-                };
-                await api.registerForContest(registrationPayload);
-
-            } else if (!existingRegistration) {
-                // No existing registration, just register new
-                const registrationPayload: RegisterTeamPayload = {
-                    contestId: contest.id,
-                    ...currentRegistrationDetails,
-                };
+                await api.updateContestRegistration({ ...registrationPayload, contestTeamId: existingRegistration.id });
+            } else {
                 await api.registerForContest(registrationPayload);
             }
-            // Else: existingRegistration exists and registrationDetailsChanged is false,
-            // so no action is needed as registration details haven't changed.
+            await useMissionDashboardStore.getState().fetchMyContestTeams(true);
             onClose(); // Close form on success
             
         } catch (err) {
@@ -99,7 +102,13 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
     return (
         <div className="card bg-base-100 shadow-xl max-w-2xl mx-auto">
             <div className="card-body">
-                <h2 className="card-title">Register for {contest.name}</h2>
+                <h2 className="card-title">{existingRegistration ? 'Edit registration for' : 'Register for'} {contest.name}</h2>
+                <ConceptHint id="registration-two-steps" title="Two steps to fly in a contest">
+                    <ol className="list-decimal list-inside">
+                        <li><strong>Register your team</strong> (this form): you, an optional co-pilot and your aircraft. You only do this once per contest.</li>
+                        <li><strong>Book a start time</strong> for each task you want to fly. Each booking is one flight.</li>
+                    </ol>
+                </ConceptHint>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <>
                         <div className="divider">Team Registration</div>
@@ -136,7 +145,7 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
                         {/* Airspeed */}
                          <label className="form-control w-full">
                             <div className="label"><span className="label-text">Airspeed (knots)</span></div>
-                            <input type="number" required value={airspeed} onChange={e => setAirspeed(parseInt(e.target.value))} className="input input-bordered w-full" />
+                            <input type="number" required value={airspeed} onChange={e => setAirspeed(e.target.value === '' ? 0 : parseInt(e.target.value))} className="input input-bordered w-full" />
                         </label>
                         {/* Club */}
                         <label className="form-control w-full">
@@ -163,7 +172,7 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
                         <button type="button" onClick={onClose} className="btn btn-ghost">Cancel</button>
                         <button type="submit" className="btn btn-primary" disabled={loading}>
                             {loading && <span className="loading loading-spinner"></span>}
-                            Register
+                            {existingRegistration ? 'Save changes' : 'Register'}
                         </button>
                     </div>
                 </form>

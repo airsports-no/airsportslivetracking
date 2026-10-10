@@ -91,7 +91,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                 {contestName && <p>{contestName}</p>}
                 {(status === 'Open' || status === 'Scheduled') && canSchedule && allow_self_management && (
                     <div className="card-actions justify-end items-center gap-2">
-                        <button onClick={onScheduleClick} className="btn btn-primary">Register Flight Plan</button>
+                        <button onClick={onScheduleClick} className="btn btn-primary">Book start time</button>
                     </div>
                 )}
                 {isRegisteredButNotPilot && allow_self_management && (
@@ -102,7 +102,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                 )}
                 {status === 'Live' && (
                     <div className="card-actions justify-end items-center">
-                        {canSchedule && allow_self_management && <button onClick={onScheduleClick} className="btn btn-ghost btn-xs px-0 justify-start">Register another flight plan</button>}
+                        {canSchedule && allow_self_management && <button onClick={onScheduleClick} className="btn btn-ghost btn-xs px-0 justify-start">Book another start time</button>}
                         <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="btn btn-primary">Watch Tracking</a>
                     </div>
                 )}

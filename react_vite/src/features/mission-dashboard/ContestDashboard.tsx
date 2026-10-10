@@ -65,6 +65,8 @@ const ContestDashboard = () => {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Errors from actions (withdraw, cancel, loading scores) must not replace the whole page
+    const [actionError, setActionError] = useState<string | null>(null);
 
     const [toastMessage, setToastMessage] = useState<string[] | null>(null);
 
@@ -230,19 +232,22 @@ const ContestDashboard = () => {
     }, [contestId]);
     
     const handleWithdrawClick = async (contestId: number) => {
+        if (!window.confirm('Withdraw your team from this contest?')) return;
+        setActionError(null);
         try {
             await withdraw(contestId);
             await fetchContest(contestId, true);
         } catch (error) {
-            setError((error as Error).message);
+            setActionError((error as Error).message);
         }
     };
 
     const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContantId: number) => {
+        setActionError(null);
         try {
             await cancelFlight(contestId, navigationTaskId, futureContantId);
         } catch (error) {
-            setError((error as Error).message);
+            setActionError((error as Error).message);
         }
     };
 
@@ -253,7 +258,7 @@ const ContestDashboard = () => {
             const fullTaskData = await fetchNavigationTask(contest.id, task.pk);
             setViewingScoresForTask(fullTaskData);
         } catch (err) {
-            setError('Failed to load task scores.');
+            setActionError('Failed to load task scores.');
             setViewingScoresForTask(null);
         } finally {
             setLoadingTaskScores(false);
@@ -289,6 +294,12 @@ const ContestDashboard = () => {
 
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
+            {actionError && (
+                <div role="alert" className="alert alert-error mb-4">
+                    <span className="flex-1">{actionError}</span>
+                    <button className="btn btn-ghost btn-xs" onClick={() => setActionError(null)}>Dismiss</button>
+                </div>
+            )}
             {toastMessage && (
                 <div className="toast toast-top toast-end z-[2000]">
                     {toastMessage.map((msg, idx) => (
@@ -528,7 +539,9 @@ const ContestDashboard = () => {
                         {(() => {
                             if (userContestTeam?.is_user_pilot) {
                                 return (
-                                    <div className="tooltip tooltip-bottom" data-tip={hasFutureFlightsScheduled ? "Cannot withdraw, you have scheduled flights in the future." : ""}>
+                                    <div className="flex gap-2">
+                                    <button className="btn btn-outline" onClick={() => setShowRegistrationForm(true)}>Edit team</button>
+                                    <div className="tooltip tooltip-bottom" data-tip={hasFutureFlightsScheduled ? "Cannot withdraw, you have scheduled flights in the future. Cancel them first." : ""}>
                                         <button
                                             className="btn btn-warning"
                                             onClick={() => handleWithdrawClick(contest.id)}
@@ -537,6 +550,7 @@ const ContestDashboard = () => {
                                             Withdraw
                                         </button>
                                     </div>
+                                    </div>
                                 );
                             } else if (userContestTeam) {
                                 return (
@@ -544,7 +558,7 @@ const ContestDashboard = () => {
                                 );
                             } else if (document.configuration.isAuthenticated) {
                                 return (
-                                    <button className="btn btn-primary" onClick={() => setShowRegistrationForm(true)}>Register team</button>
+                                    <button className="btn btn-primary" onClick={() => setShowRegistrationForm(true)}>Register my team</button>
                                 );
                             } else {
                                 return (
@@ -564,7 +578,7 @@ const ContestDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Task Suite */}
+                {/* Tasks */}
                 <div className="lg:col-span-2 order-1 lg:order-2">
                     {upcomingFlightsForThisContest.length > 0 && (
                         <div className="mb-8">
@@ -574,14 +588,14 @@ const ContestDashboard = () => {
                     )}
                     <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
                         <h2 className="text-2xl font-bold flex items-center gap-2">
-                            Task Suite
+                            Tasks
                             <div className="dropdown dropdown-hover dropdown-left">
                                 <label tabIndex={0} className="m-1"><HelpCircle size={20} className="cursor-pointer" /></label>
                                 <div tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-64">
                                     <p className="font-bold">Open:</p>
-                                    <p className="mb-2">The task's finish time has not passed, and you currently do not have a flight scheduled for it. It is ready for flight plan registration.</p>
+                                    <p className="mb-2">The task's finish time has not passed, and you currently do not have a flight scheduled for it. You can book a start time for it.</p>
                                     <p className="font-bold">Scheduled:</p>
-                                    <p className="mb-2">You have successfully registered a flight plan.</p>
+                                    <p className="mb-2">You have booked a start time.</p>
                                     <p className="font-bold">Live:</p>
                                     <p className="mb-2">The task is actively being tracked.</p>
                                     <p className="font-bold">Finalized:</p>
@@ -721,7 +735,7 @@ const ContestDashboard = () => {
                                             Import teams
                                         </button>
                                         <button className="btn btn-accent btn-sm" onClick={() => setEditingContestTeam('new')}>
-                                            Register team
+                                            Add team
                                         </button>
                                     </div>
                                 </div>

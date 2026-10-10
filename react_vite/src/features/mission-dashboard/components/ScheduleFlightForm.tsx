@@ -5,6 +5,8 @@ import { selectStyles } from '../../../utils/selectStyles';
 import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload, ScheduleFlightPayload, MyContestTeam, Team } from '../types';
 import * as api from '../api';
 import { useMissionDashboardStore } from '../store';
+import ConceptHint from '../../../components/common/ConceptHint';
+import HelpIcon from '../../../components/common/HelpIcon';
 
 const formatInTimeZone = (date: Date, timeZone: string) => {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -42,7 +44,7 @@ interface ScheduleFlightFormProps {
 }
 
 const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, navigationTaskId, myContestTeams, onClose }) => {
-    const { clubs, aircrafts, pilots, fetchClubs, fetchAircrafts, fetchPilots, withdraw } = useMissionDashboardStore();
+    const { clubs, aircrafts, pilots, fetchClubs, fetchAircrafts, fetchPilots } = useMissionDashboardStore();
     const [prefillRegistration, setPrefillRegistration] = useState<MyParticipatingContest | null>(null);
     const [loadingPrefillData, setLoadingPrefillData] = useState<boolean>(false);
 
@@ -122,6 +124,10 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
     
     const handleSubmit = async (e: React.FormEvent) => {
         e.preventDefault();
+        if (!aircraft.trim() || !club.trim()) {
+            setError('Aircraft registration and club are required.');
+            return;
+        }
         setLoading(true);
         setError(null);
 
@@ -170,12 +176,16 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
             }
             
             if (currentPrefill && registrationDetailsChanged) {
-                await withdraw(contest.id);
+                // Edit in place: withdrawing is refused while the team has future flights, and a failed
+                // re-register after a successful withdraw would leave the pilot without a team.
                 const registrationPayload: RegisterTeamPayload = {
                     contestId: contest.id,
                     ...currentRegistrationDetails,
                 };
-                const registrationResponse = await api.registerForContest(registrationPayload);
+                const registrationResponse = await api.updateContestRegistration({
+                    ...registrationPayload,
+                    contestTeamId: currentPrefill.id,
+                });
                 contestTeamId = registrationResponse.id;
                 
                 const teamData = await api.fetchTeam(registrationResponse.team);
@@ -234,7 +244,13 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
     return (
         <div className="card bg-base-100 shadow-xl max-w-2xl mx-auto">
             <div className="card-body">
-                <h2 className="card-title">Schedule flight for {contest.name}</h2>
+                <h2 className="card-title">Book start time for {contest.name}</h2>
+                <ConceptHint id="registration-two-steps" title="Two steps to fly in a contest">
+                    <ol className="list-decimal list-inside">
+                        <li><strong>Register your team</strong>: you, an optional co-pilot and your aircraft. Once per contest; done automatically below if you have not yet.</li>
+                        <li><strong>Book a start time</strong> for this task. Your flight order is emailed to you afterwards.</li>
+                    </ol>
+                </ConceptHint>
                 <form onSubmit={handleSubmit} className="space-y-4">
                     <>
                         <div className="divider">Team Registration</div>
@@ -251,7 +267,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                             />
                         </label>
                         <label className="form-control w-full">
-                            <div className="label"><span className="label-text">Aircraft Registration</span></div>
+                            <div className="label"><span className="label-text">Aircraft Registration *</span></div>
                             <CreatableSelect
                                 options={aircrafts.map(a => ({ value: a.registration, label: a.registration }))}
                                 value={aircraft ? { value: aircraft, label: aircraft } : null}
@@ -264,10 +280,10 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                         </label>
                          <label className="form-control w-full">
                             <div className="label"><span className="label-text">Airspeed (knots)</span></div>
-                            <input type="number" required value={airspeed} onChange={e => setAirspeed(parseInt(e.target.value))} className="input input-bordered w-full" />
+                            <input type="number" required value={airspeed} onChange={e => setAirspeed(e.target.value === '' ? 0 : parseInt(e.target.value))} className="input input-bordered w-full" />
                         </label>
                         <label className="form-control w-full">
-                            <div className="label"><span className="label-text">Club</span></div>
+                            <div className="label"><span className="label-text">Club *</span></div>
                             <CreatableSelect
                                 options={clubs.map(c => ({ value: c.name, label: c.name }))}
                                 value={club ? { value: club, label: club } : null}
@@ -282,24 +298,26 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     
                     <div className="divider">Flight Details</div>
                     <label className="form-control w-full">
-                        <div className="label"><span className="label-text">Starting Point Time</span></div>
+                        <div className="label"><span className="label-text inline-flex items-center">Starting Point Time ({contest.time_zone || 'UTC'})
+                            <HelpIcon text="When you plan to fly over the starting gate, in the contest's local time. Your take-off is calculated from this." />
+                        </span></div>
                         <input type="datetime-local" required value={startTime} onChange={e => setStartTime(e.target.value)} className="input input-bordered w-full" />
                     </label>
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <label className="form-control w-full">
-                            <div className="label"><span className="label-text">Wind Speed (knots)</span></div>
-                            <input type="number" value={windSpeed} onChange={e => setWindSpeed(parseInt(e.target.value))} className="input input-bordered w-full" />
+                            <div className="label"><span className="label-text inline-flex items-center">Wind Speed (knots, 0-40)<HelpIcon text="Forecast wind, used to calculate your planned times." /></span></div>
+                            <input type="number" min={0} max={40} value={windSpeed} onChange={e => setWindSpeed(e.target.value === '' ? 0 : parseInt(e.target.value))} className="input input-bordered w-full" />
                         </label>
                         <label className="form-control w-full">
-                            <div className="label"><span className="label-text">Wind Direction</span></div>
-                            <input type="number" value={windDirection} onChange={e => setWindDirection(parseInt(e.target.value))} className="input input-bordered w-full" />
+                            <div className="label"><span className="label-text inline-flex items-center">Wind Direction (degrees, 0-360)<HelpIcon text="Direction the wind blows from, in degrees." /></span></div>
+                            <input type="number" min={0} max={360} value={windDirection} onChange={e => setWindDirection(e.target.value === '' ? 0 : parseInt(e.target.value))} className="input input-bordered w-full" />
                         </label>
                     </div>
                     <div className="form-control">
                         <label className="label cursor-pointer">
                             <span className="label-text inline-flex items-center">
                                 Adaptive Start
-                                <div className="tooltip tooltip-right" data-tip="If adaptive start is selected, your start time will be set to the nearest whole minute you cross the 10 NM long line going through the starting gate anywhere between one hour before and one hour after the selected starting point time (FAQ).">
+                                <div className="tooltip tooltip-right" data-tip="If adaptive start is selected, your start time will be set to the nearest whole minute you cross the 10 NM long line going through the starting gate anywhere between one hour before and one hour after the selected starting point time (see the FAQ at airsports.no/faq).">
                                     <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" className="stroke-current shrink-0 w-4 h-4 ml-2"><path strokeLinecap="round" strokeLinejoin="round" strokeWidth="2" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z"></path></svg>
                                 </div>
                             </span> 
@@ -313,7 +331,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                         <button type="button" onClick={() => onClose()} className="btn btn-ghost">Cancel</button>
                         <button type="submit" className="btn btn-primary" disabled={loading}>
                             {loading && <span className="loading loading-spinner"></span>}
-                            Schedule
+                            Book start time
                         </button>
                     </div>
                 </form>
