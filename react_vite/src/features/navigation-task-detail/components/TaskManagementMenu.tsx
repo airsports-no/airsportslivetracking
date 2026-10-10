@@ -3,6 +3,7 @@ import { Link, useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { generatePath, reverse } from '../../../urls';
 import { deleteNavigationTask, refreshEditableRoute, removeAllContestants } from '../api';
+import { useToast } from '../../competition-map/hooks/useToast';
 import { useMissionDashboardStore } from '../../mission-dashboard/store';
 import { NavigationTaskDetail } from '../types';
 import BatchUpdateContestantsModal from './BatchUpdateContestantsModal';
@@ -20,6 +21,7 @@ interface TaskManagementMenuProps {
 
 const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navigationTaskId, task, onRefresh }) => {
   const navigate = useNavigate();
+  const { showToast, ToastContainer, toasts, removeToast } = useToast();
   const [removingContestants, setRemovingContestants] = useState(false);
   const [reloadingRoute, setReloadingRoute] = useState(false);
   const [deleting, setDeleting] = useState(false);
@@ -162,7 +164,8 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
         </li>
       </ul>
       <UpdateTaskDetailsModal ref={updateDetailsModalRef} contestId={contestId} navigationTaskId={navigationTaskId} task={task} onUpdated={onRefresh} />
-      <FlightOrderConfigurationModal ref={flightOrderConfigModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
+      <FlightOrderConfigurationModal ref={flightOrderConfigModalRef} contestId={contestId} navigationTaskId={navigationTaskId} onSaved={() => showToast('Flight order configuration saved.', 'success', 5000)} />
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
       <GenerateNavigationMapModal ref={generateMapModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
       <ContestantFormModal
         ref={addContestantModalRef}

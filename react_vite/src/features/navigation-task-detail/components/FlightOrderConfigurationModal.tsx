@@ -14,6 +14,7 @@ export interface FlightOrderConfigurationModalHandle {
 interface FlightOrderConfigurationModalProps {
   contestId: number;
   navigationTaskId: number;
+  onSaved?: () => void;
 }
 
 // Mirrors display/flight_order_and_maps/map_constants.py's SCALES - SCALE_TO_FIT (0) means "fit
@@ -30,7 +31,7 @@ const MAP_SCALE_OPTIONS = [
 ];
 
 const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHandle, FlightOrderConfigurationModalProps>(
-  ({ contestId, navigationTaskId }, ref) => {
+  ({ contestId, navigationTaskId, onSaved }, ref) => {
     const dialogRef = useRef<HTMLDialogElement>(null);
     const [config, setConfig] = useState<FlightOrderConfiguration | null>(null);
     const [mapSourceOptions, setMapSourceOptions] = useState<MapSourceOption[]>([]);
@@ -70,6 +71,8 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
       try {
         const updated = await updateFlightOrderConfiguration(contestId, navigationTaskId, config);
         setConfig(updated);
+        dialogRef.current?.close();
+        onSaved?.();
       } catch (err: any) {
         setError(err.message || 'Failed to save flight order configuration');
       } finally {
