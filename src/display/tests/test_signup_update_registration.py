@@ -5,6 +5,7 @@ the caller's own registration in this contest.
 """
 
 import datetime
+from unittest.mock import MagicMock, patch
 
 from django.urls import reverse
 from rest_framework import status
@@ -84,3 +85,27 @@ class TestSignupUpdateRegistration(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+
+    def test_failure_while_moving_the_team_rolls_the_whole_update_back(self):
+        # replace_team deletes the registration and then re-points contestants and scores. If a later
+        # step fails the pilot must keep their original registration, not end up with none.
+        contest_team_id = self._register(self.user, "LN-AAA")
+        exploding_scores = MagicMock()
+        exploding_scores.objects.filter.return_value.update.side_effect = RuntimeError("boom")
+        self.client.raise_request_exception = False
+        with patch("display.models.TeamTestScore", exploding_scores):
+            response = self.client.put(
+                self.url,
+                data={
+                    "contest_team": contest_team_id,
+                    "aircraft_registration": "LN-BBB",
+                    "club_name": "Club",
+                    "airspeed": 80,
+                    "copilot_id": None,
+                },
+                format="json",
+            )
+        self.assertEqual(response.status_code, 500)
+        contest_team = ContestTeam.objects.get(contest=self.contest)
+        self.assertEqual(contest_team.pk, contest_team_id)
+        self.assertEqual(contest_team.team.aeroplane.registration, "LN-AAA")

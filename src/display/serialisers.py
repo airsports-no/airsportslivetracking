@@ -682,6 +682,7 @@ class TodaysNavigationSerialiser(serializers.ModelSerializer):
 class NavigationTasksLightSerialiser(serializers.ModelSerializer):
     route = RouteSummarySerialiser(read_only=True)
     flown_contestants_count = serializers.SerializerMethodField()
+    contestant_count = serializers.SerializerMethodField()
     active_contestants = serializers.SerializerMethodField("get_active_contestants")
     score_sorting_direction = serializers.ReadOnlyField()
     task_subtype_definition = serializers.SerializerMethodField()
@@ -698,6 +699,7 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
             "allow_self_management",
             "route",
             "flown_contestants_count",
+            "contestant_count",
             "active_contestants",
             "score_sorting_direction",
             "is_public",
@@ -721,6 +723,10 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
 
     def get_flown_contestants_count(self, obj) -> int:
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
+
+    def get_contestant_count(self, obj) -> int:
+        """Everyone scheduled on the task, flown or not (the contest setup checklist needs this)."""
+        return obj.contestant_set.count()
 
 
 class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
@@ -1022,6 +1028,13 @@ class SelfManagementSerialiser(serializers.Serializer):
 
 class SignupSerialiser(serializers.Serializer):
     def update(self, instance, validated_data):
+        # Same locking as create(): replace_team deletes and recreates the registration and then re-points
+        # contestants and scores, which must all happen or none of it.
+        with transaction.atomic():
+            Contest.objects.select_for_update().get(pk=self.context["contest"].pk)
+            return self._update_locked(validated_data)
+
+    def _update_locked(self, validated_data):
         request = self.context["request"]
         contest = self.context["contest"]  # type: Contest
 
