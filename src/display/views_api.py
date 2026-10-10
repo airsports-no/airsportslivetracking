@@ -1,10 +1,10 @@
 from django.core.cache import cache
 from django.http import Http404
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view, permission_classes, throttle_classes
 from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
-from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiTypes
+from drf_spectacular.utils import extend_schema, inline_serializer, OpenApiParameter, OpenApiTypes
 from rest_framework import serializers
 
 from guardian.decorators import permission_required as guardian_permission_required
@@ -20,6 +20,8 @@ from display.serialisers import (
     PersonSerialiserExcludingTracking,
     PersonSignUpSerialiser,
 )
+from display.services.people_search import search_persons, search_users
+from display.throttles import PeopleSearchThrottle
 from display.utilities.calculator_running_utilities import is_calculator_running, is_dispatch_pending
 from display.utilities.country_code_utilities import get_country_code_from_location
 from display.views import get_navigation_task_orders_status_object
@@ -181,6 +183,32 @@ def auto_complete_person_email(request):
         search_qs = Person.objects.filter(email=q)
         serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
         return Response(serialiser.data)
+
+
+@extend_schema(
+    parameters=[
+        OpenApiParameter("q", str, description="Name (at least 3 characters) or a complete email address"),
+        OpenApiParameter("kind", str, enum=["person", "user"], description="person: anyone; user: accounts only"),
+        OpenApiParameter("exclude_self", bool, description="kind=person only; defaults to true"),
+    ],
+    responses={200: OpenApiTypes.ANY},
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+@throttle_classes([PeopleSearchThrottle])
+def search_people(request):
+    """
+    Type-ahead for the pilot/co-pilot and permission pickers. Never returns an email address; see
+    display.services.people_search.
+    """
+    query = request.query_params.get("q", "")
+    kind = request.query_params.get("kind", "person")
+    if kind == "user":
+        return Response(search_users(query, exclude_user_id=request.user.pk))
+    if kind != "person":
+        return Response({"detail": "kind must be 'person' or 'user'"}, status=400)
+    exclude_self = request.query_params.get("exclude_self", "true").lower() != "false"
+    return Response(search_persons(query, exclude_email=request.user.email if exclude_self else None))
 
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
