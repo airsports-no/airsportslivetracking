@@ -13,11 +13,7 @@ from display.tasks import (
     notify_flight_order,
 )
 
-from display.models import Aeroplane, Club, Contest, NavigationTask
-from display.serialisers import (
-    AeroplaneSerialiser,
-    ClubSerialiser,
-)
+from display.models import Contest, NavigationTask
 from display.services.people_search import search_persons, search_users
 from display.throttles import PeopleSearchThrottle
 from display.utilities.calculator_running_utilities import is_calculator_running, is_dispatch_pending
@@ -33,57 +29,12 @@ _LocationRequestSerialiser = inline_serializer(
     },
 )
 
-# Shared request shape for the auto_complete_* endpoints below: `request` selects between
-# a search-suggestions pass (1) and a full-match lookup (anything else), `search` is the query.
-_AutoCompleteRequestSerialiser = inline_serializer(
-    "AutoCompleteRequest",
-    {
-        "request": serializers.IntegerField(),
-        "search": serializers.CharField(required=False, allow_blank=True),
-    },
-)
-
-
 @extend_schema(request=_LocationRequestSerialiser, responses={200: OpenApiTypes.STR})
 @api_view(["POST"])
 def get_country_from_location(request):
     latitude = float(request.data.get("latitude"))
     longitude = float(request.data.get("longitude"))
     return Response(get_country_code_from_location(latitude, longitude))
-
-
-@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def auto_complete_aeroplane(request):
-    request_number = int(request.data.get("request"))
-    if request_number == 1:
-        q = request.data.get("search", "")
-        search_qs = Aeroplane.objects.filter(registration__icontains=q)
-        result = [str(item.registration) for item in search_qs]
-        return Response(result)
-    else:
-        q = request.data.get("search", "")
-        search_qs = Aeroplane.objects.filter(registration=q)
-        serialiser = AeroplaneSerialiser(search_qs, many=True)
-        return Response(serialiser.data)
-
-
-@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def auto_complete_club(request):
-    request_number = int(request.data.get("request"))
-    if request_number == 1:
-        q = request.data.get("search", "")
-        search_qs = Club.objects.filter(name__icontains=q)
-        result = [{"label": "{} ({})".format(item.name, item.country), "value": item.name} for item in search_qs]
-        return Response(result)
-    else:
-        q = request.data.get("search", "")
-        search_qs = Club.objects.filter(name=q)
-        serialiser = ClubSerialiser(search_qs, many=True)
-        return Response(serialiser.data)
 
 
 @extend_schema(

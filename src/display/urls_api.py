@@ -9,8 +9,6 @@ from display.views_api import (
     get_broadcast_navigation_task_orders_status,
     get_contestant_schedule,
     get_country_from_location,
-    auto_complete_aeroplane,
-    auto_complete_club,
     search_people,
 )
 
@@ -41,7 +39,5 @@ urlpatterns = [
         name="navigationtask_getflightordersstatus",
     ),
     path("getcountrycode/", get_country_from_location, name="getcountrycode"),
-    path("aeroplane/autocomplete/registration/", auto_complete_aeroplane, name="autocomplete_aeroplane"),
-    path("club/autocomplete/name/", auto_complete_club, name="autocomplete_club"),
     path("people/search/", search_people, name="people_search"),
 ]
