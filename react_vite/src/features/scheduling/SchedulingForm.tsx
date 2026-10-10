@@ -10,11 +10,13 @@ interface SchedulingFormProps {
     onSubmit: (data: any) => void;
     onCapacityPreviewChange?: (selectedTeamIds: number[], firstTakeoffIso?: string) => void;
     isLoading?: boolean;
+    contestId?: number;
 }
 
 const SchedulingForm: React.FC<SchedulingFormProps> = ({ 
     contestTeams,
     navigationTask,
+    contestId,
     capacityPreview,
     firstTakeoffTime,
     setFirstTakeoffTime,
@@ -241,7 +243,14 @@ const SchedulingForm: React.FC<SchedulingFormProps> = ({
                             </label>
                         );
                     })}
-                    {sortedContestTeams.length === 0 && <div className="text-center text-gray-500 py-4">No teams found.</div>}
+                    {sortedContestTeams.length === 0 && (
+                        <div className="text-center text-gray-500 py-4">
+                            No teams are registered for this contest yet.{' '}
+                            {contestId !== undefined && (
+                                <a className="link link-primary" href={`/mission-dashboard/${contestId}`}>Register teams first</a>
+                            )}
+                        </div>
+                    )}
                 </div>
             </div>
 

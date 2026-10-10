@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useState } from "react";
-import { Link, useNavigate } from "react-router-dom";
+import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Loading } from "../components/basicComponents";
 import { Route } from "../../../types";
 import { MoreVertical, Plus, Copy, Shield, Trash2 } from "lucide-react";
@@ -118,7 +118,7 @@ const EditableRouteTile: React.FC<{
                             Edit route
                         </Link>
                         <button type="button" onClick={() => onCreateNavigationTask(route.id)} className="btn btn-secondary btn-sm">
-                            Task
+                            Create task
                         </button>
                     </div>
                 </div>
@@ -135,7 +135,19 @@ export const EditableRouteList = () => {
     const [subtypeCatalog, setSubtypeCatalog] = useState<TaskCompatibilitySubtype[]>([]);
     const [taskTypeFilter, setTaskTypeFilter] = useState('');
     const [searchQuery, setSearchQuery] = useState('');
-    const [creatingTaskForRouteId, setCreatingTaskForRouteId] = useState<number | null>(null);
+    const [searchParams, setSearchParams] = useSearchParams();
+    // ?createTask=<routeId> (set by the route editor after saving) opens the task flow straight away
+    const [creatingTaskForRouteId, setCreatingTaskForRouteId] = useState<number | null>(() => {
+        const requested = parseInt(searchParams.get('createTask') ?? '', 10);
+        return Number.isNaN(requested) ? null : requested;
+    });
+    useEffect(() => {
+        if (searchParams.has('createTask')) {
+            const next = new URLSearchParams(searchParams);
+            next.delete('createTask');
+            setSearchParams(next, { replace: true });
+        }
+    }, []);
 
     useEffect(() => {
         fetchEditableRoutes()

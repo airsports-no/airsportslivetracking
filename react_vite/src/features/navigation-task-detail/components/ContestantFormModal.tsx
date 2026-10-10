@@ -237,7 +237,10 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
           {loading && <p className="py-4 text-sm text-gray-500">Loading...</p>}
 
           {!loading && !isEditMode && teams.length === 0 && !error && (
-            <p className="py-4 text-sm text-gray-500">No teams are registered for this contest yet.</p>
+            <div className="py-4 text-sm text-gray-500">
+              <p>No teams are registered for this contest yet. A contestant is a team flying this task, so add a team first.</p>
+              <a className="link link-primary" href={`/mission-dashboard/${contestId}`}>Go to the contest to register teams</a>
+            </div>
           )}
 
           {!loading && (isEditMode || teams.length > 0) && (

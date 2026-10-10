@@ -624,7 +624,15 @@ const MissionDashboard = () => {
                             );
                         })}
                         {paginatedContests.length === 0 && !loading && (
-                            <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
+                            (myEditorContests.length === 0 ? (
+                                <div className="text-center mt-2 sm:mt-4 col-span-full">
+                                    <p className="font-semibold">You have not created any contests yet.</p>
+                                    <p className="text-sm opacity-70 mb-3">A contest is the event that holds your routes&apos; tasks, teams and results.</p>
+                                    <a href={reverse("contest_create")} className="btn btn-primary btn-sm">Create your first contest</a>
+                                </div>
+                            ) : (
+                                <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
+                            ))
                         )}
                     </div>
 

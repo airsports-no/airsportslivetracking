@@ -73,6 +73,8 @@ export default function RouteEditor() {
   const { routeId: paramRouteId } = useParams<{ routeId: string }>();
   const navigate = useNavigate();
   const { showToast, ToastContainer, toasts, removeToast } = useToast();
+  // Id of the route just saved, to offer creating a navigation task from it
+  const [createTaskPromptRouteId, setCreateTaskPromptRouteId] = useState<number | null>(null);
   const [routeName, setRouteName] = useState('');
   const [isDirty, setIsDirty] = useState(false);
 
@@ -786,15 +788,17 @@ export default function RouteEditor() {
     try {
       const result = await saveRoute(routeId, payload);
 
-      alert('Route saved successfully!');
+      showToast('Route saved.', 'success');
       setIsDirty(false);
+      const savedRouteId = result.id ?? (routeId ? parseInt(routeId, 10) : null);
+      if (savedRouteId) setCreateTaskPromptRouteId(savedRouteId);
       if (!routeId && result.id) {
         setRouteId(result.id.toString());
         navigate(generatePath('ROUTE_EDITOR_EDIT', { routeId: result.id }), { replace: true });
       }
     } catch (e) {
       console.error(e);
-      alert('Error saving route');
+      showToast('Error saving route. Your changes are still here; try again.', 'error');
     }
   };
 
@@ -830,6 +834,20 @@ export default function RouteEditor() {
   return (
     <>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
+      {createTaskPromptRouteId !== null && (
+        <div className="toast toast-bottom toast-center z-[9998]">
+          <div className="alert alert-info shadow-lg">
+            <span>Next step: turn this route into a navigation task.</span>
+            <Link
+              to={`${generatePath('ROUTE_EDITOR_LIST', {})}?createTask=${createTaskPromptRouteId}`}
+              className="btn btn-sm btn-primary"
+            >
+              Create navigation task
+            </Link>
+            <button className="btn btn-sm btn-ghost" onClick={() => setCreateTaskPromptRouteId(null)}>Later</button>
+          </div>
+        </div>
+      )}
       <div className="flex w-full h-[calc(100vh-66px)] bg-base-200 font-sans text-base-content overflow-hidden">
       <div className="h-full overflow-y-auto shrink-0 max-w-xs">
         <Sidebar
