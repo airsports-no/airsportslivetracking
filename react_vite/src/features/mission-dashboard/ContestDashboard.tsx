@@ -255,6 +255,7 @@ const ContestDashboard = () => {
     };
 
     const handleViewScoresClick = async (task: NavigationTask) => {
+        setActionError(null);
         setLoadingTaskScores(true);
         setViewingScoresForTask(task); // Show modal immediately with partial data
         try {
@@ -616,6 +617,7 @@ const ContestDashboard = () => {
                     )}
                     {canManageThisContest && (
                         <ContestSetupChecklist
+                            key={contest.id}
                             contest={contest}
                             teamCount={teamsLoading ? contest.contest_team_count : teams.length}
                             onAddTask={() => setShowCreateTask(true)}

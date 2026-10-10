@@ -24,6 +24,9 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
     const [airspeed, setAirspeed] = useState<number>(65);
     const [club, setClub] = useState<string>('');
     
+    // When editing, the form stays unavailable until the current registration has loaded, so a slow
+    // response cannot overwrite what the pilot has already typed
+    const [prefillDone, setPrefillDone] = useState<boolean>(!existingRegistration);
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
     const [aircraftError, setAircraftError] = useState<string | null>(null);
@@ -43,6 +46,9 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
             })
             .catch(err => {
                 if (!cancelled) setError(`Could not load your current registration: ${err.message}`);
+            })
+            .finally(() => {
+                if (!cancelled) setPrefillDone(true);
             });
         return () => {
             cancelled = true;
@@ -102,6 +108,17 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
         }
     };
 
+
+    if (!prefillDone) {
+        return (
+            <div className="card bg-base-100 shadow-xl max-w-2xl mx-auto">
+                <div className="card-body items-center">
+                    <span className="loading loading-spinner"></span>
+                    <p className="text-sm opacity-70">Loading your registration...</p>
+                </div>
+            </div>
+        );
+    }
 
     return (
         <div className="card bg-base-100 shadow-xl max-w-2xl mx-auto">

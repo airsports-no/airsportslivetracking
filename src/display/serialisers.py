@@ -89,7 +89,12 @@ from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
 from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
-from display.utilities.tracking_definitions import TRACKING_DEVICES, TrackingService
+from display.utilities.tracking_definitions import (
+    TRACKING_COPILOT,
+    TRACKING_DEVICES,
+    TRACKING_PILOT_AND_COPILOT,
+    TrackingService,
+)
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -1072,6 +1077,11 @@ class SignupSerialiser(serializers.Serializer):
             validated_data["aircraft_registration"],
             validated_data["club_name"],
         )
+        tracking_device = contest_team.tracking_device
+        if tracking_device == TRACKING_COPILOT and team.crew.member2 is None:
+            # Tracking the co-pilot's phone is meaningless (and get_tracker_id would crash) once the co-pilot
+            # has been removed, so fall back to the default instead of copying the old setting.
+            tracking_device = TRACKING_PILOT_AND_COPILOT
         new_contest_team = contest.replace_team(
             original_team,
             team,
@@ -1079,7 +1089,7 @@ class SignupSerialiser(serializers.Serializer):
                 "air_speed": validated_data["airspeed"],
                 # Keep the tracker configuration the organizer may have set on the registration
                 "tracking_service": contest_team.tracking_service,
-                "tracking_device": contest_team.tracking_device,
+                "tracking_device": tracking_device,
                 "tracker_device_id": contest_team.tracker_device_id,
             },
         )
