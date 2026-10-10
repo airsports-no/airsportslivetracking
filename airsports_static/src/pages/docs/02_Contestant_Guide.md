@@ -6,6 +6,8 @@ title: "Contestant Guide: Participating in an Event"
 
 # Contestant Guide: Participating in an Event
 
+> **New to ASLT?** Read [How ASLT Works](/docs/00_How_ASLT_Works) first. It explains contests, routes, navigation tasks, teams and contestants in five minutes.
+
 As a pilot or crew member, your primary interaction with Air Sports Live Tracking (ASLT) occurs through the Mission Dashboard and the mobile app. This guide explains how to properly configure your device, understand your flight order, and manage your participation.
 
 ---

@@ -6,6 +6,8 @@ title: "Contest Manager Guide: Orchestrating an Event"
 
 # Contest Manager Guide: Orchestrating an Event
 
+> **New to ASLT?** Read [How ASLT Works](/docs/00_How_ASLT_Works) first. It explains contests, routes, navigation tasks, teams and contestants in five minutes.
+
 > **World Precision Flying Championship Organizers:** This is a general guide. For the detailed, step-by-step guide tailored for fully managed WPFC competitions, please see the [WPFC Contest Manager Guide](./10_WPFC_Contest_Manager_Guide).
 
 

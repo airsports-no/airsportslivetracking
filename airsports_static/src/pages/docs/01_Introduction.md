@@ -6,6 +6,8 @@ title: "Introduction to Air Sports Live Tracking (ASLT)"
 
 # Introduction to Air Sports Live Tracking (ASLT)
 
+> **New to ASLT?** Read [How ASLT Works](/docs/00_How_ASLT_Works) first. It explains contests, routes, navigation tasks, teams and contestants in five minutes.
+
 Welcome to the comprehensive user manual for **Air Sports Live Tracking (ASLT)**. This platform is an open-source, non-profit system specifically engineered to modernize the management and scoring of competitive flying events. 
 
 By leveraging the ubiquitous nature of smartphones and the power of cloud-based real-time computation, ASLT provides a professional-grade tracking and results service without the prohibitive costs of traditional specialized hardware.
