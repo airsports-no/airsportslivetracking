@@ -14,6 +14,8 @@
         ...document.configuration,
         is_superuser: {{ user.is_superuser | lower }},
         isAuthenticated: {{ user.is_authenticated | lower }},
+        // True when the page is shown inside the mobile app (?embed=app, see EmbedModeMiddleware).
+        embeddedInApp: {{ skip_nav|yesno:"true,false" }},
         userId: {{ user.id|default_if_none:"null" }},
         userEmail: "{{ user.email|escapejs }}",
         {% if perms.display.add_contest %}

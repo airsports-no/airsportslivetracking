@@ -55,10 +55,7 @@ class TestOpenRegistrationToday(TestCase):
         self.assertEqual(self.names(timezone_name="Not/AZone"), ["Late"], "unknown zones fall back to UTC")
 
     def test_public_endpoint_returns_what_a_pilot_needs_to_find_the_place(self):
-        make_task(self.contest, "Running now", -1, 3)
-        with_now = NOW  # the view uses the real clock, so build a task around the real "now" instead
-        real_now = datetime.datetime.now(datetime.timezone.utc)
-        NavigationTask.objects.all().delete()
+        real_now = datetime.datetime.now(datetime.timezone.utc)  # the view uses the real clock, not NOW
         task = NavigationTask.create(
             name="Today", original_scorecard=get_default_scorecard(),
             start_time=real_now - datetime.timedelta(minutes=5), finish_time=real_now + datetime.timedelta(minutes=30),
@@ -112,3 +109,15 @@ class TestEmbedMode(TestCase):
     def test_a_different_cookie_value_does_nothing(self):
         self.client.cookies["embed"] = "yes"
         self.assertContains(self.client.get(self.PAGE), self.NAVBAR)
+
+
+class TestEmbeddedFlagForTheReactApp(TestCase):
+    HOST = "app.airsports.no"
+
+    def test_react_app_knows_when_it_is_shown_inside_the_mobile_app(self):
+        embedded = self.client.get("/", {"embed": "app"}, HTTP_HOST=self.HOST)
+        self.assertContains(embedded, "embeddedInApp: true")
+
+    def test_and_when_it_is_not(self):
+        normal = self.client.get("/", HTTP_HOST=self.HOST)
+        self.assertContains(normal, "embeddedInApp: false")

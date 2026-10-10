@@ -78,17 +78,36 @@ export const mapUrl = (latitude: number, longitude: number): string =>
 export const registerPath = (contestId: number, navigationTaskId: number): string =>
     `/schedule-flight?contestId=${contestId}&navigationTaskId=${navigationTaskId}`;
 
-const time = (iso: string, timeZone: string): string => {
-    try {
-        return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false, timeZone }).format(new Date(iso));
-    } catch {
-        return new Intl.DateTimeFormat('en-GB', { hour: '2-digit', minute: '2-digit', hour12: false }).format(new Date(iso));
-    }
+const PART_OPTIONS: Intl.DateTimeFormatOptions = {
+    weekday: 'short', day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit', hour12: false,
 };
 
-/** "10:00 - 14:30" in the venue's own time zone, which is what a pilot standing there needs. */
-export const formatWindow = (task: OpenRegistrationTask, timeZone: string): string =>
-    `${time(task.start_time, timeZone)} - ${time(task.finish_time, timeZone)}`;
+/** The pieces of an instant as seen in a time zone ("Sat", "10", "Oct", "10", "00"); falls back to the viewer's zone. */
+const parts = (iso: string, timeZone: string) => {
+    let formatter: Intl.DateTimeFormat;
+    try {
+        formatter = new Intl.DateTimeFormat('en-GB', { ...PART_OPTIONS, timeZone });
+    } catch {
+        formatter = new Intl.DateTimeFormat('en-GB', PART_OPTIONS);
+    }
+    const out: Record<string, string> = {};
+    for (const p of formatter.formatToParts(new Date(iso))) out[p.type] = p.value;
+    // Some ICU versions render midnight as "24".
+    const hour = out.hour === '24' ? '00' : out.hour;
+    return { date: `${out.weekday} ${out.day} ${out.month}`, time: `${hour}:${out.minute}` };
+};
+
+/**
+ * The task's registration window with dates, in the venue's own time zone (what a pilot standing there needs):
+ * "Sat 10 Oct 10:00 - 14:30" within one day, "Fri 9 Oct 08:00 - Sun 11 Oct 18:00" across days.
+ */
+export const formatWindow = (task: OpenRegistrationTask, timeZone: string): string => {
+    const start = parts(task.start_time, timeZone);
+    const finish = parts(task.finish_time, timeZone);
+    return start.date === finish.date
+        ? `${start.date} ${start.time} - ${finish.time}`
+        : `${start.date} ${start.time} - ${finish.date} ${finish.time}`;
+};
 
 /** The browser's IANA time zone, so the server can decide what "today" means for this pilot. */
 export const browserTimeZone = (): string | undefined => {

@@ -40,14 +40,26 @@ describe('open today helpers', () => {
         expect(filterGroups(groups, 'nothing')).toEqual([]);
     });
 
-    it('formats the window in the venue time zone, not the viewer\'s', () => {
-        // 08:00-12:30 UTC is 10:00-14:30 in Oslo (UTC+2 in October).
-        expect(formatWindow(task({}), 'Europe/Oslo')).toBe('10:00 - 14:30');
-        expect(formatWindow(task({}), 'UTC')).toBe('08:00 - 12:30');
+    it('shows the date once for a window inside one day, in the venue time zone', () => {
+        // 08:00-12:30 UTC on Sat 10 Oct is 10:00-14:30 in Oslo (UTC+2 in October).
+        expect(formatWindow(task({}), 'Europe/Oslo')).toBe('Sat 10 Oct 10:00 - 14:30');
+        expect(formatWindow(task({}), 'UTC')).toBe('Sat 10 Oct 08:00 - 12:30');
+    });
+
+    it('shows both dates when the window spans several days', () => {
+        const multi = task({ start_time: '2026-10-09T06:00:00Z', finish_time: '2026-10-11T16:00:00Z' });
+        expect(formatWindow(multi, 'Europe/Oslo')).toBe('Fri 9 Oct 08:00 - Sun 11 Oct 18:00');
+    });
+
+    it('uses the venue day, not the UTC day, when deciding whether it is one day', () => {
+        // 22:30 UTC Sat and 01:30 UTC Sun are 00:30 and 03:30 on Sunday in Oslo: one day there, two in UTC.
+        const night = task({ start_time: '2026-10-10T22:30:00Z', finish_time: '2026-10-11T01:30:00Z' });
+        expect(formatWindow(night, 'Europe/Oslo')).toBe('Sun 11 Oct 00:30 - 03:30');
+        expect(formatWindow(night, 'UTC')).toBe('Sat 10 Oct 22:30 - Sun 11 Oct 01:30');
     });
 
     it('falls back gracefully on an unknown time zone', () => {
-        expect(formatWindow(task({}), 'Not/AZone')).toMatch(/^\d\d:\d\d - \d\d:\d\d$/);
+        expect(formatWindow(task({}), 'Not/AZone')).toMatch(/^\w{3} \d{1,2} \w{3} \d\d:\d\d - \d\d:\d\d$/);
     });
 
     it('knows when a venue has no location', () => {

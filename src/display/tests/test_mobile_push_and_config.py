@@ -285,3 +285,32 @@ class TestCalculatorStatusInNowEndpoint(TestCase):
             "display.viewsets.is_dispatch_pending", return_value=True
         ):
             self.assertIs(self.current()["calculator_running"], True)
+
+    def test_reports_whether_the_pilot_may_open_the_live_map_and_where(self):
+        active = self.current()
+        self.assertEqual(active["map_path"], f"/competition-map/{self.contestant.navigation_task.contest_id}/{self.contestant.navigation_task_id}?contestantIds={self.contestant.pk}")
+        task = self.contestant.navigation_task
+        contest = task.contest
+
+        # Private task in a private contest and no permission: the app must tell the pilot to wait for the results.
+        Contest.objects.filter(pk=contest.pk).update(is_public=False)
+        NavigationTask.objects.filter(pk=task.pk).update(is_public=False)
+        self.assertIs(self.current()["map_viewable"], False)
+
+        # Being given view permission on the contest (e.g. by the organizer) opens it.
+        from guardian.shortcuts import assign_perm
+
+        assign_perm("view_contest", self.user, contest)
+        self.assertIs(self.current()["map_viewable"], True)
+
+    def test_a_public_task_in_a_public_contest_is_viewable_without_permissions(self):
+        task = self.contestant.navigation_task
+        Contest.objects.filter(pk=task.contest_id).update(is_public=True)
+        NavigationTask.objects.filter(pk=task.pk).update(is_public=True)
+        self.assertIs(self.current()["map_viewable"], True)
+
+    def test_both_task_and_contest_must_be_public_just_like_the_map_page(self):
+        task = self.contestant.navigation_task
+        Contest.objects.filter(pk=task.contest_id).update(is_public=True)
+        NavigationTask.objects.filter(pk=task.pk).update(is_public=False)
+        self.assertIs(self.current()["map_viewable"], False)

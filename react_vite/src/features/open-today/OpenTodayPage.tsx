@@ -110,9 +110,9 @@ export const OpenTodayList = () => {
                                     <div key={task.navigation_task_id} className="py-3 flex flex-wrap items-center justify-between gap-2">
                                         <div>
                                             <div className="font-semibold">{task.navigation_task_name}</div>
-                                            <div className="text-sm opacity-70">
-                                                {formatWindow(task, group.timeZone)} <span className="opacity-70">(local time at the venue)</span>
-                                            </div>
+                                            <div className="text-xs uppercase tracking-wide opacity-60 mt-1">Flights can be registered between</div>
+                                            <div className="text-sm">{formatWindow(task, group.timeZone)}</div>
+                                            <div className="text-xs opacity-60">Times are local at the venue ({group.timeZone.replace(/_/g, ' ')})</div>
                                             {task.is_open_now && <span className="badge badge-success badge-sm mt-1">Open now</span>}
                                         </div>
                                         <Link className="btn btn-primary btn-sm gap-1" to={registerPath(task.contest_id, task.navigation_task_id)}>

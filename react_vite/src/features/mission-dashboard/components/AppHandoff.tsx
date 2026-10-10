@@ -1,11 +1,14 @@
 import React from 'react';
 import { Smartphone } from 'lucide-react';
+import { isEmbeddedInApp } from '../../../utils/appBridge';
 
 const PLAY_STORE_URL = 'https://play.google.com/store/apps/details?id=no.airsports.android.livetracking';
 const APP_STORE_URL = 'https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686';
 
 /** Tells a pilot with a booked flight what to do on the day: use the phone app with the same email. */
 const AppHandoff: React.FC = () => {
+    // Already in the app: nothing to install.
+    if (isEmbeddedInApp()) return null;
     const email = document.configuration.userEmail;
     return (
         <div className="alert alert-info alert-soft items-start mb-4">
