@@ -7,9 +7,11 @@ import datetime
 from typing import Optional
 
 import pytz
+from django.db.models import Q
 from django.utils import timezone
+from guardian.shortcuts import get_objects_for_user
 
-from display.models import NavigationTask
+from display.models import Contest, NavigationTask
 
 
 def _day_bounds(now: datetime.datetime, timezone_name: Optional[str]):
@@ -22,18 +24,25 @@ def _day_bounds(now: datetime.datetime, timezone_name: Optional[str]):
     return start, start + datetime.timedelta(days=1)
 
 
-def open_registration_tasks_today(timezone_name: Optional[str] = None, now: Optional[datetime.datetime] = None):
+def open_registration_tasks_today(
+    timezone_name: Optional[str] = None, now: Optional[datetime.datetime] = None, user=None
+):
     """
-    Public tasks of public contests that allow self registration and are not over yet, whose time window reaches into
-    "today" (the calendar day in ``timezone_name``, default UTC). Sorted by contest, then start time.
+    Tasks that allow self registration and are not over yet, whose time window reaches into "today" (the calendar day
+    in ``timezone_name``, default UTC). Public tasks of public contests are listed for everybody; a signed-in ``user``
+    also gets the tasks of private contests (or private tasks) they may view, e.g. their own as an organizer. Sorted by
+    contest, then start time.
     """
     now = now or timezone.now()
     _, end_of_day = _day_bounds(now, timezone_name)
+    visible = Q(is_public=True, contest__is_public=True)
+    if user is not None and user.is_authenticated:
+        viewable = get_objects_for_user(user, "display.view_contest", klass=Contest, accept_global_perms=False)
+        visible |= Q(contest__in=viewable.values("pk"))
     return (
         NavigationTask.objects.filter(
+            visible,
             allow_self_management=True,
-            is_public=True,
-            contest__is_public=True,
             start_time__lt=end_of_day,
             finish_time__gte=now,
         )

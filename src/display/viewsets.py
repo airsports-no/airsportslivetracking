@@ -1060,8 +1060,9 @@ class ContestViewSet(ModelViewSet):
     @action(detail=False, methods=["get"])
     def open_registration_today(self, request, *args, **kwargs):
         """
-        Public list of tasks happening today that pilots can register a flight for themselves (self registration), with
-        the contest's name and location so a pilot can find the place to register before flying.
+        Tasks happening today that pilots can register a flight for themselves (self registration), with the contest's
+        name and location so a pilot can find the place to register before flying. Public tasks for everybody, plus the
+        private ones a signed-in user may view.
         Query: ``timezone`` (IANA name; the calendar day to use, default UTC).
         """
         from display.services.open_registration import describe, open_registration_tasks_today
@@ -1070,10 +1071,11 @@ class ContestViewSet(ModelViewSet):
         timezone_name = request.query_params.get("timezone")
         if timezone_name and timezone_name not in pytz.all_timezones_set:
             return Response({"detail": "Unknown timezone."}, status=status.HTTP_400_BAD_REQUEST)
-        tasks = open_registration_tasks_today(timezone_name, now)
+        tasks = open_registration_tasks_today(timezone_name, now, request.user)
         response = Response([describe(task, now) for task in tasks])
-        # Public list; the CDN may keep it for a short while.
-        response["Cache-Control"] = "public, max-age=0, s-maxage=60"
+        # The list depends on who asks and on settings an organizer may have changed a moment ago, and the CDN does not
+        # key on the session, so it must never be shared-cached.
+        response["Cache-Control"] = "private, no-store"
         return response
 
     @action(detail=False, methods=["get"])
