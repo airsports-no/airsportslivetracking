@@ -26,6 +26,8 @@ import ImportTeamsPanel from '../contest-management/components/ImportTeamsPanel'
 import TeamList from '../contest-management/components/TeamList';
 import ContestSettingsForm from '../contest-management/components/ContestSettingsForm';
 import ContestTokenPanel from './components/ContestTokenPanel';
+import ContestSetupChecklist from './components/ContestSetupChecklist';
+import ConceptHint from '../../components/common/ConceptHint';
 import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
 import * as contestManagementApi from '../contest-management/api';
 import {
@@ -606,6 +608,21 @@ const ContestDashboard = () => {
                         <p className="text-sm text-gray-500">Times in {contest.time_zone}</p>
                     </div>
                     {canManageThisContest && (
+                        <ConceptHint id="contest-structure" title="How a contest is organised" className="mb-4">
+                            This contest holds <strong>navigation tasks</strong> (the flights, each built from a route) and <strong>teams</strong> (pilot, optional co-pilot and aircraft).
+                            A team flying a task becomes a <strong>contestant</strong>, one flight with a start time and a score.
+                        </ConceptHint>
+                    )}
+                    {canManageThisContest && (
+                        <ContestSetupChecklist
+                            contest={contest}
+                            teamCount={teamsLoading ? contest.contest_team_count : teams.length}
+                            onAddTask={() => setShowCreateTask(true)}
+                            onAddTeam={() => setEditingContestTeam('new')}
+                            onOpenSettings={() => setShowSettingsModal(true)}
+                        />
+                    )}
+                    {canManageThisContest && (
                         <div className="mb-8">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                                 {!hasTokenCapacityHeadroom && (
@@ -676,6 +693,15 @@ const ContestDashboard = () => {
                             </div>
                         </div>
                     )}
+                    {canManageThisContest && contest.navigationtask_set.length === 0 && (
+                        <div className="card bg-base-100 shadow mb-4">
+                            <div className="card-body items-center text-center">
+                                <p className="font-semibold">No navigation tasks yet</p>
+                                <p className="text-sm opacity-70">A navigation task is one flight event in this contest, built from a route and a scoring ruleset.</p>
+                                <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>Add your first navigation task</button>
+                            </div>
+                        </div>
+                    )}
                     <div className="space-y-4">
                         {contest.navigationtask_set
                             .filter(task => {
@@ -710,6 +736,7 @@ const ContestDashboard = () => {
                                         route={task.route}
                                         flown_contestants_count={task.flown_contestants_count}
                                         canManage={canManageThisContest}
+                                        contestIsPublic={contest.is_public}
                                         taskSubtypeDefinition={task.task_subtype_definition}
                                     />
                                 );

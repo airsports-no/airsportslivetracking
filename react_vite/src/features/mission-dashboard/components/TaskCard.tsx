@@ -28,10 +28,11 @@ interface TaskCardProps {
     isRegisteredButNotPilot?: boolean;
     allow_self_management?: boolean;
     canManage?: boolean;
+    contestIsPublic?: boolean;
     taskSubtypeDefinition?: NavigationTask['task_subtype_definition'];
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management, canManage, taskSubtypeDefinition }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management, canManage, contestIsPublic, taskSubtypeDefinition }) => {
     const getStatusBadge = () => {
         switch (status) {
             case 'Open':
@@ -71,7 +72,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                         Live Map
                     </a>
                     {canManage && allow_self_management && (
-                        <a href={reverse('hangar_flyer', taskId)} className="btn btn-xs btn-outline btn-accent gap-1">
+                        <a href={reverse('hangar_flyer', taskId)} title="Printable poster with a QR code that lets pilots register for this task on the spot" className="btn btn-xs btn-outline btn-accent gap-1">
                             <FileText size={14} />
                             Hangar Flyer
                         </a>
@@ -89,6 +90,15 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                 <p className="text-sm text-gray-500">{formatDateInterval(start_time, finish_time)}</p>
 
                 {contestName && <p>{contestName}</p>}
+                {canManage && allow_self_management && (!(is_public && is_featured) || contestIsPublic === false) && (
+                    <div role="alert" className="alert alert-warning text-sm">
+                        <span>
+                            Self-registration is on, but pilots cannot see this task yet.
+                            {!(is_public && is_featured) && ' Set the task visibility to Public.'}
+                            {contestIsPublic === false && ' The contest itself is still private (see Contest settings).'}
+                        </span>
+                    </div>
+                )}
                 {(status === 'Open' || status === 'Scheduled') && canSchedule && allow_self_management && (
                     <div className="card-actions justify-end items-center gap-2">
                         <button onClick={onScheduleClick} className="btn btn-primary">Book start time</button>
