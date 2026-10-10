@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { directionsUrl, formatWindow, groupByContest, hasLocation, mapUrl, OpenRegistrationTask, registerPath } from './openToday';
+import { directionsUrl, filterGroups, formatWindow, groupByContest, hasLocation, mapUrl, OpenRegistrationTask, registerPath } from './openToday';
 
 const task = (over: Partial<OpenRegistrationTask>): OpenRegistrationTask => ({
     contest_id: 1,
@@ -24,6 +24,20 @@ describe('open today helpers', () => {
             task({ contest_id: 2, contest_name: 'Poker Run', navigation_task_id: 20 }),
         ]);
         expect(groups.map((g) => [g.contestName, g.tasks.length])).toEqual([['Norwegian Cup', 2], ['Poker Run', 1]]);
+    });
+
+    it('filters by contest name or task name, case-insensitively', () => {
+        const groups = groupByContest([
+            task({ navigation_task_id: 10 }),
+            task({ navigation_task_id: 11, navigation_task_name: 'Day 2' }),
+            task({ contest_id: 2, contest_name: 'Poker Run', navigation_task_id: 20, navigation_task_name: 'Morning' }),
+        ]);
+        expect(filterGroups(groups, '  ')).toBe(groups);
+        expect(filterGroups(groups, 'norweg').map((g) => g.tasks.length)).toEqual([2]); // contest match keeps all tasks
+        const byTask = filterGroups(groups, 'DAY 2');
+        expect(byTask.map((g) => g.tasks.map((x) => x.navigation_task_name))).toEqual([['Day 2']]);
+        expect(filterGroups(groups, 'morning').map((g) => g.contestName)).toEqual(['Poker Run']);
+        expect(filterGroups(groups, 'nothing')).toEqual([]);
     });
 
     it('formats the window in the venue time zone, not the viewer\'s', () => {

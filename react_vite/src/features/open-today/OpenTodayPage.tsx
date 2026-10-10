@@ -7,6 +7,7 @@ import {
     browserTimeZone,
     ContestGroup,
     directionsUrl,
+    filterGroups,
     formatWindow,
     groupByContest,
     hasLocation,
@@ -21,6 +22,7 @@ import {
  */
 export const OpenTodayList = () => {
     const [groups, setGroups] = useState<ContestGroup[] | null>(null);
+    const [query, setQuery] = useState('');
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -47,8 +49,29 @@ export const OpenTodayList = () => {
         return <div className="w-full flex items-center justify-center p-8"><Loading /></div>;
     }
 
+    const visible = filterGroups(groups, query);
+
     return (
         <>
+            {groups.length > 0 && (
+                <input
+                    type="search"
+                    className="input input-bordered w-full mb-4"
+                    placeholder="Search contest or task name"
+                    aria-label="Search contest or task name"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                />
+            )}
+
+            {groups.length > 0 && visible.length === 0 && (
+                <div className="card bg-base-200 border border-base-300">
+                    <div className="card-body">
+                        <p>No contests or tasks match "{query.trim()}".</p>
+                    </div>
+                </div>
+            )}
+
             {groups.length === 0 && (
                 <div className="card bg-base-200 border border-base-300">
                     <div className="card-body">
@@ -61,7 +84,7 @@ export const OpenTodayList = () => {
             )}
 
             <div className="flex flex-col gap-4">
-                {groups.map((group) => (
+                {visible.map((group) => (
                     <div key={group.contestId} className="card bg-base-100 border border-base-300 shadow-sm">
                         <div className="card-body p-4 gap-3">
                             <div>
