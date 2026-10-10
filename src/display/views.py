@@ -1296,6 +1296,14 @@ def firebase_token_login(request):
     except drf_exceptions.AuthenticationFailed as e:
         logger.warning("Firebase login with token from app failed: %s", e)
         messages.error(request, f"Login failed: {e}")
+    # Apps call this on app.airsports.no (the React host, so the session cookie is set where the
+    # SPA runs) and pass ?next=/competition-map/... to land directly on the page they want.
+    # Only same-host relative paths are honoured, to avoid an open redirect.
+    next_url = request.GET.get("next", "")
+    if next_url.startswith("/") and url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return redirect(next_url)
     return redirect("/")
 
 

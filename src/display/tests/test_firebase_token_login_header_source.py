@@ -53,3 +53,36 @@ class TestFirebaseTokenLoginHeaderSource(TestCase):
         )
 
         mock_authenticate_credentials.assert_called_once_with("lowercase-scheme-token")
+
+
+class TestFirebaseTokenLoginNextRedirect(TestCase):
+    def _login(self, next_value):
+        from django.contrib.auth import get_user_model
+
+        user = get_user_model().objects.create(email="firebase-next-test@example.com")
+        with patch(
+            "display.authentication.FirebaseTokenAuthentication.authenticate_credentials",
+            return_value=(user, {}),
+        ):
+            return self.client.get(
+                "/firebase_login/",
+                data={"next": next_value},
+                HTTP_AUTHORIZATION="JWT some-token",
+            )
+
+    def test_redirects_to_same_host_relative_path(self):
+        response = self._login("/competition-map/1/2?mode=realtime")
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/competition-map/1/2?mode=realtime")
+
+    def test_rejects_absolute_external_url(self):
+        response = self._login("https://evil.example.com/phish")
+        self.assertEqual(response.url, "/")
+
+    def test_rejects_protocol_relative_url(self):
+        response = self._login("//evil.example.com/phish")
+        self.assertEqual(response.url, "/")
+
+    def test_defaults_to_root_without_next(self):
+        response = self._login("")
+        self.assertEqual(response.url, "/")
