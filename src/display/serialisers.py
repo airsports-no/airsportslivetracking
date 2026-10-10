@@ -213,6 +213,26 @@ class PersonSerialiser(CountryFieldMixin, serializers.ModelSerializer):
         # exclude = ("phone",)
 
 
+class OwnPersonSerialiser(PersonSerialiser):
+    """
+    The signed-in user's own profile as the mobile apps need it: PersonSerialiser plus whether they may track for free
+    (operator-granted or staff). Deliberately not on PersonSerialiser itself, which other serialisers reuse.
+    """
+
+    tracking_free_access = serializers.SerializerMethodField()
+
+    def get_tracking_free_access(self, person) -> Optional[dict]:
+        from display.services.tracking_access import free_tracking_access
+
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        # Only ever about the requesting user's own profile.
+        if user is None or getattr(user, "email", None) != person.email:
+            return None
+        access = free_tracking_access(user)
+        return access.as_dict() if access else None
+
+
 class PersonSerialiserExcludingTracking(CountryFieldMixin, serializers.ModelSerializer):
     phone = PhoneNumberField(required=False)
 

@@ -172,7 +172,9 @@ class UserEntitlementGrant(models.Model):
     """
 
     KIND_TASK_TYPE_GROUP = "task_type_group"
-    KINDS = ((KIND_TASK_TYPE_GROUP, "Task-type group"),)
+    # Free tracking in the mobile apps (no store subscription needed). The value is free text for the operator (e.g. "free").
+    KIND_APP_TRACKING = "app_tracking"
+    KINDS = ((KIND_TASK_TYPE_GROUP, "Task-type group"), (KIND_APP_TRACKING, "Free app tracking (no subscription needed)"))
 
     user = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE, help_text="User this entitlement is granted to.")
     kind = models.CharField(max_length=40, choices=KINDS, default=KIND_TASK_TYPE_GROUP, help_text="What kind of thing is being granted; determines how 'value' is interpreted.")

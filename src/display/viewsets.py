@@ -140,6 +140,7 @@ from display.serialisers import (
     NewsletterSubscriberSerialiser,
     OngoingNavigationSerialiser,
     PersonSerialiser,
+    OwnPersonSerialiser,
     PhotoPublicSerialiser,
     PhotoSerialiser,
     PlayingCardSerialiser,
@@ -281,7 +282,7 @@ class UserPersonViewSet(GenericViewSet):
         "get_current_sim_navigation_task": NavigationTasksSummarySerialiser,
         "my_contests": ContestTeamManagementSerialiser,
     }
-    default_serialiser_class = PersonSerialiser
+    default_serialiser_class = OwnPersonSerialiser
 
     def get_serializer_class(self):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
