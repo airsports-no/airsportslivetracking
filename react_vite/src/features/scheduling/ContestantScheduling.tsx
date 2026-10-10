@@ -109,7 +109,7 @@ const ContestantScheduling = () => {
                     loadData(true); // Reload to get new contestants
                 }
                 if (result.messages && result.messages.length > 0) {
-                    result.messages.forEach((msg: string) => showToast(msg, 'warning'));
+                    result.messages.forEach((msg: string) => showToast(msg, 'warning', 15000, true));
                 }
             }
         } catch (error: any) {
@@ -125,7 +125,7 @@ const ContestantScheduling = () => {
                 const updatedContestant = await updateContestant(Number(contestId), Number(navigationTaskId), contestantId, updates);
 
                 if (updatedContestant.overlap_warnings && updatedContestant.overlap_warnings.length > 0) {
-                    updatedContestant.overlap_warnings.forEach((msg: string) => showToast(msg, 'warning'));
+                    updatedContestant.overlap_warnings.forEach((msg: string) => showToast(msg, 'warning', 15000, true));
                 }
 
                 setNavigationTask((prev: any) => {

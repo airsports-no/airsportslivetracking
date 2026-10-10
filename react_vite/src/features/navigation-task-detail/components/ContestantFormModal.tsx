@@ -72,6 +72,8 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
     const [contestantId, setContestantId] = useState<number | undefined>(undefined);
     const isEditMode = contestantId !== undefined;
     const dialogRef = useRef<HTMLDialogElement>(null);
+    const warningDialogRef = useRef<HTMLDialogElement>(null);
+    const [overlapWarnings, setOverlapWarnings] = useState<string[]>([]);
     const [teams, setTeams] = useState<ContestTeamOption[]>([]);
     const [loading, setLoading] = useState(false);
     const [busy, setBusy] = useState(false);
@@ -210,7 +212,8 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
           : await createContestant(contestId, navigationTaskId, payload);
         dialogRef.current?.close();
         if (result.overlap_warnings && result.overlap_warnings.length > 0) {
-          window.alert(result.overlap_warnings.join('\n'));
+          setOverlapWarnings(result.overlap_warnings);
+          warningDialogRef.current?.showModal();
         }
         onSaved();
       } catch (err: any) {
@@ -221,6 +224,7 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
     };
 
     return (
+      <>
       <dialog ref={dialogRef} className="modal">
         <div className="modal-box max-w-2xl">
           <form method="dialog">
@@ -415,6 +419,24 @@ const ContestantFormModal = forwardRef<ContestantFormModalHandle, ContestantForm
           <button>close</button>
         </form>
       </dialog>
+      <dialog ref={warningDialogRef} className="modal">
+        <div className="modal-box">
+          <h3 className="font-bold text-lg text-warning">Overlapping contestants</h3>
+          <div className="py-4 space-y-2 text-sm">
+            {overlapWarnings.map((warning, index) => (
+              // Warnings are HTML-escaped server-side; they may contain links to the other tasks.
+              <p key={index} dangerouslySetInnerHTML={{ __html: warning }} />
+            ))}
+          </div>
+          <form method="dialog" className="modal-action">
+            <button className="btn">Close</button>
+          </form>
+        </div>
+        <form method="dialog" className="modal-backdrop">
+          <button>close</button>
+        </form>
+      </dialog>
+      </>
     );
   }
 );

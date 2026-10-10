@@ -5,6 +5,7 @@ import { getPortalRoot } from '../../../utils/portalRoot';
 export interface ToastMessage {
   id: string;
   message: string;
+  html?: boolean;
   type: 'success' | 'error' | 'info' | 'warning';
 }
 
@@ -19,7 +20,7 @@ const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeToast }) 
       {toasts.map(toast => (
         <div key={toast.id} className={`alert alert-${toast.type} shadow-lg`}>
           <div>
-            <span>{toast.message}</span>
+            {toast.html ? <span dangerouslySetInnerHTML={{ __html: toast.message }} /> : <span>{toast.message}</span>}
           </div>
           <div className="flex-none">
             <button className="btn btn-sm btn-ghost" onClick={() => removeToast(toast.id)}>✕</button>
@@ -39,9 +40,9 @@ export function useToast() {
     setToasts(prev => prev.filter(toast => toast.id !== id));
   }, []);
 
-  const showToast = useCallback((message: string, type: ToastMessage['type'] = 'info', duration: number = 15000) => {
+  const showToast = useCallback((message: string, type: ToastMessage['type'] = 'info', duration: number = 15000, html: boolean = false) => {
     const id = String(toastId.current++);
-    const newToast: ToastMessage = { id, message, type };
+    const newToast: ToastMessage = { id, message, type, html };
     setToasts(prev => [...prev, newToast]);
 
     setTimeout(() => {

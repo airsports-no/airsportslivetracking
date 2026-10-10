@@ -11,6 +11,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import models, IntegrityError
 from django.db.models import F, Q, QuerySet
+from django.utils.html import format_html
 from django.utils.safestring import mark_safe
 
 from display.calculators.calculator_utilities import round_time_minute, round_time_second
@@ -549,8 +550,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         if tracker_overlaps:
             intervals = format_intervals(tracker_overlaps)
             warnings.append(
-                "The tracker '{}' for contestant {} is in use by other contestants for the intervals: {}".format(
-                    self.tracker_device_id, self, intervals
+                format_html(
+                    "The tracker '{}' for contestant {} is in use by other contestants for the intervals: {}",
+                    self.tracker_device_id,
+                    self,
+                    str(intervals),
                 )
             )
 
@@ -558,7 +562,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         aircraft_overlaps = [o for o in overlaps if "Aircraft collision" in o["reasons"]]
         if aircraft_overlaps:
             warnings.append(
-                f"The aircraft {self.team.aeroplane.registration} for contestant {self} is already in use by another contestant during this time period."
+                format_html(
+                    "The aircraft {} for contestant {} is already in use by another contestant during this time period.",
+                    self.team.aeroplane.registration,
+                    self,
+                )
             )
 
         # 3. Pilot Overlaps
@@ -567,19 +575,37 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             links = []
             for item in pilot_overlaps:
                 links.append(
-                    f'<a href="{fe_url("NAVIGATION_TASK_DETAIL", contestId=item["task"].contest_id, navigationTaskId=item["task"].pk)}">{item["task"]}</a>'
+                    format_html(
+                        '<a href="{}">{}</a>',
+                        fe_url("NAVIGATION_TASK_DETAIL", contestId=item["task"].contest_id, navigationTaskId=item["task"].pk),
+                        item["task"],
+                    )
                 )
 
             start_time = min(item["start_time"] for item in pilot_overlaps)
             finish_time = max(item["end_time"] for item in pilot_overlaps)
 
-            msg = f"The pilot '{self.team.crew.member1}' "
+            task_links = mark_safe(", ".join(links))
             if hasattr(self, "navigation_task") and self.navigation_task:
-                msg += f"for contestant {self} is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
+                tz = self.navigation_task.contest.time_zone
+                warnings.append(
+                    format_html(
+                        "The pilot '{}' for contestant {} is competing as a different contestant in the tasks: {} in the time interval {} - {}",
+                        self.team.crew.member1,
+                        self,
+                        task_links,
+                        start_time.astimezone(tz),
+                        finish_time.astimezone(tz),
+                    )
+                )
             else:
-                msg += f"is competing as a different contestant in the tasks: {', '.join(links)}"
-
-            warnings.append(mark_safe(msg))
+                warnings.append(
+                    format_html(
+                        "The pilot '{}' is competing as a different contestant in the tasks: {}",
+                        self.team.crew.member1,
+                        task_links,
+                    )
+                )
 
         # 4. Copilot Overlaps
         copilot_overlaps = [o for o in overlaps if "Copilot collision" in o["reasons"]]
@@ -587,15 +613,24 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             links = []
             for item in copilot_overlaps:
                 links.append(
-                    f'<a href="{fe_url("NAVIGATION_TASK_DETAIL", contestId=item["task"].contest_id, navigationTaskId=item["task"].pk)}">{item["task"]}</a>'
+                    format_html(
+                        '<a href="{}">{}</a>',
+                        fe_url("NAVIGATION_TASK_DETAIL", contestId=item["task"].contest_id, navigationTaskId=item["task"].pk),
+                        item["task"],
+                    )
                 )
 
             start_time = min(item["start_time"] for item in copilot_overlaps)
             finish_time = max(item["end_time"] for item in copilot_overlaps)
 
+            tz = self.navigation_task.contest.time_zone
             warnings.append(
-                mark_safe(
-                    f"The copilot '{self.team.crew.member2}' is competing as a different contestant in the tasks: {', '.join(links)} in the time interval {start_time.astimezone(self.navigation_task.contest.time_zone)} - {finish_time.astimezone(self.navigation_task.contest.time_zone)}"
+                format_html(
+                    "The copilot '{}' is competing as a different contestant in the tasks: {} in the time interval {} - {}",
+                    self.team.crew.member2,
+                    mark_safe(", ".join(links)),
+                    start_time.astimezone(tz),
+                    finish_time.astimezone(tz),
                 )
             )
 
