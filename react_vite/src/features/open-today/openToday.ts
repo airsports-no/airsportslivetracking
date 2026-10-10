@@ -45,6 +45,25 @@ export const groupByContest = (tasks: OpenRegistrationTask[]): ContestGroup[] =>
     return Array.from(groups.values());
 };
 
+/**
+ * Case-insensitive search on contest name or task name. A matching contest keeps all its tasks; otherwise only the
+ * matching tasks are kept, and contests left without tasks are dropped.
+ */
+export const filterGroups = (groups: ContestGroup[], query: string): ContestGroup[] => {
+    const q = query.trim().toLowerCase();
+    if (!q) return groups;
+    const result: ContestGroup[] = [];
+    for (const group of groups) {
+        if (group.contestName.toLowerCase().includes(q)) {
+            result.push(group);
+            continue;
+        }
+        const tasks = group.tasks.filter((t) => t.navigation_task_name.toLowerCase().includes(q));
+        if (tasks.length > 0) result.push({ ...group, tasks });
+    }
+    return result;
+};
+
 export const hasLocation = (g: { latitude: number | null; longitude: number | null }): boolean =>
     g.latitude !== null && g.longitude !== null;
 

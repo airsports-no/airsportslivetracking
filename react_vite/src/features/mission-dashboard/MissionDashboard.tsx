@@ -16,6 +16,7 @@ import { Loading } from '../route-editor/components/basicComponents';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { reverse } from '../../urls';
 import { Map as MapIcon } from 'lucide-react';
+import { OpenTodayList } from '../open-today/OpenTodayPage';
 
 // Define NavigationTask interface based on likely API response structure
 interface NavigationTask {
@@ -140,7 +141,7 @@ const MissionDashboard = () => {
         }
 
         const tab = params.get('tab');
-        if (tab && ['allContests', 'upcoming', 'past', 'editorContests'].includes(tab)) {
+        if (tab && ['allContests', 'openRegistration', 'upcoming', 'past', 'editorContests'].includes(tab)) {
             let shouldSetActiveTab = true;
             if (!document.configuration.isAuthenticated) {
                 if (['upcoming', 'past', 'editorContests'].includes(tab)) {
@@ -509,6 +510,7 @@ const MissionDashboard = () => {
                 <div className="tabs tabs-boxed mb-4">
                     <a className={`tab ${activeTab === 'allContests' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'allContests' })}>All Contests</a> 
                     <>
+                        <a className={`tab ${activeTab === 'openRegistration' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'openRegistration' })}>Open for Registration</a>
                         <a className={`tab ${activeTab === 'upcoming' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'upcoming' })}>My Upcoming Flights</a>
                         <a className={`tab ${activeTab === 'past' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'past' })}>My Past Flights</a>
                         {document.configuration.isOrganizer && (
@@ -665,6 +667,16 @@ const MissionDashboard = () => {
                             </div>
                         </div>
                     )}
+                </div>
+            )}
+
+            {activeTab === 'openRegistration' && document.configuration.isAuthenticated && (
+                <div>
+                    <h2 className="text-2xl font-bold mb-1">Open for Registration Today</h2>
+                    <p className="mb-4 opacity-70">
+                        Tasks you can register a flight for yourself. Find the venue, then register before you fly.
+                    </p>
+                    <OpenTodayList />
                 </div>
             )}
 

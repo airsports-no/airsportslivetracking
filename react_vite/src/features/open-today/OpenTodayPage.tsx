@@ -7,6 +7,7 @@ import {
     browserTimeZone,
     ContestGroup,
     directionsUrl,
+    filterGroups,
     formatWindow,
     groupByContest,
     hasLocation,
@@ -16,11 +17,12 @@ import {
 } from './openToday';
 
 /**
- * Tasks happening today that a pilot can register a flight for, with the venue's location, so the pilot can find the
- * place to register before flying. Also opened inside the mobile app (embedded, without the site's navigation bar).
+ * Tasks happening today that a pilot can register a flight for, grouped by contest with the venue's location, so the
+ * pilot can find the place to register before flying. Used by the standalone page and the mission dashboard tab.
  */
-const OpenTodayPage = () => {
+export const OpenTodayList = () => {
     const [groups, setGroups] = useState<ContestGroup[] | null>(null);
+    const [query, setQuery] = useState('');
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
@@ -41,18 +43,34 @@ const OpenTodayPage = () => {
     }, []);
 
     if (error) {
-        return <div className="container mx-auto p-4"><div role="alert" className="alert alert-error">Could not load today's registrations: {error}</div></div>;
+        return <div role="alert" className="alert alert-error">Could not load today's registrations: {error}</div>;
     }
     if (!groups) {
         return <div className="w-full flex items-center justify-center p-8"><Loading /></div>;
     }
 
+    const visible = filterGroups(groups, query);
+
     return (
-        <div className="container mx-auto p-4 max-w-3xl">
-            <h1 className="text-3xl font-bold mb-1">Open for registration today</h1>
-            <p className="mb-4 opacity-70">
-                Tasks you can register a flight for yourself. Find the venue, then register before you fly.
-            </p>
+        <>
+            {groups.length > 0 && (
+                <input
+                    type="search"
+                    className="input input-bordered w-full mb-4"
+                    placeholder="Search contest or task name"
+                    aria-label="Search contest or task name"
+                    value={query}
+                    onChange={(e) => setQuery(e.target.value)}
+                />
+            )}
+
+            {groups.length > 0 && visible.length === 0 && (
+                <div className="card bg-base-200 border border-base-300">
+                    <div className="card-body">
+                        <p>No contests or tasks match "{query.trim()}".</p>
+                    </div>
+                </div>
+            )}
 
             {groups.length === 0 && (
                 <div className="card bg-base-200 border border-base-300">
@@ -66,7 +84,7 @@ const OpenTodayPage = () => {
             )}
 
             <div className="flex flex-col gap-4">
-                {groups.map((group) => (
+                {visible.map((group) => (
                     <div key={group.contestId} className="card bg-base-100 border border-base-300 shadow-sm">
                         <div className="card-body p-4 gap-3">
                             <div>
@@ -107,8 +125,21 @@ const OpenTodayPage = () => {
                     </div>
                 ))}
             </div>
-        </div>
+        </>
     );
 };
+
+/**
+ * Standalone page. Also opened inside the mobile app (embedded, without the site's navigation bar).
+ */
+const OpenTodayPage = () => (
+    <div className="container mx-auto p-4 max-w-3xl">
+        <h1 className="text-3xl font-bold mb-1">Open for registration today</h1>
+        <p className="mb-4 opacity-70">
+            Tasks you can register a flight for yourself. Find the venue, then register before you fly.
+        </p>
+        <OpenTodayList />
+    </div>
+);
 
 export default OpenTodayPage;
