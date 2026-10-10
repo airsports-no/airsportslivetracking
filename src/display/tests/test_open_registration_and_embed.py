@@ -3,7 +3,9 @@ import datetime
 from django.test import TestCase
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
-from display.models import Contest, NavigationTask, Route
+from guardian.shortcuts import assign_perm
+
+from display.models import Contest, MyUser, NavigationTask, Route
 from display.services.open_registration import open_registration_tasks_today
 
 URL = "/api/v1/contests/open_registration_today/"
@@ -47,6 +49,19 @@ class TestOpenRegistrationToday(TestCase):
         make_task(private_contest, "In private contest", 1, 3)
         self.assertEqual(self.names(timezone_name="UTC"), [])
 
+    def test_private_tasks_are_listed_for_users_who_may_view_the_contest(self):
+        private_contest = Contest.objects.create(name="Private", start_time=NOW, finish_time=NOW, is_public=False)
+        make_task(private_contest, "Mine", 1, 3)
+        make_task(self.contest, "Private task", 1, 3, public=False)
+        make_task(self.contest, "Public", 1, 3)
+        organizer = MyUser.objects.create_user(email="org@example.com", password="pw")
+        other = MyUser.objects.create_user(email="other@example.com", password="pw")
+        assign_perm("display.view_contest", organizer, private_contest)
+        assign_perm("display.view_contest", organizer, self.contest)
+        self.assertEqual(self.names(timezone_name="UTC"), ["Public"])
+        self.assertEqual(self.names(timezone_name="UTC", user=other), ["Public"])
+        self.assertEqual(sorted(self.names(timezone_name="UTC", user=organizer)), ["Mine", "Private task", "Public"])
+
     def test_today_follows_the_callers_time_zone(self):
         # 12:00 UTC is 14:00 in Oslo (UTC+2): a task starting at 23:00 UTC is already tomorrow there.
         make_task(self.contest, "Late", 11, 14)
@@ -66,7 +81,7 @@ class TestOpenRegistrationToday(TestCase):
         response = self.client.get(URL, {"timezone": "UTC"})  # anonymous: no sign-in needed
 
         self.assertEqual(response.status_code, 200)
-        self.assertIn("s-maxage", response["Cache-Control"])
+        self.assertEqual(response["Cache-Control"], "private, no-store")
         item = response.json()[0]
         self.assertEqual((item["contest_name"], item["navigation_task_name"]), ("Norwegian Cup", "Today"))
         self.assertEqual((item["latitude"], item["longitude"]), (59.9, 10.7))
