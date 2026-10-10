@@ -19,6 +19,16 @@
                     Create new Contest
                 {% endif %}
             </h2>
+            {% if not object %}
+                <div role="note" class="alert alert-info alert-soft text-sm">
+                    <div>
+                        A contest is the event that holds your navigation tasks, teams and results.
+                        After creating it you will add a route and a navigation task.
+                        <strong>New contests are private</strong>: only you can see them until you change the visibility in the contest settings.
+                        <a class="link" href="https://airsports.no/docs/00_How_ASLT_Works" target="_blank" rel="noopener">How ASLT works</a>
+                    </div>
+                </div>
+            {% endif %}
             <script src="https://code.jquery.com/jquery-3.6.0.min.js"></script>
             {{ form.media }}
             {% crispy form %}

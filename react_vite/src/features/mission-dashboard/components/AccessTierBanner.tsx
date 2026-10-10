@@ -5,6 +5,22 @@ interface Props {
     accessStatus?: AccessStatus;
 }
 
+/** Plain-language names for the internal source types, for display. */
+export const accessSourceLabel = (sourceType: string | undefined): string => {
+    switch (sourceType) {
+        case 'contest_token':
+            return 'Event token assigned to this contest';
+        case 'club_pass':
+            return 'Your club pass';
+        case 'free_defaults':
+            return 'Free tier (no token needed)';
+        case 'manual_override':
+            return 'Set manually by an administrator';
+        default:
+            return sourceType ?? 'Unknown';
+    }
+};
+
 const formatLimit = (value: number | null | undefined) => (value == null ? 'Unlimited' : String(value));
 
 const AccessTierBanner: React.FC<Props> = ({ accessStatus }) => {
@@ -24,7 +40,7 @@ const AccessTierBanner: React.FC<Props> = ({ accessStatus }) => {
             <div className="w-full">
                 <div className="flex items-center gap-2 mb-1">
                     <span className={badgeClass}>{accessStatus.tier_label}</span>
-                    <span className="text-xs opacity-70">Source: {accessStatus.source_type}</span>
+                    <span className="text-xs opacity-70">{accessSourceLabel(accessStatus.source_type)}</span>
                 </div>
                 <div className="text-sm opacity-80">
                     Contestants: {accessStatus.contestants_used} / {formatLimit(accessStatus.contestant_limit)} · Tasks: {accessStatus.tasks_used} / {formatLimit(accessStatus.task_limit)}

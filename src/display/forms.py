@@ -416,14 +416,18 @@ class ContestForm(forms.ModelForm):
                 "start_time",
                 "finish_time",
                 "organizing_club",
-                "initial_token_grant",
             ),
             Fieldset(
                 "Contest location",
                 "location",
             ),
             Fieldset("Publicity", "contest_website", "header_image", "logo"),
-            Fieldset("Result service", "summary_score_sorting_direction", "autosum_scores"),
+            Fieldset(
+                "Advanced (optional, can be changed later)",
+                "initial_token_grant",
+                "summary_score_sorting_direction",
+                "autosum_scores",
+            ),
             ButtonHolder(Submit("submit", "Submit")),
         )
 

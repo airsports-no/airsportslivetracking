@@ -27,6 +27,7 @@ import TeamList from '../contest-management/components/TeamList';
 import ContestSettingsForm from '../contest-management/components/ContestSettingsForm';
 import ContestTokenPanel from './components/ContestTokenPanel';
 import ContestSetupChecklist from './components/ContestSetupChecklist';
+import { accessSourceLabel } from './components/AccessTierBanner';
 import ConceptHint from '../../components/common/ConceptHint';
 import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
 import * as contestManagementApi from '../contest-management/api';
@@ -796,7 +797,7 @@ const ContestDashboard = () => {
                             <h3 className="card-title text-lg">Access &amp; limits</h3>
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <span className="badge badge-info">{contest.access_status?.tier_label}</span>
-                                <span className="text-xs opacity-70">Source: {contest.access_status?.source_type}</span>
+                                <span className="text-xs opacity-70">{accessSourceLabel(contest.access_status?.source_type)}</span>
                             </div>
                             <div className="bg-base-100 rounded-lg p-3 text-sm">
                                 <div className="opacity-70">Competing pilots</div>
@@ -804,6 +805,14 @@ const ContestDashboard = () => {
                                     {contest.access_status?.contestants_used} /{' '}
                                     {contest.access_status?.contestant_limit == null ? 'Unlimited' : contest.access_status.contestant_limit}
                                 </div>
+                                <div className="opacity-70 mt-2">Navigation tasks</div>
+                                <div className="font-semibold">
+                                    {contest.access_status?.tasks_used} /{' '}
+                                    {contest.access_status?.task_limit == null ? 'Unlimited' : contest.access_status.task_limit}
+                                </div>
+                                <p className="text-xs opacity-70 mt-2">
+                                    Counts include pilots and tasks that have already started, even if you later remove them.
+                                </p>
                             </div>
                         </div>
                     </div>

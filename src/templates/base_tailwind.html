@@ -124,6 +124,9 @@
                                 <summary>Help</summary>
                                 <ul class="p-2 bg-neutral rounded-t-none z-[5001] w-56">
                                     <li><a href="https://airsports.no/docs/00_How_ASLT_Works" target="_blank">How ASLT works</a></li>
+                                    {% if perms.display.add_contest %}
+                                        <li><a href="{% fe_url 'UPGRADE_SUCCESS' %}">Organizer getting started</a></li>
+                                    {% endif %}
                                     <li><a href="https://airsports.no/docs/02_Contestant_Guide" target="_blank">Pilot guide</a></li>
                                     <li><a href="https://airsports.no/docs/03_Contest_Manager_Guide" target="_blank">Organizer guide</a></li>
                                     <li><a href="https://airsports.no/tutorials" target="_blank">Video tutorials</a></li>

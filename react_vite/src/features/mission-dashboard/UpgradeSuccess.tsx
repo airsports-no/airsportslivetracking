@@ -24,26 +24,27 @@ const UpgradeSuccess = () => {
 
                     <h2 className="text-2xl font-semibold border-b pb-2">The Basic Workflow</h2>
                     
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6 my-6 not-prose">
-                        <div className="card bg-base-200">
-                            <div className="card-body p-4">
-                                <h3 className="font-bold text-lg">1. Create a Contest</h3>
-                                <p className="text-sm">Set up your event container. Control visibility, dates, and sharing.</p>
-                            </div>
-                        </div>
-                        <div className="card bg-base-200">
-                            <div className="card-body p-4">
-                                <h3 className="font-bold text-lg">2. Design Routes</h3>
-                                <p className="text-sm">Use the Route Editor to create waypoints and competition tasks.</p>
-                            </div>
-                        </div>
-                        <div className="card bg-base-200">
-                            <div className="card-body p-4">
-                                <h3 className="font-bold text-lg">3. Add Participants</h3>
-                                <p className="text-sm">Manage teams and assign them to tasks for live tracking.</p>
-                            </div>
-                        </div>
-                    </div>
+                    <ol className="grid grid-cols-1 md:grid-cols-2 gap-4 my-6 not-prose list-none">
+                        {[
+                            ['1. Create a Contest', 'The event itself: name, dates, location and visibility. New contests are private until you share them.'],
+                            ['2. Design a Route', 'Draw or import the flight path in the Route Editor. A route is reusable; many tasks can be built from it.'],
+                            ['3. Add a Navigation Task', 'Inside the contest, combine a route with a scoring ruleset. The task is the flight pilots will fly.'],
+                            ['4. Add Teams', 'A team is pilot, optional co-pilot and aircraft. Register them yourself, import a list, or let pilots register.'],
+                            ['5. Schedule Start Times', 'A team on a task becomes a contestant. Schedule start times yourself, or turn on self-management for pilots.'],
+                            ['6. Share and Fly', 'Make the contest public, send flight orders, and watch the live map.'],
+                        ].map(([title, text]) => (
+                            <li key={title} className="card bg-base-200">
+                                <div className="card-body p-4">
+                                    <h3 className="font-bold text-lg">{title}</h3>
+                                    <p className="text-sm">{text}</p>
+                                </div>
+                            </li>
+                        ))}
+                    </ol>
+                    <p className="text-sm">
+                        Each contest page shows a setup checklist that walks through these steps.{' '}
+                        <a className="link link-primary" href="https://airsports.no/docs/00_How_ASLT_Works" target="_blank" rel="noreferrer">Read the overview</a>.
+                    </p>
 
                     <h2 className="text-2xl font-semibold border-b pb-2">Key Features</h2>
                     
@@ -77,12 +78,13 @@ const UpgradeSuccess = () => {
                     <div className="divider my-8">Quick Links</div>
 
                     <div className="flex flex-wrap gap-4 justify-center not-prose">
-                        <a href="/?tab=editorContests" className="btn btn-primary">
+                        <a href={reverse("contest_create")} className="btn btn-primary">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M12 4.5v15m7.5-7.5h-15" />
                             </svg>
-                            My Contests
+                            Create a (test) contest
                         </a>
+                        <a href="/?tab=editorContests" className="btn btn-outline">My Contests</a>
                         <Link to={`/${routes.ROUTE_EDITOR_LIST}`} className="btn btn-secondary">
                             <svg xmlns="http://www.w3.org/2000/svg" fill="none" viewBox="0 0 24 24" strokeWidth={1.5} stroke="currentColor" className="w-5 h-5 mr-2">
                                 <path strokeLinecap="round" strokeLinejoin="round" d="M9 6.75V15m6-10.5v.75m.001 3v.75m0 3v.75m0 3V18m-6-11.25h.008v.008h-.008V6.75zm.001 3h.008v.008h-.008V9.75zm.001 3h.008v.008h-.008v-.008zm3-6h.008v.008h-.008V6.75zm.001 3h.008v.008h-.008V9.75zm.001 3h.008v.008h-.008v-.008zM6 6.75h.007v.008H6V6.75zm.001 3h.007v.008H6.001V9.75zm.001 3h.007v.008H6.002v-.008zm3 6h.007v.008h-.007v-.008zm3 0h.007v.008h-.007v-.008zm3 0h.007v.008h-.007v-.008z" />
