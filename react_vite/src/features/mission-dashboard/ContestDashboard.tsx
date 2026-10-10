@@ -27,7 +27,7 @@ import TeamList from '../contest-management/components/TeamList';
 import ContestSettingsForm from '../contest-management/components/ContestSettingsForm';
 import ContestTokenPanel from './components/ContestTokenPanel';
 import ContestSetupChecklist from './components/ContestSetupChecklist';
-import { accessSourceLabel } from './components/AccessTierBanner';
+import { accessSourceLabel } from './accessLabels';
 import ConceptHint from '../../components/common/ConceptHint';
 import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
 import * as contestManagementApi from '../contest-management/api';
