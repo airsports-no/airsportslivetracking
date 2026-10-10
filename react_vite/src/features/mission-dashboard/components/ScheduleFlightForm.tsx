@@ -128,6 +128,10 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
             setError('Aircraft registration and club are required.');
             return;
         }
+        if (!(airspeed > 0)) {
+            setError('Airspeed must be greater than 0 knots.');
+            return;
+        }
         setLoading(true);
         setError(null);
 
@@ -277,7 +281,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                         </label>
                          <label className="form-control w-full">
                             <div className="label"><span className="label-text">Airspeed (knots)</span></div>
-                            <input type="number" required value={airspeed} onChange={e => setAirspeed(e.target.value === '' ? 0 : parseInt(e.target.value))} className="input input-bordered w-full" />
+                            <input type="number" required min={1} value={airspeed} onChange={e => setAirspeed(e.target.value === '' ? 0 : parseInt(e.target.value))} className="input input-bordered w-full" />
                         </label>
                         <label className="form-control w-full">
                             <div className="label"><span className="label-text">Club *</span></div>

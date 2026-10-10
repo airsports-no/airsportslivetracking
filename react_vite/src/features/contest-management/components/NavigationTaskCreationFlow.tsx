@@ -66,12 +66,11 @@ const NavigationTaskCreationFlow: React.FC<NavigationTaskCreationFlowProps> = ({
     };
 
     const goBack = () => {
+        const previous = stepHistory[stepHistory.length - 1];
+        if (!previous) return;
         setError(null);
-        setStepHistory(history => {
-            const previous = history[history.length - 1];
-            if (previous) setStep(previous);
-            return history.slice(0, -1);
-        });
+        setStep(previous);
+        setStepHistory(history => history.slice(0, -1));
     };
 
     const stepLabels: Record<NavigationTaskCreationStep, string> = {

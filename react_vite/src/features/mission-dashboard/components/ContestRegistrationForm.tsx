@@ -68,6 +68,10 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
         if (!trimmedAircraft || !trimmedClub) {
             return;
         }
+        if (!(airspeed > 0)) {
+            setError('Airspeed must be greater than 0 knots.');
+            return;
+        }
 
         setLoading(true);
 
@@ -142,7 +146,7 @@ const ContestRegistrationForm: React.FC<ContestRegistrationFormProps> = ({ conte
                         {/* Airspeed */}
                          <label className="form-control w-full">
                             <div className="label"><span className="label-text">Airspeed (knots)</span></div>
-                            <input type="number" required value={airspeed} onChange={e => setAirspeed(e.target.value === '' ? 0 : parseInt(e.target.value))} className="input input-bordered w-full" />
+                            <input type="number" required min={1} value={airspeed} onChange={e => setAirspeed(e.target.value === '' ? 0 : parseInt(e.target.value))} className="input input-bordered w-full" />
                         </label>
                         {/* Club */}
                         <label className="form-control w-full">
