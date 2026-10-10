@@ -426,6 +426,7 @@ class UserPersonViewSet(GenericViewSet):
             )
             .order_by("takeoff_time")
             .distinct()
+            .select_related("navigation_task__contest", "team__crew__member1")
             .prefetch_related("emailmaplink_set")
         )
         return Response(FutureContestantNestedTeamSerialiser(contestants, many=True, context={"request": request}).data)
