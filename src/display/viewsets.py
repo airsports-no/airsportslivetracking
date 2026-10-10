@@ -492,8 +492,11 @@ class UserPersonViewSet(GenericViewSet):
             raise Http404
 
         tasks_map = {}
+        map_viewable = {}  # per task: the permission check can hit the database
         for contestant, _ in contestants_data:
             task = contestant.navigation_task
+            if task.pk not in map_viewable:
+                map_viewable[task.pk] = can_view_task_map(request.user, task)
             if task.pk not in tasks_map:
                 tasks_map[task.pk] = {
                     "navigation_task": NavigationTasksSummarySerialiser(
@@ -509,7 +512,7 @@ class UserPersonViewSet(GenericViewSet):
                     "calculator_running": is_calculator_running(contestant.pk) or is_dispatch_pending(contestant.pk),
                     # Whether the pilot may open the live map of this task (so the app can offer "View your flight" or
                     # explain that the results must be awaited) and the page that shows their own flight.
-                    "map_viewable": can_view_task_map(request.user, task),
+                    "map_viewable": map_viewable[task.pk],
                     "map_path": map_path_for(contestant),
                 }
             )
