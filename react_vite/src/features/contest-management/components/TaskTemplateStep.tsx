@@ -54,6 +54,13 @@ const TaskTemplateStep: React.FC<TaskTemplateStepProps> = ({ editableRouteId, va
                 />
             </label>
             {message && <p className="text-sm text-warning mt-2">{message}</p>}
+            <p className="text-sm opacity-70 mt-2">
+                Not sure which type to choose?{' '}
+                <a className="link link-primary" href="https://airsports.no/docs/07_Competition_Types_and_Scorecards" target="_blank" rel="noreferrer">
+                    Read about competition types and scorecards
+                </a>
+                .
+            </p>
         </div>
     );
 };

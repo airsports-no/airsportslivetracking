@@ -3,6 +3,7 @@ import Select from 'react-select';
 import { selectStyles } from '../../../utils/selectStyles';
 import { fetchEditableRoutes } from '../../route-editor/api';
 import { Route } from '../../../types';
+import appRoutes from '../../../routes.json';
 
 interface RouteSelectionStepProps {
     subtypeKey: string;
@@ -18,13 +19,16 @@ const RouteSelectionStep: React.FC<RouteSelectionStepProps> = ({ subtypeKey, val
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
 
-    useEffect(() => {
+    const loadRoutes = () => {
         setLoading(true);
+        setError(null);
         fetchEditableRoutes()
             .then(setRoutes)
             .catch(err => setError((err as Error).message))
             .finally(() => setLoading(false));
-    }, []);
+    };
+
+    useEffect(loadRoutes, []);
 
     if (loading) return <span className="loading loading-spinner"></span>;
     if (error) return <div className="alert alert-error">{error}</div>;
@@ -45,9 +49,23 @@ const RouteSelectionStep: React.FC<RouteSelectionStepProps> = ({ subtypeKey, val
                 />
             </label>
             {compatibleRoutes.length === 0 && (
-                <p className="text-sm text-warning mt-2">
-                    None of your routes support this task type yet. Edit a route to add what's missing, or create a new one.
-                </p>
+                <div className="alert alert-warning mt-3 text-sm items-start">
+                    <div className="flex-1">
+                        <p>
+                            {routes.length === 0
+                                ? 'You have no routes yet. A route is the flight path of a task: draw one in the route editor or import a file.'
+                                : "None of your routes support this task type yet. Edit a route to add what's missing, or create a new one."}
+                        </p>
+                        <p className="mt-1 opacity-80">
+                            The route editor opens in a new tab so you keep your place here. Come back and press <em>Refresh routes</em> when you have saved it.
+                        </p>
+                        <div className="flex flex-wrap gap-2 mt-2">
+                            <a className="btn btn-xs btn-primary" href={`/${appRoutes.ROUTE_EDITOR_CREATE}`} target="_blank" rel="noreferrer">Create a route</a>
+                            <a className="btn btn-xs btn-outline" href={`/${appRoutes.ROUTE_EDITOR_LIST}`} target="_blank" rel="noreferrer">My routes / import</a>
+                            <button type="button" className="btn btn-xs btn-outline" onClick={loadRoutes}>Refresh routes</button>
+                        </div>
+                    </div>
+                </div>
             )}
         </div>
     );
