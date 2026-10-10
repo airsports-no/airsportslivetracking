@@ -5,6 +5,7 @@ from django.core.mail import send_mail
 from django.db import models
 from django.templatetags.static import static
 from django.urls import reverse
+from django.utils.html import escape
 
 logger = logging.getLogger(__name__)
 
@@ -96,18 +97,33 @@ ____________________________________________________________
         logger.info(f"Sending email to {email_address}")
         url = "https://app.airsports.no" + reverse("email_map_link", kwargs={"key": self.id})
 
-        starting_point_time_string = self.contestant.starting_point_time_local.strftime("%Y-%m-%d %H:%M:%S")
-        tracking_start_time_string = self.contestant.tracker_start_time_local.strftime("%Y-%m-%d %H:%M:%S")
+        navigation_task = self.contestant.navigation_task
+        contest_name = navigation_task.contest.name
+        # %Z labels the contest timezone so the time is unambiguous for pilots flying away from home
+        starting_point_time_string = self.contestant.starting_point_time_local.strftime("%Y-%m-%d %H:%M:%S %Z")
+        tracking_start_time_string = self.contestant.tracker_start_time_local.strftime("%Y-%m-%d %H:%M:%S %Z")
+        time_kind = "estimated" if self.contestant.adaptive_start else "exact"
+        adaptive_text = (
+            f" and adaptive start (with earliest takeoff time {tracking_start_time_string})"
+            if self.contestant.adaptive_start
+            else ""
+        )
+
+        def describe(task_name: str, contest_title: str) -> str:
+            return (
+                f"your navigation task '{task_name}' in the contest '{contest_title}' with {time_kind} "
+                f"starting point time {starting_point_time_string}{adaptive_text}"
+            )
+
+        description = describe(navigation_task.name, contest_name)
+        # Task, contest and first names are user-controlled; escape them for the HTML body only
+        description_html = describe(escape(navigation_task.name), escape(contest_name))
         send_mail(
-            f"Flight orders for task {self.contestant.navigation_task.name}",
-            f"Hi {first_name},\n\nHere is the <a href='{url}'>link to download the flight orders</a> for your navigation task "
-            + f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
-            f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.\n\n{url}\n{self.PLAINTEXT_SIGNATURE}",
+            f"Flight orders for task {navigation_task.name} ({contest_name})",
+            f"Hi {first_name},\n\nHere is the link to download the flight orders for {description}.\n\n"
+            f"{url}\n{self.PLAINTEXT_SIGNATURE}",
             None,  # Should default to system from email
             recipient_list=[email_address],
-            html_message=f"Hi {first_name},<p>Here is the link to download the flight orders for  "
-            f"your navigation task "
-            f"'{self.contestant.navigation_task.name}' with {'estimated' if self.contestant.adaptive_start else 'exact'} starting point time {starting_point_time_string} "
-            f"{f'and adaptive start (with earliest takeoff time {tracking_start_time_string})' if self.contestant.adaptive_start else ''}.<p>"
+            html_message=f"Hi {escape(first_name)},<p>Here is the link to download the flight orders for {description_html}.<p>"
             f"<a href='{url}'>Flight orders link</a><p>{self.HTML_SIGNATURE}",
         )

@@ -159,6 +159,7 @@ from display.serialisers import (
     TodaysNavigationSerialiser,
     TrackAnnotationSerialiser,
 )
+from display.services.people_search import user_identities
 from display.services.access_resolver import resolve_contest_access
 from display.services.admin_flight_stats import BIN_GRANULARITIES, build_admin_flight_stats
 from display.services.admin_system_stats import (
@@ -332,6 +333,28 @@ class UserPersonViewSet(GenericViewSet):
 
     def perform_update(self, serializer):
         serializer.save()
+
+    @action(detail=False, methods=["delete"])
+    def delete_account(self, request, *args, **kwargs):
+        """
+        Permanently deletes the signed-in user's account (login, profile and Firebase account); the profile is
+        anonymized instead of deleted when it is part of a team. The body must contain the account's email as
+        confirmation. Required by the App Store / Google Play for apps with account creation.
+        """
+        from display.services.account_deletion import AccountDeletionBlocked, blocked_reason, delete_account
+
+        user = request.user
+        reason = blocked_reason(user)
+        if reason:
+            return Response({"detail": reason}, status=status.HTTP_409_CONFLICT)
+        confirmation = str(request.data.get("email", "")).strip().lower()
+        if not user.email or confirmation != user.email.lower():
+            return Response({"detail": "Confirm by sending your account email."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            delete_account(user.email)
+        except AccountDeletionBlocked as e:
+            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["get"])
     def my_contest_teams(self, request, *args, **kwargs):
@@ -1073,7 +1096,11 @@ class ContestViewSet(ModelViewSet):
         target_user = serialiser.context["target_user"]
         set_contest_permission_level(contest, target_user, serialiser.validated_data["level"], request.user)
         return Response(
-            {"user_id": target_user.pk, "email": target_user.email, "level": serialiser.validated_data["level"]},
+            {
+                "user_id": target_user.pk,
+                **user_identities([target_user])[target_user.pk],
+                "level": serialiser.validated_data["level"],
+            },
             status=status.HTTP_201_CREATED,
         )
 
@@ -1093,7 +1120,11 @@ class ContestViewSet(ModelViewSet):
         serialiser.is_valid(raise_exception=True)
         set_contest_permission_level(contest, target_user, serialiser.validated_data["level"], request.user)
         return Response(
-            {"user_id": target_user.pk, "email": target_user.email, "level": serialiser.validated_data["level"]},
+            {
+                "user_id": target_user.pk,
+                **user_identities([target_user])[target_user.pk],
+                "level": serialiser.validated_data["level"],
+            },
             status=status.HTTP_200_OK,
         )
 

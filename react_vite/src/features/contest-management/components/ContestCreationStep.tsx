@@ -1,3 +1,4 @@
+import LocationMapField from './LocationMapField';
 import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
@@ -46,6 +47,7 @@ const ContestCreationStep: React.FC<ContestCreationStepProps> = ({ onExistingCon
     });
     const timeZone = watch('time_zone');
     const organizingClub = watch('organizing_club');
+    const location = watch('location');
 
     if (loading) return <span className="loading loading-spinner"></span>;
     if (error) return <div className="alert alert-error">{error}</div>;
@@ -103,6 +105,7 @@ const ContestCreationStep: React.FC<ContestCreationStepProps> = ({ onExistingCon
                         <input className="input input-bordered w-full" placeholder="60.0,11.0" {...register('location')} />
                         {errors.location && <span className="text-error text-sm">{errors.location.message}</span>}
                     </label>
+                    <LocationMapField value={location} onChange={value => setValue('location', value, { shouldDirty: true, shouldValidate: true })} />
 
                     <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                         <label className="form-control w-full">

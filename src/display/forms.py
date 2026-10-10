@@ -1,6 +1,7 @@
 import datetime
 import json
 
+from django.urls import reverse
 from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Layout, ButtonHolder, Submit, Fieldset, Field, HTML
 from django import forms
@@ -416,14 +417,18 @@ class ContestForm(forms.ModelForm):
                 "start_time",
                 "finish_time",
                 "organizing_club",
-                "initial_token_grant",
             ),
             Fieldset(
                 "Contest location",
                 "location",
             ),
             Fieldset("Publicity", "contest_website", "header_image", "logo"),
-            Fieldset("Result service", "summary_score_sorting_direction", "autosum_scores"),
+            Fieldset(
+                "Advanced (optional, can be changed later)",
+                "initial_token_grant",
+                "summary_score_sorting_direction",
+                "autosum_scores",
+            ),
             ButtonHolder(Submit("submit", "Submit")),
         )
 
@@ -628,7 +633,14 @@ PERMISSIONS_CHOICE = [("nothing", "Nothing"), ("view", "View"), ("change", "Chan
 
 
 class AddPermissionsForm(forms.Form):
-    email = forms.EmailField()
+    """
+    The user is normally chosen with the type-ahead picker (PersonPickerWidget), which fills in
+    user_id. The email field is the fallback for pages without JavaScript, and still works for
+    someone who knows the exact address.
+    """
+
+    user_id = forms.IntegerField(required=False, widget=forms.HiddenInput)
+    email = forms.EmailField(required=False, label="Or enter an exact email address")
     permission = forms.ChoiceField(choices=PERMISSIONS_CHOICE)
 
     def __init__(self, *args, **kwargs):
@@ -638,11 +650,31 @@ class AddPermissionsForm(forms.Form):
         self.helper.layout = Layout(
             Fieldset(
                 "Add Permission",
+                HTML(
+                    '<label class="label">Search for a user by name</label>'
+                    f'<div data-person-picker data-kind="user" data-search-url="{reverse("people_search")}" '
+                    'data-target="id_user_id" data-placeholder="Type a name to search"></div>'
+                ),
+                "user_id",
                 "email",
                 "permission",
             ),
             ButtonHolder(Submit("submit", "Add")),
         )
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if not cleaned_data.get("user_id") and not cleaned_data.get("email"):
+            raise forms.ValidationError("Search for a user by name, or enter their exact email address.")
+        return cleaned_data
+
+    def target_user(self):
+        """The chosen account, or None if it does not exist."""
+        from display.models import MyUser
+
+        if self.cleaned_data.get("user_id"):
+            return MyUser.objects.filter(pk=self.cleaned_data["user_id"]).first()
+        return MyUser.objects.filter(email__iexact=self.cleaned_data["email"]).first()
 
 
 class ChangePermissionsForm(forms.Form):

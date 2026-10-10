@@ -1,5 +1,7 @@
 import React from 'react';
 import { ContestPermissionGrant } from '../../mission-dashboard/api';
+import PersonPicker from '../../../components/common/PersonPicker';
+import { PersonOption } from '../../../components/common/personOption';
 
 interface Props {
     grants: ContestPermissionGrant[];
@@ -14,18 +16,19 @@ const LEVELS = ['nothing', 'view', 'change', 'delete'] as const;
 
 // Modeled on ManagedClubPanel.tsx - the closest existing analogue for "who can manage this thing".
 const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, loading, onAdd, onChange, onRemove }) => {
-    const [identifier, setIdentifier] = React.useState('');
+    const [person, setPerson] = React.useState<PersonOption | null>(null);
     const [level, setLevel] = React.useState<string>('view');
     const [busy, setBusy] = React.useState(false);
     const [error, setError] = React.useState<string | null>(null);
 
     const add = async () => {
-        if (!identifier.trim()) return;
+        if (!person) return;
         setBusy(true);
         setError(null);
         try {
-            await onAdd(identifier.trim(), level);
-            setIdentifier('');
+            // The server accepts a user id as the identifier, so no email is ever needed here
+            await onAdd(String(person.value), level);
+            setPerson(null);
         } catch (err) {
             setError(err instanceof Error ? err.message : 'Failed to add permission');
         } finally {
@@ -71,7 +74,10 @@ const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, loadi
                         const isSelf = grant.user_id === currentUserId;
                         return (
                             <div key={grant.user_id} className="flex items-center justify-between gap-2 bg-base-100 rounded-lg p-3 text-sm">
-                                <span>{grant.email}</span>
+                                <span>
+                                    {grant.name || '(no name)'}{' '}
+                                    <span className="opacity-60 font-mono text-xs">{grant.email_hint}</span>
+                                </span>
                                 <div className="flex items-center gap-2">
                                     <select
                                         className="select select-bordered select-xs"
@@ -97,18 +103,20 @@ const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, loadi
                     })}
                 </div>
                 <div className="flex flex-col md:flex-row gap-2 pt-2">
-                    <input
-                        className="input input-bordered input-sm flex-1"
-                        placeholder="User id or email"
-                        value={identifier}
-                        onChange={e => setIdentifier(e.target.value)}
-                    />
+                    <div className="flex-1 min-w-0">
+                        <PersonPicker
+                            kind="user"
+                            value={person}
+                            onChange={setPerson}
+                            placeholder="Type a name to search for a user"
+                        />
+                    </div>
                     <select className="select select-bordered select-sm" value={level} onChange={e => setLevel(e.target.value)}>
                         {LEVELS.filter(l => l !== 'nothing').map(l => (
                             <option key={l} value={l}>{l}</option>
                         ))}
                     </select>
-                    <button className="btn btn-primary btn-sm" disabled={busy || !identifier.trim()} onClick={add}>
+                    <button className="btn btn-primary btn-sm" disabled={busy || !person} onClick={add}>
                         Add
                     </button>
                 </div>

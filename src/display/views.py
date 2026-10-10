@@ -45,6 +45,8 @@ from django.shortcuts import render, redirect, get_object_or_404
 from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
+from django.utils.http import url_has_allowed_host_and_scheme
+from display.services.people_search import user_identities
 from django.views import View
 from django.views.generic import (
     ListView,
@@ -681,12 +683,13 @@ def list_editableroute_permissions(request, pk):
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     users_and_permissions = get_users_with_perms(editableroute, attach_perms=True)
     users = []
+    identities = user_identities(users_and_permissions)
     for user in users_and_permissions.keys():
         if user == request.user:
             continue
         data = {}
         data["permission"] = map_editable_route_permissions_to_permission_name(users_and_permissions[user]).capitalize()
-        data["email"] = user.email
+        data.update(identities[user.pk])
         data["pk"] = user.pk
         users.append(data)
     return render(
@@ -753,11 +756,9 @@ def add_user_editableroute_permissions(request, pk):
     if request.method == "POST":
         form = AddPermissionsForm(request.POST)
         if form.is_valid():
-            email = form.cleaned_data["email"]
-            try:
-                user = MyUser.objects.get(email=email)
-            except ObjectDoesNotExist:
-                messages.error(request, f"User '{email}' does not exist")
+            user = form.target_user()
+            if user is None:
+                messages.error(request, "That user does not exist")
                 return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
             for permission in EDITABLEROUTE_PERMISSION_MAP["delete"]:
                 remove_perm(f"display.{permission}", user, editableroute)
@@ -1173,6 +1174,7 @@ def list_useruploadedmap_permissions(request, pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     users_and_permissions = get_users_with_perms(user_uploaded_map, attach_perms=True)
     users = []
+    identities = user_identities(users_and_permissions)
     for user in users_and_permissions.keys():
         if user == request.user:
             continue
@@ -1180,7 +1182,7 @@ def list_useruploadedmap_permissions(request, pk):
         data["permission"] = map_useruploadedmap_permissions_to_permission_name(
             users_and_permissions[user]
         ).capitalize()
-        data["email"] = user.email
+        data.update(identities[user.pk])
         data["pk"] = user.pk
         users.append(data)
     return render(
@@ -1236,11 +1238,9 @@ def add_user_useruploadedmap_permissions(request, pk):
     if request.method == "POST":
         form = AddPermissionsForm(request.POST)
         if form.is_valid():
-            email = form.cleaned_data["email"]
-            try:
-                user = MyUser.objects.get(email=email)
-            except ObjectDoesNotExist:
-                messages.error(request, f"User '{email}' does not exist")
+            user = form.target_user()
+            if user is None:
+                messages.error(request, "That user does not exist")
                 return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
             for permission in USERUPLOADEDMAP_PERMISSION_MAP["delete"]:
                 remove_perm(f"display.{permission}", user, user_uploaded_map)
@@ -1291,10 +1291,23 @@ def firebase_token_login(request):
     firebase_authenticator = FirebaseTokenAuthentication()
     try:
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)
-        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        # The backend recorded in the session must be listed in settings.AUTHENTICATION_BACKENDS, otherwise Django
+        # discards the session on the next request (ModelBackend is not listed, so the app's web view stayed anonymous).
+        login(request, user, backend="display.auth_backends.FirebaseMigrationBackend")
     except drf_exceptions.AuthenticationFailed as e:
         logger.warning("Firebase login with token from app failed: %s", e)
         messages.error(request, f"Login failed: {e}")
+        # Never forward to the requested page when login failed: the user would land logged out on a page
+        # that does not show the message above. The root page does.
+        return redirect("/")
+    # Apps call this on app.airsports.no (the React host, so the session cookie is set where the
+    # SPA runs) and pass ?next=/competition-map/... to land directly on the page they want.
+    # Only same-host relative paths are honoured, to avoid an open redirect.
+    next_url = request.GET.get("next", "")
+    if next_url.startswith("/") and url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        return redirect(next_url)
     return redirect("/")
 
 
@@ -1401,6 +1414,13 @@ def signup(request):
     from display.models import MyUser, Person
     import requests
 
+    # Keep the page the user came from (e.g. a flight QR code) so they can resume after verifying.
+    next_url = request.POST.get("next") or request.GET.get("next") or ""
+    if next_url and not url_has_allowed_host_and_scheme(
+        next_url, allowed_hosts={request.get_host()}, require_https=request.is_secure()
+    ):
+        next_url = ""
+
     if request.method == "POST":
         form = SignUpForm(request.POST)
         if form.is_valid():
@@ -1482,7 +1502,7 @@ def signup(request):
                     person.save()
 
                 # Do NOT log the user in automatically. They must verify email first.
-                return render(request, "registration/signup_success.html", {"email": email})
+                return render(request, "registration/signup_success.html", {"email": email, "next": next_url})
 
             except Exception as e:
                 # Handle cases like Email already exists in Firebase
@@ -1495,7 +1515,7 @@ def signup(request):
     else:
         form = SignUpForm()
 
-    return render(request, "registration/signup.html", {"form": form})
+    return render(request, "registration/signup.html", {"form": form, "next": next_url})
 
 
 @csrf_exempt
@@ -1632,7 +1652,7 @@ def quick_register(request, pk):
             # Tracker lead time 15 mins
             tracker_start_time = takeoff_time - datetime.timedelta(minutes=15)
             
-            Contestant.objects.create(
+            contestant = Contestant.objects.create(
                 team=team,
                 navigation_task=navigation_task,
                 takeoff_time=takeoff_time,
@@ -1651,7 +1671,8 @@ def quick_register(request, pk):
             return render(request, "display/quick_register_success.html", {
                 "contest": contest,
                 "navigation_task": navigation_task,
-                "tail_number": tail_number
+                "tail_number": tail_number,
+                "contestant": contestant,
             })
 
     return render(request, "display/quick_register.html", {"contest": contest, "navigation_task": navigation_task})

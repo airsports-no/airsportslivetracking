@@ -136,7 +136,7 @@ const PastFlights = () => {
                                     {modalContent && modalContent.map(task => (
                                         <div key={task.pk} className="p-2 rounded-lg bg-base-200">
                                             <h4 className="font-bold text-lg">{task.name}</h4>
-                                            <TaskScoreDisplay task={task} myContestantIds={myContestantIds} />
+                                            <TaskScoreDisplay task={task} myContestantIds={myContestantIds} contestId={selectedContest?.id} />
                                         </div>
                                     ))}
                                     {(!modalContent || modalContent.length === 0) && <p>No tasks found for this contest.</p>}

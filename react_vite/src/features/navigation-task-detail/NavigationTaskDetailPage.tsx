@@ -17,10 +17,10 @@ const visibilityOf = (task: NavigationTaskDetail): NavigationTaskVisibility => {
   return 'private';
 };
 
-const VISIBILITY_OPTIONS: { value: NavigationTaskVisibility; label: string }[] = [
-  { value: 'private', label: 'Private' },
-  { value: 'unlisted', label: 'Unlisted' },
-  { value: 'public', label: 'Public' },
+const VISIBILITY_OPTIONS: { value: NavigationTaskVisibility; label: string; description: string }[] = [
+  { value: 'private', label: 'Private', description: 'Only people you have given access can see this task.' },
+  { value: 'unlisted', label: 'Unlisted', description: 'Anyone with the link can watch, but pilots will not find it in the contest list.' },
+  { value: 'public', label: 'Public', description: 'Listed in the contest. Needed for pilots to find it and book their own start time.' },
 ];
 
 const NavigationTaskDetailPage: React.FC = () => {
@@ -179,6 +179,7 @@ const NavigationTaskDetailPage: React.FC = () => {
                   key={option.value}
                   disabled={sharingBusy}
                   onClick={() => handleShare(option.value)}
+                  title={option.description}
                   className={`btn btn-sm join-item gap-1 ${isActive ? 'btn-primary' : 'btn-ghost'}`}
                 >
                   {isActive && <Check size={14} />}
@@ -187,6 +188,9 @@ const NavigationTaskDetailPage: React.FC = () => {
               );
             })}
           </div>
+          <span className="text-xs opacity-70">
+            {VISIBILITY_OPTIONS.find((option) => option.value === visibility)?.description}
+          </span>
         </div>
       )}
 

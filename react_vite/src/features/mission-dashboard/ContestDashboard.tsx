@@ -26,6 +26,9 @@ import ImportTeamsPanel from '../contest-management/components/ImportTeamsPanel'
 import TeamList from '../contest-management/components/TeamList';
 import ContestSettingsForm from '../contest-management/components/ContestSettingsForm';
 import ContestTokenPanel from './components/ContestTokenPanel';
+import ContestSetupChecklist from './components/ContestSetupChecklist';
+import { accessSourceLabel } from './accessLabels';
+import ConceptHint from '../../components/common/ConceptHint';
 import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
 import * as contestManagementApi from '../contest-management/api';
 import {
@@ -65,6 +68,8 @@ const ContestDashboard = () => {
 
     const [loading, setLoading] = useState(true);
     const [error, setError] = useState<string | null>(null);
+    // Errors from actions (withdraw, cancel, loading scores) must not replace the whole page
+    const [actionError, setActionError] = useState<string | null>(null);
 
     const [toastMessage, setToastMessage] = useState<string[] | null>(null);
 
@@ -230,30 +235,34 @@ const ContestDashboard = () => {
     }, [contestId]);
     
     const handleWithdrawClick = async (contestId: number) => {
+        if (!window.confirm('Withdraw your team from this contest?')) return;
+        setActionError(null);
         try {
             await withdraw(contestId);
             await fetchContest(contestId, true);
         } catch (error) {
-            setError((error as Error).message);
+            setActionError((error as Error).message);
         }
     };
 
     const handleCancelFlight = async (contestId: number, navigationTaskId: number, futureContantId: number) => {
+        setActionError(null);
         try {
             await cancelFlight(contestId, navigationTaskId, futureContantId);
         } catch (error) {
-            setError((error as Error).message);
+            setActionError((error as Error).message);
         }
     };
 
     const handleViewScoresClick = async (task: NavigationTask) => {
+        setActionError(null);
         setLoadingTaskScores(true);
         setViewingScoresForTask(task); // Show modal immediately with partial data
         try {
             const fullTaskData = await fetchNavigationTask(contest.id, task.pk);
             setViewingScoresForTask(fullTaskData);
         } catch (err) {
-            setError('Failed to load task scores.');
+            setActionError('Failed to load task scores.');
             setViewingScoresForTask(null);
         } finally {
             setLoadingTaskScores(false);
@@ -289,6 +298,12 @@ const ContestDashboard = () => {
 
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
+            {actionError && (
+                <div role="alert" className="alert alert-error mb-4">
+                    <span className="flex-1">{actionError}</span>
+                    <button className="btn btn-ghost btn-xs" onClick={() => setActionError(null)}>Dismiss</button>
+                </div>
+            )}
             {toastMessage && (
                 <div className="toast toast-top toast-end z-[2000]">
                     {toastMessage.map((msg, idx) => (
@@ -465,7 +480,7 @@ const ContestDashboard = () => {
                                 {loadingTaskScores ? (
                                     <Loading />
                                 ) : (
-                                    <TaskScoreDisplay task={viewingScoresForTask} myContestantIds={myContestantIds} />
+                                    <TaskScoreDisplay task={viewingScoresForTask} myContestantIds={myContestantIds} contestId={contest.id} />
                                 )}
                                 <div className="card-actions justify-end">
                                     <button onClick={() => setViewingScoresForTask(null)} className="btn">Close</button>
@@ -528,7 +543,9 @@ const ContestDashboard = () => {
                         {(() => {
                             if (userContestTeam?.is_user_pilot) {
                                 return (
-                                    <div className="tooltip tooltip-bottom" data-tip={hasFutureFlightsScheduled ? "Cannot withdraw, you have scheduled flights in the future." : ""}>
+                                    <div className="flex gap-2">
+                                    <button className="btn btn-outline" onClick={() => setShowRegistrationForm(true)}>Edit team</button>
+                                    <div className="tooltip tooltip-bottom" data-tip={hasFutureFlightsScheduled ? "Cannot withdraw, you have scheduled flights in the future. Cancel them first." : ""}>
                                         <button
                                             className="btn btn-warning"
                                             onClick={() => handleWithdrawClick(contest.id)}
@@ -537,6 +554,7 @@ const ContestDashboard = () => {
                                             Withdraw
                                         </button>
                                     </div>
+                                    </div>
                                 );
                             } else if (userContestTeam) {
                                 return (
@@ -544,12 +562,17 @@ const ContestDashboard = () => {
                                 );
                             } else if (document.configuration.isAuthenticated) {
                                 return (
-                                    <button className="btn btn-primary" onClick={() => setShowRegistrationForm(true)}>Register team</button>
+                                    <button className="btn btn-primary" onClick={() => setShowRegistrationForm(true)}>Register my team</button>
                                 );
                             } else {
                                 return (
                                     <div className="text-sm text-gray-500 p-2 border border-gray-300 rounded-md">
-                                        Please <a href={`${reverse('login')}?next=/`} className="link link-primary">log in</a> to participate in the contest.
+                                        {(() => {
+                                            const next = encodeURIComponent(window.location.pathname + window.location.search);
+                                            return (<>
+                                                Please <a href={`${reverse('login')}?next=${next}`} className="link link-primary">log in</a> or <a href={`/accounts/signup/?next=${next}`} className="link link-primary">create an account</a> to participate in the contest.
+                                            </>);
+                                        })()}
                                     </div>
                                 );
                             }
@@ -559,7 +582,7 @@ const ContestDashboard = () => {
             </div>
 
             <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Task Suite */}
+                {/* Tasks */}
                 <div className="lg:col-span-2 order-1 lg:order-2">
                     {upcomingFlightsForThisContest.length > 0 && (
                         <div className="mb-8">
@@ -569,14 +592,14 @@ const ContestDashboard = () => {
                     )}
                     <div className="flex flex-wrap justify-between items-center mb-4 gap-2">
                         <h2 className="text-2xl font-bold flex items-center gap-2">
-                            Task Suite
+                            Tasks
                             <div className="dropdown dropdown-hover dropdown-left">
                                 <label tabIndex={0} className="m-1"><HelpCircle size={20} className="cursor-pointer" /></label>
                                 <div tabIndex={0} className="dropdown-content z-[1] menu p-2 shadow bg-base-200 rounded-box w-64">
                                     <p className="font-bold">Open:</p>
-                                    <p className="mb-2">The task's finish time has not passed, and you currently do not have a flight scheduled for it. It is ready for flight plan registration.</p>
+                                    <p className="mb-2">The task's finish time has not passed, and you currently do not have a flight scheduled for it. You can book a start time for it.</p>
                                     <p className="font-bold">Scheduled:</p>
-                                    <p className="mb-2">You have successfully registered a flight plan.</p>
+                                    <p className="mb-2">You have booked a start time.</p>
                                     <p className="font-bold">Live:</p>
                                     <p className="mb-2">The task is actively being tracked.</p>
                                     <p className="font-bold">Finalized:</p>
@@ -586,6 +609,22 @@ const ContestDashboard = () => {
                         </h2>
                         <p className="text-sm text-gray-500">Times in {contest.time_zone}</p>
                     </div>
+                    {canManageThisContest && (
+                        <ConceptHint id="contest-structure" title="How a contest is organised" className="mb-4">
+                            This contest holds <strong>navigation tasks</strong> (the flights, each built from a route) and <strong>teams</strong> (pilot, optional co-pilot and aircraft).
+                            A team flying a task becomes a <strong>contestant</strong>, one flight with a start time and a score.
+                        </ConceptHint>
+                    )}
+                    {canManageThisContest && (
+                        <ContestSetupChecklist
+                            key={contest.id}
+                            contest={contest}
+                            teamCount={teamsLoading ? contest.contest_team_count : teams.length}
+                            onAddTask={() => setShowCreateTask(true)}
+                            onAddTeam={() => setEditingContestTeam('new')}
+                            onOpenSettings={() => setShowSettingsModal(true)}
+                        />
+                    )}
                     {canManageThisContest && (
                         <div className="mb-8">
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
@@ -657,6 +696,15 @@ const ContestDashboard = () => {
                             </div>
                         </div>
                     )}
+                    {canManageThisContest && contest.navigationtask_set.length === 0 && (
+                        <div className="card bg-base-100 shadow mb-4">
+                            <div className="card-body items-center text-center">
+                                <p className="font-semibold">No navigation tasks yet</p>
+                                <p className="text-sm opacity-70">A navigation task is one flight event in this contest, built from a route and a scoring ruleset.</p>
+                                <button className="btn btn-primary btn-sm" onClick={() => setShowCreateTask(true)}>Add your first navigation task</button>
+                            </div>
+                        </div>
+                    )}
                     <div className="space-y-4">
                         {contest.navigationtask_set
                             .filter(task => {
@@ -691,6 +739,7 @@ const ContestDashboard = () => {
                                         route={task.route}
                                         flown_contestants_count={task.flown_contestants_count}
                                         canManage={canManageThisContest}
+                                        contestIsPublic={contest.is_public}
                                         taskSubtypeDefinition={task.task_subtype_definition}
                                     />
                                 );
@@ -716,7 +765,7 @@ const ContestDashboard = () => {
                                             Import teams
                                         </button>
                                         <button className="btn btn-accent btn-sm" onClick={() => setEditingContestTeam('new')}>
-                                            Register team
+                                            Add team
                                         </button>
                                     </div>
                                 </div>
@@ -750,7 +799,7 @@ const ContestDashboard = () => {
                             <h3 className="card-title text-lg">Access &amp; limits</h3>
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                                 <span className="badge badge-info">{contest.access_status?.tier_label}</span>
-                                <span className="text-xs opacity-70">Source: {contest.access_status?.source_type}</span>
+                                <span className="text-xs opacity-70">{accessSourceLabel(contest.access_status?.source_type)}</span>
                             </div>
                             <div className="bg-base-100 rounded-lg p-3 text-sm">
                                 <div className="opacity-70">Competing pilots</div>
@@ -758,6 +807,14 @@ const ContestDashboard = () => {
                                     {contest.access_status?.contestants_used} /{' '}
                                     {contest.access_status?.contestant_limit == null ? 'Unlimited' : contest.access_status.contestant_limit}
                                 </div>
+                                <div className="opacity-70 mt-2">Navigation tasks</div>
+                                <div className="font-semibold">
+                                    {contest.access_status?.tasks_used} /{' '}
+                                    {contest.access_status?.task_limit == null ? 'Unlimited' : contest.access_status.task_limit}
+                                </div>
+                                <p className="text-xs opacity-70 mt-2">
+                                    Counts include pilots and tasks that have already started, even if you later remove them.
+                                </p>
                             </div>
                         </div>
                     </div>

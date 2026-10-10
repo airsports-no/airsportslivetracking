@@ -278,6 +278,8 @@ REST_FRAMEWORK = {
     ],
     "EXCEPTION_HANDLER": "live_tracking_map.django_exception_handler.exception_handler",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    # Only applies to views that opt in with a throttle class (see display.throttles)
+    "DEFAULT_THROTTLE_RATES": {"people_search": "120/min"},
 }
 
 # API & Cache Versioning

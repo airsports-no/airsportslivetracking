@@ -98,7 +98,14 @@ const UpcomingFlightCard: React.FC<UpcomingFlightCardProps> = ({ flight, contest
                         </div>
                     </div>
                     <div className="card-actions justify-end">
-                        <button onClick={onCancelClick} className="btn btn-error btn-sm">Cancel</button>
+                        <button
+                            onClick={() => {
+                                if (window.confirm(`Cancel your flight in "${navTask.name}"?`)) onCancelClick();
+                            }}
+                            className="btn btn-error btn-sm"
+                        >
+                            Cancel flight
+                        </button>
                     </div>
                 </>
             </div>

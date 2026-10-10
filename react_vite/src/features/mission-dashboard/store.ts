@@ -1,6 +1,6 @@
 import { create } from 'zustand';
 import * as api from './api';
-import type { Club, Aircraft, Copilot, Contest, OngoingNavigation, Contestant, MyContestTeam, ContestResults } from './types';
+import type { Club, Aircraft, Contest, OngoingNavigation, Contestant, MyContestTeam, ContestResults } from './types';
 
 interface MissionDashboardState {
     contests: Contest[];
@@ -14,7 +14,6 @@ interface MissionDashboardState {
     clubs: Club[];
     managedClubs: Club[];
     aircrafts: Aircraft[];
-    pilots: Copilot[];
     
     fetchContests: (filters?: api.ContestFilters, clear?: boolean) => Promise<void>;
     fetchContest: (contestId: number, force?: boolean) => Promise<void>;
@@ -27,7 +26,6 @@ interface MissionDashboardState {
     fetchClubs: () => Promise<void>;
     fetchManagedClubs: (force?: boolean) => Promise<void>;
     fetchAircrafts: () => Promise<void>;
-    fetchPilots: (options?: { excludeSelf?: boolean }) => Promise<void>;
 
     // Actions that modify state locally or call API and then modify
     cancelFlight: (contestId: number, navigationTaskId: number, futureContestantId: number) => Promise<void>;
@@ -46,7 +44,6 @@ export const useMissionDashboardStore = create<MissionDashboardState>((set, get)
     clubs: [],
     managedClubs: [],
     aircrafts: [],
-    pilots: [],
 
     fetchContests: async (filters, clear = false) => {
         const contests = await api.fetchContests(filters);
@@ -139,10 +136,6 @@ export const useMissionDashboardStore = create<MissionDashboardState>((set, get)
     fetchAircrafts: async () => {
         const aircrafts = await api.fetchAircrafts();
         set({ aircrafts });
-    },
-    fetchPilots: async (options) => {
-        const pilots = await api.fetchPilots(options);
-        set({ pilots });
     },
     cancelFlight: async (contestId, navigationTaskId, futureContestantId) => {
         await api.cancelFlight(contestId, navigationTaskId, futureContestantId);

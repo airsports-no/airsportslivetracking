@@ -20,6 +20,7 @@ import RouteSelectionStep from './RouteSelectionStep';
 import ContestCreationStep from './ContestCreationStep';
 import TaskParametersStep from './TaskParametersStep';
 import TaskDetailsStep from './TaskDetailsStep';
+import ConceptHint from '../../../components/common/ConceptHint';
 
 interface NavigationTaskCreationFlowProps {
     entry: NavigationTaskCreationEntry;
@@ -54,10 +55,38 @@ const NavigationTaskCreationFlow: React.FC<NavigationTaskCreationFlowProps> = ({
     const [selectedTokenGrantId, setSelectedTokenGrantId] = useState<number | null>(null);
     const [assigningToken, setAssigningToken] = useState(false);
 
-    const advance = () => setStep(current => {
-        const next = nextStep(current, entry, template?.task_type ?? null);
-        return next === 'submit' ? current : next;
-    });
+    // Steps already visited, so Back returns to the previous one rather than losing the flow.
+    const [stepHistory, setStepHistory] = useState<NavigationTaskCreationStep[]>([]);
+
+    const advance = () => {
+        const next = nextStep(step, entry, template?.task_type ?? null);
+        if (next === 'submit') return;
+        setStepHistory(history => [...history, step]);
+        setStep(next);
+    };
+
+    const goBack = () => {
+        const previous = stepHistory[stepHistory.length - 1];
+        if (!previous) return;
+        setError(null);
+        setStep(previous);
+        setStepHistory(history => history.slice(0, -1));
+    };
+
+    const stepLabels: Record<NavigationTaskCreationStep, string> = {
+        template: 'Task type',
+        contest: 'Contest',
+        route: 'Route',
+        parameters: 'Parameters',
+        details: 'Details',
+    };
+    // The path this flow will take, for the progress indicator (parameters only for some types)
+    const plannedSteps: NavigationTaskCreationStep[] = ['template'];
+    let probe: NavigationTaskCreationStep | 'submit' = nextStep('template', entry, template?.task_type ?? null);
+    while (probe !== 'submit' && plannedSteps.length < 6) {
+        plannedSteps.push(probe);
+        probe = nextStep(probe, entry, template?.task_type ?? null);
+    }
 
     const handleNewContestSubmit = async (values: ContestCreationFormValues) => {
         setSubmitting(true);
@@ -134,6 +163,18 @@ const NavigationTaskCreationFlow: React.FC<NavigationTaskCreationFlowProps> = ({
         <div className="card bg-base-100 shadow-xl max-w-2xl mx-auto">
             <div className="card-body">
                 <h2 className="card-title">Add a navigation task</h2>
+                {!pendingTokenAssignment && !createdResult && (
+                    <ul className="steps steps-horizontal w-full text-xs mb-2">
+                        {plannedSteps.map(plannedStep => (
+                            <li
+                                key={plannedStep}
+                                className={`step ${plannedSteps.indexOf(plannedStep) <= plannedSteps.indexOf(step) ? 'step-primary' : ''}`}
+                            >
+                                {stepLabels[plannedStep]}
+                            </li>
+                        ))}
+                    </ul>
+                )}
 
                 {warnings.length > 0 && (
                     <div className="alert alert-warning mb-4">
@@ -181,6 +222,12 @@ const NavigationTaskCreationFlow: React.FC<NavigationTaskCreationFlowProps> = ({
                     </div>
                 ) : (
                     <>
+                        {step === 'template' && (
+                            <ConceptHint id="task-is-route-plus-rules" title="What is a navigation task?" className="mb-4">
+                                A navigation task is one flight event: a <strong>route</strong> plus a <strong>scoring ruleset</strong> for the chosen task type.
+                                Pilots are then scheduled on the task, and each scheduled pilot becomes a contestant.
+                            </ConceptHint>
+                        )}
                         {step === 'template' && (
                             <TaskTemplateStep
                                 editableRouteId={entry.kind === 'route' ? entry.editableRouteId : undefined}
@@ -243,6 +290,11 @@ const NavigationTaskCreationFlow: React.FC<NavigationTaskCreationFlowProps> = ({
                         )}
 
                         <div className="card-actions justify-start mt-4">
+                            {stepHistory.length > 0 && (
+                                <button type="button" className="btn btn-ghost" onClick={goBack}>
+                                    Back
+                                </button>
+                            )}
                             <button type="button" className="btn btn-ghost" onClick={onCancel}>
                                 Cancel
                             </button>

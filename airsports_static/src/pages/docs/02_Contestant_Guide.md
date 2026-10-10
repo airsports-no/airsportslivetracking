@@ -6,6 +6,8 @@ title: "Contestant Guide: Participating in an Event"
 
 # Contestant Guide: Participating in an Event
 
+> **New to ASLT?** Read [How ASLT Works](/docs/00_How_ASLT_Works) first. It explains contests, routes, navigation tasks, teams and contestants in five minutes.
+
 As a pilot or crew member, your primary interaction with Air Sports Live Tracking (ASLT) occurs through the Mission Dashboard and the mobile app. This guide explains how to properly configure your device, understand your flight order, and manage your participation.
 
 ---
@@ -52,22 +54,31 @@ ASLT uses a highly sophisticated **Adaptive Start** to accommodate pre-flight de
 
 If the event allows "Self Management" (configured by the Contest Manager), you can register yourself directly through the dashboard.
 
-### Step 1: Register for the Contest
-1. Find your competition on the **Mission Dashboard** at `airsports.no`.
-2. Click on the competition card to open its detail page.
-3. Select **"Register"** to enter your team details, including your co-pilot (optional), aircraft registration, and club name.
+Think of it as two steps: a **team** registers once for the *contest*, and then books a start time for each *navigation task* (each booking is one flight, called a *contestant* in the system). See [How ASLT Works](/docs/00_How_ASLT_Works).
 
-### Step 2: Schedule Your Flight
-Once registered for the contest, you can schedule your flight for any available Navigation Task:
+### Step 0: Account and App
+1. Create an account at `app.airsports.no` (or log in).
+2. Install the ASLT app and log in there with the **same email address**. The website matches you to your flights by email, so a different address means your flights will not show up.
+
+### Step 1: Register for the Contest
+1. Find your competition on the **Mission Dashboard** at `app.airsports.no`.
+2. Click on the competition card to open its detail page.
+3. Select **"Register my team"** to enter your team details, including your co-pilot (optional), aircraft registration, and club name. You can change these later with **"Edit team"**, even after booking flights.
+
+### Step 2: Book Your Start Time
+Once registered for the contest, you can book a start time for any available Navigation Task:
 
 1.  Select the **Navigation Task** you wish to fly from the contest detail page.
-2.  Tap **"Schedule Flight"**.
+2.  Tap **"Book start time"**.
 3.  **Complete the Flight Details:**
     *   **Airspeed:** Enter your planned airspeed in knots.
     *   **Timing:** Specify your **Starting Point Time**, **Wind Speed**, and **Wind Direction**.
     *   **Adaptive Start:** Toggle this ON if you want the system to automatically synchronize your start based on your actual gate crossing (highly recommended).
-4.  Tap **"Schedule"**. The system will allocate your slot and generate your flight order.
+4.  Tap **"Book start time"**. The system will allocate your slot and generate your flight order.
 5.  Your **Flight Order** and maps will be generated and emailed to you automatically within minutes.
+
+### Step 3: Find Your Flights Later
+After logging in, open **My flights** in the top menu. **My Upcoming Flights** shows your booked flights with the flight order link, and **My Past Flights** shows your results, your rank and a replay of your track. On the day, open the app and start tracking; the flight appears automatically.
 
 ---
 

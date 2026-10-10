@@ -101,6 +101,8 @@ export interface NavigationTask {
     contest: Contest;
     route: Route;
     flown_contestants_count: number;
+    /** Everyone scheduled on the task, flown or not */
+    contestant_count?: number;
     is_public: boolean;
     is_featured: boolean;
 }

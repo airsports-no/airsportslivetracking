@@ -1,5 +1,6 @@
 import React from 'react';
 import { AccessStatus } from '../types';
+import { accessSourceLabel } from '../accessLabels';
 
 interface Props {
     accessStatus?: AccessStatus;
@@ -24,7 +25,7 @@ const AccessTierBanner: React.FC<Props> = ({ accessStatus }) => {
             <div className="w-full">
                 <div className="flex items-center gap-2 mb-1">
                     <span className={badgeClass}>{accessStatus.tier_label}</span>
-                    <span className="text-xs opacity-70">Source: {accessStatus.source_type}</span>
+                    <span className="text-xs opacity-70">{accessSourceLabel(accessStatus.source_type)}</span>
                 </div>
                 <div className="text-sm opacity-80">
                     Contestants: {accessStatus.contestants_used} / {formatLimit(accessStatus.contestant_limit)} · Tasks: {accessStatus.tasks_used} / {formatLimit(accessStatus.task_limit)}

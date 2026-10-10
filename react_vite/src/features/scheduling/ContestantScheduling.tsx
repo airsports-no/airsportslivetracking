@@ -288,6 +288,7 @@ const ContestantScheduling = () => {
                             <SchedulingForm 
                                 contestTeams={contestTeams} 
                                 navigationTask={navigationTask}
+                                contestId={contestId ? Number(contestId) : undefined}
                                 capacityPreview={capacityPreview}
                                 firstTakeoffTime={firstTakeoffTime}
                                 setFirstTakeoffTime={setFirstTakeoffTime}

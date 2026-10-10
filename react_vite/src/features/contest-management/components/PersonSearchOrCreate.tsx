@@ -1,8 +1,7 @@
 import React, { useState } from 'react';
 import { useFormContext } from 'react-hook-form';
-import Select from 'react-select';
-import { selectStyles } from '../../../utils/selectStyles';
-import { Copilot } from '../../mission-dashboard/types';
+import PersonPicker from '../../../components/common/PersonPicker';
+import { PersonOption, personOptionFromPerson } from '../../../components/common/personOption';
 import { copilotForMode, pilotForMode } from '../teamRegistrationFlow';
 import { TeamRegistrationFormValues } from '../schemas/teamRegistrationSchema';
 import ImageUploadField from './ImageUploadField';
@@ -12,7 +11,8 @@ interface PersonSearchOrCreateProps {
     field: 'pilot' | 'copilot';
     label: string;
     allowSkip: boolean;
-    persons: Copilot[];
+    /** The person already on the team being edited, so their name can be shown without a search */
+    initialPerson?: { id: number; first_name: string; last_name: string; picture?: string | null };
     contestId: number;
 }
 
@@ -21,7 +21,7 @@ interface PersonSearchOrCreateProps {
 // person after typing "create" fields, or vice versa, resets the other mode's fields via
 // pilotForMode/copilotForMode - editing after an "existing" match effectively starts a fresh
 // selection rather than silently keeping stale data around.
-const PersonSearchOrCreate: React.FC<PersonSearchOrCreateProps> = ({ field, label, allowSkip, persons, contestId }) => {
+const PersonSearchOrCreate: React.FC<PersonSearchOrCreateProps> = ({ field, label, allowSkip, initialPerson, contestId }) => {
     const {
         register,
         setValue,
@@ -31,7 +31,13 @@ const PersonSearchOrCreate: React.FC<PersonSearchOrCreateProps> = ({ field, labe
     const selection = watch(field) as { mode: string; person?: number; picture?: File };
     const mode = selection.mode;
     const fieldErrors = (errors[field] as any) || {};
-    const selectedExistingPerson = mode === 'existing' ? persons.find(p => p.id === selection.person) : undefined;
+    const [pickedOption, setPickedOption] = useState<PersonOption | null>(
+        initialPerson && selection.mode === 'existing' && selection.person === initialPerson.id
+            ? personOptionFromPerson(initialPerson)
+            : null
+    );
+    // Only trust the option while it still matches the form value (the mode tabs reset the value)
+    const selectedExistingPerson = mode === 'existing' && pickedOption?.value === selection.person ? pickedOption : null;
 
     // Overrides the selected person's displayed picture with the freshly-processed one, without
     // waiting for the parent's `persons` list (a store-wide fetch) to refresh - keyed by person id
@@ -40,13 +46,14 @@ const PersonSearchOrCreate: React.FC<PersonSearchOrCreateProps> = ({ field, labe
     const [removingBackground, setRemovingBackground] = useState(false);
     const [backgroundError, setBackgroundError] = useState<string | null>(null);
     const displayedPictureUrl =
-        backgroundRemoved && backgroundRemoved.personId === selectedExistingPerson?.id
+        backgroundRemoved && backgroundRemoved.personId === selectedExistingPerson?.value
             ? backgroundRemoved.pictureUrl
-            : selectedExistingPerson?.picture;
+            : selectedExistingPerson?.picture ?? undefined;
 
     const setMode = (nextMode: 'existing' | 'create' | 'skip') => {
         const next = field === 'pilot' ? pilotForMode(nextMode as 'existing' | 'create') : copilotForMode(nextMode as any);
         setValue(field, next as any);
+        setPickedOption(null);
     };
 
     const handleRemoveBackground = async () => {
@@ -54,8 +61,8 @@ const PersonSearchOrCreate: React.FC<PersonSearchOrCreateProps> = ({ field, labe
         setRemovingBackground(true);
         setBackgroundError(null);
         try {
-            const pictureUrl = await removePersonPictureBackground(contestId, selectedExistingPerson.id);
-            setBackgroundRemoved({ personId: selectedExistingPerson.id, pictureUrl });
+            const pictureUrl = await removePersonPictureBackground(contestId, selectedExistingPerson.value);
+            setBackgroundRemoved({ personId: selectedExistingPerson.value, pictureUrl });
         } catch (err) {
             setBackgroundError((err as Error).message);
         } finally {
@@ -103,23 +110,16 @@ const PersonSearchOrCreate: React.FC<PersonSearchOrCreateProps> = ({ field, labe
                         </div>
                     )}
                     <label className="form-control w-full min-w-0">
-                        <Select
-                            options={persons.map(p => ({ value: p.id, label: `${p.first_name} ${p.last_name} (${p.email})` }))}
-                            value={
-                                selection.person
-                                    ? {
-                                          value: selection.person,
-                                          label: (() => {
-                                              const p = persons.find(item => item.id === selection.person);
-                                              return p ? `${p.first_name} ${p.last_name} (${p.email})` : String(selection.person);
-                                          })(),
-                                      }
-                                    : null
-                            }
-                            onChange={selected => setValue(`${field}.person` as any, selected ? selected.value : undefined)}
-                            placeholder={`Search for ${label.toLowerCase()}`}
-                            classNamePrefix="my-react-select"
-                            styles={selectStyles}
+                        <PersonPicker
+                            kind="person"
+                            // The organizer running this flow must be selectable too (they may be a competitor)
+                            excludeSelf={false}
+                            value={selectedExistingPerson}
+                            onChange={option => {
+                                setPickedOption(option);
+                                setValue(`${field}.person` as any, option ? option.value : undefined);
+                            }}
+                            placeholder={`Type a name to search for ${label.toLowerCase()}`}
                         />
                         {fieldErrors.person && <span className="text-error text-sm">{fieldErrors.person.message}</span>}
                         {backgroundError && <span className="text-error text-sm">{backgroundError}</span>}

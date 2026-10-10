@@ -254,10 +254,28 @@ const MissionDashboard = () => {
                         else if (f.contest && typeof f.contest === 'number') requiredContestIds.add(f.contest);
                     });
 
-                    const missingContestIds = Array.from(requiredContestIds).filter(id => !loadedContestIds.has(id));
+                    // Contests loaded with excludeTasks have an empty navigationtask_set; upcoming flights
+                    // need the tasks to render, so refetch those too rather than only the unloaded ones.
+                    const contestsMissingTasks = new Set<number>(
+                        updatedState.contests
+                            .filter(c => !c.navigationtask_set || c.navigationtask_set.length === 0)
+                            .map(c => c.id)
+                    );
+                    const futureFlightContestIds = new Set<number>(
+                        updatedState.myFutureFlights.map((f: any) => f.contest_id).filter(Boolean)
+                    );
+                    const missingContestIds = Array.from(requiredContestIds).filter(
+                        id => !loadedContestIds.has(id) || (futureFlightContestIds.has(id) && contestsMissingTasks.has(id))
+                    );
 
                     if (missingContestIds.length > 0) {
                         await fetchContestsFromStore({ pks: missingContestIds });
+                    }
+
+                    // Land pilots with a booked flight on their flights instead of the all-contests list,
+                    // unless the URL explicitly asked for a tab.
+                    if (!new URLSearchParams(window.location.search).get('tab') && useMissionDashboardStore.getState().myFutureFlights.length > 0) {
+                        setActiveTab('upcoming');
                     }
                 }
             } catch (err) {
@@ -703,7 +721,15 @@ const MissionDashboard = () => {
                             );
                         })}
                         {paginatedMyEditorContests.length === 0 && !loading && (
-                            <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
+                            myEditorContests.length === 0 ? (
+                                <div className="text-center mt-2 sm:mt-4 col-span-full">
+                                    <p className="font-semibold">You have not created any contests yet.</p>
+                                    <p className="text-sm opacity-70 mb-3">A contest is the event that holds your navigation tasks, teams and results.</p>
+                                    <a href={reverse("contest_create")} className="btn btn-primary btn-sm">Create your first contest</a>
+                                </div>
+                            ) : (
+                                <p className="text-center mt-2 sm:mt-4 col-span-full">No contests match your filters.</p>
+                            )
                         )}
                     </div>
 

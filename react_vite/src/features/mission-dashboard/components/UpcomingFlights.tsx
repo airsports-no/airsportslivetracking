@@ -2,6 +2,7 @@ import React from 'react';
 import { Contestant } from '../../competition-map/types';
 import { Contest } from '../types';
 import UpcomingFlightCard from './UpcomingFlightCard';
+import AppHandoff from './AppHandoff';
 
 interface UpcomingFlightsProps {
     myFutureFlights: Contestant[];
@@ -14,17 +15,39 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myFutureFlights, cont
     const upcomingFlights = myFutureFlights.filter(flight => new Date(flight.finished_by_time) > new Date());
 
     if (upcomingFlights.length === 0) {
-        return <div className="card bg-base-100 shadow-xl"><div className="card-body"><p>No upcoming flights scheduled.</p></div></div>;
+        return (
+            <div className="card bg-base-100 shadow-xl">
+                <div className="card-body">
+                    <p>No upcoming flights scheduled.</p>
+                    <p className="text-sm opacity-70">
+                        Open a contest from the <em>All Contests</em> tab and choose <em>Register my team</em>, then <em>Book start time</em> for a task.
+                        Expecting a flight the organizer set up for you? Make sure they used {document.configuration.userEmail || 'your login email'}.
+                    </p>
+                </div>
+            </div>
+        );
     }
 
     return (
         <div className="space-y-4">
+            <AppHandoff />
             {upcomingFlights.map(flight => {
                 const contest = contests.find(c => c.id === flight.contest_id);
                 const navTask = contest?.navigationtask_set.find(t => t.pk === flight.navigation_task);
 
-                if (!contest || !navTask) {
-                    return null; 
+                if (!contest) {
+                    return null;
+                }
+                if (!navTask) {
+                    // Tasks not loaded (yet): show a minimal row rather than silently dropping the flight.
+                    return (
+                        <div key={flight.id} className="card bg-base-100 shadow-xl">
+                            <div className="card-body">
+                                <h3 className="card-title">{contest.name}</h3>
+                                <p>Flight scheduled. Details are loading...</p>
+                            </div>
+                        </div>
+                    );
                 }
 
                 return (

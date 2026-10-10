@@ -163,7 +163,18 @@ const ContestantList: React.FC<ContestantListProps> = ({
   };
 
   if (contestants.length === 0) {
-    return <p className="text-sm text-gray-500">No contestants yet.</p>;
+    return (
+      <div className="text-sm text-gray-500">
+        <p>No contestants yet. Each contestant is one team flying this task.</p>
+        {canManage && (
+          <ul className="list-disc list-inside mt-1">
+            <li>Use <strong>Quick Add</strong> to add a registered team now.</li>
+            <li>Use <strong>Scheduling</strong> to give many teams start times at once.</li>
+            <li>Or turn on self-management so pilots book their own start time.</li>
+          </ul>
+        )}
+      </div>
+    );
   }
 
   return (
