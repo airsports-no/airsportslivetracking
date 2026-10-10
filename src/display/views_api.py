@@ -13,11 +13,10 @@ from display.tasks import (
     notify_flight_order,
 )
 
-from display.models import Aeroplane, Club, Person, Contest, NavigationTask
+from display.models import Aeroplane, Club, Contest, NavigationTask
 from display.serialisers import (
     AeroplaneSerialiser,
     ClubSerialiser,
-    PersonSerialiserExcludingTracking,
 )
 from display.services.people_search import search_persons, search_users
 from display.throttles import PeopleSearchThrottle
@@ -84,86 +83,6 @@ def auto_complete_club(request):
         q = request.data.get("search", "")
         search_qs = Club.objects.filter(name=q)
         serialiser = ClubSerialiser(search_qs, many=True)
-        return Response(serialiser.data)
-
-
-@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def auto_complete_person_phone(request):
-    request_number = int(request.data.get("request"))
-    if request_number == 1:
-        q = request.data.get("search", "")
-        search_qs = Person.objects.filter(phone__contains=q)
-        result = [str(item.phone) for item in search_qs]
-        return Response(result)
-    else:
-        q = request.data.get("search", "")
-        search_qs = Person.objects.filter(phone=q)
-        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-        return Response(serialiser.data)
-
-
-@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def auto_complete_person_id(request):
-    request_number = int(request.data.get("request"))
-    if request_number == 1:
-        q = request.data.get("search", "")
-        search_qs = Person.objects.filter(pk=q)
-        result = [str(item.phone) for item in search_qs]
-        return Response(result)
-    else:
-        q = request.data.get("search", "")
-        search_qs = Person.objects.filter(pk=q)
-        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-        return Response(serialiser.data)
-
-
-@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def auto_complete_person_first_name(request):
-    request_number = int(request.data.get("request"))
-    if request_number == 1:
-        q = request.data.get("search", "")
-        search_qs = Person.objects.filter(first_name__icontains=q)
-        result = [
-            {
-                "label": "{} {}".format(item.first_name, item.last_name),
-                "value": item.pk,
-            }
-            for item in search_qs
-        ]
-        return Response(result)
-    else:
-        q = request.data.get("search", "")
-        search_qs = Person.objects.filter(pk=q)
-        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-        return Response(serialiser.data)
-
-
-@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def auto_complete_person_last_name(request):
-    request_number = int(request.data.get("request"))
-    if request_number == 1:
-        q = request.data.get("search", "")
-        search_qs = Person.objects.filter(last_name__icontains=q)
-        result = [
-            {
-                "label": "{} {}".format(item.first_name, item.last_name),
-                "value": item.pk,
-            }
-            for item in search_qs
-        ]
-        return Response(result)
-    else:
-        q = request.data.get("search", "")
-        search_qs = Person.objects.filter(pk=q)
-        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
         return Response(serialiser.data)
 
 
