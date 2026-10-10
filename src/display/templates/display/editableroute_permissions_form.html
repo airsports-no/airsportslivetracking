@@ -2,6 +2,7 @@
 {% load i18n %}
 {% load crispy_forms_tags %}
 {% load lucide %}
+{% load vite %}
 
 {% block content %}
 <div class="container mx-auto p-4 md:p-8">
@@ -23,4 +24,6 @@
         </div>
     </div>
 </div>
+{% vite_css 'src/PersonPickerWidget.tsx' %}
+{% vite_js 'src/PersonPickerWidget.tsx' %}
 {% endblock %}

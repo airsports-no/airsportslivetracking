@@ -5,12 +5,14 @@ the caller's own registration in this contest.
 """
 
 import datetime
+from unittest.mock import MagicMock, patch
 
 from django.urls import reverse
 from rest_framework import status
 from rest_framework.test import APITestCase
 
 from display.models import Contest, ContestTeam, MyUser, Person
+from display.utilities.tracking_definitions import TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT
 
 
 class TestSignupUpdateRegistration(APITestCase):
@@ -84,3 +86,60 @@ class TestSignupUpdateRegistration(APITestCase):
             format="json",
         )
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST, response.content)
+
+    def test_failure_while_moving_the_team_rolls_the_whole_update_back(self):
+        # replace_team deletes the registration and then re-points contestants and scores. If a later
+        # step fails the pilot must keep their original registration, not end up with none.
+        contest_team_id = self._register(self.user, "LN-AAA")
+        exploding_scores = MagicMock()
+        exploding_scores.objects.filter.return_value.update.side_effect = RuntimeError("boom")
+        self.client.raise_request_exception = False
+        with patch("display.models.TeamTestScore", exploding_scores):
+            response = self.client.put(
+                self.url,
+                data={
+                    "contest_team": contest_team_id,
+                    "aircraft_registration": "LN-BBB",
+                    "club_name": "Club",
+                    "airspeed": 80,
+                    "copilot_id": None,
+                },
+                format="json",
+            )
+        self.assertEqual(response.status_code, 500)
+        contest_team = ContestTeam.objects.get(contest=self.contest)
+        self.assertEqual(contest_team.pk, contest_team_id)
+        self.assertEqual(contest_team.team.aeroplane.registration, "LN-AAA")
+
+    def test_removing_the_copilot_resets_copilot_only_tracking(self):
+        # A registration tracking only the co-pilot's phone is invalid once the co-pilot is gone
+        # (ContestTeam.clean rejects it and get_tracker_id would dereference a missing member2).
+        copilot = Person.objects.create(first_name="Co", last_name="Pilot", email="copilot@example.com")
+        self.client.force_login(user=self.user)
+        response = self.client.post(
+            self.url,
+            data={"aircraft_registration": "LN-AAA", "club_name": "Club", "airspeed": 70, "copilot_id": copilot.pk},
+            format="json",
+        )
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        contest_team = ContestTeam.objects.get(contest=self.contest)
+        contest_team.tracking_device = TRACKING_COPILOT
+        contest_team.save()
+
+        response = self.client.put(
+            self.url,
+            data={
+                "contest_team": contest_team.pk,
+                "aircraft_registration": "LN-AAA",
+                "club_name": "Club",
+                "airspeed": 70,
+                "copilot_id": None,
+            },
+            format="json",
+        )
+
+        self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
+        updated = ContestTeam.objects.get(contest=self.contest)
+        self.assertIsNone(updated.team.crew.member2)
+        self.assertEqual(updated.tracking_device, TRACKING_PILOT_AND_COPILOT)
+        updated.clean()  # no longer an invalid combination

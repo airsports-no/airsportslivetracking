@@ -42,17 +42,13 @@ function defaultsForEdit(contestTeam: ContestTeamListItem): TeamRegistrationForm
 // creatable selects are all visible at once, matching this feature directory's other flows'
 // react-hook-form + zod convention.
 const TeamRegistrationFlow: React.FC<TeamRegistrationFlowProps> = ({ contestId, editingContestTeam, onSaved, onCancel }) => {
-    const { clubs, aircrafts, pilots, fetchClubs, fetchAircrafts, fetchPilots } = useMissionDashboardStore();
+    const { clubs, aircrafts, fetchClubs, fetchAircrafts } = useMissionDashboardStore();
     const [loading, setLoading] = useState(true);
     const [submitting, setSubmitting] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
     useEffect(() => {
-        // excludeSelf: false - unlike self-registration's copilot search, the organizer running
-        // this admin flow must be selectable as a pilot/copilot too, including when re-editing a
-        // registration where they're already the pilot (otherwise their name can't be resolved
-        // and the form falls back to showing their raw Person id).
-        Promise.all([fetchClubs(), fetchAircrafts(), fetchPilots({ excludeSelf: false })])
+        Promise.all([fetchClubs(), fetchAircrafts()])
             .catch(err => setError((err as Error).message))
             .finally(() => setLoading(false));
     }, []);
@@ -87,8 +83,8 @@ const TeamRegistrationFlow: React.FC<TeamRegistrationFlowProps> = ({ contestId, 
                 <h2 className="card-title">{editingContestTeam ? 'Edit team registration' : 'Register a team'}</h2>
                 <FormProvider {...methods}>
                     <form onSubmit={methods.handleSubmit(onSubmit)} className="space-y-4">
-                        <PersonSearchOrCreate field="pilot" label="Pilot" allowSkip={false} persons={pilots} contestId={contestId} />
-                        <PersonSearchOrCreate field="copilot" label="Co-pilot" allowSkip persons={pilots} contestId={contestId} />
+                        <PersonSearchOrCreate field="pilot" label="Pilot" allowSkip={false} initialPerson={editingContestTeam?.team.crew.member1} contestId={contestId} />
+                        <PersonSearchOrCreate field="copilot" label="Co-pilot" allowSkip initialPerson={editingContestTeam?.team.crew.member2 ?? undefined} contestId={contestId} />
                         <AeroplaneSearchOrCreate aircrafts={aircrafts} />
                         <ClubSearchOrCreate clubs={clubs} />
                         <TrackingDataStep />

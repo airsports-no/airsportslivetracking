@@ -73,7 +73,7 @@ const ContestSetupChecklist: React.FC<ContestSetupChecklistProps> = ({ contest, 
             key: 'schedule',
             title: 'Schedule start times',
             detail: 'Give each team a start time on the task, or turn on self-management so pilots book their own.',
-            done: tasks.some(t => t.flown_contestants_count > 0 || (t.future_contestants?.length ?? 0) > 0),
+            done: tasks.some(t => (t.contestant_count ?? 0) > 0 || t.flown_contestants_count > 0),
             action: firstTask ? (
                 <Link
                     to={generatePath('CONTESTANT_SCHEDULING', { contestId: contest.id, navigationTaskId: firstTask.pk })}

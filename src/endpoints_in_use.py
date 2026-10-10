@@ -43,10 +43,7 @@ print_view_url("contestants-initial-track-data", [1, 2, 3])
 
 print_view_url("aircraft-list", [])
 print_view_url("clubs-list", [])
-print_view_url("get_persons_for_signup", [])
 
-print_view_url("autocomplete_aeroplane", [])
-print_view_url("autocomplete_club", [])
 
 print_view_url("navigationtask_generateflightorders", [1])
 print_view_url("navigationtask_broadcastflightorders", [1])

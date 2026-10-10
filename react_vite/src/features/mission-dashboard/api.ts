@@ -1,4 +1,4 @@
-import { OngoingNavigation, PaginatedContests, MyParticipatingContest, Club, ClubManagerMembership, Aircraft, Copilot, ScheduleFlightPayload, RegisterTeamPayload, Contest, NavigationTask, ContestResults, MyContestTeam, Team } from './types';
+import { OngoingNavigation, PaginatedContests, MyParticipatingContest, Club, ClubManagerMembership, Aircraft, ScheduleFlightPayload, RegisterTeamPayload, Contest, NavigationTask, ContestResults, MyContestTeam, Team } from './types';
 import { Contestant } from '../competition-map/types';
 import { getCookie } from '../../utils/csrf';
 import { reverse } from '../../urls';
@@ -220,22 +220,6 @@ export const fetchAircrafts = async (): Promise<Aircraft[]> => {
     return response.json();
 };
 
-export const fetchPilots = async (options?: { excludeSelf?: boolean }): Promise<Copilot[]> => {
-    // excludeSelf defaults true (the backend's own default) for self-registration's copilot
-    // search - pass false for the admin team-registration flow, where the organizer themselves
-    // must be selectable as a pilot/copilot too. See get_persons_for_signup's docstring.
-    let url = reverse('get_persons_for_signup');
-    if (options?.excludeSelf === false) {
-        url += '?exclude_self=false';
-    }
-    const response = await fetch(url, { headers: getAuthHeaders() });
-    if (!response.ok) {
-        const errorMessages = await getErrorMessages(response);
-        throw new Error(`Failed to fetch pilots: ${errorMessages}`);
-    }
-    return response.json();
-};
-
 export const fetchTeam = async (teamId: number): Promise<Team> => {
     const url = reverse('teams-detail', teamId);
     const response = await fetch(url, { headers: getAuthHeaders() });
@@ -381,7 +365,9 @@ export const deleteContest = async (contestId: number): Promise<void> => {
 
 export interface ContestPermissionGrant {
     user_id: number;
-    email: string;
+    name: string;
+    /** Heavily masked email; the real address is never sent */
+    email_hint: string;
     level: 'nothing' | 'view' | 'change' | 'delete';
 }
 

@@ -20,7 +20,7 @@ const UpcomingFlights: React.FC<UpcomingFlightsProps> = ({ myFutureFlights, cont
                 <div className="card-body">
                     <p>No upcoming flights scheduled.</p>
                     <p className="text-sm opacity-70">
-                        Open a contest from the <em>All Contests</em> tab and choose <em>Register team</em>, then <em>Book start time</em> for a task.
+                        Open a contest from the <em>All Contests</em> tab and choose <em>Register my team</em>, then <em>Book start time</em> for a task.
                         Expecting a flight the organizer set up for you? Make sure they used {document.configuration.userEmail || 'your login email'}.
                     </p>
                 </div>

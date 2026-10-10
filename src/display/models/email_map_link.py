@@ -5,6 +5,7 @@ from django.core.mail import send_mail
 from django.db import models
 from django.templatetags.static import static
 from django.urls import reverse
+from django.utils.html import escape
 
 logger = logging.getLogger(__name__)
 
@@ -107,16 +108,22 @@ ____________________________________________________________
             if self.contestant.adaptive_start
             else ""
         )
-        description = (
-            f"your navigation task '{navigation_task.name}' in the contest '{contest_name}' with {time_kind} "
-            f"starting point time {starting_point_time_string}{adaptive_text}"
-        )
+
+        def describe(task_name: str, contest_title: str) -> str:
+            return (
+                f"your navigation task '{task_name}' in the contest '{contest_title}' with {time_kind} "
+                f"starting point time {starting_point_time_string}{adaptive_text}"
+            )
+
+        description = describe(navigation_task.name, contest_name)
+        # Task, contest and first names are user-controlled; escape them for the HTML body only
+        description_html = describe(escape(navigation_task.name), escape(contest_name))
         send_mail(
             f"Flight orders for task {navigation_task.name} ({contest_name})",
             f"Hi {first_name},\n\nHere is the link to download the flight orders for {description}.\n\n"
             f"{url}\n{self.PLAINTEXT_SIGNATURE}",
             None,  # Should default to system from email
             recipient_list=[email_address],
-            html_message=f"Hi {first_name},<p>Here is the link to download the flight orders for {description}.<p>"
+            html_message=f"Hi {escape(first_name)},<p>Here is the link to download the flight orders for {description_html}.<p>"
             f"<a href='{url}'>Flight orders link</a><p>{self.HTML_SIGNATURE}",
         )

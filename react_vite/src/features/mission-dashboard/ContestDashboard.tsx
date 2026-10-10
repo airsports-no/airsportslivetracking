@@ -27,7 +27,7 @@ import TeamList from '../contest-management/components/TeamList';
 import ContestSettingsForm from '../contest-management/components/ContestSettingsForm';
 import ContestTokenPanel from './components/ContestTokenPanel';
 import ContestSetupChecklist from './components/ContestSetupChecklist';
-import { accessSourceLabel } from './components/AccessTierBanner';
+import { accessSourceLabel } from './accessLabels';
 import ConceptHint from '../../components/common/ConceptHint';
 import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
 import * as contestManagementApi from '../contest-management/api';
@@ -255,6 +255,7 @@ const ContestDashboard = () => {
     };
 
     const handleViewScoresClick = async (task: NavigationTask) => {
+        setActionError(null);
         setLoadingTaskScores(true);
         setViewingScoresForTask(task); // Show modal immediately with partial data
         try {
@@ -616,6 +617,7 @@ const ContestDashboard = () => {
                     )}
                     {canManageThisContest && (
                         <ContestSetupChecklist
+                            key={contest.id}
                             contest={contest}
                             teamCount={teamsLoading ? contest.contest_team_count : teams.length}
                             onAddTask={() => setShowCreateTask(true)}

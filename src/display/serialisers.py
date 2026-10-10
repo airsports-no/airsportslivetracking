@@ -89,7 +89,12 @@ from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
 from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
-from display.utilities.tracking_definitions import TRACKING_DEVICES, TrackingService
+from display.utilities.tracking_definitions import (
+    TRACKING_COPILOT,
+    TRACKING_DEVICES,
+    TRACKING_PILOT_AND_COPILOT,
+    TrackingService,
+)
 from display.waypoint import Waypoint
 
 logger = logging.getLogger(__name__)
@@ -121,23 +126,6 @@ class UserSerialiser(serializers.ModelSerializer):
         fields = ("first_name", "last_name", "email")
 
 
-class MangledEmailField(serializers.Field):
-    def to_representation(self, value):
-        """
-        Serialize the value's class name.
-        """
-        if not value or "@" not in value:
-            return value
-        try:
-            name, domain = value.split("@")
-            levels = domain.split(".")
-            if len(levels) > 1:
-                return f"{name}@*****.{'.'.join(levels[1:])}"
-            return f"{name}@*****"
-        except (ValueError, AttributeError):
-            return value
-
-
 class AeroplaneSerialiser(serializers.ModelSerializer):
     # registration has a DB-level unique constraint (see the 0178 migration), and every write
     # path already implements its own lookup-or-reuse semantics on top of that (nested_update
@@ -152,14 +140,6 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Aeroplane
         fields = "__all__"
-
-
-class PersonSignUpSerialiser(serializers.ModelSerializer):
-    email = MangledEmailField(read_only=True)
-
-    class Meta:
-        model = Person
-        fields = ("id", "first_name", "last_name", "email", "picture")
 
 
 class PersonLtdSerialiser(serializers.ModelSerializer):
@@ -707,6 +687,7 @@ class TodaysNavigationSerialiser(serializers.ModelSerializer):
 class NavigationTasksLightSerialiser(serializers.ModelSerializer):
     route = RouteSummarySerialiser(read_only=True)
     flown_contestants_count = serializers.SerializerMethodField()
+    contestant_count = serializers.SerializerMethodField()
     active_contestants = serializers.SerializerMethodField("get_active_contestants")
     score_sorting_direction = serializers.ReadOnlyField()
     task_subtype_definition = serializers.SerializerMethodField()
@@ -723,6 +704,7 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
             "allow_self_management",
             "route",
             "flown_contestants_count",
+            "contestant_count",
             "active_contestants",
             "score_sorting_direction",
             "is_public",
@@ -746,6 +728,10 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
 
     def get_flown_contestants_count(self, obj) -> int:
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
+
+    def get_contestant_count(self, obj) -> int:
+        """Everyone scheduled on the task, flown or not (the contest setup checklist needs this)."""
+        return obj.contestant_set.count()
 
 
 class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
@@ -1047,6 +1033,13 @@ class SelfManagementSerialiser(serializers.Serializer):
 
 class SignupSerialiser(serializers.Serializer):
     def update(self, instance, validated_data):
+        # Same locking as create(): replace_team deletes and recreates the registration and then re-points
+        # contestants and scores, which must all happen or none of it.
+        with transaction.atomic():
+            Contest.objects.select_for_update().get(pk=self.context["contest"].pk)
+            return self._update_locked(validated_data)
+
+    def _update_locked(self, validated_data):
         request = self.context["request"]
         contest = self.context["contest"]  # type: Contest
 
@@ -1084,6 +1077,11 @@ class SignupSerialiser(serializers.Serializer):
             validated_data["aircraft_registration"],
             validated_data["club_name"],
         )
+        tracking_device = contest_team.tracking_device
+        if tracking_device == TRACKING_COPILOT and team.crew.member2 is None:
+            # Tracking the co-pilot's phone is meaningless (and get_tracker_id would crash) once the co-pilot
+            # has been removed, so fall back to the default instead of copying the old setting.
+            tracking_device = TRACKING_PILOT_AND_COPILOT
         new_contest_team = contest.replace_team(
             original_team,
             team,
@@ -1091,7 +1089,7 @@ class SignupSerialiser(serializers.Serializer):
                 "air_speed": validated_data["airspeed"],
                 # Keep the tracker configuration the organizer may have set on the registration
                 "tracking_service": contest_team.tracking_service,
-                "tracking_device": contest_team.tracking_device,
+                "tracking_device": tracking_device,
                 "tracker_device_id": contest_team.tracker_device_id,
             },
         )

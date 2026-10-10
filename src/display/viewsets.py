@@ -159,6 +159,7 @@ from display.serialisers import (
     TodaysNavigationSerialiser,
     TrackAnnotationSerialiser,
 )
+from display.services.people_search import user_identities
 from display.services.access_resolver import resolve_contest_access
 from display.services.admin_flight_stats import BIN_GRANULARITIES, build_admin_flight_stats
 from display.services.admin_system_stats import (
@@ -1073,7 +1074,11 @@ class ContestViewSet(ModelViewSet):
         target_user = serialiser.context["target_user"]
         set_contest_permission_level(contest, target_user, serialiser.validated_data["level"], request.user)
         return Response(
-            {"user_id": target_user.pk, "email": target_user.email, "level": serialiser.validated_data["level"]},
+            {
+                "user_id": target_user.pk,
+                **user_identities([target_user])[target_user.pk],
+                "level": serialiser.validated_data["level"],
+            },
             status=status.HTTP_201_CREATED,
         )
 
@@ -1093,7 +1098,11 @@ class ContestViewSet(ModelViewSet):
         serialiser.is_valid(raise_exception=True)
         set_contest_permission_level(contest, target_user, serialiser.validated_data["level"], request.user)
         return Response(
-            {"user_id": target_user.pk, "email": target_user.email, "level": serialiser.validated_data["level"]},
+            {
+                "user_id": target_user.pk,
+                **user_identities([target_user])[target_user.pk],
+                "level": serialiser.validated_data["level"],
+            },
             status=status.HTTP_200_OK,
         )
 

@@ -9,6 +9,7 @@ from guardian.shortcuts import assign_perm, get_user_perms, get_users_with_perms
 from rest_framework.exceptions import ValidationError
 
 from display.models import Contest, MyUser
+from display.services.people_search import user_identities
 
 CONTEST_PERMISSION_LEVELS = ("nothing", "view", "change", "delete")
 
@@ -33,10 +34,13 @@ def map_contest_permissions_to_permission_name(permission_codenames) -> str:
 
 def list_contest_permission_grants(contest: Contest) -> list[dict]:
     users_and_permissions = get_users_with_perms(contest, attach_perms=True)
+    identities = user_identities(users_and_permissions)
+    # Never the raw email: grants may be made by searching a name, and a manager should not learn
+    # the address of everyone they (or a co-manager) have granted access to.
     return [
         {
             "user_id": user.pk,
-            "email": user.email,
+            **identities[user.pk],
             "level": map_contest_permissions_to_permission_name(codenames),
         }
         for user, codenames in users_and_permissions.items()

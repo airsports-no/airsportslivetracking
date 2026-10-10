@@ -45,23 +45,36 @@ class TestContestPermissionsApi(TestCase):
 
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
         self.assertEqual(
-            [{"user_id": self.owner.pk, "email": self.owner.email, "level": "delete"}],
+            [{"user_id": self.owner.pk, "name": "", "email_hint": "p********@***.com", "level": "delete"}],
             response.data,
         )
+
+    def test_list_never_exposes_raw_email_addresses(self):
+        self.client.post(self.list_url, {"identifier": str(self.other_user.pk), "level": "view"}, format="json")
+        rows = self.client.get(self.list_url).data
+        self.assertEqual(len(rows), 2)
+        for row in rows:
+            self.assertEqual(set(row), {"user_id", "name", "email_hint", "level"})
+        self.assertNotIn("perm-", str(rows))
+
+    def test_add_response_never_exposes_raw_email(self):
+        response = self.client.post(self.list_url, {"identifier": self.other_user.email, "level": "view"}, format="json")
+        self.assertNotIn("email", response.data)
+        self.assertEqual(response.data["user_id"], self.other_user.pk)
 
     def test_add_by_email(self):
         response = self.client.post(self.list_url, {"identifier": self.other_user.email, "level": "view"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
-        emails_and_levels = {(row["email"], row["level"]) for row in self.client.get(self.list_url).data}
-        self.assertIn((self.other_user.email, "view"), emails_and_levels)
+        ids_and_levels = {(row["user_id"], row["level"]) for row in self.client.get(self.list_url).data}
+        self.assertIn((self.other_user.pk, "view"), ids_and_levels)
 
     def test_add_by_id(self):
         response = self.client.post(self.list_url, {"identifier": str(self.other_user.pk), "level": "change"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
-        emails_and_levels = {(row["email"], row["level"]) for row in self.client.get(self.list_url).data}
-        self.assertIn((self.other_user.email, "change"), emails_and_levels)
+        ids_and_levels = {(row["user_id"], row["level"]) for row in self.client.get(self.list_url).data}
+        self.assertIn((self.other_user.pk, "change"), ids_and_levels)
 
     def test_add_with_unknown_identifier_is_rejected(self):
         response = self.client.post(self.list_url, {"identifier": "nobody@example.com", "level": "view"}, format="json")
@@ -74,8 +87,8 @@ class TestContestPermissionsApi(TestCase):
         response = self.client.put(self._detail_url(self.other_user.pk), {"level": "delete"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
-        emails_and_levels = {(row["email"], row["level"]) for row in self.client.get(self.list_url).data}
-        self.assertIn((self.other_user.email, "delete"), emails_and_levels)
+        ids_and_levels = {(row["user_id"], row["level"]) for row in self.client.get(self.list_url).data}
+        self.assertIn((self.other_user.pk, "delete"), ids_and_levels)
 
     def test_remove(self):
         self.client.post(self.list_url, {"identifier": self.other_user.email, "level": "view"}, format="json")
@@ -83,16 +96,16 @@ class TestContestPermissionsApi(TestCase):
         response = self.client.delete(self._detail_url(self.other_user.pk))
 
         self.assertEqual(response.status_code, status.HTTP_204_NO_CONTENT)
-        emails = {row["email"] for row in self.client.get(self.list_url).data}
-        self.assertNotIn(self.other_user.email, emails)
+        ids = {row["user_id"] for row in self.client.get(self.list_url).data}
+        self.assertNotIn(self.other_user.pk, ids)
 
     def test_self_removal_is_rejected(self):
         # Never lets the acting user lock themselves out of the contest they're managing.
         response = self.client.delete(self._detail_url(self.owner.pk))
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        emails = {row["email"] for row in self.client.get(self.list_url).data}
-        self.assertIn(self.owner.email, emails)
+        ids = {row["user_id"] for row in self.client.get(self.list_url).data}
+        self.assertIn(self.owner.pk, ids)
 
     def test_self_downgrade_via_put_is_rejected(self):
         # PUT can drop your own level to "view"/"nothing" one step at a time - same lockout risk
@@ -100,8 +113,8 @@ class TestContestPermissionsApi(TestCase):
         response = self.client.put(self._detail_url(self.owner.pk), {"level": "view"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
-        emails_and_levels = {(row["email"], row["level"]) for row in self.client.get(self.list_url).data}
-        self.assertIn((self.owner.email, "delete"), emails_and_levels)
+        ids_and_levels = {(row["user_id"], row["level"]) for row in self.client.get(self.list_url).data}
+        self.assertIn((self.owner.pk, "delete"), ids_and_levels)
 
     def test_self_change_to_another_managing_level_via_put_is_allowed(self):
         # "change" still carries change_contest, so it's not a lockout - only levels below that
@@ -109,8 +122,8 @@ class TestContestPermissionsApi(TestCase):
         response = self.client.put(self._detail_url(self.owner.pk), {"level": "change"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_200_OK, response.content)
-        emails_and_levels = {(row["email"], row["level"]) for row in self.client.get(self.list_url).data}
-        self.assertIn((self.owner.email, "change"), emails_and_levels)
+        ids_and_levels = {(row["user_id"], row["level"]) for row in self.client.get(self.list_url).data}
+        self.assertIn((self.owner.pk, "change"), ids_and_levels)
 
     def test_non_editor_gets_404_not_403(self):
         # Same get_queryset scoping behavior already established for every other ContestViewSet

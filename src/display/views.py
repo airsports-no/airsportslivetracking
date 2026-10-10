@@ -46,6 +46,7 @@ from django.template.loader import render_to_string
 from django.urls import reverse, reverse_lazy
 from django.utils import timezone
 from django.utils.http import url_has_allowed_host_and_scheme
+from display.services.people_search import user_identities
 from django.views import View
 from django.views.generic import (
     ListView,
@@ -682,12 +683,13 @@ def list_editableroute_permissions(request, pk):
     editableroute = get_object_or_404(EditableRoute, pk=pk)
     users_and_permissions = get_users_with_perms(editableroute, attach_perms=True)
     users = []
+    identities = user_identities(users_and_permissions)
     for user in users_and_permissions.keys():
         if user == request.user:
             continue
         data = {}
         data["permission"] = map_editable_route_permissions_to_permission_name(users_and_permissions[user]).capitalize()
-        data["email"] = user.email
+        data.update(identities[user.pk])
         data["pk"] = user.pk
         users.append(data)
     return render(
@@ -754,11 +756,9 @@ def add_user_editableroute_permissions(request, pk):
     if request.method == "POST":
         form = AddPermissionsForm(request.POST)
         if form.is_valid():
-            email = form.cleaned_data["email"]
-            try:
-                user = MyUser.objects.get(email=email)
-            except ObjectDoesNotExist:
-                messages.error(request, f"User '{email}' does not exist")
+            user = form.target_user()
+            if user is None:
+                messages.error(request, "That user does not exist")
                 return redirect(reverse("editableroute_permissions_list", kwargs={"pk": pk}))
             for permission in EDITABLEROUTE_PERMISSION_MAP["delete"]:
                 remove_perm(f"display.{permission}", user, editableroute)
@@ -1174,6 +1174,7 @@ def list_useruploadedmap_permissions(request, pk):
     user_uploaded_map = get_object_or_404(UserUploadedMap, pk=pk)
     users_and_permissions = get_users_with_perms(user_uploaded_map, attach_perms=True)
     users = []
+    identities = user_identities(users_and_permissions)
     for user in users_and_permissions.keys():
         if user == request.user:
             continue
@@ -1181,7 +1182,7 @@ def list_useruploadedmap_permissions(request, pk):
         data["permission"] = map_useruploadedmap_permissions_to_permission_name(
             users_and_permissions[user]
         ).capitalize()
-        data["email"] = user.email
+        data.update(identities[user.pk])
         data["pk"] = user.pk
         users.append(data)
     return render(
@@ -1237,11 +1238,9 @@ def add_user_useruploadedmap_permissions(request, pk):
     if request.method == "POST":
         form = AddPermissionsForm(request.POST)
         if form.is_valid():
-            email = form.cleaned_data["email"]
-            try:
-                user = MyUser.objects.get(email=email)
-            except ObjectDoesNotExist:
-                messages.error(request, f"User '{email}' does not exist")
+            user = form.target_user()
+            if user is None:
+                messages.error(request, "That user does not exist")
                 return redirect(reverse("useruploadedmap_permissions_list", kwargs={"pk": pk}))
             for permission in USERUPLOADEDMAP_PERMISSION_MAP["delete"]:
                 remove_perm(f"display.{permission}", user, user_uploaded_map)
