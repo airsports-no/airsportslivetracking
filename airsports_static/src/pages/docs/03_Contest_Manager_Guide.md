@@ -58,7 +58,7 @@ ASLT manages teams based on three key resources: **Crew Members**, **Aircraft**,
 
 ---
 
-## 3. The Flight Scheduler Optimizer (Deep Dive)
+## 4. The Flight Scheduler Optimizer (Deep Dive)
 
 Scheduling a 30-team competition with 10 shared aircraft and limited trackers is a complex mathematical problem. ASLT includes an advanced **Linear Programming Optimizer** to solve it.
 
@@ -80,7 +80,7 @@ Scheduling a 30-team competition with 10 shared aircraft and limited trackers is
 
 ---
 
-## 4. Operational Controls
+## 5. Operational Controls
 
 ### Recalculation
 Mistakes happen. If a pilot flies a task but later it is discovered that the wind was 10 knots instead of 5, or if a judge wants to re-run the numbers with a different scorecard:
@@ -95,7 +95,7 @@ To prevent "Live Cheating" (where a crew on the ground could watch a rival's tra
 
 ---
 
-## 5. Flight Order Configuration
+## 6. Flight Order Configuration
 
 The Flight Order is the document package (PDF) generated for each contestant. Contest Managers can customize this to fit the specific needs of the task.
 
@@ -108,7 +108,7 @@ The Flight Order is the document package (PDF) generated for each contestant. Co
 
 ---
 
-## 6. User Uploaded Maps and Permissions
+## 7. User Uploaded Maps and Permissions
 
 Organizers can upload their own maps to be used as backgrounds in the tracking map or within the Flight Orders.
 

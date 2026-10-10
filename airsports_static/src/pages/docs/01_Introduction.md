@@ -60,6 +60,6 @@ ASLT is a high-performance ecosystem utilizing:
 *   **Open Glider Network (OGN) & SafeSky Integration:** Aggregating data from multiple sources for a complete tactical picture.
 
 ## Support & Community
-ASLT is a community-driven project. For specialized map processing (GeoTIFF) or to request organizer status, please contact **support@airsports.no**. 
+ASLT is a community-driven project. For specialized map processing (GeoTIFF), please contact **support@airsports.no**. 
 
 Proceed to the next chapters to begin your journey with Air Sports Live Tracking.

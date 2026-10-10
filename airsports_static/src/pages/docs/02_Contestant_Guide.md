@@ -53,7 +53,7 @@ ASLT uses a highly sophisticated **Adaptive Start** to accommodate pre-flight de
 If the event allows "Self Management" (configured by the Contest Manager), you can register yourself directly through the dashboard.
 
 ### Step 1: Register for the Contest
-1. Find your competition on the **Mission Dashboard** at `airsports.no`.
+1. Find your competition on the **Mission Dashboard** at `app.airsports.no`.
 2. Click on the competition card to open its detail page.
 3. Select **"Register"** to enter your team details, including your co-pilot (optional), aircraft registration, and club name.
 
