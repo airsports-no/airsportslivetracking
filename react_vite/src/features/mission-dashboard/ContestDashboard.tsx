@@ -304,8 +304,9 @@ const ContestDashboard = () => {
                     <button className="btn btn-ghost btn-xs" onClick={() => setActionError(null)}>Dismiss</button>
                 </div>
             )}
+            {/* Below the navigation bar (z-[5000], about 32px high), which would otherwise cover the warning. */}
             {toastMessage && (
-                <div className="toast toast-top toast-end z-[2000]">
+                <div className="toast toast-top toast-end z-[2000]" style={{ top: '3rem' }}>
                     {toastMessage.map((msg, idx) => (
                          <div key={idx} className="alert alert-warning">
                             <span>{msg}</span>
