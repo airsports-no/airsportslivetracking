@@ -334,6 +334,43 @@ class UserPersonViewSet(GenericViewSet):
     def perform_update(self, serializer):
         serializer.save()
 
+    @action(detail=False, methods=["post"])
+    def register_device(self, request, *args, **kwargs):
+        """
+        Registers (or refreshes) the phone's FCM push token for the signed-in person. A token belongs to one person at
+        a time, so signing in with another account on the same phone moves it.
+        Body: ``{"platform": "android"|"ios", "push_token": "...", "app_version": "100"}``.
+        """
+        from display.models.mobile_device import MOBILE_PLATFORMS, MobileDevice
+
+        platform = request.data.get("platform")
+        token = str(request.data.get("push_token", "")).strip()
+        if platform not in {key for key, _ in MOBILE_PLATFORMS}:
+            return Response({"detail": "platform must be 'android' or 'ios'."}, status=status.HTTP_400_BAD_REQUEST)
+        if not token or len(token) > 512:
+            return Response({"detail": "push_token is required (max 512 characters)."}, status=status.HTTP_400_BAD_REQUEST)
+        person = self.get_object()
+        MobileDevice.objects.update_or_create(
+            token_hash=MobileDevice.hash_token(token),
+            defaults={
+                "push_token": token,
+                "person": person,
+                "platform": platform,
+                "app_version": str(request.data.get("app_version", ""))[:40],
+            },
+        )
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
+    @action(detail=False, methods=["post"])
+    def unregister_device(self, request, *args, **kwargs):
+        """Forgets a push token (called on sign-out). Only removes tokens that belong to the signed-in person."""
+        from display.models.mobile_device import MobileDevice
+
+        person = self.get_object()
+        token = str(request.data.get("push_token", "")).strip()
+        MobileDevice.objects.filter(person=person, token_hash=MobileDevice.hash_token(token)).delete()
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=False, methods=["delete"])
     def delete_account(self, request, *args, **kwargs):
         """

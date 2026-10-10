@@ -33,6 +33,7 @@ from live_tracking_map import settings
 
 from django.core.cache import cache
 from django.conf import settings
+from django.views.decorators.cache import cache_control
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
@@ -1925,3 +1926,30 @@ def page_not_found(request, exception=None):
     would then fail with a 500 whenever a persistent MySQL connection had gone away.
     """
     return HttpResponse(render_to_string("404.html"), status=404)
+
+
+@cache_control(public=True, max_age=300)
+def mobile_config(request):
+    """
+    Public configuration for the mobile apps, fetched at start-up. The apps compare their own version (Android
+    versionCode / iOS build number) with ``min_version`` and show a blocking "update required" screen when lower.
+    """
+    return JsonResponse(
+        {
+            "android": {
+                "min_version": settings.MOBILE_ANDROID_MIN_VERSION,
+                "latest_version": settings.MOBILE_ANDROID_LATEST_VERSION,
+                "store_url": settings.MOBILE_ANDROID_STORE_URL,
+            },
+            "ios": {
+                "min_version": settings.MOBILE_IOS_MIN_VERSION,
+                "latest_version": settings.MOBILE_IOS_LATEST_VERSION,
+                "store_url": settings.MOBILE_IOS_STORE_URL,
+            },
+            "tracking": {
+                "interval_ms": settings.MOBILE_TRACKING_INTERVAL_MS,
+                "traccar_url": settings.MOBILE_TRACCAR_URL,
+            },
+            "push_notifications_enabled": settings.PUSH_NOTIFICATIONS_ENABLED,
+        }
+    )
