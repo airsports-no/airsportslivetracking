@@ -25,13 +25,22 @@ logger = logging.getLogger(__name__)
 ANDROID_CHANNEL = "flight_reminders"
 
 
+def _ensure_firebase_initialized() -> None:
+    import firebase_admin
+
+    try:
+        firebase_admin.get_app()
+    except ValueError:
+        from display.auth_backends import FirebaseMigrationBackend
+
+        FirebaseMigrationBackend()._initialize_firebase()
+
+
 def _send_one(device: MobileDevice, title: str, body: str, data: dict[str, str]) -> bool:
     """Returns False when FCM says the token is no longer valid (the device row is deleted)."""
     from firebase_admin import messaging
 
-    from display.auth_backends import FirebaseMigrationBackend
-
-    FirebaseMigrationBackend()._initialize_firebase()
+    _ensure_firebase_initialized()
     message = messaging.Message(
         token=device.push_token,
         notification=messaging.Notification(title=title, body=body),
@@ -91,6 +100,10 @@ def _notify_once(kind: str, contestant: Contestant, person: Person, title: str, 
         body,
         {"type": kind, "contestant_id": str(contestant.pk), "navigation_task_id": str(contestant.navigation_task_id)},
     )
+    if reached == 0:
+        # Nothing got through (FCM error or only dead tokens): forget it so the next run can retry.
+        log.delete()
+        return False
     log.devices_reached = reached
     log.save(update_fields=["devices_reached"])
     return True

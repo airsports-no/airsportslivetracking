@@ -17,7 +17,8 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
 from django.core.serializers.json import DjangoJSONEncoder
-from django.db import transaction
+import pytz
+from django.db import IntegrityError, transaction
 from django.db.models import Count, Max, Prefetch, Q
 from django.http import Http404, HttpResponse, StreamingHttpResponse
 from django.urls import reverse
@@ -350,15 +351,23 @@ class UserPersonViewSet(GenericViewSet):
         if not token or len(token) > 512:
             return Response({"detail": "push_token is required (max 512 characters)."}, status=status.HTTP_400_BAD_REQUEST)
         person = self.get_object()
-        MobileDevice.objects.update_or_create(
-            token_hash=MobileDevice.hash_token(token),
-            defaults={
-                "push_token": token,
-                "person": person,
-                "platform": platform,
-                "app_version": str(request.data.get("app_version", ""))[:40],
-            },
-        )
+        for attempt in range(2):
+            try:
+                with transaction.atomic():
+                    MobileDevice.objects.update_or_create(
+                        token_hash=MobileDevice.hash_token(token),
+                        defaults={
+                            "push_token": token,
+                            "person": person,
+                            "platform": platform,
+                            "app_version": str(request.data.get("app_version", ""))[:40],
+                        },
+                    )
+                break
+            except IntegrityError:
+                # A concurrent registration of the same token won the race; the retry updates that row.
+                if attempt:
+                    raise
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["post"])
@@ -1050,7 +1059,10 @@ class ContestViewSet(ModelViewSet):
         from display.services.open_registration import describe, open_registration_tasks_today
 
         now = datetime.datetime.now(datetime.timezone.utc)
-        tasks = open_registration_tasks_today(request.query_params.get("timezone"), now)
+        timezone_name = request.query_params.get("timezone")
+        if timezone_name and timezone_name not in pytz.all_timezones_set:
+            return Response({"detail": "Unknown timezone."}, status=status.HTTP_400_BAD_REQUEST)
+        tasks = open_registration_tasks_today(timezone_name, now)
         response = Response([describe(task, now) for task in tasks])
         # Public list; the CDN may keep it for a short while.
         response["Cache-Control"] = "public, max-age=0, s-maxage=60"

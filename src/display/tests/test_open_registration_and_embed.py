@@ -77,6 +77,9 @@ class TestOpenRegistrationToday(TestCase):
         self.assertTrue(item["is_open_now"])
         self.assertEqual(item["time_zone"], "Europe/Oslo")
 
+    def test_unknown_timezone_is_rejected(self):
+        self.assertEqual(self.client.get(URL, {"timezone": "Mars/Base"}).status_code, 400)
+
     def test_a_contest_without_a_location_reports_none_instead_of_the_ocean(self):
         nowhere = Contest.objects.create(name="Nowhere", start_time=NOW, finish_time=NOW, is_public=True, location="")
         make_task(nowhere, "T", 1, 3)

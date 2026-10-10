@@ -163,8 +163,11 @@ class EmbedModeMiddleware:
         flag = request.GET.get("embed")
         request.embed_app = flag == "app" or (flag is None and request.COOKIES.get(self.COOKIE) == "app")
         response = self.get_response(request)
+        if response.get("Content-Type", "").startswith("text/html"):
+            # Only pages differ by embed mode; keep public API responses cacheable.
+            patch_vary_headers(response, ("Cookie",))
         if flag == "app":
-            response.set_cookie(self.COOKIE, "app", max_age=self.MAX_AGE, samesite="Lax", httponly=True)
+            response.set_cookie(self.COOKIE, "app", max_age=self.MAX_AGE, samesite="Lax", httponly=True, secure=request.is_secure())
         elif flag == "off":
             response.delete_cookie(self.COOKIE)
         return response

@@ -130,6 +130,14 @@ class TestPushNotifications(TransactionTestCase):
         log = PushNotificationLog.objects.get()
         self.assertEqual((log.person, log.devices_reached), (self.pilot, 1))
 
+    def test_failed_send_is_retried_on_the_next_run(self):
+        self.contestant(start_in_min=10)
+        self.send.return_value = False
+        self.assertEqual(push_notifications.notify_upcoming_tracking_windows(self.now), 0)
+        self.assertFalse(PushNotificationLog.objects.exists())
+        self.send.return_value = True
+        self.assertEqual(push_notifications.notify_upcoming_tracking_windows(self.now), 1)
+
     def test_ignores_windows_outside_the_lead_time_and_hardware_trackers(self):
         self.contestant(start_in_min=45, takeoff_in_min=60, number=1)
         self.contestant(start_in_min=10, device=TRACKING_DEVICE, number=2)
