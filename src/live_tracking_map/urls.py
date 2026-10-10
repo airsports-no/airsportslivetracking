@@ -15,7 +15,6 @@ from display.views import (
     view_token,
     firebase_token_login,
     mobile_config,
-    mobile_time,
     firebase_password_change,
     firebase_password_reset,
     signup,
@@ -42,7 +41,6 @@ urlpatterns = [
     path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("api/v1/reverse-urls/", urls_json, name="js_reverse"),
     path("api/v1/mobile/config/", mobile_config, name="mobile_config"),
-    path("api/v1/mobile/time/", mobile_time, name="mobile_time"),
     path("api/v1/", include(api.urlpatterns)),
     path(
         "global/contest_details/<int:pk>/",

@@ -1,5 +1,4 @@
 import datetime
-import time
 import json
 import os
 import re
@@ -34,7 +33,7 @@ from live_tracking_map import settings
 
 from django.core.cache import cache
 from django.conf import settings
-from django.views.decorators.cache import cache_control, never_cache
+from django.views.decorators.cache import cache_control
 from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.core.files.base import ContentFile
 from django.core.mail import send_mail
@@ -1954,13 +1953,3 @@ def mobile_config(request):
             "push_notifications_enabled": settings.PUSH_NOTIFICATIONS_ENABLED,
         }
     )
-
-
-@never_cache
-def mobile_time(request):
-    """
-    The server's clock in epoch milliseconds, never cached. The mobile apps compare it with the phone's clock (using
-    the request round trip) to warn the pilot when the phone is off - the start timer must agree with the scoring
-    system, which uses GPS time, to the second.
-    """
-    return JsonResponse({"epoch_ms": int(time.time() * 1000)})

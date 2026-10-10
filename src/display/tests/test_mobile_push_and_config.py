@@ -41,18 +41,6 @@ class TestMobileConfig(TestCase):
         self.assertEqual(body["ios"]["min_version"], 5)
 
 
-class TestMobileTime(TestCase):
-    def test_returns_the_server_clock_uncached(self):
-        import time
-
-        before = int(time.time() * 1000)
-        response = self.client.get("/api/v1/mobile/time/")
-        after = int(time.time() * 1000)
-        self.assertEqual(response.status_code, 200)
-        self.assertTrue(before <= response.json()["epoch_ms"] <= after)
-        self.assertIn("no-store", response["Cache-Control"])
-
-
 class TestDeviceRegistration(TestCase):
     def setUp(self):
         patcher = patch("display.signals.get_traccar_instance", return_value=TraccarMock)
