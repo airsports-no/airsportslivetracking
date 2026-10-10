@@ -334,6 +334,28 @@ class UserPersonViewSet(GenericViewSet):
     def perform_update(self, serializer):
         serializer.save()
 
+    @action(detail=False, methods=["delete"])
+    def delete_account(self, request, *args, **kwargs):
+        """
+        Permanently deletes the signed-in user's account (login, profile and Firebase account); the profile is
+        anonymized instead of deleted when it is part of a team. The body must contain the account's email as
+        confirmation. Required by the App Store / Google Play for apps with account creation.
+        """
+        from display.services.account_deletion import AccountDeletionBlocked, blocked_reason, delete_account
+
+        user = request.user
+        reason = blocked_reason(user)
+        if reason:
+            return Response({"detail": reason}, status=status.HTTP_409_CONFLICT)
+        confirmation = str(request.data.get("email", "")).strip().lower()
+        if not user.email or confirmation != user.email.lower():
+            return Response({"detail": "Confirm by sending your account email."}, status=status.HTTP_400_BAD_REQUEST)
+        try:
+            delete_account(user.email)
+        except AccountDeletionBlocked as e:
+            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+        return Response(status=status.HTTP_204_NO_CONTENT)
+
     @action(detail=False, methods=["get"])
     def my_contest_teams(self, request, *args, **kwargs):
         # for authorisation
