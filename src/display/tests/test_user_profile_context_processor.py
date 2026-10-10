@@ -52,8 +52,8 @@ class TestUserProfileContextProcessor(TestCase):
         self.assertEqual(context["user_profile_picture_url"], person.picture.url)
 
     def test_email_match_is_case_insensitive(self):
-        # Matches Person.objects.filter(email=...) conventions used elsewhere (e.g.
-        # get_persons_for_signup) - MyUser and Person emails aren't guaranteed identical case.
+        # Matches Person.objects.filter(email=...) conventions used elsewhere
+        # - MyUser and Person emails aren't guaranteed identical case.
         user = get_user_model().objects.create_user(email="Mixed-Case@example.com", password="secret")
         Person.objects.create(
             first_name="Mixed",

@@ -121,23 +121,6 @@ class UserSerialiser(serializers.ModelSerializer):
         fields = ("first_name", "last_name", "email")
 
 
-class MangledEmailField(serializers.Field):
-    def to_representation(self, value):
-        """
-        Serialize the value's class name.
-        """
-        if not value or "@" not in value:
-            return value
-        try:
-            name, domain = value.split("@")
-            levels = domain.split(".")
-            if len(levels) > 1:
-                return f"{name}@*****.{'.'.join(levels[1:])}"
-            return f"{name}@*****"
-        except (ValueError, AttributeError):
-            return value
-
-
 class AeroplaneSerialiser(serializers.ModelSerializer):
     # registration has a DB-level unique constraint (see the 0178 migration), and every write
     # path already implements its own lookup-or-reuse semantics on top of that (nested_update
@@ -152,14 +135,6 @@ class AeroplaneSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Aeroplane
         fields = "__all__"
-
-
-class PersonSignUpSerialiser(serializers.ModelSerializer):
-    email = MangledEmailField(read_only=True)
-
-    class Meta:
-        model = Person
-        fields = ("id", "first_name", "last_name", "email", "picture")
 
 
 class PersonLtdSerialiser(serializers.ModelSerializer):

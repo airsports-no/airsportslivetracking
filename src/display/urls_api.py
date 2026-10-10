@@ -12,11 +12,9 @@ from display.views_api import (
     get_country_from_location,
     auto_complete_person_id,
     auto_complete_person_phone,
-    auto_complete_person_email,
     auto_complete_person_first_name,
     auto_complete_aeroplane,
     auto_complete_club,
-    get_persons_for_signup,
     search_people,
 )
 
@@ -49,11 +47,9 @@ urlpatterns = [
     path("getcountrycode/", get_country_from_location, name="getcountrycode"),
     path("contestant/autocomplete/id/", auto_complete_person_id, name="autocomplete_id"),
     path("contestant/autocomplete/phone/", auto_complete_person_phone, name="autocomplete_phone"),
-    path("contestant/autocomplete/email/", auto_complete_person_email, name="autocomplete_email"),
     path("contestant/autocomplete/firstname/", auto_complete_person_first_name, name="autocomplete_first_name"),
     path("contestant/autocomplete/lastname/", auto_complete_person_last_name, name="autocomplete_last_name"),
     path("aeroplane/autocomplete/registration/", auto_complete_aeroplane, name="autocomplete_aeroplane"),
     path("club/autocomplete/name/", auto_complete_club, name="autocomplete_club"),
-    path("person/signuplist/", get_persons_for_signup, name="get_persons_for_signup"),
     path("people/search/", search_people, name="people_search"),
 ]

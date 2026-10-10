@@ -18,7 +18,6 @@ from display.serialisers import (
     AeroplaneSerialiser,
     ClubSerialiser,
     PersonSerialiserExcludingTracking,
-    PersonSignUpSerialiser,
 )
 from display.services.people_search import search_persons, search_users
 from display.throttles import PeopleSearchThrottle
@@ -168,23 +167,6 @@ def auto_complete_person_last_name(request):
         return Response(serialiser.data)
 
 
-@extend_schema(request=_AutoCompleteRequestSerialiser, responses={200: OpenApiTypes.ANY})
-@api_view(["POST"])
-@permission_classes([IsAuthenticated])
-def auto_complete_person_email(request):
-    request_number = int(request.data.get("request"))
-    if request_number == 1:
-        q = request.data.get("search", "")
-        search_qs = Person.objects.filter(email__icontains=q)
-        result = [item.email for item in search_qs]
-        return Response(result)
-    else:
-        q = request.data.get("search", "")
-        search_qs = Person.objects.filter(email=q)
-        serialiser = PersonSerialiserExcludingTracking(search_qs, many=True)
-        return Response(serialiser.data)
-
-
 @extend_schema(
     parameters=[
         OpenApiParameter("q", str, description="Name (at least 3 characters) or a complete email address"),
@@ -209,22 +191,6 @@ def search_people(request):
         return Response({"detail": "kind must be 'person' or 'user'"}, status=400)
     exclude_self = request.query_params.get("exclude_self", "true").lower() != "false"
     return Response(search_persons(query, exclude_email=request.user.email if exclude_self else None))
-
-
-@extend_schema(responses={200: OpenApiTypes.ANY})
-@api_view(["GET"])
-@permission_classes([IsAuthenticated])
-def get_persons_for_signup(request):
-    # Filter for persons with valid-ish emails to prevent empty results or crashes
-    persons = Person.objects.filter(email__contains="@")
-    # Self-registration's copilot search excludes the requester (you can't be your own copilot),
-    # but the admin team-registration flow (TeamRegistrationFlow.tsx) searches for a PILOT too,
-    # and an organizer who is also a competitor must be selectable there - both as themselves and,
-    # critically, when re-editing a registration where they're already the pilot (otherwise the
-    # form can't resolve their name and falls back to showing their raw Person id instead).
-    if request.query_params.get("exclude_self", "true").lower() != "false":
-        persons = persons.exclude(email=request.user.email)
-    return Response(PersonSignUpSerialiser(persons, many=True).data)
 
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
