@@ -13,6 +13,7 @@ import redis
 import rest_framework.exceptions as drf_exceptions
 from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
+from display.services.received_positions import last_received_position_time
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.files.base import ContentFile
@@ -479,7 +480,7 @@ class UserPersonViewSet(GenericViewSet):
         contestants_data = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
-        return self._format_navigation_tasks_response(request, contestants_data)
+        return self._format_navigation_tasks_response(request, contestants_data, person.simulator_tracking_id)
 
     @action(detail=False, methods=["get"])
     def get_current_app_navigation_task(self, request, *args, **kwargs):
@@ -487,11 +488,12 @@ class UserPersonViewSet(GenericViewSet):
         contestants_data = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, person.app_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
-        return self._format_navigation_tasks_response(request, contestants_data)
+        return self._format_navigation_tasks_response(request, contestants_data, person.app_tracking_id)
 
-    def _format_navigation_tasks_response(self, request, contestants_data):
+    def _format_navigation_tasks_response(self, request, contestants_data, device_name=None):
         if not contestants_data:
             raise Http404
+        last_received = last_received_position_time(device_name)
 
         tasks_map = {}
         map_viewable = {}  # per task: the permission check can hit the database
@@ -516,6 +518,10 @@ class UserPersonViewSet(GenericViewSet):
                     # explain that the results must be awaited) and the page that shows their own flight.
                     "map_viewable": map_viewable[task.pk],
                     "map_path": map_path_for(contestant),
+                    # When the server last received a position from this device. Unlike last_position_time (the stored
+                    # positions, which the task's calculation delay holds back) this is not delayed.
+                    "last_received_time": last_received.isoformat() if last_received else None,
+                    "calculation_delay_minutes": task.calculation_delay_minutes,
                 }
             )
 
