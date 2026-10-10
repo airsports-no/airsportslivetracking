@@ -160,6 +160,7 @@ from display.serialisers import (
     TodaysNavigationSerialiser,
     TrackAnnotationSerialiser,
 )
+from display.services.map_access import can_view_task_map, map_path_for
 from display.services.people_search import user_identities
 from display.services.access_resolver import resolve_contest_access
 from display.services.admin_flight_stats import BIN_GRANULARITIES, build_admin_flight_stats
@@ -506,6 +507,10 @@ class UserPersonViewSet(GenericViewSet):
                     # Same definition as the organizer endpoint (views_api.get_running_calculators): the live calculator
                     # is started by the first received position, so "running" proves the pilot's positions are scored.
                     "calculator_running": is_calculator_running(contestant.pk) or is_dispatch_pending(contestant.pk),
+                    # Whether the pilot may open the live map of this task (so the app can offer "View your flight" or
+                    # explain that the results must be awaited) and the page that shows their own flight.
+                    "map_viewable": can_view_task_map(request.user, task),
+                    "map_path": map_path_for(contestant),
                 }
             )
 

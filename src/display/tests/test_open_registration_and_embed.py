@@ -55,10 +55,7 @@ class TestOpenRegistrationToday(TestCase):
         self.assertEqual(self.names(timezone_name="Not/AZone"), ["Late"], "unknown zones fall back to UTC")
 
     def test_public_endpoint_returns_what_a_pilot_needs_to_find_the_place(self):
-        make_task(self.contest, "Running now", -1, 3)
-        with_now = NOW  # the view uses the real clock, so build a task around the real "now" instead
-        real_now = datetime.datetime.now(datetime.timezone.utc)
-        NavigationTask.objects.all().delete()
+        real_now = datetime.datetime.now(datetime.timezone.utc)  # the view uses the real clock, not NOW
         task = NavigationTask.create(
             name="Today", original_scorecard=get_default_scorecard(),
             start_time=real_now - datetime.timedelta(minutes=5), finish_time=real_now + datetime.timedelta(minutes=30),
