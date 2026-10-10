@@ -16,6 +16,7 @@ const ContestantScheduling = lazy(() => import("./features/scheduling/Contestant
 const ContestantDeclarationPage = lazy(() => import("./features/scheduling/ContestantDeclarationPage"));
 const PhotoManagementPage = lazy(() => import("./features/competition-map/PhotoManagementPage"));
 const ScheduleFlightPage = lazy(() => import("./features/mission-dashboard/ScheduleFlightPage"));
+const OpenTodayPage = lazy(() => import("./features/open-today/OpenTodayPage"));
 const UpgradeOrganizer = lazy(() => import("./features/mission-dashboard/UpgradeOrganizer"));
 const UpgradeSuccess = lazy(() => import("./features/mission-dashboard/UpgradeSuccess"));
 const AdminFlightActivityPage = lazy(() => import("./features/admin-dashboard/AdminFlightActivityPage"));
@@ -45,6 +46,7 @@ const AppRoutes = () => {
 
             <Route path={routes.CONTEST_RESULTS_TABLE} element={wrap(<ContestResultsTable />)} />
             <Route path={routes.SCHEDULE_FLIGHT} element={wrap(<ScheduleFlightPage />)} />
+            <Route path={routes.OPEN_TODAY} element={wrap(<OpenTodayPage />)} />
             <Route path={routes.CONTESTANT_SCHEDULING} element={wrap(<ContestantScheduling />)} />
             <Route path={routes.CONTESTANT_DECLARATION} element={wrap(<ContestantDeclarationPage />)} />
             <Route path={routes.UPGRADE_ORGANIZER} element={wrap(<UpgradeOrganizer />)} />

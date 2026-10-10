@@ -1041,6 +1041,22 @@ class ContestViewSet(ModelViewSet):
         return response
 
     @action(detail=False, methods=["get"])
+    def open_registration_today(self, request, *args, **kwargs):
+        """
+        Public list of tasks happening today that pilots can register a flight for themselves (self registration), with
+        the contest's name and location so a pilot can find the place to register before flying.
+        Query: ``timezone`` (IANA name; the calendar day to use, default UTC).
+        """
+        from display.services.open_registration import describe, open_registration_tasks_today
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        tasks = open_registration_tasks_today(request.query_params.get("timezone"), now)
+        response = Response([describe(task, now) for task in tasks])
+        # Public list; the CDN may keep it for a short while.
+        response["Cache-Control"] = "public, max-age=0, s-maxage=60"
+        return response
+
+    @action(detail=False, methods=["get"])
     def todays_navigation(self, request, *args, **kwargs):
         # version = cache.get("contest_list_version", 1)
         # etag = f'"{version}-todays-nav"'
