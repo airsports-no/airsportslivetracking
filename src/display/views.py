@@ -1292,7 +1292,9 @@ def firebase_token_login(request):
     firebase_authenticator = FirebaseTokenAuthentication()
     try:
         user, decoded_token = firebase_authenticator.authenticate_credentials(token)
-        login(request, user, backend="django.contrib.auth.backends.ModelBackend")
+        # The backend recorded in the session must be listed in settings.AUTHENTICATION_BACKENDS, otherwise Django
+        # discards the session on the next request (ModelBackend is not listed, so the app's web view stayed anonymous).
+        login(request, user, backend="display.auth_backends.FirebaseMigrationBackend")
     except drf_exceptions.AuthenticationFailed as e:
         logger.warning("Firebase login with token from app failed: %s", e)
         messages.error(request, f"Login failed: {e}")

@@ -86,3 +86,22 @@ class TestFirebaseTokenLoginNextRedirect(TestCase):
     def test_defaults_to_root_without_next(self):
         response = self._login("")
         self.assertEqual(response.url, "/")
+
+
+class TestFirebaseTokenLoginSessionPersists(TestCase):
+    @patch("display.authentication.FirebaseTokenAuthentication.authenticate_credentials")
+    def test_session_from_app_login_is_authenticated_on_the_next_page(self, mock_authenticate_credentials):
+        # Regression: login() recorded a backend that is not in AUTHENTICATION_BACKENDS, so Django dropped the
+        # session on the following request and the app's web view showed the anonymous page.
+        import re
+
+        from django.contrib.auth import get_user_model
+
+        user = get_user_model().objects.create(email="firebase-session-test@example.com", username="session-test")
+        mock_authenticate_credentials.return_value = (user, {})
+
+        self.client.get("/firebase_login/", {"next": "/"}, HTTP_AUTHORIZATION="JWT x", HTTP_HOST="app.airsports.no")
+        page = self.client.get("/", HTTP_HOST="app.airsports.no").content.decode()
+
+        self.assertEqual(re.findall(r"isAuthenticated: (\w+)", page), ["true"])
+        self.assertEqual(re.findall(r"userId: (\w+)", page), [str(user.id)])
