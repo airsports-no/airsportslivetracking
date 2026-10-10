@@ -83,6 +83,21 @@ class TestFirebaseTokenLoginNextRedirect(TestCase):
         response = self._login("//evil.example.com/phish")
         self.assertEqual(response.url, "/")
 
+    def test_failed_login_ignores_next_and_goes_to_root(self):
+        from rest_framework import exceptions
+
+        with patch(
+            "display.authentication.FirebaseTokenAuthentication.authenticate_credentials",
+            side_effect=exceptions.AuthenticationFailed("expired"),
+        ):
+            response = self.client.get(
+                "/firebase_login/",
+                data={"next": "/competition-map/1/2"},
+                HTTP_AUTHORIZATION="JWT some-token",
+            )
+        self.assertEqual(response.status_code, 302)
+        self.assertEqual(response.url, "/")
+
     def test_defaults_to_root_without_next(self):
         response = self._login("")
         self.assertEqual(response.url, "/")

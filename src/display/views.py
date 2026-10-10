@@ -1298,6 +1298,9 @@ def firebase_token_login(request):
     except drf_exceptions.AuthenticationFailed as e:
         logger.warning("Firebase login with token from app failed: %s", e)
         messages.error(request, f"Login failed: {e}")
+        # Never forward to the requested page when login failed: the user would land logged out on a page
+        # that does not show the message above. The root page does.
+        return redirect("/")
     # Apps call this on app.airsports.no (the React host, so the session cookie is set where the
     # SPA runs) and pass ?next=/competition-map/... to land directly on the page they want.
     # Only same-host relative paths are honoured, to avoid an open redirect.
