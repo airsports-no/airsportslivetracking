@@ -245,6 +245,32 @@ class TestContestantGatesCalculation(APITestCase):
             dateutil.parser.parse(data["takeoff_time"]),
         )
 
+    def test_my_future_flights_reports_whether_it_can_be_cancelled(self, *args):
+        self.contest.finish_time = datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
+        self.contest.save()
+        self.client.force_login(user=self.user_owner)
+        data = {
+            "starting_point_time": (datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(days=2)).isoformat(),
+            "contest_team": self.contest_team.pk,
+            "adaptive_start": False,
+            "wind_speed": 5,
+            "wind_direction": 170,
+        }
+        url = reverse(
+            "navigationtasks-contestant-self-registration",
+            kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
+        )
+        self.assertEqual(self.client.put(url, data=data, format="json").status_code, status.HTTP_201_CREATED)
+
+        # A future flight in a self-managed task, and the user may delete it (here as the contest manager).
+        flights = self.client.get("/api/v1/userprofile/my_future_flights/").json()
+        self.assertTrue(flights[0]["can_cancel"])
+
+        self.navigation_task.allow_self_management = False
+        self.navigation_task.save()
+        flights = self.client.get("/api/v1/userprofile/my_future_flights/").json()
+        self.assertFalse(flights[0]["can_cancel"])
+
 
 class TestUserProfileDuplicatePersonEmail(APITransactionTestCase):
     """

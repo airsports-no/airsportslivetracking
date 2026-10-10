@@ -2189,6 +2189,20 @@ class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSeri
 
 class FutureContestantNestedTeamSerialiser(ContestantNestedTeamSerialiser):
     latest_emaillink = serializers.SerializerMethodField()
+    can_cancel = serializers.SerializerMethodField()
+
+    def get_can_cancel(self, obj: Contestant) -> bool:
+        """Whether the requesting user may remove/terminate this flight through delete_self_managed_contestant.
+        Mirrors that action's checks, so the app can show the button without being able to see the task itself."""
+        request = self.context.get("request")
+        user = getattr(request, "user", None)
+        task = obj.navigation_task
+        if user is None or not user.is_authenticated or not task.allow_self_management:
+            return False
+        is_manager = user.has_perm("display.delete_contest", task.contest)
+        if not ((task.is_public and task.contest.is_public) or is_manager):
+            return False
+        return is_manager or obj.team.crew.member1.email == user.email
 
     def get_latest_emaillink(self, obj: Contestant) -> Optional[dict]:
         latest_link = obj.emailmaplink_set.order_by("-created_at").first()
