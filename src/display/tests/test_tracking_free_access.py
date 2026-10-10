@@ -97,6 +97,20 @@ class TestFreeAccessOnTheOwnProfile(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json()["tracking_free_access"]["source"], "grant")
 
+    def test_the_email_match_ignores_case(self):
+        from types import SimpleNamespace
+
+        from display.serialisers import OwnPersonSerialiser
+
+        grant(self.user)
+        person = Person.objects.get(email="pilot@example.com")
+        person.email = "Pilot@Example.com"
+        data = OwnPersonSerialiser(person, context={"request": SimpleNamespace(user=self.user)}).data
+        self.assertEqual(data["tracking_free_access"]["source"], "grant")
+        stranger = MyUser.objects.create(username="stranger", email="stranger@example.com")
+        data = OwnPersonSerialiser(person, context={"request": SimpleNamespace(user=stranger)}).data
+        self.assertIsNone(data["tracking_free_access"])
+
     def test_other_profile_serialisers_do_not_carry_the_field(self):
         from display.serialisers import PersonSerialiser
 

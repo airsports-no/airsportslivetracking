@@ -227,7 +227,8 @@ class OwnPersonSerialiser(PersonSerialiser):
         request = self.context.get("request")
         user = getattr(request, "user", None)
         # Only ever about the requesting user's own profile.
-        if user is None or getattr(user, "email", None) != person.email:
+        user_email = (getattr(user, "email", None) or "").lower()
+        if user is None or not user_email or user_email != (person.email or "").lower():
             return None
         access = free_tracking_access(user)
         return access.as_dict() if access else None
