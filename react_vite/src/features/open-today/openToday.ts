@@ -64,6 +64,83 @@ export const filterGroups = (groups: ContestGroup[], query: string): ContestGrou
     return result;
 };
 
+/** Where the user is, when the mobile app told the page (see userLocationFromUrl). */
+export interface Coordinates {
+    latitude: number;
+    longitude: number;
+}
+
+const toCoordinates = (lat: string | null, lon: string | null): Coordinates | null => {
+    if (lat === null || lon === null || lat.trim() === '' || lon.trim() === '') return null;
+    const latitude = Number(lat);
+    const longitude = Number(lon);
+    if (!Number.isFinite(latitude) || !Number.isFinite(longitude)) return null;
+    if (Math.abs(latitude) > 90 || Math.abs(longitude) > 180) return null;
+    return { latitude, longitude };
+};
+
+/**
+ * The user's position as passed by the mobile app: `#lat=59.9&lon=10.7` in the address (a fragment is never sent to the
+ * server, so the location stays on the phone), or the same as query parameters. Null when absent or not valid.
+ */
+export const userLocationFromUrl = (search: string, hash: string): Coordinates | null => {
+    const fromHash = new URLSearchParams(hash.replace(/^#/, ''));
+    const fromQuery = new URLSearchParams(search);
+    return (
+        toCoordinates(fromHash.get('lat'), fromHash.get('lon')) ?? toCoordinates(fromQuery.get('lat'), fromQuery.get('lon'))
+    );
+};
+
+const EARTH_RADIUS_KM = 6371.0088;
+
+/** Great-circle distance in kilometres (haversine). */
+export const distanceKm = (a: Coordinates, b: Coordinates): number => {
+    const rad = (degrees: number) => (degrees * Math.PI) / 180;
+    const dLat = rad(b.latitude - a.latitude);
+    const dLon = rad(b.longitude - a.longitude);
+    const h =
+        Math.sin(dLat / 2) ** 2 + Math.cos(rad(a.latitude)) * Math.cos(rad(b.latitude)) * Math.sin(dLon / 2) ** 2;
+    return 2 * EARTH_RADIUS_KM * Math.asin(Math.min(1, Math.sqrt(h)));
+};
+
+/** A group with its distance from the user, or null when the venue has no published location. */
+export type GroupWithDistance = ContestGroup & { distanceKm: number | null };
+
+/**
+ * The groups nearest to the user first. Venues without a location go last, in the order the server sent them; so do all
+ * groups when the user's location is not known (then the distance is null everywhere and the order is unchanged).
+ */
+export const sortByDistance = (groups: ContestGroup[], here: Coordinates | null): GroupWithDistance[] => {
+    const withDistance = groups.map((group, index) => ({
+        group: {
+            ...group,
+            distanceKm:
+                here && group.latitude !== null && group.longitude !== null
+                    ? distanceKm(here, { latitude: group.latitude, longitude: group.longitude })
+                    : null,
+        } as GroupWithDistance,
+        index,
+    }));
+    if (!here) return withDistance.map((item) => item.group);
+    return withDistance
+        .sort((x, y) => {
+            const dx = x.group.distanceKm;
+            const dy = y.group.distanceKm;
+            if (dx === null && dy === null) return x.index - y.index;
+            if (dx === null) return 1;
+            if (dy === null) return -1;
+            return dx - dy || x.index - y.index;
+        })
+        .map((item) => item.group);
+};
+
+/** "850 m", "4.2 km", "126 km". */
+export const formatDistance = (km: number): string => {
+    if (km < 1) return `${Math.max(10, Math.round((km * 1000) / 10) * 10)} m`;
+    if (km < 10) return `${km.toFixed(1)} km`;
+    return `${Math.round(km)} km`;
+};
+
 export const hasLocation = (g: { latitude: number | null; longitude: number | null }): boolean =>
     g.latitude !== null && g.longitude !== null;
 
