@@ -98,14 +98,10 @@ def get_flight_order_visual_waypoints(contestant: Contestant, include_contestant
         include_contestant_declarations=include_contestant_declarations,
     )
     waypoints = [waypoint for waypoint in effective_waypoints if waypoint.type != "dummy"]
-    payload = (
-        getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
-    )
+    payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
     if contestant.navigation_task.task_subtype == "unknown_legs":
         actual_route_names = {
-            item.get("name")
-            for item in (payload.get("actual_route", {}) or {}).get("waypoints", [])
-            if item.get("name")
+            item.get("name") for item in (payload.get("actual_route", {}) or {}).get("waypoints", []) if item.get("name")
         }
         if actual_route_names:
             waypoints = [waypoint for waypoint in waypoints if waypoint.name in actual_route_names]
@@ -212,10 +208,6 @@ def generate_turning_point_image(
     return image_data
 
 
-# Radius of the red ring in an observation photo, as a fraction of the ground distance the photo covers across
-PHOTO_RING_RADIUS_FRACTION = 0.12
-
-
 def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_level: int):
     imagery = GoogleTiles(style="satellite")
     plt.figure(figsize=(10, 10))
@@ -231,18 +223,6 @@ def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_
     x1, y1 = proj.transform_point(centre_x + range, centre_y + range, utm)
     extent = [x0, x1, y0, y1]
     ax.set_extent(extent, crs=PSEUDO_MERCATOR_SPHERE)
-    # The red ring around the centre, like the turning point photos have: sized to the picture, as their fixed 200 m
-    # would be larger than the whole frame of a photo covering a few hundred metres.
-    circle_points = geodesic.Geodesic().circle(
-        lon=photo.longitude,
-        lat=photo.latitude,
-        radius=meters_across * PHOTO_RING_RADIUS_FRACTION,
-        n_samples=50,
-        endpoint=False,
-    )
-    ax.add_geometries(
-        (Polygon(circle_points),), crs=PSEUDO_MERCATOR_SPHERE, facecolor="none", edgecolor="red", linewidth=3
-    )
     figdata = BytesIO()
     plt.savefig(figdata, format="png", dpi=200, transparent=True)
     figdata.seek(0)
@@ -345,14 +325,10 @@ def _turning_point_gallery_cells(
 def _unknown_leg_gallery_cells(
     contestant, flight_order_configuration: FlightOrderConfiguration, waypoints: List[Waypoint]
 ) -> List[Tuple[str, Optional[str]]]:
-    payload = (
-        getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
-    )
+    payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
     compiled_unknown_leg_names = {item for item in payload.get("unknown_leg_names", []) if item}
     render_waypoints = [
-        waypoint
-        for waypoint in waypoints
-        if waypoint.type == UNKNOWN_LEG or waypoint.name in compiled_unknown_leg_names
+        waypoint for waypoint in waypoints if waypoint.type == UNKNOWN_LEG or waypoint.name in compiled_unknown_leg_names
     ]
     if not render_waypoints:
         render_waypoints = [waypoint for waypoint in waypoints if waypoint.name in compiled_unknown_leg_names]
@@ -626,7 +602,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         # logo to near-nothing. A 70%/30% split gives the image cell a real width matching
         # what the old bare #align(right)[#image(..., width: 30%)] resolved against (the page).
         "context [#grid(columns: (70%, 30%), align: (left + horizon, right + horizon),"
-        + f'[#text(size: 7pt, style: "italic")[{_typst_string(scale_disclaimer)}]],'
+        + f"[#text(size: 7pt, style: \"italic\")[{_typst_string(scale_disclaimer)}]],"
         + "[#align(right)[#image("
         + _typst_string("/src/static/img/AirSportsLiveTrackingWhiteBG.png")
         + ", width: 100%)]])]"
