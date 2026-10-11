@@ -129,6 +129,8 @@ from display.serialisers import (
     ExternalNavigationTaskTeamIdSerialiser,
     FlightOrderConfigurationSerialiser,
     FutureContestantNestedTeamSerialiser,
+    OwnFlightSerialiser,
+    OwnFutureFlightSerialiser,
     GateCumulativeScoreSerialiser,
     GenerateNavigationTaskMapSerialiser,
     GpxTrackSerialiser,
@@ -295,6 +297,12 @@ class ScheduleCapacityPreviewQuerySerializer(serializers.Serializer):
             raise ValidationError(str(exc))
 
 
+def _contest_metadata(contestant, request) -> dict:
+    data = OwnFlightSerialiser(contestant, context={"request": request}).data
+    keys = ("contest_name", "task_type", "contest_logo", "contest_header_image", "contest_location", "contest_country", "contest_website")
+    return {key: data[key] for key in keys}
+
+
 class UserPersonViewSet(GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
     serializer_classes = {
@@ -435,51 +443,74 @@ class UserPersonViewSet(GenericViewSet):
 
     @action(detail=False, methods=["get"])
     def my_future_flights(self, request, *args, **kwargs):
-        available_contests = Contest.visible_contests_for_user(request.user)
+        """
+        The person's own flights that are not over, whatever the visibility of the contest: being the crew is enough to
+        know the flight exists. Slim by default (schedule and contest/task metadata, see OwnFlightSerialiser); the old
+        full contestant payload, restricted to contests the user may view as before, is ``?detail=full``.
+        """
         # for authorisation
         person = self.get_object()
-        contestants = (
-            Contestant.objects.filter(
-                Q(team__crew__member1=person) | Q(team__crew__member2=person),
-                navigation_task__contest__in=available_contests,
-                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
+        now = datetime.datetime.now(datetime.timezone.utc)
+        contestants = Contestant.objects.filter(
+            Q(team__crew__member1=person) | Q(team__crew__member2=person), finished_by_time__gt=now
+        )
+        if request.query_params.get("detail") == "full":
+            contestants = (
+                contestants.filter(navigation_task__contest__in=Contest.visible_contests_for_user(request.user))
+                .order_by("takeoff_time")
+                .distinct()
+                .select_related("navigation_task__contest", "team__crew__member1")
+                .prefetch_related("emailmaplink_set")
             )
-            .order_by("takeoff_time")
+            return Response(
+                FutureContestantNestedTeamSerialiser(contestants, many=True, context={"request": request}).data
+            )
+        contestants = (
+            contestants.order_by("takeoff_time")
             .distinct()
             .select_related("navigation_task__contest", "team__crew__member1")
-            .prefetch_related("emailmaplink_set")
         )
-        return Response(FutureContestantNestedTeamSerialiser(contestants, many=True, context={"request": request}).data)
+        return Response(OwnFutureFlightSerialiser(contestants, many=True, context={"request": request}).data)
 
     @action(detail=False, methods=["get"])
     def my_previous_flights(self, request, *args, **kwargs):
-        available_contests = Contest.visible_contests_for_user(request.user).filter()
+        """
+        The person's own flights that are over, whatever the visibility of the contest. Slim by default (see
+        OwnFlightSerialiser: it says whether the user may open the results, with ``map_viewable``); the old payload with
+        the team, track and route, restricted to contests the user may view as before, is ``?detail=full`` (and slow).
+        """
         # for authorisation
         person = self.get_object()
-
+        contestants = Contestant.objects.filter(
+            Q(team__crew__member1=person) | Q(team__crew__member2=person),
+            finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc),
+        )
+        if request.query_params.get("detail") == "full":
+            contestants = (
+                contestants.filter(navigation_task__contest__in=Contest.visible_contests_for_user(request.user))
+                .select_related("navigation_task__contest")
+                .prefetch_related(
+                    "team__aeroplane",
+                    "team__club",
+                    "team__crew__member1",
+                    "team__crew__member2",
+                    "team__contestsummary_set",
+                    "contestanttrack",
+                )
+                .order_by("navigation_task__contest__start_time")
+                .distinct()
+            )
+            return Response(
+                ContestantNestedTeamSerialiserWithContestantTrack(
+                    contestants, many=True, context={"request": request, "exclude_overlaps": True}
+                ).data
+            )
         contestants = (
-            Contestant.objects.filter(
-                Q(team__crew__member1=person) | Q(team__crew__member2=person),
-                navigation_task__contest__in=available_contests,
-                finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc),
-            )
-            .select_related("navigation_task__contest")
-            .prefetch_related(
-                "team__aeroplane",
-                "team__club",
-                "team__crew__member1",
-                "team__crew__member2",
-                "team__contestsummary_set",
-                "contestanttrack",
-            )
-            .order_by("navigation_task__contest__start_time")
+            contestants.select_related("navigation_task__contest")
+            .order_by("-takeoff_time")
             .distinct()
         )
-        return Response(
-            ContestantNestedTeamSerialiserWithContestantTrack(
-                contestants, many=True, context={"request": request, "exclude_overlaps": True}
-            ).data
-        )
+        return Response(OwnFlightSerialiser(contestants, many=True, context={"request": request}).data)
 
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):
@@ -537,6 +568,9 @@ class UserPersonViewSet(GenericViewSet):
                     # explain that the results must be awaited) and the page that shows their own flight.
                     "map_viewable": map_viewable[task.pk],
                     "map_path": map_path_for(contestant),
+                    # Contest and task METADATA for a pilot who may not view the (private) contest and so cannot look it up
+                    # (never the route): the same fields as the flight lists.
+                    **_contest_metadata(contestant, request),
                     # The crew may register photo observations from the app (then GET contestant/<id>/observation_photos/).
                     "observation_registration": task.allow_observation_registration,
                     # When the server last received a position from this device. Unlike last_position_time (the stored

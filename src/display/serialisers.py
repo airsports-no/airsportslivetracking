@@ -2253,22 +2253,127 @@ class ContestantNestedTeamSerialiserWithContestantTrack(ContestantNestedTeamSeri
         return {}
 
 
+class OwnFlightSerialiser(serializers.ModelSerializer):
+    """
+    One of the signed-in pilot's own flights, for the mobile app's lists. An explicit list of fields on purpose: a crew
+    member may fly in a contest they may not view, so this carries the flight's schedule and the contest/task METADATA
+    (names, images, venue, type) but nothing about the route, the gates, the declarations or the results. It is also
+    cheap: no nested team, no track and no compilation of the route, which the full contestant payload does per flight.
+    """
+
+    contest_id = serializers.IntegerField(source="navigation_task.contest_id", read_only=True)
+    navigation_task = serializers.PrimaryKeyRelatedField(read_only=True)
+    contest_name = serializers.SerializerMethodField()
+    navigation_task_name = serializers.SerializerMethodField()
+    task_type = serializers.SerializerMethodField()
+    contest_logo = serializers.SerializerMethodField()
+    contest_header_image = serializers.SerializerMethodField()
+    contest_location = serializers.SerializerMethodField()
+    contest_country = serializers.SerializerMethodField()
+    contest_website = serializers.SerializerMethodField()
+    map_viewable = serializers.SerializerMethodField()
+
+    class Meta:
+        model = Contestant
+        fields = (
+            "id",
+            "contest_id",
+            "navigation_task",
+            "contest_name",
+            "navigation_task_name",
+            "task_type",
+            "contest_logo",
+            "contest_header_image",
+            "contest_location",
+            "contest_country",
+            "contest_website",
+            "map_viewable",
+            "contestant_number",
+            "takeoff_time",
+            "tracker_start_time",
+            "finished_by_time",
+            "air_speed",
+            "wind_speed",
+            "wind_direction",
+            "adaptive_start",
+        )
+        read_only_fields = fields
+
+    def get_contest_name(self, obj: Contestant) -> str:
+        return obj.navigation_task.contest.name
+
+    def get_navigation_task_name(self, obj: Contestant) -> str:
+        return obj.navigation_task.name
+
+    def get_task_type(self, obj: Contestant) -> Optional[dict]:
+        definition = _serialize_task_subtype_definition(obj.navigation_task) or {}
+        return {key: definition.get(key) for key in ("display_name", "coarse_family_label")}
+
+    def _url(self, image) -> Optional[str]:
+        if not image:
+            return None
+        request = self.context.get("request")
+        return request.build_absolute_uri(image.url) if request else image.url
+
+    def get_contest_logo(self, obj: Contestant) -> Optional[str]:
+        return self._url(obj.navigation_task.contest.logo)
+
+    def get_contest_header_image(self, obj: Contestant) -> Optional[str]:
+        return self._url(obj.navigation_task.contest.header_image)
+
+    def get_contest_location(self, obj: Contestant) -> str:
+        return obj.navigation_task.contest.location or ""
+
+    def get_contest_country(self, obj: Contestant) -> str:
+        country = obj.navigation_task.contest.country
+        return str(country) if country else ""
+
+    def get_contest_website(self, obj: Contestant) -> str:
+        return obj.navigation_task.contest.contest_website or ""
+
+    def get_map_viewable(self, obj: Contestant) -> bool:
+        """May the user open the live map and results of this task? (Same rule as the website; one check per contest.)"""
+        task = obj.navigation_task
+        if task.is_public and task.contest.is_public:
+            return True
+        cache = self.context.setdefault("_view_contest", {})
+        if task.contest_id not in cache:
+            request = self.context.get("request")
+            user = getattr(request, "user", None)
+            cache[task.contest_id] = bool(user is not None and user.is_authenticated and user.has_perm("view_contest", task.contest))
+        return cache[task.contest_id]
+
+
+class OwnFutureFlightSerialiser(OwnFlightSerialiser):
+    can_cancel = serializers.SerializerMethodField()
+
+    class Meta(OwnFlightSerialiser.Meta):
+        fields = OwnFlightSerialiser.Meta.fields + ("can_cancel",)
+        read_only_fields = fields
+
+    def get_can_cancel(self, obj: Contestant) -> bool:
+        return _crew_may_cancel(self.context.get("request"), obj)
+
+
+def _crew_may_cancel(request, obj: Contestant) -> bool:
+    """Whether the requesting user may remove/terminate this flight through delete_self_managed_contestant.
+    Mirrors that action's checks, so the app can show the button without being able to see the task itself."""
+    user = getattr(request, "user", None)
+    task = obj.navigation_task
+    if user is None or not user.is_authenticated or not task.allow_self_management:
+        return False
+    is_manager = user.has_perm("display.delete_contest", task.contest)
+    if not ((task.is_public and task.contest.is_public) or is_manager):
+        return False
+    return is_manager or obj.team.crew.member1.email == user.email
+
+
 class FutureContestantNestedTeamSerialiser(ContestantNestedTeamSerialiser):
     latest_emaillink = serializers.SerializerMethodField()
     can_cancel = serializers.SerializerMethodField()
 
     def get_can_cancel(self, obj: Contestant) -> bool:
-        """Whether the requesting user may remove/terminate this flight through delete_self_managed_contestant.
-        Mirrors that action's checks, so the app can show the button without being able to see the task itself."""
-        request = self.context.get("request")
-        user = getattr(request, "user", None)
-        task = obj.navigation_task
-        if user is None or not user.is_authenticated or not task.allow_self_management:
-            return False
-        is_manager = user.has_perm("display.delete_contest", task.contest)
-        if not ((task.is_public and task.contest.is_public) or is_manager):
-            return False
-        return is_manager or obj.team.crew.member1.email == user.email
+        return _crew_may_cancel(self.context.get("request"), obj)
 
     def get_latest_emaillink(self, obj: Contestant) -> Optional[dict]:
         latest_link = obj.emailmaplink_set.order_by("-created_at").first()
