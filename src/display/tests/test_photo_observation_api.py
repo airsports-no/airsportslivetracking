@@ -2,7 +2,7 @@ import datetime
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import TestCase, override_settings
 from django.urls import reverse
 from guardian.shortcuts import assign_perm
 
@@ -154,12 +154,21 @@ class PhotoObservationApiTest(TestCase):
     def test_crew_can_only_register_for_a_flight_they_are_currently_tracking(self):
         self.set_now(START + datetime.timedelta(minutes=30))  # before the tracker start time
         self.assertEqual(self.post(self.pilot).status_code, 409)
-        self.set_now(START + datetime.timedelta(hours=4))  # after the finished-by time
+        self.set_now(START + datetime.timedelta(hours=15, minutes=1))  # after the finished-by time and the grace period
         self.assertEqual(self.post(self.pilot).status_code, 409)
         self.assertEqual(PhotoObservation.objects.count(), 0)
 
-    def test_finished_calculator_is_no_longer_tracked(self):
+    def test_queued_observations_are_accepted_during_the_grace_period_after_the_flight(self):
+        self.set_scale(SCALE_200)
+        self.set_now(START + datetime.timedelta(hours=9))  # finished by 12:00, twelve hours of grace
         self.contestant.contestanttrack.set_calculator_finished()
+        self.assertEqual(self.post(self.pilot).status_code, 201)
+        self.set_now(START + datetime.timedelta(hours=15, minutes=5))
+        self.assertEqual(self.post(self.pilot, time="2026-08-01T10:01:00Z").status_code, 409)
+
+    @override_settings(OBSERVATION_REGISTRATION_GRACE_MINUTES=0)
+    def test_grace_period_can_be_configured(self):
+        self.set_now(START + datetime.timedelta(hours=3, minutes=1))
         self.assertEqual(self.post(self.pilot).status_code, 409)
 
     def test_currently_tracked_contestants_are_the_users_active_flights(self):

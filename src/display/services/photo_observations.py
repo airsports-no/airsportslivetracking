@@ -1,6 +1,7 @@
 import datetime
 import logging
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models import Q
 from django.db.models import F
@@ -56,12 +57,15 @@ def _now() -> datetime.datetime:
     return datetime.datetime.now(datetime.timezone.utc)
 
 
+def get_registration_grace_period() -> datetime.timedelta:
+    """How long after the flight the crew can still register observations, so that a queue built up offline
+    (or while out of coverage, e.g. until there is wifi at the airport) can be sent after landing. OBSERVATION_REGISTRATION_GRACE_MINUTES overrides it."""
+    return datetime.timedelta(minutes=getattr(settings, "OBSERVATION_REGISTRATION_GRACE_MINUTES", 12 * 60))
+
+
 def is_currently_tracked(contestant: Contestant, now: datetime.datetime) -> bool:
-    """True from the tracker start time until the flight's finished-by time, unless the calculator has finished."""
-    if not contestant.tracker_start_time <= now <= contestant.finished_by_time:
-        return False
-    track = getattr(contestant, "contestanttrack", None)
-    return not (track is not None and track.calculator_finished)
+    """True from the tracker start time until the flight's finished-by time plus the registration grace period."""
+    return contestant.tracker_start_time <= now <= contestant.finished_by_time + get_registration_grace_period()
 
 
 def get_currently_tracked_contestants(user, now: datetime.datetime | None = None) -> list[Contestant]:
@@ -73,8 +77,8 @@ def get_currently_tracked_contestants(user, now: datetime.datetime | None = None
     candidates = Contestant.objects.filter(
         Q(team__crew__member1__email__iexact=email) | Q(team__crew__member2__email__iexact=email),
         tracker_start_time__lte=now,
-        finished_by_time__gte=now,
-    ).select_related("navigation_task__contest", "contestanttrack")
+        finished_by_time__gte=now - get_registration_grace_period(),
+    ).select_related("navigation_task__contest")
     return [c for c in candidates if is_currently_tracked(c, now)]
 
 
@@ -83,7 +87,8 @@ def check_crew_may_register(
 ) -> None:
     """
     The rules for a crew member registering from the app: the navigation task must allow it, the posted flight must
-    be one of those the user is currently tracking, and the observation must have been made during that flight.
+    be one of those the user is currently tracking (including the grace period after the flight, see
+    get_registration_grace_period), and the observation must have been made during the flight itself.
     """
     now = now or _now()
     if not contestant.navigation_task.allow_observation_registration:
