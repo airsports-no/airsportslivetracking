@@ -24,6 +24,8 @@ class PhotoObservation(models.Model):
     error_m = models.FloatField(null=True, blank=True)
     error_mm = models.FloatField(null=True, blank=True)
     score_fraction = models.FloatField(default=0.0)
+    # Change to the contestant's score caused by this observation (negative is a deduction on descending scorecards)
+    points = models.FloatField(default=0.0)
     metres_per_mm = models.FloatField(null=True, blank=True)
     # Where the crew's position and the photo target end up when projected onto the track
     projected_latitude = models.FloatField(null=True, blank=True)
@@ -34,7 +36,7 @@ class PhotoObservation(models.Model):
     class Meta:
         ordering = ("time",)
         constraints = [
-            models.UniqueConstraint(fields=["contestant", "photo_name"], name="unique_photo_observation_per_photo")
+            models.UniqueConstraint(fields=["contestant", "photo"], name="unique_photo_observation_per_photo")
         ]
 
     def __str__(self):

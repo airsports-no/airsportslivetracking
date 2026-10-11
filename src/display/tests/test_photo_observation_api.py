@@ -23,6 +23,9 @@ from display.models import (
     Scorecard,
     Team,
 )
+from display.calculators.cima_score_normalization import get_cima_gate_qmax
+from display.services.photo_observations import finalize_photo_observations, get_scoring_mode
+from display.utilities.cima_task_type_definitions import KNOWN_CIRCUIT
 from display.utilities.gate_definitions import LANDING_GATE, TAKEOFF_GATE
 from utilities.mock_utilities import TraccarMock
 
@@ -95,12 +98,12 @@ class PhotoObservationApiTest(TestCase):
             navigation_task=self.navigation_task, defaults={"map_scale": scale}
         )
 
-    def post(self, user, lat=None, lon=None, time=OBSERVATION_TIME, name="A"):
+    def post(self, user, lat=None, lon=None, time=OBSERVATION_TIME, photo=None):
         self.client.force_login(user)
         return self.client.post(
             self.url,
             {
-                "photo_name": name,
+                "photo": self.photo.pk if photo is None else photo,
                 "time": time,
                 "latitude": self.photo_lat if lat is None else lat,
                 "longitude": self.photo_lon if lon is None else lon,
@@ -126,7 +129,7 @@ class PhotoObservationApiTest(TestCase):
         self.assertEqual(PhotoObservation.objects.count(), 0)
 
     def test_unknown_photo_is_rejected(self):
-        self.assertEqual(self.post(self.pilot, name="NOPE").status_code, 400)
+        self.assertEqual(self.post(self.pilot, photo=999999).status_code, 400)
 
     def test_tolerance_follows_the_map_scale(self):
         # Move the observation about 400 m along the first leg
@@ -141,11 +144,12 @@ class PhotoObservationApiTest(TestCase):
         self.assertEqual(response.json()["score_fraction"], 1.0)
         self.assertAlmostEqual(response.json()["error_mm"], 0.8, delta=0.05)
 
-    def test_fit_page_scale_is_estimated_from_the_route(self):
+    def test_fit_page_and_missing_configuration_default_to_1_250_000(self):
         self.set_scale(SCALE_TO_FIT)
-        response = self.post(self.pilot)
-        self.assertTrue(response.json()["scored"])
-        self.assertGreater(response.json()["metres_per_mm"], 0)
+        self.assertEqual(self.post(self.pilot).json()["metres_per_mm"], 250.0)
+        PhotoObservation.objects.all().delete()
+        FlightOrderConfiguration.objects.all().delete()
+        self.assertEqual(self.post(self.pilot).json()["metres_per_mm"], 250.0)
 
     def test_later_registration_replaces_and_earlier_is_ignored(self):
         self.set_scale(SCALE_200)
@@ -177,3 +181,98 @@ class PhotoObservationApiTest(TestCase):
         d_lat = (self.leg_end.latitude - self.leg_start.latitude) * 111195
         d_lon = (self.leg_end.longitude - self.leg_start.longitude) * 111195 * math.cos(math.radians(self.photo_lat))
         return math.hypot(d_lat, d_lon)
+
+
+class PhotoObservationScoringTest(PhotoObservationApiTest):
+    def along_leg(self, metres):
+        fraction = metres / self._leg_length_m()
+        return (
+            self.photo_lat + (self.leg_end.latitude - self.leg_start.latitude) * fraction,
+            self.photo_lon + (self.leg_end.longitude - self.leg_start.longitude) * fraction,
+        )
+
+    def score(self):
+        self.contestant.contestanttrack.refresh_from_db()
+        return self.contestant.contestanttrack.score
+
+    def test_legacy_task_penalises_a_missed_observation(self):
+        self.set_scale(SCALE_200)
+        self.assertEqual(get_scoring_mode(self.contestant), "legacy")
+        response = self.post(self.pilot, *self.along_leg(400))  # 2 mm off, beyond the 1 mm tolerance
+        self.assertEqual(response.json()["points"], 100.0)
+        self.assertEqual(self.score(), 100.0)
+
+    def test_legacy_task_does_not_penalise_a_hit(self):
+        self.set_scale(SCALE_200)
+        self.post(self.pilot, *self.along_leg(100))
+        self.assertEqual(self.score(), 0.0)
+
+    def test_penalty_follows_the_scorecard(self):
+        self.set_scale(SCALE_200)
+        scorecard = self.navigation_task.scorecard
+        scorecard.observation_photo_penalty = 40
+        scorecard.save()
+        self.post(self.pilot, *self.along_leg(400))
+        self.assertEqual(self.score(), 40.0)
+
+    def test_correcting_a_miss_removes_the_penalty(self):
+        self.set_scale(SCALE_200)
+        self.post(self.pilot, *self.along_leg(400), time="2026-08-01T10:00:00Z")
+        self.post(self.pilot, *self.along_leg(0), time="2026-08-01T10:01:00Z")
+        self.assertEqual(self.score(), 0.0)
+        self.assertEqual(PhotoObservation.objects.get().points, 0.0)
+
+    def test_unmarked_photo_is_a_miss_when_the_flight_ends(self):
+        self.assertEqual(finalize_photo_observations(self.contestant), 1)
+        self.assertEqual(self.score(), 100.0)
+        self.assertEqual(finalize_photo_observations(self.contestant), 0)
+        self.assertEqual(self.score(), 100.0)
+
+    def test_deleting_a_registration_removes_its_score(self):
+        self.set_scale(SCALE_200)
+        self.post(self.pilot, *self.along_leg(400))
+        self.client.force_login(self.manager)
+        observation = PhotoObservation.objects.get()
+        delete_url = reverse(
+            "all-contestants-delete-photo-observation",
+            kwargs={"pk": self.contestant.pk, "observation_id": observation.pk},
+        )
+        self.client.delete(delete_url)
+        self.assertEqual(self.score(), 0.0)
+
+    def make_cima(self):
+        self.navigation_task.task_subtype = KNOWN_CIRCUIT
+        self.navigation_task.save()
+        scorecard = self.navigation_task.scorecard
+        scorecard.score_sorting_direction = "desc"
+        scorecard.initial_score = 1000
+        scorecard.save()
+        self.navigation_task.refresh_from_db()
+        self.contestant.refresh_from_db()
+        self.set_scale(SCALE_200)
+
+    def test_cima_scores_by_the_millimetre_bands(self):
+        self.make_cima()
+        qmax = get_cima_gate_qmax(self.contestant)
+        self.assertGreaterEqual(qmax, 100)  # includes Vh for the photo
+        baseline = self.score()
+        full = self.post(self.pilot, *self.along_leg(300))  # 1.5 mm
+        self.assertEqual((full.json()["score_fraction"], full.json()["points"]), (1.0, 0.0))
+        half = self.post(self.pilot, *self.along_leg(600), time="2026-08-01T10:01:00Z")  # 3 mm
+        self.assertEqual(half.json()["score_fraction"], 0.5)
+        self.assertAlmostEqual(half.json()["points"], -1000 * 50 / qmax)
+        zero = self.post(self.pilot, *self.along_leg(1200), time="2026-08-01T10:02:00Z")  # 6 mm
+        self.assertEqual(zero.json()["score_fraction"], 0.0)
+        self.assertAlmostEqual(zero.json()["points"], -1000 * 100 / qmax)
+        self.assertAlmostEqual(self.score() - baseline, -1000 * 100 / qmax)
+
+    def test_cima_value_per_observation_follows_the_scorecard(self):
+        self.make_cima()
+        scorecard = self.navigation_task.scorecard
+        scorecard.observation_photo_value = 200
+        scorecard.save()
+        self.navigation_task.refresh_from_db()
+        self.contestant.refresh_from_db()
+        qmax = get_cima_gate_qmax(self.contestant)
+        zero = self.post(self.pilot, *self.along_leg(1200))
+        self.assertAlmostEqual(zero.json()["points"], -1000 * 200 / qmax)

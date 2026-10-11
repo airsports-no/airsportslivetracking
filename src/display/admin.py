@@ -293,6 +293,8 @@ class ScorecardAdminForm(forms.ModelForm):
     # as an achievement score (see contestant_processor.ACHIEVEMENT_SCORE_TYPES) - a negative
     # value would silently subtract from a contestant's score for completing the full sequence.
     turnpoint_hunt_sequence_bonus = forms.FloatField(required=False, min_value=0)
+    observation_photo_penalty = forms.FloatField(required=False, min_value=0)
+    observation_photo_value = forms.FloatField(required=False, min_value=0)
 
     class Meta:
         model = Scorecard

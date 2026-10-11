@@ -63,10 +63,10 @@ class TestScorecardScalarGroupApplicability(TestCase):
             task_subtype=task_subtype,
         )
 
-    def test_legacy_precision_shows_backtracking_and_zones_only(self):
+    def test_legacy_precision_shows_backtracking_zones_and_observation_photos_only(self):
         navigation_task = self._make_navigation_task(PRECISION)
         self.assertEqual(
-            {"General", "Backtracking", "Zones"},
+            {"General", "Backtracking", "Zones", "Observation photos"},
             get_applicable_scalar_groups(navigation_task),
         )
 
@@ -145,6 +145,6 @@ class TestScorecardScalarGroupApplicability(TestCase):
             finish_time=datetime.datetime(2026, 1, 1, 16, tzinfo=datetime.timezone.utc),
         )
         self.assertEqual(
-            {"General", "Backtracking", "Zones"},
+            {"General", "Backtracking", "Zones", "Observation photos"},
             get_applicable_scalar_groups(navigation_task),
         )

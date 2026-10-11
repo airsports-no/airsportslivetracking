@@ -600,7 +600,19 @@ class ContestantProcessor:
             self.track_terminated = True
         self.contestant_track.set_calculator_finished()
         self.timed_queue.close()
+        self._finalize_photo_observations()
         return True
+
+    def _finalize_photo_observations(self):
+        """Scores the observation photos the crew never marked as misses, now that the flight is over."""
+        if getattr(self, "suppress_side_effects", False):
+            return
+        try:
+            from display.services.photo_observations import finalize_photo_observations
+
+            finalize_photo_observations(self.contestant)
+        except Exception:
+            logger.exception("%s: failed to finalize photo observations", self.contestant)
 
     def notify_termination(self, reason: str = ""):
         """

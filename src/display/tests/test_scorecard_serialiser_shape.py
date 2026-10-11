@@ -59,6 +59,8 @@ EXPECTED_SCORECARD_NESTED_KEYS = {
     "speed_keeping_tolerance_kt",
     "speed_keeping_penalty_per_kt",
     "turnpoint_hunt_sequence_bonus",
+    "observation_photo_penalty",
+    "observation_photo_value",
 }
 
 EXPECTED_GATE_SCORE_KEYS = {

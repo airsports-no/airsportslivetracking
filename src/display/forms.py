@@ -750,6 +750,8 @@ class ScorecardForm(forms.ModelForm):
     speed_keeping_penalty_per_kt = forms.FloatField()
     # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
     turnpoint_hunt_sequence_bonus = forms.FloatField(min_value=0)
+    observation_photo_penalty = forms.FloatField(min_value=0)
+    observation_photo_value = forms.FloatField(min_value=0)
 
     class Meta:
         model = Scorecard

@@ -298,6 +298,8 @@ export interface PhotoObservation {
   error_m: number | null;
   error_mm: number | null;
   score_fraction: number;
+  // Change to the contestant's score caused by this observation
+  points: number;
   metres_per_mm: number | null;
   projected_latitude: number | null;
   projected_longitude: number | null;

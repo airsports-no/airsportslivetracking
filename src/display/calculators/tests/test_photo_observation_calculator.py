@@ -4,7 +4,8 @@ from django.test import SimpleTestCase
 
 from display.calculators.photo_observation_calculator import (
     calculate_photo_observation,
-    estimate_fit_page_scale_thousands,
+    CIMA_FULL_TOLERANCE_MM,
+    CIMA_HALF_TOLERANCE_MM,
     metres_per_millimetre,
     project_onto_polyline,
 )
@@ -117,11 +118,23 @@ class ScoringTestCase(SimpleTestCase):
         self.assertEqual(result.user_projection.segment_index, 0)
 
 
-class FitPageScaleTestCase(SimpleTestCase):
-    def test_estimate_matches_hand_calculation(self):
-        # About 111 km north-south on A4 portrait: 277 mm of usable height
-        scale = estimate_fit_page_scale_thousands([(60.0, 11.0), (61.0, 11.0)], "A4", landscape=False)
-        self.assertAlmostEqual(scale, 111195 / 277, delta=2)
+class CimaToleranceTestCase(SimpleTestCase):
+    def score(self, offset_m):
+        user = north_of_start(5000 + offset_m)
+        photo = north_of_start(5000, east_metres=100)
+        return calculate_photo_observation(
+            user_latitude=user[0],
+            user_longitude=user[1],
+            photo_latitude=photo[0],
+            photo_longitude=photo[1],
+            polyline=LEG,
+            metres_per_mm=250.0,
+            full_tolerance_mm=CIMA_FULL_TOLERANCE_MM,
+            half_tolerance_mm=CIMA_HALF_TOLERANCE_MM,
+        )
 
-    def test_degenerate_route(self):
-        self.assertIsNone(estimate_fit_page_scale_thousands([(60.0, 11.0)]))
+    def test_bands(self):
+        self.assertEqual(self.score(400).score_fraction, 1.0)  # 1.6 mm
+        self.assertEqual(self.score(-600).score_fraction, 0.5)  # 2.4 mm
+        self.assertEqual(self.score(1200).score_fraction, 0.5)  # 4.8 mm
+        self.assertEqual(self.score(1300).score_fraction, 0.0)  # 5.2 mm

@@ -37,7 +37,7 @@ export function describeObservation(observation: PhotoObservation): string {
     }
     const error = observation.error_mm !== null ? `${observation.error_mm.toFixed(1)} mm (${Math.round(observation.error_m ?? 0)} m) along track` : '';
     const reason = observation.status === 'out_of_track' ? '<br/>Out of track' : '';
-    return `Observation of <b>${escapeHtml(observation.photo_name)}</b> at ${time}<br/>${error}${reason}<br/>Score: ${observation.score_fraction}`;
+    return `Observation of <b>${escapeHtml(observation.photo_name)}</b> at ${time}<br/>${error}${reason}<br/>Score fraction: ${observation.score_fraction}${observation.points ? `<br/>Points: ${observation.points.toFixed(1)}` : ''}`;
 }
 
 const targetIcon = (name: string) =>

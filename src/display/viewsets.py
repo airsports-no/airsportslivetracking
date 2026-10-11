@@ -3580,7 +3580,7 @@ class ContestantViewSet(ModelViewSet):
         """
         GET lists the contestant's registered photo observations with their scoring result (public for public
         tasks). POST registers an observation from the app: the crew taps the button for a photo and sends the
-        photo name, the time and their position at that moment. The observation is scored by projecting the
+        photo id, the time and their position at that moment. The observation is scored by projecting the
         position and the photo onto the track and converting the distance between them to millimetres on the
         printed map. Only the crew of the contestant, or a contest manager, may register.
         """
@@ -3603,7 +3603,7 @@ class ContestantViewSet(ModelViewSet):
         try:
             observation, changed = register_photo_observation(contestant, **serialiser.validated_data)
         except PhotoObservationError as e:
-            raise ValidationError({"photo_name": str(e)})
+            raise ValidationError({"photo": str(e)})
         return Response(
             PhotoObservationSerialiser(observation).data,
             status=status.HTTP_201_CREATED if changed else status.HTTP_200_OK,

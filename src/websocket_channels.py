@@ -79,6 +79,7 @@ def serialize_photo_observation(observation) -> dict:
         "error_m": observation.error_m,
         "error_mm": observation.error_mm,
         "score_fraction": observation.score_fraction,
+        "points": observation.points,
         "projected_latitude": observation.projected_latitude,
         "projected_longitude": observation.projected_longitude,
         "photo_projected_latitude": observation.photo_projected_latitude,

@@ -20,17 +20,16 @@ from typing import Sequence
 
 EARTH_RADIUS_M = 6371008.8
 
-# Paper sizes in millimetres (width, height) in portrait orientation.
-PAPER_SIZES_MM = {"A4": (210.0, 297.0), "A3": (297.0, 420.0)}
-# Unprintable margin assumed when estimating the scale of a "fit page" map.
-FIT_PAGE_MARGIN_MM = 10.0
+# The map scale (in thousands, like FlightOrderConfiguration.map_scale) assumed when the flight order has none
+# or uses "fit page", which has no fixed scale: 1:250,000.
+DEFAULT_MAP_SCALE_THOUSANDS = 250
 
-# The paper-map rule: a mark is accepted when it is within this many millimetres of the target,
-# measured along the track. Marks that are further out score a reduced fraction, see score_fraction().
-FULL_SCORE_TOLERANCE_MM = 1.0
-# Beyond the tolerance, up to this many mm the observation scores half. Set to the full tolerance to
-# disable the half-score band.
-HALF_SCORE_TOLERANCE_MM = 1.0
+# Legacy rule: a mark is accepted when it is within 1 mm of the target, measured along the track, otherwise missed.
+LEGACY_FULL_TOLERANCE_MM = 1.0
+LEGACY_HALF_TOLERANCE_MM = 1.0
+# CIMA (Sporting Code Section 10, 2.A4/2.A5): less than 2 mm error scores full, 2-5 mm half, more than 5 mm zero.
+CIMA_FULL_TOLERANCE_MM = 2.0
+CIMA_HALF_TOLERANCE_MM = 5.0
 # An observation made further than this (in map millimetres) from the track is "out of track" and scores zero.
 MAX_CROSS_TRACK_MM = 20.0
 
@@ -64,38 +63,6 @@ class PhotoObservationResult:
 def metres_per_millimetre(scale_thousands: float) -> float:
     """1 mm on a 1:N map is N mm on the ground. FlightOrderConfiguration.map_scale stores N / 1000, so 1 mm is exactly map_scale metres."""
     return float(scale_thousands)
-
-
-def estimate_fit_page_scale_thousands(
-    points: Sequence[tuple[float, float]],
-    document_size: str = "A4",
-    landscape: bool = False,
-) -> float | None:
-    """
-    Estimates the scale (in thousands, like FlightOrderConfiguration.map_scale) of a map that was
-    generated with the "fit page" option, from the bounding box of the route points (latitude, longitude).
-    """
-    if len(points) < 2:
-        return None
-    width_mm, height_mm = PAPER_SIZES_MM.get(document_size, PAPER_SIZES_MM["A4"])
-    if landscape:
-        width_mm, height_mm = height_mm, width_mm
-    width_mm -= 2 * FIT_PAGE_MARGIN_MM
-    height_mm -= 2 * FIT_PAGE_MARGIN_MM
-    reference_lat = sum(p[0] for p in points) / len(points)
-    xs = []
-    ys = []
-    for lat, lon in points:
-        x, y = _to_local_metres(lat, lon, reference_lat, 0.0)
-        xs.append(x)
-        ys.append(y)
-    extent_x_m = max(xs) - min(xs)
-    extent_y_m = max(ys) - min(ys)
-    if extent_x_m == 0 and extent_y_m == 0:
-        return None
-    # Ground metres per paper millimetre needed to fit the extent on the page, orientation as is
-    ratio = max(extent_x_m / width_mm, extent_y_m / height_mm)
-    return ratio
 
 
 def _to_local_metres(lat: float, lon: float, reference_lat: float, reference_lon: float) -> tuple[float, float]:
@@ -173,8 +140,8 @@ def calculate_photo_observation(
     photo_longitude: float,
     polyline: Sequence[tuple[float, float]],
     metres_per_mm: float | None,
-    full_tolerance_mm: float = FULL_SCORE_TOLERANCE_MM,
-    half_tolerance_mm: float = HALF_SCORE_TOLERANCE_MM,
+    full_tolerance_mm: float = LEGACY_FULL_TOLERANCE_MM,
+    half_tolerance_mm: float = LEGACY_HALF_TOLERANCE_MM,
     max_cross_track_mm: float = MAX_CROSS_TRACK_MM,
 ) -> PhotoObservationResult:
     """

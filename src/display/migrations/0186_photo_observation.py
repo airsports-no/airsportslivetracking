@@ -22,6 +22,7 @@ class Migration(migrations.Migration):
                 ("error_m", models.FloatField(blank=True, null=True)),
                 ("error_mm", models.FloatField(blank=True, null=True)),
                 ("score_fraction", models.FloatField(default=0.0)),
+                ("points", models.FloatField(default=0.0)),
                 ("metres_per_mm", models.FloatField(blank=True, null=True)),
                 ("projected_latitude", models.FloatField(blank=True, null=True)),
                 ("projected_longitude", models.FloatField(blank=True, null=True)),
@@ -50,7 +51,7 @@ class Migration(migrations.Migration):
                 "ordering": ("time",),
                 "constraints": [
                     models.UniqueConstraint(
-                        fields=("contestant", "photo_name"), name="unique_photo_observation_per_photo"
+                        fields=("contestant", "photo"), name="unique_photo_observation_per_photo"
                     )
                 ],
             },

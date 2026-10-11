@@ -510,6 +510,7 @@ class PhotoObservationSerialiser(serializers.ModelSerializer):
             "error_m",
             "error_mm",
             "score_fraction",
+            "points",
             "metres_per_mm",
             "projected_latitude",
             "projected_longitude",
@@ -520,7 +521,7 @@ class PhotoObservationSerialiser(serializers.ModelSerializer):
 
 
 class PhotoObservationRegistrationSerialiser(serializers.Serializer):
-    photo_name = serializers.CharField(max_length=200, help_text="Name of the observation photo, as listed by the navigation task photos endpoint.")
+    photo = serializers.IntegerField(help_text="Id of the observation photo, as listed by the navigation task photos endpoint.")
     time = serializers.DateTimeField(help_text="When the crew made the observation.")
     latitude = serializers.FloatField(min_value=-90, max_value=90)
     longitude = serializers.FloatField(min_value=-180, max_value=180)
@@ -1494,6 +1495,8 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     speed_keeping_penalty_per_kt = serializers.FloatField(required=False)
     # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
     turnpoint_hunt_sequence_bonus = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    observation_photo_penalty = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    observation_photo_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
 
     class Meta:
         model = Scorecard
@@ -1535,6 +1538,8 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "speed_keeping_tolerance_kt",
             "speed_keeping_penalty_per_kt",
             "turnpoint_hunt_sequence_bonus",
+            "observation_photo_penalty",
+            "observation_photo_value",
         )
 
     def get_task_type(self, instance) -> list:

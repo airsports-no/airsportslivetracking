@@ -51,6 +51,8 @@ SCORECARD_CONFIG_FIELDS = [
     "speed_keeping_tolerance_kt",
     "speed_keeping_penalty_per_kt",
     "turnpoint_hunt_sequence_bonus",
+    "observation_photo_penalty",
+    "observation_photo_value",
 ]
 
 
@@ -269,6 +271,11 @@ class Scorecard(models.Model):
     speed_keeping_tolerance_kt = ConfigField(5)
     speed_keeping_penalty_per_kt = ConfigField(1)
     turnpoint_hunt_sequence_bonus = ConfigField(0)
+    # Observation photos (see display/services/photo_observations.py). Legacy tasks deduct the penalty for every
+    # observation that is missed (not marked, or marked more than 1 mm from the target); CIMA tasks (2.A4/2.A5)
+    # award the value per observation (Vh in the catalogue), full within 2 mm, half within 5 mm.
+    observation_photo_penalty = ConfigField(100)
+    observation_photo_value = ConfigField(100)
 
     def __str__(self):
         return self.name
