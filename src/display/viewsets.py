@@ -522,6 +522,7 @@ class UserPersonViewSet(GenericViewSet):
                     # positions, which the task's calculation delay holds back) this is not delayed.
                     "last_received_time": last_received.isoformat() if last_received else None,
                     "calculation_delay_minutes": task.calculation_delay_minutes,
+                    "training_feedback": training_feedback_for(contestant),
                 }
             )
 
@@ -548,6 +549,21 @@ class UserPersonViewSet(GenericViewSet):
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
+
+
+def training_feedback_for(contestant):
+    """
+    Live gate timing for the app's training mode: the last gate the calculator passed and how far from its required time
+    (seconds, positive is late). Only for self-managed tasks (the pilot set up their own flight), and never when the
+    organizer holds scores back with a calculation delay.
+    """
+    task = contestant.navigation_task
+    if not task.allow_self_management or task.calculation_delay_minutes > 0:
+        return None
+    track = getattr(contestant, "contestanttrack", None)
+    if track is None or track.last_gate is None:
+        return None
+    return {"last_gate": track.last_gate, "last_gate_time_offset": track.last_gate_time_offset}
 
 
 class EditableRouteViewSet(ModelViewSet):
