@@ -68,6 +68,10 @@ def is_currently_tracked(contestant: Contestant, now: datetime.datetime) -> bool
     return contestant.tracker_start_time <= now <= contestant.finished_by_time + get_registration_grace_period()
 
 
+def is_tracked_now(contestant: Contestant) -> bool:
+    return is_currently_tracked(contestant, _now())
+
+
 def get_currently_tracked_contestants(user, now: datetime.datetime | None = None) -> list[Contestant]:
     """The flights the user is currently tracking as crew."""
     now = now or _now()

@@ -21,6 +21,24 @@ way a judge scores the line drawn across the track on a paper map.
 `GET /api/v1/contests/{contest_id}/navigationtasks/{task_id}/photos/?contestant={contestant_id}`
 returns `id`, `name`, `file` (image URL) for each observation photo for that contestant. Register with the `id`.
 
+### For crew: `GET /api/v1/contestant/{contestant_id}/observation_photos/`
+
+The task photos endpoint above needs view or change permission on the contest unless the task is public, so a crew
+member of a **private** task cannot use it. The app uses this endpoint instead: it is open to the contestant's crew
+(and contest managers) whatever the visibility of the task. Photo images are served from public storage, so the `file`
+URLs load without authentication.
+
+```json
+{"enabled": true, "may_register": true,
+ "photos": [{"id": 123, "name": "A", "file": "https://.../a.jpg"}],
+ "observations": [ ...the contestant's registrations, as in the list below... ]}
+```
+
+* `enabled` is the task option; `may_register` is whether the flight is being tracked now (including the grace period).
+* `photos` has the registrable (non-decoy) photos, sorted by name, **without coordinates**.
+* The "now" endpoint (`get_current_app_navigation_task`) tells the app whether to offer this with
+  `observation_registration` on each active contestant.
+
 ## Register an observation
 
 `POST /api/v1/contestant/{contestant_id}/photo_observations/` (authenticated; crew member or contest manager)

@@ -185,6 +185,60 @@ class PhotoObservationApiTest(TestCase):
         self.assertEqual(self.post(self.stranger).status_code, 403)
         self.assertEqual(PhotoObservation.objects.count(), 0)
 
+    def photos_url(self):
+        return reverse("all-contestants-observation-photos", kwargs={"pk": self.contestant.pk})
+
+    def make_private(self):
+        Contest.objects.filter(pk=self.contest.pk).update(is_public=False)
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(is_public=False)
+
+    def test_crew_lists_the_observation_photos_without_their_coordinates(self):
+        self.client.force_login(self.pilot)
+        response = self.client.get(self.photos_url())
+        self.assertEqual(response.status_code, 200, response.content)
+        data = response.json()
+        self.assertTrue(data["enabled"])
+        self.assertTrue(data["may_register"])
+        self.assertEqual([p["name"] for p in data["photos"]], ["A"])
+        self.assertEqual(data["photos"][0]["id"], self.photo.pk)
+        self.assertEqual(set(data["photos"][0]), {"id", "name", "file"}, "the coordinates are the answer")
+        self.assertEqual(data["observations"], [])
+
+    def test_a_private_task_still_works_for_its_crew(self):
+        """The task photos endpoint needs permissions on a private contest; the crew endpoint and registration must not."""
+        self.make_private()
+        self.set_scale(SCALE_200)
+        self.client.force_login(self.pilot)
+        task_photos = self.client.get(
+            f"/api/v1/contests/{self.contest.pk}/navigationtasks/{self.navigation_task.pk}/photos/?contestant={self.contestant.pk}"
+        )
+        self.assertIn(task_photos.status_code, (401, 403, 404), "documents why the app needs its own endpoint")
+        self.assertEqual(self.client.get(self.photos_url()).status_code, 200)
+        self.assertEqual(self.post(self.pilot).status_code, 201)
+        listed = self.client.get(self.photos_url()).json()
+        self.assertEqual([o["photo"] for o in listed["observations"]], [self.photo.pk])
+
+    def test_others_cannot_list_the_photos_of_a_flight(self):
+        self.client.force_login(self.stranger)
+        self.assertEqual(self.client.get(self.photos_url()).status_code, 403)
+        self.client.logout()
+        self.assertIn(self.client.get(self.photos_url()).status_code, (401, 403))
+
+    def test_photos_are_hidden_and_registration_not_possible_when_the_task_does_not_use_the_app(self):
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(allow_observation_registration=False)
+        self.client.force_login(self.pilot)
+        data = self.client.get(self.photos_url()).json()
+        self.assertEqual((data["enabled"], data["may_register"], data["photos"]), (False, False, []))
+
+    def test_may_register_follows_the_tracking_window_and_grace_period(self):
+        self.client.force_login(self.pilot)
+        self.set_now(START + datetime.timedelta(minutes=30))
+        self.assertFalse(self.client.get(self.photos_url()).json()["may_register"])
+        self.set_now(START + datetime.timedelta(hours=3, minutes=30))  # after landing, inside the grace period
+        self.assertTrue(self.client.get(self.photos_url()).json()["may_register"])
+        self.set_now(START + datetime.timedelta(hours=16))
+        self.assertFalse(self.client.get(self.photos_url()).json()["may_register"])
+
     def test_unknown_photo_is_rejected(self):
         self.assertEqual(self.post(self.pilot, photo=999999).status_code, 400)
 
