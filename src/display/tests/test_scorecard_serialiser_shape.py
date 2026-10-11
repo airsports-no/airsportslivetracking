@@ -61,6 +61,8 @@ EXPECTED_SCORECARD_NESTED_KEYS = {
     "turnpoint_hunt_sequence_bonus",
     "observation_photo_penalty",
     "observation_photo_value",
+    "observation_photo_full_tolerance_mm",
+    "observation_photo_half_tolerance_mm",
 }
 
 EXPECTED_GATE_SCORE_KEYS = {

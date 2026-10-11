@@ -1497,6 +1497,12 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     turnpoint_hunt_sequence_bonus = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     observation_photo_penalty = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     observation_photo_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    observation_photo_full_tolerance_mm = serializers.FloatField(
+        required=False, allow_null=True, validators=[MinValueValidator(0)]
+    )
+    observation_photo_half_tolerance_mm = serializers.FloatField(
+        required=False, allow_null=True, validators=[MinValueValidator(0)]
+    )
 
     class Meta:
         model = Scorecard
@@ -1540,6 +1546,8 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "turnpoint_hunt_sequence_bonus",
             "observation_photo_penalty",
             "observation_photo_value",
+            "observation_photo_full_tolerance_mm",
+            "observation_photo_half_tolerance_mm",
         )
 
     def get_task_type(self, instance) -> list:

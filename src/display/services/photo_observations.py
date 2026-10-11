@@ -53,10 +53,23 @@ def get_scoring_mode(contestant: Contestant) -> str | None:
     return None
 
 
-def get_tolerances_mm(mode: str | None) -> tuple[float, float]:
+def get_tolerances_mm(contestant: Contestant, mode: str | None) -> tuple[float, float]:
+    """
+    (full, half) score tolerances in millimetres on the map: the scorecard's, where set, otherwise the rule of
+    the task type. The half band can never be narrower than the full one.
+    """
     if mode == MODE_CIMA:
-        return CIMA_FULL_TOLERANCE_MM, CIMA_HALF_TOLERANCE_MM
-    return LEGACY_FULL_TOLERANCE_MM, LEGACY_HALF_TOLERANCE_MM
+        full, half = CIMA_FULL_TOLERANCE_MM, CIMA_HALF_TOLERANCE_MM
+    else:
+        full, half = LEGACY_FULL_TOLERANCE_MM, LEGACY_HALF_TOLERANCE_MM
+    scorecard = contestant.navigation_task.scorecard
+    if scorecard.observation_photo_full_tolerance_mm is not None:
+        full = float(scorecard.observation_photo_full_tolerance_mm)
+        # Overriding only the full band must not leave a default half band that is narrower than it
+        half = max(half, full) if mode == MODE_CIMA else full
+    if scorecard.observation_photo_half_tolerance_mm is not None:
+        half = float(scorecard.observation_photo_half_tolerance_mm)
+    return full, max(half, full)
 
 
 def get_contestant_observation_photos(contestant: Contestant) -> list[Photo]:
@@ -120,7 +133,7 @@ def score_observation(
     contestant: Contestant, photo: Photo, latitude: float, longitude: float
 ) -> PhotoObservationResult:
     photo_latitude, photo_longitude = _photo_coordinates(contestant, photo)
-    full_tolerance, half_tolerance = get_tolerances_mm(get_scoring_mode(contestant))
+    full_tolerance, half_tolerance = get_tolerances_mm(contestant, get_scoring_mode(contestant))
     return calculate_photo_observation(
         user_latitude=latitude,
         user_longitude=longitude,

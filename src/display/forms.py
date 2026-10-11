@@ -752,6 +752,8 @@ class ScorecardForm(forms.ModelForm):
     turnpoint_hunt_sequence_bonus = forms.FloatField(min_value=0)
     observation_photo_penalty = forms.FloatField(min_value=0)
     observation_photo_value = forms.FloatField(min_value=0)
+    observation_photo_full_tolerance_mm = forms.FloatField(required=False, min_value=0)
+    observation_photo_half_tolerance_mm = forms.FloatField(required=False, min_value=0)
 
     class Meta:
         model = Scorecard

@@ -295,6 +295,8 @@ class ScorecardAdminForm(forms.ModelForm):
     turnpoint_hunt_sequence_bonus = forms.FloatField(required=False, min_value=0)
     observation_photo_penalty = forms.FloatField(required=False, min_value=0)
     observation_photo_value = forms.FloatField(required=False, min_value=0)
+    observation_photo_full_tolerance_mm = forms.FloatField(required=False, min_value=0)
+    observation_photo_half_tolerance_mm = forms.FloatField(required=False, min_value=0)
 
     class Meta:
         model = Scorecard
@@ -324,7 +326,11 @@ class ScorecardAdminForm(forms.ModelForm):
     # submits None for it - writing that through setattr would permanently shadow the real
     # ConfigField default (e.g. circle_radius_min_m=200) with a stored None. Skip None values
     # on save instead, except for the one field whose declared default genuinely is None.
-    _NULLABLE_CONFIG_FIELDS = {"maximum_task_duration_minutes"}
+    _NULLABLE_CONFIG_FIELDS = {
+        "maximum_task_duration_minutes",
+        "observation_photo_full_tolerance_mm",
+        "observation_photo_half_tolerance_mm",
+    }
 
     def save(self, commit=True):
         instance = super().save(commit=False)

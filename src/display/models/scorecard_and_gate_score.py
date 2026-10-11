@@ -53,6 +53,8 @@ SCORECARD_CONFIG_FIELDS = [
     "turnpoint_hunt_sequence_bonus",
     "observation_photo_penalty",
     "observation_photo_value",
+    "observation_photo_full_tolerance_mm",
+    "observation_photo_half_tolerance_mm",
 ]
 
 
@@ -276,6 +278,10 @@ class Scorecard(models.Model):
     # award the value per observation (Vh in the catalogue), full within 2 mm, half within 5 mm.
     observation_photo_penalty = ConfigField(100)
     observation_photo_value = ConfigField(100)
+    # Distance along the track, in millimetres on the printed map, within which an observation scores in full /
+    # half. None uses the rule of the task type: 1 mm (no half band) for legacy tasks, 2 mm / 5 mm for CIMA.
+    observation_photo_full_tolerance_mm = ConfigField(None)
+    observation_photo_half_tolerance_mm = ConfigField(None)
 
     def __str__(self):
         return self.name

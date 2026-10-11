@@ -276,3 +276,28 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
         qmax = get_cima_gate_qmax(self.contestant)
         zero = self.post(self.pilot, *self.along_leg(1200))
         self.assertAlmostEqual(zero.json()["points"], -1000 * 200 / qmax)
+
+    def test_tolerances_are_configurable_on_the_scorecard(self):
+        self.set_scale(SCALE_200)
+        scorecard = self.navigation_task.scorecard
+        scorecard.observation_photo_full_tolerance_mm = 3
+        scorecard.save()
+        self.navigation_task.refresh_from_db()
+        self.contestant.refresh_from_db()
+        # 2 mm off: a miss with the legacy default of 1 mm, a hit with 3 mm
+        response = self.post(self.pilot, *self.along_leg(400))
+        self.assertEqual(response.json()["score_fraction"], 1.0)
+        self.assertEqual(self.score(), 0.0)
+
+    def test_cima_half_band_is_configurable(self):
+        self.make_cima()
+        scorecard = self.navigation_task.scorecard
+        scorecard.observation_photo_full_tolerance_mm = 1
+        scorecard.observation_photo_half_tolerance_mm = 2
+        scorecard.save()
+        self.navigation_task.refresh_from_db()
+        self.contestant.refresh_from_db()
+        self.assertEqual(self.post(self.pilot, *self.along_leg(300)).json()["score_fraction"], 0.5)  # 1.5 mm
+        self.assertEqual(
+            self.post(self.pilot, *self.along_leg(600), time="2026-08-01T10:01:00Z").json()["score_fraction"], 0.0
+        )  # 3 mm, would have been half by default

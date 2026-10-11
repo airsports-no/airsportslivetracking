@@ -45,5 +45,6 @@ More than 20 mm from the track is `out_of_track` and scores zero. Photos that ar
 flight ends. Other task types record observations but do not score them.
 
 For CIMA the deficit `Vh * (1 - score_fraction)` is applied on the same scale as the gate score, `initial_score *
-deficit / Qmax`, where Qmax includes `Vh * N` for the photos (`get_cima_gate_qmax`). Tolerances are constants in
-`display/calculators/photo_observation_calculator.py`.
+deficit / Qmax`, where Qmax includes `Vh * N` for the photos (`get_cima_gate_qmax`). The distances are configurable per scorecard with `observation_photo_full_tolerance_mm` and
+`observation_photo_half_tolerance_mm`; when blank the task type's rule above applies (the defaults are constants in
+`display/calculators/photo_observation_calculator.py`). The half band is never narrower than the full band.
