@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScoreData, makeWebSocket, fetchContestantSlice } from '../api';
-import type { Contestant, NavigationTask, TrackPosition, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint } from '../types';
+import type { Contestant, NavigationTask, TrackPosition, PhotoObservation, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint } from '../types';
 import { evaluateIncomingMessage, mergeAcceptedVersions, takeHigherVersion, VersionState } from './wsMessageOrdering';
 
 export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback', showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void) {
@@ -8,6 +8,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const [contestantsById, setContestantsById] = useState<Record<number, Contestant>>({});
     const [positionsByContestant, setPositionsByContestant] = useState<Record<number, TrackPosition[]>>({});
     const [annotationsByContestant, setAnnotationsByContestant] = useState<Record<number, ScoreAnnotation[]>>({});
+    const [photoObservationsByContestant, setPhotoObservationsByContestant] = useState<Record<number, PhotoObservation[]>>({});
     const [scoreLogByContestant, setScoreLogByContestant] = useState<Record<number, ScoreLogEntry[]>>({});
     const [gateScoresByContestant, setGateScoresByContestant] = useState<Record<number, any[]>>({});
     const [dangerDataByContestant, setDangerDataByContestant] = useState<Record<number, DangerData>>({});
@@ -267,6 +268,9 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     track_version: payload.track_version,
                     score_version: payload.score_version
                 });
+            }
+            if (msg.type === "photo_observations" && payload.photo_observations) {
+                setPhotoObservationsByContestant(prev => ({ ...prev, [contestantId]: payload.photo_observations }));
             }
             if (msg.type === "score_log" && payload.score_log_entries) {
                 setScoreLogByContestantRef.current(prev => {
@@ -691,6 +695,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         contestantsById, // This is the dynamic map of contestants
         positionsByContestant,
         annotationsByContestant,
+        photoObservationsByContestant,
+        setPhotoObservationsByContestant,
         scoreLogByContestant,
         gateScoresByContestant,
         dangerDataByContestant,

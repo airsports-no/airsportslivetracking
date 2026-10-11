@@ -247,6 +247,7 @@ export interface NavigationTask {
   calculation_delay_minutes: number;
   user_has_change_permission: boolean;
   allow_self_management: boolean;
+  allow_observation_registration: boolean;
   start_time: string;
   finish_time: string;
   tracking_link: string;
@@ -282,6 +283,29 @@ export interface ScoreAnnotation {
   type: "anomaly" | "information" | string;
   contestant: number;
   score_log_entry: number | null;
+}
+
+export interface PhotoObservation {
+  id: number;
+  contestant: number;
+  photo: number | null;
+  photo_name: string;
+  time: string;
+  latitude: number;
+  longitude: number;
+  scored: boolean;
+  // "ok", "out_of_track", "map_scale_unknown" or "no_route"
+  status: string;
+  error_m: number | null;
+  error_mm: number | null;
+  score_fraction: number;
+  // Change to the contestant's score caused by this observation
+  points: number;
+  metres_per_mm: number | null;
+  projected_latitude: number | null;
+  projected_longitude: number | null;
+  photo_projected_latitude: number | null;
+  photo_projected_longitude: number | null;
 }
 
 export interface ScoreLogEntry {

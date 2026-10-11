@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { directionsUrl, filterGroups, formatWindow, groupByContest, hasLocation, mapUrl, OpenRegistrationTask, registerPath } from './openToday';
+import { directionsUrl, distanceKm, filterGroups, formatDistance, sortByDistance, userLocationFromUrl, formatWindow, groupByContest, hasLocation, mapUrl, OpenRegistrationTask, registerPath } from './openToday';
 
 const task = (over: Partial<OpenRegistrationTask>): OpenRegistrationTask => ({
     contest_id: 1,
@@ -72,5 +72,47 @@ describe('open today helpers', () => {
         expect(directionsUrl(59.9, 10.7)).toBe('https://www.google.com/maps/dir/?api=1&destination=59.9,10.7');
         expect(mapUrl(59.9, 10.7)).toBe('https://www.openstreetmap.org/?mlat=59.9&mlon=10.7#map=13/59.9/10.7');
         expect(registerPath(1, 10)).toBe('/schedule-flight?contestId=1&navigationTaskId=10');
+    });
+});
+
+describe('sorting by distance from the user', () => {
+    const oslo = { latitude: 59.9139, longitude: 10.7522 };
+    const group = (id: number, latitude: number | null, longitude: number | null) =>
+        groupByContest([task({ contest_id: id, contest_name: `Contest ${id}`, navigation_task_id: id * 10, latitude, longitude })])[0];
+
+    it('reads the position from the fragment or the query and rejects nonsense', () => {
+        expect(userLocationFromUrl('', '#lat=59.9&lon=10.7')).toEqual({ latitude: 59.9, longitude: 10.7 });
+        expect(userLocationFromUrl('?embed=app&lat=-33.8&lon=151.2', '')).toEqual({ latitude: -33.8, longitude: 151.2 });
+        expect(userLocationFromUrl('', '#lat=59.9')).toBeNull();
+        expect(userLocationFromUrl('', '#lat=abc&lon=10')).toBeNull();
+        expect(userLocationFromUrl('', '#lat=95&lon=10')).toBeNull();
+        expect(userLocationFromUrl('', '#lat=&lon=')).toBeNull();
+        expect(userLocationFromUrl('', '')).toBeNull();
+    });
+
+    it('computes great-circle distances', () => {
+        expect(distanceKm(oslo, oslo)).toBeCloseTo(0, 5);
+        // Oslo - Bergen is about 305 km
+        expect(distanceKm(oslo, { latitude: 60.3913, longitude: 5.3221 })).toBeGreaterThan(295);
+        expect(distanceKm(oslo, { latitude: 60.3913, longitude: 5.3221 })).toBeLessThan(315);
+    });
+
+    it('puts the nearest first and venues without a location last, keeping the server order among equals', () => {
+        const groups = [group(1, 60.3913, 5.3221), group(2, null, null), group(3, 59.95, 10.8), group(4, null, null), group(5, 63.43, 10.39)];
+        expect(sortByDistance(groups, oslo).map((g) => g.contestId)).toEqual([3, 1, 5, 2, 4]);
+    });
+
+    it('leaves the order alone and gives no distances when the position is unknown', () => {
+        const groups = [group(1, 60.3913, 5.3221), group(2, 59.95, 10.8)];
+        const sorted = sortByDistance(groups, null);
+        expect(sorted.map((g) => g.contestId)).toEqual([1, 2]);
+        expect(sorted.every((g) => g.distanceKm === null)).toBe(true);
+    });
+
+    it('formats distances', () => {
+        expect(formatDistance(0.04)).toBe('40 m');
+        expect(formatDistance(0.85)).toBe('850 m');
+        expect(formatDistance(4.24)).toBe('4.2 km');
+        expect(formatDistance(126.4)).toBe('126 km');
     });
 });

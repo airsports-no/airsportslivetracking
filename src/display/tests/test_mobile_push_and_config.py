@@ -324,6 +324,11 @@ class TestCalculatorStatusInNowEndpoint(TestCase):
         self.assertEqual(datetime.datetime.fromisoformat(active["last_received_time"]), arrived)
         self.assertEqual(active["calculation_delay_minutes"], 7)
 
+    def test_reports_whether_photo_observations_can_be_registered_in_the_app(self):
+        self.assertIs(self.current()["observation_registration"], False)
+        NavigationTask.objects.filter(pk=self.contestant.navigation_task_id).update(allow_observation_registration=True)
+        self.assertIs(self.current()["observation_registration"], True)
+
     def test_reports_whether_the_pilot_may_open_the_live_map_and_where(self):
         active = self.current()
         self.assertEqual(active["map_path"], f"/competition-map/{self.contestant.navigation_task.contest_id}/{self.contestant.navigation_task_id}?contestantIds={self.contestant.pk}")

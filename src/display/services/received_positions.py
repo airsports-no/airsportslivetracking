@@ -19,7 +19,10 @@ def _key(device_name: str) -> str:
 
 
 def note_position_received(device_name: str, device_time: datetime.datetime) -> None:
-    cache.set(_key(device_name), device_time, RECEIVED_TTL_SECONDS)
+    # A report that arrives late must not move the time back: keep the newest device time seen
+    current = cache.get(_key(device_name))
+    if current is None or device_time > current:
+        cache.set(_key(device_name), device_time, RECEIVED_TTL_SECONDS)
 
 
 def last_received_position_time(device_name: Optional[str]) -> Optional[datetime.datetime]:

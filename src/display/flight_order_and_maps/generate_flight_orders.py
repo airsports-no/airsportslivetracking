@@ -30,6 +30,7 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_i
 from display.models import Contestant
 from display.models.flight_order_configuration import FlightOrderConfiguration
 from display.models.route import Photo
+from display.services.photo_management import get_observation_photo_names
 from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
 from display.utilities.coordinate_utilities import normalise_bearing, utm_from_lat_lon
 from display.utilities.gate_definitions import DUMMY, SECRETPOINT, UNKNOWN_LEG
@@ -410,10 +411,24 @@ def _compiled_observation_photos(contestant, flight_order_configuration: FlightO
     return synthesised
 
 
+def _route_photos(contestant) -> list:
+    """
+    The photos for the "Photos" pages: the route's observation photos (and decoys). The Photo table also holds the
+    photos of the route's waypoints, which belong on the turning point pages in flight order, not mixed in here.
+    A route without editable-route features cannot tell them apart and keeps all its photos.
+    """
+    navigation_task = contestant.navigation_task
+    photos = list(navigation_task.route.photo_set.all().order_by("name"))
+    if navigation_task.editable_route is None:
+        return photos
+    observation_names = get_observation_photo_names(navigation_task)
+    return [photo for photo in photos if photo.is_decoy or photo.name in observation_names]
+
+
 def _photo_gallery_cells(
     contestant, flight_order_configuration: FlightOrderConfiguration
 ) -> List[Tuple[str, Optional[str]]]:
-    photos = list(contestant.navigation_task.route.photo_set.all().order_by("name"))
+    photos = _route_photos(contestant)
     if not photos:
         photos = _compiled_observation_photos(contestant, flight_order_configuration)
     meters_across = flight_order_configuration.photos_meters_across
@@ -665,10 +680,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         )
 
     photo_pages = ""
-    if (
-        contestant.navigation_task.route.photo_set.all().count() > 0
-        or _compiled_observation_photos(contestant, flight_order_configuration)
-    ):
+    if _route_photos(contestant) or _compiled_observation_photos(contestant, flight_order_configuration):
         photo_pages = _typst_gallery_pages(
             _photo_gallery_cells(contestant, flight_order_configuration),
             cols,

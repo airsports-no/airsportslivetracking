@@ -72,6 +72,15 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
         title: 'Speed keeping',
         fields: ['speed_keeping_tolerance_kt', 'speed_keeping_penalty_per_kt'],
     },
+    {
+        title: 'Observation photos',
+        fields: [
+            'observation_photo_penalty',
+            'observation_photo_value',
+            'observation_photo_full_tolerance_mm',
+            'observation_photo_half_tolerance_mm',
+        ],
+    },
 ];
 
 export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
@@ -121,6 +130,10 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
     speed_keeping_tolerance_kt: { label: 'Speed keeping tolerance', kind: 'number', unit: 'kt', min: 0 },
     speed_keeping_penalty_per_kt: { label: 'Speed keeping penalty per kt', kind: 'number', min: 0 },
     turnpoint_hunt_sequence_bonus: { label: 'Turnpoint hunt sequence bonus', kind: 'number', min: 0 },
+    observation_photo_penalty: { label: 'Penalty per missed observation (legacy)', kind: 'number', min: 0 },
+    observation_photo_value: { label: 'Points per observation (CIMA)', kind: 'number', min: 0 },
+    observation_photo_full_tolerance_mm: { label: 'Full score within (blank: 1 mm legacy, 2 mm CIMA)', kind: 'number', unit: 'mm', min: 0 },
+    observation_photo_half_tolerance_mm: { label: 'Half score within (blank: none legacy, 5 mm CIMA)', kind: 'number', unit: 'mm', min: 0 },
 };
 
 export const GATE_FIELD_ORDER: GateFieldName[] = [

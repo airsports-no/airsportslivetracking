@@ -129,6 +129,8 @@ from display.serialisers import (
     ExternalNavigationTaskTeamIdSerialiser,
     FlightOrderConfigurationSerialiser,
     FutureContestantNestedTeamSerialiser,
+    OwnFlightSerialiser,
+    OwnFutureFlightSerialiser,
     GateCumulativeScoreSerialiser,
     GenerateNavigationTaskMapSerialiser,
     GpxTrackSerialiser,
@@ -142,6 +144,9 @@ from display.serialisers import (
     OngoingNavigationSerialiser,
     PersonSerialiser,
     OwnPersonSerialiser,
+    PhotoObservationRegistrationSerialiser,
+    PhotoObservationCrewSerialiser,
+    PhotoObservationSerialiser,
     PhotoPublicSerialiser,
     PhotoSerialiser,
     PlayingCardSerialiser,
@@ -191,7 +196,27 @@ from display.services.contest_permissions import (
     set_contest_permission_level,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
+from display.services.photo_observations import (
+    NotCurrentlyTracked,
+    ObservationsLocked,
+    observations_locked,
+    ObservationRegistrationDisabled,
+    PhotoObservationError,
+    PositionNotAvailable,
+    check_crew_may_modify,
+    check_crew_may_register,
+    judging_is_hidden,
+    delete_photo_observation,
+    finalize_if_flight_over,
+    get_contestant_observation_photos,
+    is_tracked_now,
+    register_photo_observation,
+)
+from display.services.photo_management import (
+    get_observation_photo_names,
+    revert_photo_to_satellite,
+    sync_navigation_task_photo_targets,
+)
 from display.services.route_compatibility import effective_subtype_key, extract_route_primitives, get_blocking_reasons
 from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
 from display.services.task_compiler import TaskCompiler
@@ -274,6 +299,12 @@ class ScheduleCapacityPreviewQuerySerializer(serializers.Serializer):
             return dateutil.parser.parse(value)
         except (TypeError, ValueError, dateutil.parser.ParserError) as exc:
             raise ValidationError(str(exc))
+
+
+def _contest_metadata(contestant, request) -> dict:
+    data = OwnFlightSerialiser(contestant, context={"request": request}).data
+    keys = ("contest_name", "task_type", "contest_logo", "contest_header_image", "contest_location", "contest_country", "contest_website")
+    return {key: data[key] for key in keys}
 
 
 class UserPersonViewSet(GenericViewSet):
@@ -416,51 +447,74 @@ class UserPersonViewSet(GenericViewSet):
 
     @action(detail=False, methods=["get"])
     def my_future_flights(self, request, *args, **kwargs):
-        available_contests = Contest.visible_contests_for_user(request.user)
+        """
+        The person's own flights that are not over, whatever the visibility of the contest: being the crew is enough to
+        know the flight exists. Slim by default (schedule and contest/task metadata, see OwnFlightSerialiser); the old
+        full contestant payload, restricted to contests the user may view as before, is ``?detail=full``.
+        """
         # for authorisation
         person = self.get_object()
-        contestants = (
-            Contestant.objects.filter(
-                Q(team__crew__member1=person) | Q(team__crew__member2=person),
-                navigation_task__contest__in=available_contests,
-                finished_by_time__gt=datetime.datetime.now(datetime.timezone.utc),
+        now = datetime.datetime.now(datetime.timezone.utc)
+        contestants = Contestant.objects.filter(
+            Q(team__crew__member1=person) | Q(team__crew__member2=person), finished_by_time__gt=now
+        )
+        if request.query_params.get("detail") == "full":
+            contestants = (
+                contestants.filter(navigation_task__contest__in=Contest.visible_contests_for_user(request.user))
+                .order_by("takeoff_time")
+                .distinct()
+                .select_related("navigation_task__contest", "team__crew__member1")
+                .prefetch_related("emailmaplink_set")
             )
-            .order_by("takeoff_time")
+            return Response(
+                FutureContestantNestedTeamSerialiser(contestants, many=True, context={"request": request}).data
+            )
+        contestants = (
+            contestants.order_by("takeoff_time")
             .distinct()
             .select_related("navigation_task__contest", "team__crew__member1")
-            .prefetch_related("emailmaplink_set")
         )
-        return Response(FutureContestantNestedTeamSerialiser(contestants, many=True, context={"request": request}).data)
+        return Response(OwnFutureFlightSerialiser(contestants, many=True, context={"request": request}).data)
 
     @action(detail=False, methods=["get"])
     def my_previous_flights(self, request, *args, **kwargs):
-        available_contests = Contest.visible_contests_for_user(request.user).filter()
+        """
+        The person's own flights that are over, whatever the visibility of the contest. Slim by default (see
+        OwnFlightSerialiser: it says whether the user may open the results, with ``map_viewable``); the old payload with
+        the team, track and route, restricted to contests the user may view as before, is ``?detail=full`` (and slow).
+        """
         # for authorisation
         person = self.get_object()
-
+        contestants = Contestant.objects.filter(
+            Q(team__crew__member1=person) | Q(team__crew__member2=person),
+            finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc),
+        )
+        if request.query_params.get("detail") == "full":
+            contestants = (
+                contestants.filter(navigation_task__contest__in=Contest.visible_contests_for_user(request.user))
+                .select_related("navigation_task__contest")
+                .prefetch_related(
+                    "team__aeroplane",
+                    "team__club",
+                    "team__crew__member1",
+                    "team__crew__member2",
+                    "team__contestsummary_set",
+                    "contestanttrack",
+                )
+                .order_by("navigation_task__contest__start_time")
+                .distinct()
+            )
+            return Response(
+                ContestantNestedTeamSerialiserWithContestantTrack(
+                    contestants, many=True, context={"request": request, "exclude_overlaps": True}
+                ).data
+            )
         contestants = (
-            Contestant.objects.filter(
-                Q(team__crew__member1=person) | Q(team__crew__member2=person),
-                navigation_task__contest__in=available_contests,
-                finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc),
-            )
-            .select_related("navigation_task__contest")
-            .prefetch_related(
-                "team__aeroplane",
-                "team__club",
-                "team__crew__member1",
-                "team__crew__member2",
-                "team__contestsummary_set",
-                "contestanttrack",
-            )
-            .order_by("navigation_task__contest__start_time")
+            contestants.select_related("navigation_task__contest")
+            .order_by("-takeoff_time")
             .distinct()
         )
-        return Response(
-            ContestantNestedTeamSerialiserWithContestantTrack(
-                contestants, many=True, context={"request": request, "exclude_overlaps": True}
-            ).data
-        )
+        return Response(OwnFlightSerialiser(contestants, many=True, context={"request": request}).data)
 
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):
@@ -518,6 +572,11 @@ class UserPersonViewSet(GenericViewSet):
                     # explain that the results must be awaited) and the page that shows their own flight.
                     "map_viewable": map_viewable[task.pk],
                     "map_path": map_path_for(contestant),
+                    # Contest and task METADATA for a pilot who may not view the (private) contest and so cannot look it up
+                    # (never the route): the same fields as the flight lists.
+                    **_contest_metadata(contestant, request),
+                    # The crew may register photo observations from the app (then GET contestant/<id>/observation_photos/).
+                    "observation_registration": task.allow_observation_registration,
                     # When the server last received a position from this device. Unlike last_position_time (the stored
                     # positions, which the task's calculation delay holds back) this is not delayed.
                     "last_received_time": last_received.isoformat() if last_received else None,
@@ -1980,6 +2039,10 @@ class NavigationTaskViewSet(ModelViewSet):
     def photos(self, request, pk=None, contest_pk=None):
         navigation_task = self.get_object()
         photos = sync_navigation_task_photo_targets(navigation_task)
+        if request.query_params.get("kind") == "observation":
+            # Only the observation photos, not those of the route's waypoints (what the live map shows)
+            names = get_observation_photo_names(navigation_task)
+            photos = [photo for photo in photos if photo.name in names]
         contestant_id = request.query_params.get("contestant")
         contestant = None
         if contestant_id:
@@ -2912,7 +2975,7 @@ class ContestantViewSet(ModelViewSet):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_permissions(self):
-        if self.action == "destroy":
+        if self.action in ("destroy", "delete_photo_observation"):
             return [permissions.IsAuthenticated(), ContestantDestroyPermissions()]
         return super().get_permissions()
 
@@ -3584,6 +3647,150 @@ class ContestantViewSet(ModelViewSet):
         contestant.reset_track_and_score()
         recalculate_live_data_for_contestant.apply_async((contestant.pk,))
         return Response({"detail": "Started loading track."})
+
+    @staticmethod
+    def _is_crew_member(user, contestant) -> bool:
+        email = (user.email or "").lower()
+        crew = contestant.team.crew
+        members = [crew.member1, crew.member2]
+        return bool(email) and any(m is not None and (m.email or "").lower() == email for m in members)
+
+    @extend_schema(
+        request=PhotoObservationRegistrationSerialiser,
+        responses={200: PhotoObservationSerialiser(many=True), 201: PhotoObservationSerialiser},
+    )
+    @action(detail=True, methods=["get", "post"])
+    def photo_observations(self, request, pk=None, **kwargs):
+        """
+        GET lists the contestant's registered photo observations with their scoring result (public for public
+        tasks). POST registers an observation from the app: the crew taps the button for a photo and sends the
+        photo id, the time and their position at that moment. The observation is scored by projecting the
+        position and the photo onto the track and converting the distance between them to millimetres on the
+        printed map. Only the crew of the contestant, or a contest manager, may register.
+        """
+        if request.method == "GET":
+            contestant = self.get_object()  # object permissions are checked here
+            observations = contestant.photo_observations.all()
+            if judging_is_hidden(contestant) and not request.user.has_perm(
+                "display.change_contest", contestant.navigation_task.contest
+            ):
+                return Response(PhotoObservationCrewSerialiser(observations, many=True).data)
+            return Response(PhotoObservationSerialiser(observations, many=True).data)
+
+        contestant = get_object_or_404(
+            Contestant.objects.select_related("navigation_task__contest", "team__crew__member1", "team__crew__member2"),
+            pk=pk,
+        )
+        is_manager = request.user.has_perm("display.change_contest", contestant.navigation_task.contest)
+        if not (is_manager or self._is_crew_member(request.user, contestant)):
+            raise drf_exceptions.PermissionDenied("You can only register observations for your own flight")
+        serialiser = PhotoObservationRegistrationSerialiser(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        try:
+            if not is_manager:
+                check_crew_may_register(
+                    contestant,
+                    request.user,
+                    serialiser.validated_data["time"],
+                    photo=serialiser.validated_data["photo"],
+                    replace=serialiser.validated_data.get("replace", False),
+                )
+            observation, changed = register_photo_observation(contestant, **serialiser.validated_data)
+        except ObservationRegistrationDisabled as e:
+            raise drf_exceptions.PermissionDenied(str(e))
+        except NotCurrentlyTracked as e:
+            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+        except ObservationsLocked as e:
+            return Response({"detail": str(e), "locked": True}, status=status.HTTP_409_CONFLICT)
+        except PositionNotAvailable as e:
+            return Response({"detail": str(e)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
+        except PhotoObservationError as e:
+            raise ValidationError({"detail": str(e)})
+        serialiser_class = (
+            PhotoObservationCrewSerialiser if not is_manager and judging_is_hidden(contestant) else PhotoObservationSerialiser
+        )
+        return Response(
+            serialiser_class(observation).data,
+            status=status.HTTP_201_CREATED if changed else status.HTTP_200_OK,
+        )
+
+    @action(detail=True, methods=["get"], url_path="observation_photos")
+    def observation_photos(self, request, pk=None, **kwargs):
+        """
+        What the app needs to let the crew register photo observations: the photos to choose from (id, name, image),
+        which of them are marked so far (without any scoring information) and whether registering is possible right now.
+
+        Unlike the task's photos endpoint (which needs view or change permission on the contest unless the task is
+        public) this is open to the crew of the contestant, so it also works when the task or contest is private. It
+        does not return the photo coordinates: those are the answer.
+        """
+        if not request.user.is_authenticated:
+            raise drf_exceptions.NotAuthenticated()
+        contestant = get_object_or_404(
+            Contestant.objects.select_related("navigation_task__contest", "team__crew__member1", "team__crew__member2"),
+            pk=pk,
+        )
+        is_manager = request.user.has_perm("display.change_contest", contestant.navigation_task.contest)
+        if not (is_manager or self._is_crew_member(request.user, contestant)):
+            raise drf_exceptions.PermissionDenied("You can only see the observation photos of your own flight")
+        enabled = contestant.navigation_task.allow_observation_registration
+        photos = []
+        if enabled:
+            photos = [
+                {
+                    "id": photo.pk,
+                    "name": photo.name,
+                    "file": request.build_absolute_uri(photo.file.url) if photo.file else None,
+                }
+                for photo in sorted(get_contestant_observation_photos(contestant), key=lambda item: item.name)
+            ]
+        return Response(
+            {
+                "enabled": enabled,
+                "may_register": enabled and is_tracked_now(contestant),
+                # False once the flight is over: photos that are not marked yet can still be, but marks are final
+                "may_change_marks": enabled and is_tracked_now(contestant) and not observations_locked(contestant),
+                "photos": photos,
+                # Only which photos are marked and when: no score, error or projection, the crew gets no feedback.
+                "observations": [
+                    {"id": o.pk, "photo": o.photo_id, "photo_name": o.photo_name, "time": o.time}
+                    for o in contestant.photo_observations.all()
+                ],
+            }
+        )
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path="photo_observations/(?P<observation_id>\\d+)",
+    )
+    def delete_photo_observation(self, request, pk=None, observation_id=None, **kwargs):
+        """
+        Removes a registered photo observation and reverses its score: contest managers always, the crew of the
+        flight while they are tracking it (so they can cancel and mark again). The photo then counts as not marked.
+        """
+        contestant = get_object_or_404(
+            Contestant.objects.select_related("navigation_task__contest", "team__crew__member1", "team__crew__member2"),
+            pk=pk,
+        )
+        is_manager = request.user.has_perm("display.change_contest", contestant.navigation_task.contest)
+        if not is_manager:
+            if not self._is_crew_member(request.user, contestant):
+                raise drf_exceptions.PermissionDenied("You can only cancel observations of your own flight")
+            try:
+                check_crew_may_modify(contestant, request.user)
+            except ObservationRegistrationDisabled as e:
+                raise drf_exceptions.PermissionDenied(str(e))
+            except NotCurrentlyTracked as e:
+                return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+            except ObservationsLocked as e:
+                return Response({"detail": str(e), "locked": True}, status=status.HTTP_409_CONFLICT)
+        observation = get_object_or_404(contestant.photo_observations, pk=observation_id)
+        delete_photo_observation(observation)
+        if not is_manager:
+            # Cancelling during the grace period must not undo the miss the photo would otherwise be.
+            finalize_if_flight_over(contestant)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])
     def clear_declaration(self, request, pk=None, **kwargs):

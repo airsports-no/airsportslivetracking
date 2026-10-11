@@ -12,6 +12,7 @@ from .navigation_task import *
 from .playing_card import *
 from .route import *
 from .scorecard_and_gate_score import *
+from .photo_observation import *
 from .scoring_models import *
 from .scoring_table_models import *
 from .team_structure import Team, Aeroplane, Crew, Person, Club

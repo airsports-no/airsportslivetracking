@@ -32,6 +32,8 @@ from display.models import (
     UserTokenGrant,
     ContestTokenAssignment,
     UserEntitlementGrant,
+    MobileDevice,
+    PushNotificationLog,
 )
 from solo.admin import SingletonModelAdmin
 
@@ -293,6 +295,10 @@ class ScorecardAdminForm(forms.ModelForm):
     # as an achievement score (see contestant_processor.ACHIEVEMENT_SCORE_TYPES) - a negative
     # value would silently subtract from a contestant's score for completing the full sequence.
     turnpoint_hunt_sequence_bonus = forms.FloatField(required=False, min_value=0)
+    observation_photo_penalty = forms.FloatField(required=False, min_value=0)
+    observation_photo_value = forms.FloatField(required=False, min_value=0)
+    observation_photo_full_tolerance_mm = forms.FloatField(required=False, min_value=0)
+    observation_photo_half_tolerance_mm = forms.FloatField(required=False, min_value=0)
 
     class Meta:
         model = Scorecard
@@ -322,7 +328,11 @@ class ScorecardAdminForm(forms.ModelForm):
     # submits None for it - writing that through setattr would permanently shadow the real
     # ConfigField default (e.g. circle_radius_min_m=200) with a stored None. Skip None values
     # on save instead, except for the one field whose declared default genuinely is None.
-    _NULLABLE_CONFIG_FIELDS = {"maximum_task_duration_minutes"}
+    _NULLABLE_CONFIG_FIELDS = {
+        "maximum_task_duration_minutes",
+        "observation_photo_full_tolerance_mm",
+        "observation_photo_half_tolerance_mm",
+    }
 
     def save(self, commit=True):
         instance = super().save(commit=False)
@@ -391,3 +401,46 @@ class HighlightedContestAdmin(admin.ModelAdmin):
 
 
 admin.site.register(HighlightedContest, HighlightedContestAdmin)
+
+
+class ReadOnlyAdmin(admin.ModelAdmin):
+    """Look, never touch: no adding, no editing. Deleting is not offered either."""
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(MobileDevice)
+class MobileDeviceAdmin(ReadOnlyAdmin):
+    """The phones that receive push notifications. The full token is on the detail page, e.g. for a Firebase test message."""
+
+    list_display = ("person", "email", "platform", "app_version", "token_preview", "last_seen", "created_at")
+    list_filter = ("platform",)
+    list_select_related = ("person",)
+    search_fields = ("person__email", "person__first_name", "person__last_name")
+    ordering = ("-last_seen",)
+    readonly_fields = ("person", "platform", "push_token", "app_version", "created_at", "last_seen")
+    fields = readonly_fields
+
+    @admin.display(description="Email", ordering="person__email")
+    def email(self, device):
+        return device.person.email
+
+    @admin.display(description="Token")
+    def token_preview(self, device):
+        return f"{device.push_token[:12]}..." if device.push_token else ""
+
+
+@admin.register(PushNotificationLog)
+class PushNotificationLogAdmin(ReadOnlyAdmin):
+    list_display = ("sent_at", "kind", "person", "contestant", "devices_reached")
+    list_filter = ("kind",)
+    search_fields = ("person__email",)
+    ordering = ("-sent_at",)
+    list_select_related = ("person", "contestant")

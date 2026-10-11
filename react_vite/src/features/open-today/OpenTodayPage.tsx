@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from 'react';
+import React, { useEffect, useMemo, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { MapPin, Navigation, UserPlus } from 'lucide-react';
 import { reverse } from '../../urls';
@@ -14,6 +14,10 @@ import {
     mapUrl,
     OpenRegistrationTask,
     registerPath,
+    formatDistance,
+    GroupWithDistance,
+    sortByDistance,
+    userLocationFromUrl,
 } from './openToday';
 
 /**
@@ -22,6 +26,8 @@ import {
  */
 export const OpenTodayList = () => {
     const [groups, setGroups] = useState<ContestGroup[] | null>(null);
+    // The mobile app passes the phone's position in the address; without it the list keeps the server's order.
+    const here = useMemo(() => userLocationFromUrl(window.location.search, window.location.hash), []);
     const [query, setQuery] = useState('');
     const [error, setError] = useState<string | null>(null);
 
@@ -49,7 +55,7 @@ export const OpenTodayList = () => {
         return <div className="w-full flex items-center justify-center p-8"><Loading /></div>;
     }
 
-    const visible = filterGroups(groups, query);
+    const visible: GroupWithDistance[] = sortByDistance(filterGroups(groups, query), here);
 
     return (
         <>
@@ -62,6 +68,10 @@ export const OpenTodayList = () => {
                     value={query}
                     onChange={(e) => setQuery(e.target.value)}
                 />
+            )}
+
+            {here && groups.length > 1 && (
+                <p className="text-sm opacity-70 mb-3">Nearest to your location first.</p>
             )}
 
             {groups.length > 0 && visible.length === 0 && (
@@ -90,6 +100,9 @@ export const OpenTodayList = () => {
                             <div>
                                 <h2 className="card-title">{group.contestName}</h2>
                                 {group.country && <div className="text-sm opacity-70">{group.country}</div>}
+                                {group.distanceKm !== null && (
+                                    <div className="text-sm font-semibold">{formatDistance(group.distanceKm)} from you</div>
+                                )}
                             </div>
 
                             {hasLocation(group) ? (

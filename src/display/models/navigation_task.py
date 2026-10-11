@@ -162,6 +162,11 @@ class NavigationTask(models.Model):
         default=False,
         help_text="If checked, authenticated users will be allowed to set up themselves as a contestant after having registered for the contest.",
     )
+    allow_observation_registration = models.BooleanField(
+        default=False,
+        help_text="If checked, crews can register observation photos from the app while they are being tracked. "
+        "Observations are then scored, and photos that were not marked count as missed when the flight ends.",
+    )
     calculation_delay_minutes = models.FloatField(
         default=0,
         validators=[MinValueValidator(0)],

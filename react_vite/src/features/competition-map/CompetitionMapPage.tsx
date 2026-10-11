@@ -6,8 +6,9 @@ import useMapInit from '../route-editor/components/map/useMapInit';
 import { useCompetitionData } from './hooks/useCompetitionData';
 import { usePlayback } from './hooks/usePlayback';
 import { useMapLayers } from './hooks/useMapLayers';
+import { usePhotoLayers, TargetPhoto } from './hooks/usePhotoLayers';
 import { useToast } from './hooks/useToast'; // Import useToast
-import { fetchContestDetails } from './api';
+import { fetchContestDetails, fetchPhotoObservations, fetchPhotos } from './api';
 
 import ResultsTable from './components/ResultsTable';
 import ScoreLogTable from './components/ScoreLogTable';
@@ -21,7 +22,11 @@ import TaskInfoModal from './TaskInfoModal';
 import { ChevronUp, ChevronDown, Trophy, Info, Settings, Calendar, Sliders, Activity, PlayCircle, Route } from 'lucide-react';
 import { generatePath } from '../../urls';
 import './CompetitionMap.css';
-import { NavigationTask } from './types';
+import { NavigationTask, PhotoObservation } from './types';
+
+// Stable empty values: a fresh [] each render would make the photo layers redraw on every tick and close hover tooltips
+const NO_PHOTOS: TargetPhoto[] = [];
+const NO_OBSERVATIONS: PhotoObservation[] = [];
 
 
 
@@ -99,6 +104,8 @@ export default function CompetitionMapPage() {
     contestantsById, // New, dynamic map of contestants
     positionsByContestant,
     annotationsByContestant,
+    photoObservationsByContestant,
+    setPhotoObservationsByContestant,
     scoreLogByContestant,
     gateScoresByContestant,
     dangerDataByContestant,
@@ -353,6 +360,41 @@ export default function CompetitionMapPage() {
     permanentAnnotations,
     showPenaltiesOnly,
   });
+
+  // Observation photo targets (task level, independent of any selected contestant) and the selected contestant's
+  // registered observations. Both reveal where the targets are, so both follow the same rule as secret gates: the
+  // task must display secrets and the viewer's own "show secrets" toggle must be on.
+  const photosVisible = !!(staticNavTaskData?.display_secrets && userShowSecrets);
+  const [fetchedPhotos, setFetchedPhotos] = useState<TargetPhoto[]>(NO_PHOTOS);
+  useEffect(() => {
+    if (!photosVisible) return;
+    let cancelled = false;
+    fetchPhotos(contestIdNum, navigationTaskIdNum, undefined, 'observation')
+      .then((photos) => { if (!cancelled) setFetchedPhotos(photos); })
+      .catch((e) => console.error('Failed to fetch observation photos', e));
+    return () => { cancelled = true; };
+  }, [photosVisible, contestIdNum, navigationTaskIdNum]);
+  const targetPhotos = photosVisible ? fetchedPhotos : NO_PHOTOS;
+
+  useEffect(() => {
+    if (!photosVisible || !selectedContestantId) return;
+    let cancelled = false;
+    fetchPhotoObservations(selectedContestantId)
+      .then((observations) => {
+        if (!cancelled) setPhotoObservationsByContestant((prev) => ({ ...prev, [selectedContestantId]: observations }));
+      })
+      .catch((e) => console.error('Failed to fetch photo observations', e));
+    return () => { cancelled = true; };
+  }, [photosVisible, selectedContestantId, setPhotoObservationsByContestant]);
+
+  const visibleObservations = useMemo(() => {
+    if (!photosVisible || !selectedContestantId) return NO_OBSERVATIONS;
+    return (photoObservationsByContestant[selectedContestantId] ?? NO_OBSERVATIONS).filter(
+      (o) => mode === 'realtime' || new Date(o.time) <= currentTime,
+    );
+  }, [photosVisible, photoObservationsByContestant, selectedContestantId, mode, currentTime]);
+
+  usePhotoLayers({ mapRef, photos: targetPhotos, observations: visibleObservations, visible: photosVisible });
 
   const toggleContestantFilter = (id: number) => {
     const currentIds = selectedIds ? Array.from(selectedIds) : allSortedContestants.map(c => c.id);
