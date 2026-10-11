@@ -32,6 +32,8 @@ from display.models import (
     UserTokenGrant,
     ContestTokenAssignment,
     UserEntitlementGrant,
+    MobileDevice,
+    PushNotificationLog,
 )
 from solo.admin import SingletonModelAdmin
 
@@ -399,3 +401,46 @@ class HighlightedContestAdmin(admin.ModelAdmin):
 
 
 admin.site.register(HighlightedContest, HighlightedContestAdmin)
+
+
+class ReadOnlyAdmin(admin.ModelAdmin):
+    """Look, never touch: no adding, no editing. Deleting is not offered either."""
+
+    def has_add_permission(self, request):
+        return False
+
+    def has_change_permission(self, request, obj=None):
+        return False
+
+    def has_delete_permission(self, request, obj=None):
+        return False
+
+
+@admin.register(MobileDevice)
+class MobileDeviceAdmin(ReadOnlyAdmin):
+    """The phones that receive push notifications. The full token is on the detail page, e.g. for a Firebase test message."""
+
+    list_display = ("person", "email", "platform", "app_version", "token_preview", "last_seen", "created_at")
+    list_filter = ("platform",)
+    list_select_related = ("person",)
+    search_fields = ("person__email", "person__first_name", "person__last_name")
+    ordering = ("-last_seen",)
+    readonly_fields = ("person", "platform", "push_token", "app_version", "created_at", "last_seen")
+    fields = readonly_fields
+
+    @admin.display(description="Email", ordering="person__email")
+    def email(self, device):
+        return device.person.email
+
+    @admin.display(description="Token")
+    def token_preview(self, device):
+        return f"{device.push_token[:12]}..." if device.push_token else ""
+
+
+@admin.register(PushNotificationLog)
+class PushNotificationLogAdmin(ReadOnlyAdmin):
+    list_display = ("sent_at", "kind", "person", "contestant", "devices_reached")
+    list_filter = ("kind",)
+    search_fields = ("person__email",)
+    ordering = ("-sent_at",)
+    list_select_related = ("person", "contestant")
