@@ -21,6 +21,10 @@ class ContestantTrack(models.Model):
     current_leg = models.CharField(max_length=100, default="")
     last_gate = models.CharField(max_length=100, default="")
     last_gate_time_offset = models.FloatField(default=0)
+    # The last gate that has a time check, and how far from its required time it was passed (seconds, positive is late).
+    # Kept apart from last_gate, which every gate updates: the app's training mode only gives feedback on timed gates.
+    last_timed_gate = models.CharField(max_length=100, default="")
+    last_timed_gate_time_offset = models.FloatField(default=0)
     passed_starting_gate = models.BooleanField(default=False)
     passed_finish_gate = models.BooleanField(default=False)
     calculator_finished = models.BooleanField(default=False)
@@ -34,6 +38,8 @@ class ContestantTrack(models.Model):
         self.current_leg = ""
         self.last_gate = ""
         self.last_gate_time_offset = 0
+        self.last_timed_gate = ""
+        self.last_timed_gate_time_offset = 0
         self.passed_starting_gate = False
         self.passed_finish_gate = False
         self.calculator_finished = False
@@ -72,6 +78,11 @@ class ContestantTrack(models.Model):
         self.last_gate_time_offset = time_difference
         self.save(update_fields=["last_gate", "last_gate_time_offset"])
         self.__push_change()
+
+    def update_last_timed_gate(self, gate_name, time_difference):
+        self.last_timed_gate = gate_name
+        self.last_timed_gate_time_offset = time_difference
+        self.save(update_fields=["last_timed_gate", "last_timed_gate_time_offset"])
 
     def update_score(self, score):
         from display.models import TeamTestScore

@@ -289,13 +289,27 @@ class TestCalculatorStatusInNowEndpoint(TestCase):
     def test_training_feedback_is_only_given_for_self_managed_tasks_without_a_calculation_delay(self):
         track = self.contestant.contestanttrack
         track.update_last_gate("TP1", -4.0)
+        track.update_last_timed_gate("TP1", -4.0)
         self.assertIsNone(self.current()["training_feedback"])  # an organizer-run task: no live feedback
+        self.assertIs(self.current()["training_available"], False)
         task = self.contestant.navigation_task
         task.allow_self_management = True
         task.save()
         self.assertEqual(self.current()["training_feedback"], {"last_gate": "TP1", "last_gate_time_offset": -4.0})
+        self.assertIs(self.current()["training_available"], True)
+        # A gate without a time check moves last_gate only: the feedback keeps showing the last timed gate.
+        track.update_last_gate("SECRET1", 30.0)
+        self.assertEqual(self.current()["training_feedback"], {"last_gate": "TP1", "last_gate_time_offset": -4.0})
         task.calculation_delay_minutes = 5
         task.save()
+        self.assertIsNone(self.current()["training_feedback"])
+        self.assertIs(self.current()["training_available"], False)  # scores are held back: nothing to show live
+
+    def test_no_training_feedback_before_a_timed_gate_has_been_passed(self):
+        task = self.contestant.navigation_task
+        task.allow_self_management = True
+        task.save()
+        self.contestant.contestanttrack.update_last_gate("SECRET1", 3.0)
         self.assertIsNone(self.current()["training_feedback"])
 
     def test_reports_when_the_server_last_received_a_position_independent_of_the_calculation_delay(self):

@@ -601,6 +601,8 @@ class GateCalculator(Calculator):
 
         time_difference = (passing_time - event.gate.expected_time).total_seconds()
         self.contestant.contestanttrack.update_last_gate(event.gate.name, time_difference)
+        if event.gate.time_check:
+            self.contestant.contestanttrack.update_last_timed_gate(event.gate.name, time_difference)
 
         message = "passing gate"
 

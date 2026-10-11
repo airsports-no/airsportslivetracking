@@ -522,6 +522,7 @@ class UserPersonViewSet(GenericViewSet):
                     # positions, which the task's calculation delay holds back) this is not delayed.
                     "last_received_time": last_received.isoformat() if last_received else None,
                     "calculation_delay_minutes": task.calculation_delay_minutes,
+                    "training_available": training_available_for(contestant),
                     "training_feedback": training_feedback_for(contestant),
                 }
             )
@@ -551,19 +552,24 @@ class UserPersonViewSet(GenericViewSet):
         return Response(serializer.data)
 
 
+def training_available_for(contestant):
+    """Whether the app may offer training mode for this flight: a self-managed task whose scores are not held back."""
+    task = contestant.navigation_task
+    return bool(task.allow_self_management and task.calculation_delay_minutes <= 0)
+
+
 def training_feedback_for(contestant):
     """
-    Live gate timing for the app's training mode: the last gate the calculator passed and how far from its required time
-    (seconds, positive is late). Only for self-managed tasks (the pilot set up their own flight), and never when the
+    Live gate timing for the app's training mode: the last gate with a time check that the calculator passed and how far
+    from its required time (seconds, positive is late). Gates without a time check give no feedback. Only for self-managed tasks (the pilot set up their own flight), and never when the
     organizer holds scores back with a calculation delay.
     """
-    task = contestant.navigation_task
-    if not task.allow_self_management or task.calculation_delay_minutes > 0:
+    if not training_available_for(contestant):
         return None
     track = getattr(contestant, "contestanttrack", None)
-    if track is None or track.last_gate is None:
+    if track is None or not track.last_timed_gate:
         return None
-    return {"last_gate": track.last_gate, "last_gate_time_offset": track.last_gate_time_offset}
+    return {"last_gate": track.last_timed_gate, "last_gate_time_offset": track.last_timed_gate_time_offset}
 
 
 class EditableRouteViewSet(ModelViewSet):
