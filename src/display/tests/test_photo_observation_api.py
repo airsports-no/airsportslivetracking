@@ -24,7 +24,11 @@ from display.models import (
     Team,
 )
 from display.calculators.cima_score_normalization import get_cima_gate_qmax
-from display.services.photo_observations import finalize_photo_observations, get_scoring_mode
+from display.services.photo_observations import (
+    finalize_photo_observations,
+    get_currently_tracked_contestants,
+    get_scoring_mode,
+)
 from display.utilities.cima_task_type_definitions import KNOWN_CIRCUIT
 from display.utilities.gate_definitions import LANDING_GATE, TAKEOFF_GATE
 from utilities.mock_utilities import TraccarMock
@@ -92,6 +96,16 @@ class PhotoObservationApiTest(TestCase):
         self.photo_lon = (self.leg_start.longitude + self.leg_end.longitude) / 2
         self.photo = Photo.objects.create(name="A", route=self.route, latitude=self.photo_lat, longitude=self.photo_lon)
         self.url = reverse("all-contestants-photo-observations", kwargs={"pk": self.contestant.pk})
+        # Observation registration is switched on for the task, and the flight is under way (10:10)
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(allow_observation_registration=True)
+        self.navigation_task.refresh_from_db()
+        self.contestant.refresh_from_db()
+        self.set_now(START + datetime.timedelta(minutes=70))
+
+    def set_now(self, now):
+        patcher = patch("display.services.photo_observations._now", return_value=now)
+        patcher.start()
+        self.addCleanup(patcher.stop)
 
     def set_scale(self, scale):
         FlightOrderConfiguration.objects.update_or_create(
@@ -123,6 +137,40 @@ class PhotoObservationApiTest(TestCase):
     def test_contest_manager_can_register(self):
         self.set_scale(SCALE_200)
         self.assertEqual(self.post(self.manager).status_code, 201)
+
+    def test_registration_must_be_enabled_for_the_task(self):
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(allow_observation_registration=False)
+        response = self.post(self.pilot)
+        self.assertEqual(response.status_code, 403)
+        self.assertEqual(PhotoObservation.objects.count(), 0)
+
+    def test_manager_can_register_when_the_app_registration_is_off_but_it_is_not_scored(self):
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(allow_observation_registration=False)
+        self.set_scale(SCALE_200)
+        response = self.post(self.manager)
+        self.assertEqual(response.status_code, 201)
+        self.assertEqual(response.json()["points"], 0.0)
+
+    def test_crew_can_only_register_for_a_flight_they_are_currently_tracking(self):
+        self.set_now(START + datetime.timedelta(minutes=30))  # before the tracker start time
+        self.assertEqual(self.post(self.pilot).status_code, 409)
+        self.set_now(START + datetime.timedelta(hours=4))  # after the finished-by time
+        self.assertEqual(self.post(self.pilot).status_code, 409)
+        self.assertEqual(PhotoObservation.objects.count(), 0)
+
+    def test_finished_calculator_is_no_longer_tracked(self):
+        self.contestant.contestanttrack.set_calculator_finished()
+        self.assertEqual(self.post(self.pilot).status_code, 409)
+
+    def test_currently_tracked_contestants_are_the_users_active_flights(self):
+        self.assertEqual([c.pk for c in get_currently_tracked_contestants(self.pilot)], [self.contestant.pk])
+        self.assertEqual(get_currently_tracked_contestants(self.stranger), [])
+        self.assertEqual(get_currently_tracked_contestants(self.manager), [])
+
+    def test_observation_time_must_be_within_the_flight(self):
+        self.assertEqual(self.post(self.pilot, time="2026-08-01T08:00:00Z").status_code, 400)
+        self.assertEqual(self.post(self.pilot, time="2026-08-01T13:00:00Z").status_code, 400)
+        self.assertEqual(PhotoObservation.objects.count(), 0)
 
     def test_stranger_cannot_register(self):
         self.assertEqual(self.post(self.stranger).status_code, 403)
@@ -221,6 +269,12 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
         self.post(self.pilot, *self.along_leg(0), time="2026-08-01T10:01:00Z")
         self.assertEqual(self.score(), 0.0)
         self.assertEqual(PhotoObservation.objects.get().points, 0.0)
+
+    def test_unmarked_photos_are_not_misses_when_the_task_does_not_use_app_registration(self):
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(allow_observation_registration=False)
+        self.contestant.refresh_from_db()
+        self.assertEqual(finalize_photo_observations(self.contestant), 0)
+        self.assertEqual(self.score(), 0.0)
 
     def test_unmarked_photo_is_a_miss_when_the_flight_ends(self):
         self.assertEqual(finalize_photo_observations(self.contestant), 1)

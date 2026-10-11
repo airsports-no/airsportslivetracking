@@ -193,7 +193,10 @@ from display.services.contest_permissions import (
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.photo_observations import (
+    NotCurrentlyTracked,
+    ObservationRegistrationDisabled,
     PhotoObservationError,
+    check_crew_may_register,
     delete_photo_observation,
     register_photo_observation,
 )
@@ -3593,17 +3596,21 @@ class ContestantViewSet(ModelViewSet):
             Contestant.objects.select_related("navigation_task__contest", "team__crew__member1", "team__crew__member2"),
             pk=pk,
         )
-        if not (
-            request.user.has_perm("display.change_contest", contestant.navigation_task.contest)
-            or self._is_crew_member(request.user, contestant)
-        ):
+        is_manager = request.user.has_perm("display.change_contest", contestant.navigation_task.contest)
+        if not (is_manager or self._is_crew_member(request.user, contestant)):
             raise drf_exceptions.PermissionDenied("You can only register observations for your own flight")
         serialiser = PhotoObservationRegistrationSerialiser(data=request.data)
         serialiser.is_valid(raise_exception=True)
         try:
+            if not is_manager:
+                check_crew_may_register(contestant, request.user, serialiser.validated_data["time"])
             observation, changed = register_photo_observation(contestant, **serialiser.validated_data)
+        except ObservationRegistrationDisabled as e:
+            raise drf_exceptions.PermissionDenied(str(e))
+        except NotCurrentlyTracked as e:
+            return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
         except PhotoObservationError as e:
-            raise ValidationError({"photo": str(e)})
+            raise ValidationError({"detail": str(e)})
         return Response(
             PhotoObservationSerialiser(observation).data,
             status=status.HTTP_201_CREATED if changed else status.HTTP_200_OK,

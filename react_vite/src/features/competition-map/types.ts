@@ -247,6 +247,7 @@ export interface NavigationTask {
   calculation_delay_minutes: number;
   user_has_change_permission: boolean;
   allow_self_management: boolean;
+  allow_observation_registration: boolean;
   start_time: string;
   finish_time: string;
   tracking_link: string;

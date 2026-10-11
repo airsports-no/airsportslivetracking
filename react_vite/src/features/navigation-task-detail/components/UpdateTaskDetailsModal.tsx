@@ -23,6 +23,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
     const [windSpeed, setWindSpeed] = useState(String(task.wind_speed));
     const [windDirection, setWindDirection] = useState(String(task.wind_direction));
     const [allowSelfManagement, setAllowSelfManagement] = useState(task.allow_self_management);
+    const [allowObservationRegistration, setAllowObservationRegistration] = useState(task.allow_observation_registration);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -35,6 +36,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
       setWindSpeed(String(task.wind_speed));
       setWindDirection(String(task.wind_direction));
       setAllowSelfManagement(task.allow_self_management);
+      setAllowObservationRegistration(task.allow_observation_registration);
     }, [task]);
 
     const handleSubmit = async (event: React.FormEvent) => {
@@ -49,6 +51,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
           wind_speed: Number(windSpeed),
           wind_direction: Number(windDirection),
           allow_self_management: allowSelfManagement,
+          allow_observation_registration: allowObservationRegistration,
         });
         (ref as React.RefObject<HTMLDialogElement>).current?.close();
         onUpdated();
@@ -127,6 +130,15 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
                 onChange={(e) => setAllowSelfManagement(e.target.checked)}
               />
               <span className="label-text">Allow self-management</span>
+            </label>
+            <label className="label cursor-pointer justify-start gap-2">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={allowObservationRegistration}
+                onChange={(e) => setAllowObservationRegistration(e.target.checked)}
+              />
+              <span className="label-text">Allow observation registration in the app</span>
             </label>
             {error && <p className="text-error text-sm">{error}</p>}
             <div className="modal-action">

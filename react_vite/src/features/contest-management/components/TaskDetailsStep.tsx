@@ -154,6 +154,10 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
                 <input type="checkbox" className="checkbox" {...register('allow_self_management')} />
                 <span className="label-text inline-flex items-center">Allow self-management<HelpIcon text="Lets pilots who are registered for the contest book their own start time. The task must also be public and featured for pilots to see it." /></span>
             </label>
+            <label className="label cursor-pointer justify-start gap-3">
+                <input type="checkbox" className="checkbox" {...register('allow_observation_registration')} />
+                <span className="label-text inline-flex items-center">Allow observation registration in the app<HelpIcon text="Lets crews register observation photos from the app while they are being tracked. Registered observations are scored, and photos that are never marked count as missed when the flight ends." /></span>
+            </label>
 
             <div className="card-actions justify-end">
                 <button type="submit" className="btn btn-primary" disabled={submitting}>

@@ -17,6 +17,7 @@ export const navigationTaskDetailsSchema = z.object({
     wind_speed: z.coerce.number().min(0).max(40),
     wind_direction: z.coerce.number().min(0).max(360),
     allow_self_management: z.boolean(),
+    allow_observation_registration: z.boolean(),
     calculation_delay_minutes: z.coerce.number().min(0),
 });
 
@@ -39,5 +40,6 @@ export const navigationTaskDetailsDefaults: NavigationTaskDetailsInput = {
     wind_speed: 0,
     wind_direction: 0,
     allow_self_management: false,
+    allow_observation_registration: false,
     calculation_delay_minutes: 0,
 };

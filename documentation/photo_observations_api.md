@@ -3,6 +3,17 @@
 Crews register an observation of a photo target by tapping the button under the photo. The server scores it the
 way a judge scores the line drawn across the track on a paper map.
 
+## When registration is accepted
+
+* The navigation task must have **Allow observation registration in the app** (`allow_observation_registration`,
+  off by default) switched on, otherwise 403. With it off, nothing is scored and unmarked photos are not misses,
+  so paper-marked tasks are unaffected.
+* For crew members the contestant must be one of the flights they are currently tracking: from its tracker start
+  time to its finished-by time, calculator not finished. Otherwise 409. The observation `time` must also lie within
+  that window (400). Late replays after the flight are therefore rejected.
+* Contest managers may register (e.g. to correct a record) regardless of the window and the flag; with the flag off
+  the observation is stored but not scored.
+
 ## Photos to show
 
 `GET /api/v1/contests/{contest_id}/navigationtasks/{task_id}/photos/?contestant={contestant_id}`

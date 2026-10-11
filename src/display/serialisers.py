@@ -1751,6 +1751,7 @@ class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
             "wind_speed",
             "wind_direction",
             "allow_self_management",
+            "allow_observation_registration",
             "calculation_delay_minutes",
         )
         extra_kwargs = {field: {"required": False} for field in fields}

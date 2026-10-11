@@ -2,6 +2,7 @@ import datetime
 import logging
 
 from django.db import transaction
+from django.db.models import Q
 from django.db.models import F
 
 from display.calculators.photo_observation_calculator import (
@@ -43,8 +44,65 @@ class PhotoObservationError(ValueError):
     pass
 
 
+class ObservationRegistrationDisabled(PhotoObservationError):
+    """The navigation task does not allow observations to be registered from the app."""
+
+
+class NotCurrentlyTracked(PhotoObservationError):
+    """The contestant is not one of the flights the person is currently tracking."""
+
+
+def _now() -> datetime.datetime:
+    return datetime.datetime.now(datetime.timezone.utc)
+
+
+def is_currently_tracked(contestant: Contestant, now: datetime.datetime) -> bool:
+    """True from the tracker start time until the flight's finished-by time, unless the calculator has finished."""
+    if not contestant.tracker_start_time <= now <= contestant.finished_by_time:
+        return False
+    track = getattr(contestant, "contestanttrack", None)
+    return not (track is not None and track.calculator_finished)
+
+
+def get_currently_tracked_contestants(user, now: datetime.datetime | None = None) -> list[Contestant]:
+    """The flights the user is currently tracking as crew."""
+    now = now or _now()
+    email = (user.email or "").lower()
+    if not email:
+        return []
+    candidates = Contestant.objects.filter(
+        Q(team__crew__member1__email__iexact=email) | Q(team__crew__member2__email__iexact=email),
+        tracker_start_time__lte=now,
+        finished_by_time__gte=now,
+    ).select_related("navigation_task__contest", "contestanttrack")
+    return [c for c in candidates if is_currently_tracked(c, now)]
+
+
+def check_crew_may_register(
+    contestant: Contestant, user, time: datetime.datetime, now: datetime.datetime | None = None
+) -> None:
+    """
+    The rules for a crew member registering from the app: the navigation task must allow it, the posted flight must
+    be one of those the user is currently tracking, and the observation must have been made during that flight.
+    """
+    now = now or _now()
+    if not contestant.navigation_task.allow_observation_registration:
+        raise ObservationRegistrationDisabled("Observation registration is not enabled for this navigation task")
+    if contestant.pk not in {c.pk for c in get_currently_tracked_contestants(user, now)}:
+        raise NotCurrentlyTracked("This flight is not one that you are currently tracking")
+    if time.tzinfo is None:
+        time = time.replace(tzinfo=datetime.timezone.utc)
+    if not contestant.tracker_start_time <= time <= contestant.finished_by_time:
+        raise PhotoObservationError("The observation time is outside the flight")
+
+
 def get_scoring_mode(contestant: Contestant) -> str | None:
-    """None means observations are recorded but do not affect the score (the task type has no such rule)."""
+    """
+    None means observations are recorded but do not affect the score: the task does not use app registration (so
+    photos are marked on paper and not marking one in the app is no miss), or the task type has no such rule.
+    """
+    if not getattr(contestant.navigation_task, "allow_observation_registration", False):
+        return None
     subtype = contestant.navigation_task.effective_task_subtype or ""
     if subtype.startswith("legacy_"):
         return MODE_LEGACY
