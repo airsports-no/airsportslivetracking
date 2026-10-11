@@ -286,6 +286,18 @@ class TestCalculatorStatusInNowEndpoint(TestCase):
         ):
             self.assertIs(self.current()["calculator_running"], True)
 
+    def test_reports_when_the_server_last_received_a_position_independent_of_the_calculation_delay(self):
+        from display.services.received_positions import note_position_received
+
+        self.assertIsNone(self.current()["last_received_time"])
+        self.contestant.navigation_task.calculation_delay_minutes = 7
+        self.contestant.navigation_task.save()
+        arrived = datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(seconds=3)
+        note_position_received(self.pilot.app_tracking_id, arrived)
+        active = self.current()
+        self.assertEqual(datetime.datetime.fromisoformat(active["last_received_time"]), arrived)
+        self.assertEqual(active["calculation_delay_minutes"], 7)
+
     def test_reports_whether_the_pilot_may_open_the_live_map_and_where(self):
         active = self.current()
         self.assertEqual(active["map_path"], f"/competition-map/{self.contestant.navigation_task.contest_id}/{self.contestant.navigation_task_id}?contestantIds={self.contestant.pk}")
