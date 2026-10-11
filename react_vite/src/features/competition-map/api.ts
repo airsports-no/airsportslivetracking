@@ -127,10 +127,18 @@ export function makeWebSocket(navigationTaskId: number): WebSocket {
   return new WebSocket(`${wsProtocol}://${host}/ws/tracks/${navigationTaskId}/`);
 }
 
-export async function fetchPhotos(contestId: number, navigationTaskId: number, contestantId?: number): Promise<any[]> {
+export async function fetchPhotos(
+    contestId: number,
+    navigationTaskId: number,
+    contestantId?: number,
+    kind?: 'observation',
+): Promise<any[]> {
     const url = new URL(reverse('navigationtasks-photos', contestId, navigationTaskId), window.location.origin);
     if (contestantId !== undefined) {
         url.searchParams.set('contestant', String(contestantId));
+    }
+    if (kind) {
+        url.searchParams.set('kind', kind);
     }
     const res = await fetch(url.toString());
     if (!res.ok) {

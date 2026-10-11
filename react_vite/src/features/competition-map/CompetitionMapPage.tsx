@@ -369,7 +369,7 @@ export default function CompetitionMapPage() {
   useEffect(() => {
     if (!photosVisible) return;
     let cancelled = false;
-    fetchPhotos(contestIdNum, navigationTaskIdNum)
+    fetchPhotos(contestIdNum, navigationTaskIdNum, undefined, 'observation')
       .then((photos) => { if (!cancelled) setFetchedPhotos(photos); })
       .catch((e) => console.error('Failed to fetch observation photos', e));
     return () => { cancelled = true; };

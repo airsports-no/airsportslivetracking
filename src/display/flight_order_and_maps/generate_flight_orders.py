@@ -30,6 +30,7 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_i
 from display.models import Contestant
 from display.models.flight_order_configuration import FlightOrderConfiguration
 from display.models.route import Photo
+from display.services.photo_management import get_observation_photo_names
 from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
 from display.utilities.coordinate_utilities import normalise_bearing, utm_from_lat_lon
 from display.utilities.gate_definitions import DUMMY, SECRETPOINT, UNKNOWN_LEG
@@ -97,10 +98,14 @@ def get_flight_order_visual_waypoints(contestant: Contestant, include_contestant
         include_contestant_declarations=include_contestant_declarations,
     )
     waypoints = [waypoint for waypoint in effective_waypoints if waypoint.type != "dummy"]
-    payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+    payload = (
+        getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+    )
     if contestant.navigation_task.task_subtype == "unknown_legs":
         actual_route_names = {
-            item.get("name") for item in (payload.get("actual_route", {}) or {}).get("waypoints", []) if item.get("name")
+            item.get("name")
+            for item in (payload.get("actual_route", {}) or {}).get("waypoints", [])
+            if item.get("name")
         }
         if actual_route_names:
             waypoints = [waypoint for waypoint in waypoints if waypoint.name in actual_route_names]
@@ -207,6 +212,10 @@ def generate_turning_point_image(
     return image_data
 
 
+# Radius of the red ring in an observation photo, as a fraction of the ground distance the photo covers across
+PHOTO_RING_RADIUS_FRACTION = 0.12
+
+
 def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_level: int):
     imagery = GoogleTiles(style="satellite")
     plt.figure(figsize=(10, 10))
@@ -222,6 +231,18 @@ def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_
     x1, y1 = proj.transform_point(centre_x + range, centre_y + range, utm)
     extent = [x0, x1, y0, y1]
     ax.set_extent(extent, crs=PSEUDO_MERCATOR_SPHERE)
+    # The red ring around the centre, like the turning point photos have: sized to the picture, as their fixed 200 m
+    # would be larger than the whole frame of a photo covering a few hundred metres.
+    circle_points = geodesic.Geodesic().circle(
+        lon=photo.longitude,
+        lat=photo.latitude,
+        radius=meters_across * PHOTO_RING_RADIUS_FRACTION,
+        n_samples=50,
+        endpoint=False,
+    )
+    ax.add_geometries(
+        (Polygon(circle_points),), crs=PSEUDO_MERCATOR_SPHERE, facecolor="none", edgecolor="red", linewidth=3
+    )
     figdata = BytesIO()
     plt.savefig(figdata, format="png", dpi=200, transparent=True)
     figdata.seek(0)
@@ -324,10 +345,14 @@ def _turning_point_gallery_cells(
 def _unknown_leg_gallery_cells(
     contestant, flight_order_configuration: FlightOrderConfiguration, waypoints: List[Waypoint]
 ) -> List[Tuple[str, Optional[str]]]:
-    payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+    payload = (
+        getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
+    )
     compiled_unknown_leg_names = {item for item in payload.get("unknown_leg_names", []) if item}
     render_waypoints = [
-        waypoint for waypoint in waypoints if waypoint.type == UNKNOWN_LEG or waypoint.name in compiled_unknown_leg_names
+        waypoint
+        for waypoint in waypoints
+        if waypoint.type == UNKNOWN_LEG or waypoint.name in compiled_unknown_leg_names
     ]
     if not render_waypoints:
         render_waypoints = [waypoint for waypoint in waypoints if waypoint.name in compiled_unknown_leg_names]
@@ -410,10 +435,24 @@ def _compiled_observation_photos(contestant, flight_order_configuration: FlightO
     return synthesised
 
 
+def _route_photos(contestant) -> list:
+    """
+    The photos for the "Photos" pages: the route's observation photos (and decoys). The Photo table also holds the
+    photos of the route's waypoints, which belong on the turning point pages in flight order, not mixed in here.
+    A route without editable-route features cannot tell them apart and keeps all its photos.
+    """
+    navigation_task = contestant.navigation_task
+    photos = list(navigation_task.route.photo_set.all().order_by("name"))
+    if navigation_task.editable_route is None:
+        return photos
+    observation_names = get_observation_photo_names(navigation_task)
+    return [photo for photo in photos if photo.is_decoy or photo.name in observation_names]
+
+
 def _photo_gallery_cells(
     contestant, flight_order_configuration: FlightOrderConfiguration
 ) -> List[Tuple[str, Optional[str]]]:
-    photos = list(contestant.navigation_task.route.photo_set.all().order_by("name"))
+    photos = _route_photos(contestant)
     if not photos:
         photos = _compiled_observation_photos(contestant, flight_order_configuration)
     meters_across = flight_order_configuration.photos_meters_across
@@ -587,7 +626,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         # logo to near-nothing. A 70%/30% split gives the image cell a real width matching
         # what the old bare #align(right)[#image(..., width: 30%)] resolved against (the page).
         "context [#grid(columns: (70%, 30%), align: (left + horizon, right + horizon),"
-        + f"[#text(size: 7pt, style: \"italic\")[{_typst_string(scale_disclaimer)}]],"
+        + f'[#text(size: 7pt, style: "italic")[{_typst_string(scale_disclaimer)}]],'
         + "[#align(right)[#image("
         + _typst_string("/src/static/img/AirSportsLiveTrackingWhiteBG.png")
         + ", width: 100%)]])]"
@@ -665,10 +704,7 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         )
 
     photo_pages = ""
-    if (
-        contestant.navigation_task.route.photo_set.all().count() > 0
-        or _compiled_observation_photos(contestant, flight_order_configuration)
-    ):
+    if _route_photos(contestant) or _compiled_observation_photos(contestant, flight_order_configuration):
         photo_pages = _typst_gallery_pages(
             _photo_gallery_cells(contestant, flight_order_configuration),
             cols,
