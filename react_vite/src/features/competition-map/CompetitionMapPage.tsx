@@ -361,24 +361,20 @@ export default function CompetitionMapPage() {
     showPenaltiesOnly,
   });
 
-  // Observation photo targets, and the selected contestant's registered observations. They reveal where the targets
-  // are, so they follow the same rule as secret gates ("Display secrets" and the viewer's own toggle); a task where
-  // the crew register observations in the app shows them as well, since the marks are what is being judged live.
-  // The targets are shown without a selection too; with one they are that contestant's (adjusted for their declaration).
-  const photosVisible = !!((staticNavTaskData?.display_secrets || staticNavTaskData?.allow_observation_registration) && userShowSecrets);
-  // Tagged with the contestant they were fetched for (0: the task's), so a previous contestant's targets are never
-  // shown for the current one, e.g. when the new request fails
-  const photoKey = selectedContestantId ?? 0;
-  const [fetchedPhotos, setFetchedPhotos] = useState<{ key: number; photos: TargetPhoto[] } | null>(null);
-  const targetPhotos = fetchedPhotos && fetchedPhotos.key === photoKey ? fetchedPhotos.photos : NO_PHOTOS;
+  // Observation photo targets (task level, independent of any selected contestant) and the selected contestant's
+  // registered observations. Both reveal where the targets are, so both follow the same rule as secret gates: the
+  // task must display secrets and the viewer's own "show secrets" toggle must be on.
+  const photosVisible = !!(staticNavTaskData?.display_secrets && userShowSecrets);
+  const [fetchedPhotos, setFetchedPhotos] = useState<TargetPhoto[]>(NO_PHOTOS);
   useEffect(() => {
     if (!photosVisible) return;
     let cancelled = false;
-    fetchPhotos(contestIdNum, navigationTaskIdNum, selectedContestantId ?? undefined)
-      .then((photos) => { if (!cancelled) setFetchedPhotos({ key: photoKey, photos }); })
+    fetchPhotos(contestIdNum, navigationTaskIdNum)
+      .then((photos) => { if (!cancelled) setFetchedPhotos(photos); })
       .catch((e) => console.error('Failed to fetch observation photos', e));
     return () => { cancelled = true; };
-  }, [photosVisible, photoKey, selectedContestantId, contestIdNum, navigationTaskIdNum]);
+  }, [photosVisible, contestIdNum, navigationTaskIdNum]);
+  const targetPhotos = photosVisible ? fetchedPhotos : NO_PHOTOS;
 
   useEffect(() => {
     if (!photosVisible || !selectedContestantId) return;
@@ -398,7 +394,7 @@ export default function CompetitionMapPage() {
     );
   }, [photosVisible, photoObservationsByContestant, selectedContestantId, mode, currentTime]);
 
-  usePhotoLayers({ mapRef, photos: photosVisible ? targetPhotos : NO_PHOTOS, observations: visibleObservations, visible: photosVisible });
+  usePhotoLayers({ mapRef, photos: targetPhotos, observations: visibleObservations, visible: photosVisible });
 
   const toggleContestantFilter = (id: number) => {
     const currentIds = selectedIds ? Array.from(selectedIds) : allSortedContestants.map(c => c.id);
