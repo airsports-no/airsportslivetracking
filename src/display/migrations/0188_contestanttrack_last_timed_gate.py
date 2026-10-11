@@ -3,7 +3,7 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("display", "0185_userentitlementgrant_app_tracking"),
+        ("display", "0187_navigationtask_allow_observation_registration"),
     ]
 
     operations = [
