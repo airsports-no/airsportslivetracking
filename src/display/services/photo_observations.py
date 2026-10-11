@@ -27,6 +27,7 @@ from display.models import (
     TrackAnnotation,
 )
 from display.models.scoring_models import ANOMALY
+from display.services.photo_management import get_observation_photo_names
 from display.utilities.cima_task_type_definitions import KNOWN_CIRCUIT, UNKNOWN_LEGS
 from display.utilities.gate_definitions import DUMMY, LANDING_GATE, TAKEOFF_GATE, TURNPOINT
 
@@ -210,7 +211,10 @@ def get_contestant_observation_photos(contestant: Contestant) -> list[Photo]:
     route = contestant.navigation_task.route
     if getattr(route, "pk", None) is None:
         return []
-    photos = list(Photo.objects.filter(route=route, is_decoy=False))
+    # The Photo table also holds the photos of the route's waypoints (turning points) for the flight order: only the
+    # route's observation_photo features are observations, the rest must neither be offered nor count as missed.
+    names = get_observation_photo_names(contestant.navigation_task)
+    photos = [photo for photo in Photo.objects.filter(route=route, is_decoy=False) if photo.name in names]
     config = getattr(contestant, "contestanttaskconfiguration", None)
     if config is not None and config.is_valid:
         names = {

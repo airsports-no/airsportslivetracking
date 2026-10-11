@@ -97,6 +97,25 @@ class PhotoObservationApiTest(TestCase):
         self.photo_lat = (self.leg_start.latitude + self.leg_end.latitude) / 2
         self.photo_lon = (self.leg_start.longitude + self.leg_end.longitude) / 2
         self.photo = Photo.objects.create(name="A", route=self.route, latitude=self.photo_lat, longitude=self.photo_lon)
+        # The observation photos are the route's observation_photo features; the Photo table also holds photos of the
+        # route's waypoints (for the flight order), which are not observations
+        self.navigation_task.editable_route = EditableRoute.objects.create(
+            name="Observation features",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"id": "obs-a", "name": "A", "featureType": "observation_photo"},
+                        "geometry": {"type": "Point", "coordinates": [self.photo_lon, self.photo_lat]},
+                    }
+                ],
+            },
+        )
+        self.navigation_task.save(update_fields=["editable_route"])
+        self.waypoint_photo = Photo.objects.create(
+            name="TP 1", route=self.route, latitude=self.leg_end.latitude, longitude=self.leg_end.longitude
+        )
         self.url = reverse("all-contestants-photo-observations", kwargs={"pk": self.contestant.pk})
         # Observation registration is switched on for the task, and the flight is under way (10:10)
         NavigationTask.objects.filter(pk=self.navigation_task.pk).update(allow_observation_registration=True)
@@ -594,3 +613,50 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
         self.assertEqual(
             self.post(self.manager, *self.along_leg(600), time="2026-08-01T10:01:00Z").json()["score_fraction"], 0.0
         )  # 3 mm, would have been half by default
+
+
+class ObservationPhotoSelectionTest(PhotoObservationApiTest):
+    def test_the_photos_of_waypoints_are_not_observation_photos(self):
+        from display.services.photo_observations import get_contestant_observation_photos
+
+        self.assertEqual([p.name for p in get_contestant_observation_photos(self.contestant)], ["A"])
+
+    def test_unmarked_waypoint_photos_are_not_misses(self):
+        self.assertEqual(finalize_photo_observations(self.contestant), 1)  # only the observation photo "A"
+        self.assertEqual(ScoreLogEntry.objects.filter(contestant=self.contestant).count(), 1)
+
+    def test_a_waypoint_photo_cannot_be_registered(self):
+        self.assertEqual(self.post(self.pilot, photo=self.waypoint_photo.pk).status_code, 400)
+
+    def test_the_crew_is_only_offered_the_observation_photos(self):
+        self.client.force_login(self.pilot)
+        url = reverse("all-contestants-observation-photos", kwargs={"pk": self.contestant.pk})
+        self.assertEqual([p["name"] for p in self.client.get(url).json()["photos"]], ["A"])
+
+    def test_photo_targets_include_observation_photos_on_every_task_type(self):
+        from display.services.photo_management import get_navigation_task_photo_targets
+
+        targets = {t["name"]: t["target_kind"] for t in get_navigation_task_photo_targets(self.navigation_task)}
+        self.assertEqual(targets["A"], "observation")
+        self.assertEqual(targets["TP 1"] if "TP 1" in targets else "route_waypoint", "route_waypoint")
+
+    def test_the_photos_endpoint_can_be_limited_to_observation_photos(self):
+        self.client.force_login(self.manager)
+        url = reverse(
+            "navigationtasks-photos",
+            kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk},
+        )
+        names = {p["name"] for p in self.client.get(url).json()}
+        self.assertIn("A", names)
+        self.assertGreater(len(names), 1)  # the waypoint photos are there too without the filter
+        self.assertEqual({p["name"] for p in self.client.get(url, {"kind": "observation"}).json()}, {"A"})
+
+    def test_flight_order_photo_pages_do_not_mix_in_the_waypoint_photos(self):
+        from display.flight_order_and_maps.generate_flight_orders import _route_photos
+
+        Photo.objects.create(name="DECOY", route=self.route, latitude=60, longitude=11, is_decoy=True)
+        self.assertEqual(sorted(p.name for p in _route_photos(self.contestant)), ["A", "DECOY"])
+        # A route without editable-route features cannot tell them apart and keeps everything
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(editable_route=None)
+        self.contestant.navigation_task.refresh_from_db()
+        self.assertEqual(sorted(p.name for p in _route_photos(self.contestant)), ["A", "DECOY", "TP 1"])

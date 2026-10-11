@@ -212,7 +212,11 @@ from display.services.photo_observations import (
     is_tracked_now,
     register_photo_observation,
 )
-from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
+from display.services.photo_management import (
+    get_observation_photo_names,
+    revert_photo_to_satellite,
+    sync_navigation_task_photo_targets,
+)
 from display.services.route_compatibility import effective_subtype_key, extract_route_primitives, get_blocking_reasons
 from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
 from display.services.task_compiler import TaskCompiler
@@ -2013,6 +2017,10 @@ class NavigationTaskViewSet(ModelViewSet):
     def photos(self, request, pk=None, contest_pk=None):
         navigation_task = self.get_object()
         photos = sync_navigation_task_photo_targets(navigation_task)
+        if request.query_params.get("kind") == "observation":
+            # Only the observation photos, not those of the route's waypoints (what the live map shows)
+            names = get_observation_photo_names(navigation_task)
+            photos = [photo for photo in photos if photo.name in names]
         contestant_id = request.query_params.get("contestant")
         contestant = None
         if contestant_id:
