@@ -22,7 +22,11 @@ import TaskInfoModal from './TaskInfoModal';
 import { ChevronUp, ChevronDown, Trophy, Info, Settings, Calendar, Sliders, Activity, PlayCircle, Route } from 'lucide-react';
 import { generatePath } from '../../urls';
 import './CompetitionMap.css';
-import { NavigationTask } from './types';
+import { NavigationTask, PhotoObservation } from './types';
+
+// Stable empty values: a fresh [] each render would make the photo layers redraw on every tick and close hover tooltips
+const NO_PHOTOS: TargetPhoto[] = [];
+const NO_OBSERVATIONS: PhotoObservation[] = [];
 
 
 
@@ -357,24 +361,27 @@ export default function CompetitionMapPage() {
     showPenaltiesOnly,
   });
 
-  // Observation photo targets and the selected contestant's registered observations. These reveal where the
-  // targets are, so they follow the same visibility rule as secret gates.
-  const showPhotoObservations = !!(staticNavTaskData?.display_secrets && userShowSecrets && selectedContestantId);
-  // Tagged with the contestant they were fetched for, so a previous contestant's targets are never shown for the
-  // current one (e.g. when the new request fails)
-  const [fetchedPhotos, setFetchedPhotos] = useState<{ contestantId: number; photos: TargetPhoto[] } | null>(null);
-  const targetPhotos = fetchedPhotos && fetchedPhotos.contestantId === selectedContestantId ? fetchedPhotos.photos : [];
+  // Observation photo targets, and the selected contestant's registered observations. They reveal where the targets
+  // are, so they follow the same rule as secret gates ("Display secrets" and the viewer's own toggle); a task where
+  // the crew register observations in the app shows them as well, since the marks are what is being judged live.
+  // The targets are shown without a selection too; with one they are that contestant's (adjusted for their declaration).
+  const photosVisible = !!((staticNavTaskData?.display_secrets || staticNavTaskData?.allow_observation_registration) && userShowSecrets);
+  // Tagged with the contestant they were fetched for (0: the task's), so a previous contestant's targets are never
+  // shown for the current one, e.g. when the new request fails
+  const photoKey = selectedContestantId ?? 0;
+  const [fetchedPhotos, setFetchedPhotos] = useState<{ key: number; photos: TargetPhoto[] } | null>(null);
+  const targetPhotos = fetchedPhotos && fetchedPhotos.key === photoKey ? fetchedPhotos.photos : NO_PHOTOS;
   useEffect(() => {
-    if (!showPhotoObservations || !selectedContestantId) return;
+    if (!photosVisible) return;
     let cancelled = false;
-    fetchPhotos(contestIdNum, navigationTaskIdNum, selectedContestantId)
-      .then((photos) => { if (!cancelled) setFetchedPhotos({ contestantId: selectedContestantId, photos }); })
+    fetchPhotos(contestIdNum, navigationTaskIdNum, selectedContestantId ?? undefined)
+      .then((photos) => { if (!cancelled) setFetchedPhotos({ key: photoKey, photos }); })
       .catch((e) => console.error('Failed to fetch observation photos', e));
     return () => { cancelled = true; };
-  }, [showPhotoObservations, selectedContestantId, contestIdNum, navigationTaskIdNum]);
+  }, [photosVisible, photoKey, selectedContestantId, contestIdNum, navigationTaskIdNum]);
 
   useEffect(() => {
-    if (!showPhotoObservations || !selectedContestantId) return;
+    if (!photosVisible || !selectedContestantId) return;
     let cancelled = false;
     fetchPhotoObservations(selectedContestantId)
       .then((observations) => {
@@ -382,16 +389,16 @@ export default function CompetitionMapPage() {
       })
       .catch((e) => console.error('Failed to fetch photo observations', e));
     return () => { cancelled = true; };
-  }, [showPhotoObservations, selectedContestantId, setPhotoObservationsByContestant]);
+  }, [photosVisible, selectedContestantId, setPhotoObservationsByContestant]);
 
   const visibleObservations = useMemo(() => {
-    if (!selectedContestantId) return [];
-    return (photoObservationsByContestant[selectedContestantId] ?? []).filter(
+    if (!photosVisible || !selectedContestantId) return NO_OBSERVATIONS;
+    return (photoObservationsByContestant[selectedContestantId] ?? NO_OBSERVATIONS).filter(
       (o) => mode === 'realtime' || new Date(o.time) <= currentTime,
     );
-  }, [photoObservationsByContestant, selectedContestantId, mode, currentTime]);
+  }, [photosVisible, photoObservationsByContestant, selectedContestantId, mode, currentTime]);
 
-  usePhotoLayers({ mapRef, photos: showPhotoObservations ? targetPhotos : [], observations: visibleObservations, visible: showPhotoObservations });
+  usePhotoLayers({ mapRef, photos: photosVisible ? targetPhotos : NO_PHOTOS, observations: visibleObservations, visible: photosVisible });
 
   const toggleContestantFilter = (id: number) => {
     const currentIds = selectedIds ? Array.from(selectedIds) : allSortedContestants.map(c => c.id);
