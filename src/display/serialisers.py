@@ -520,6 +520,15 @@ class PhotoObservationSerialiser(serializers.ModelSerializer):
         read_only_fields = fields
 
 
+class PhotoObservationCrewSerialiser(serializers.ModelSerializer):
+    """What is shown while registration is open: that a photo was marked and when, without any judging."""
+
+    class Meta:
+        model = PhotoObservation
+        fields = ["id", "contestant", "photo", "photo_name", "time"]
+        read_only_fields = fields
+
+
 class PhotoObservationRegistrationSerialiser(serializers.Serializer):
     photo = serializers.IntegerField(help_text="Id of the observation photo, as listed by the navigation task photos endpoint.")
     time = serializers.DateTimeField(help_text="When the crew made the observation.")

@@ -128,7 +128,7 @@ class PhotoObservationApiTest(TestCase):
 
     def test_crew_member_registers_a_scored_observation(self):
         self.set_scale(SCALE_200)
-        response = self.post(self.pilot)
+        response = self.post(self.manager)
         self.assertEqual(response.status_code, 201, response.content)
         self.assertTrue(response.json()["scored"])
         self.assertEqual(response.json()["score_fraction"], 1.0)
@@ -218,7 +218,9 @@ class PhotoObservationApiTest(TestCase):
         self.assertEqual(self.post(self.pilot).status_code, 201)
         listed = self.client.get(self.photos_url()).json()
         self.assertEqual([o["photo"] for o in listed["observations"]], [self.photo.pk])
-        self.assertEqual(set(listed["observations"][0]), {"id", "photo", "photo_name", "time"}, "no score or error for the crew")
+        self.assertEqual(
+            set(listed["observations"][0]), {"id", "photo", "photo_name", "time"}, "no score or error for the crew"
+        )
 
     def test_others_cannot_list_the_photos_of_a_flight(self):
         self.client.force_login(self.stranger)
@@ -242,7 +244,10 @@ class PhotoObservationApiTest(TestCase):
         self.assertFalse(self.client.get(self.photos_url()).json()["may_register"])
 
     def delete_url(self, observation_id):
-        return reverse("all-contestants-delete-photo-observation", kwargs={"pk": self.contestant.pk, "observation_id": observation_id})
+        return reverse(
+            "all-contestants-delete-photo-observation",
+            kwargs={"pk": self.contestant.pk, "observation_id": observation_id},
+        )
 
     def add_reports(self):
         """One position report per 10 s along the first leg, from 10:00:00."""
@@ -252,7 +257,8 @@ class PhotoObservationApiTest(TestCase):
             fraction = i / 6
             ContestantReceivedPosition.objects.create(
                 contestant=self.contestant,
-                time=datetime.datetime(2026, 8, 1, 10, 0, 0, tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=i * 10),
+                time=datetime.datetime(2026, 8, 1, 10, 0, 0, tzinfo=datetime.timezone.utc)
+                + datetime.timedelta(seconds=i * 10),
                 latitude=self.leg_start.latitude + (self.leg_end.latitude - self.leg_start.latitude) * fraction,
                 longitude=self.leg_start.longitude + (self.leg_end.longitude - self.leg_start.longitude) * fraction,
             )
@@ -300,12 +306,22 @@ class PhotoObservationApiTest(TestCase):
         self.assertEqual(response.status_code, 201, response.content)
         observation = PhotoObservation.objects.get()
         self.assertAlmostEqual(observation.latitude, self.photo_lat, places=5)
-        self.assertEqual(response.json()["score_fraction"], 1.0)
+        self.assertEqual(observation.score_fraction, 1.0)
+
+    def test_crew_gets_no_judging_while_registration_is_open(self):
+        self.set_scale(SCALE_200)
+        crew_response = self.post(self.pilot).json()
+        self.assertEqual(set(crew_response), {"id", "contestant", "photo", "photo_name", "time"})
+        # Managers always see the judging
+        self.client.force_login(self.manager)
+        self.assertIn("score_fraction", self.client.get(self.url).json()[0])
 
     def test_the_position_is_interpolated_between_two_reports(self):
         self.add_reports()
         self.client.force_login(self.pilot)
-        self.client.post(self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:35Z"}, content_type="application/json")
+        self.client.post(
+            self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:35Z"}, content_type="application/json"
+        )
         observation = PhotoObservation.objects.get()
         expected = self.leg_start.latitude + (self.leg_end.latitude - self.leg_start.latitude) * (35 / 60)
         self.assertAlmostEqual(observation.latitude, expected, places=6)
@@ -324,13 +340,19 @@ class PhotoObservationApiTest(TestCase):
         self.set_scale(SCALE_200)
         self.add_reports()
         self.client.force_login(self.pilot)
-        late = self.client.post(self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:50Z"}, content_type="application/json")
+        late = self.client.post(
+            self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:50Z"}, content_type="application/json"
+        )
         self.assertEqual(late.status_code, 201)
-        ignored = self.client.post(self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:30Z"}, content_type="application/json")
+        ignored = self.client.post(
+            self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:30Z"}, content_type="application/json"
+        )
         self.assertEqual(ignored.status_code, 200)
         self.assertEqual(PhotoObservation.objects.get().time.second, 50)
         replaced = self.client.post(
-            self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:30Z", "replace": True}, content_type="application/json"
+            self.url,
+            {"photo": self.photo.pk, "time": "2026-08-01T10:00:30Z", "replace": True},
+            content_type="application/json",
         )
         self.assertEqual(replaced.status_code, 201)
         self.assertEqual(PhotoObservation.objects.get().time.second, 30)
@@ -339,12 +361,18 @@ class PhotoObservationApiTest(TestCase):
         self.add_reports()
         self.client.force_login(self.pilot)
         self.set_now(datetime.datetime(2026, 8, 1, 10, 0, 10, tzinfo=datetime.timezone.utc))
-        response = self.client.post(self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:05:00Z"}, content_type="application/json")
+        response = self.client.post(
+            self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:05:00Z"}, content_type="application/json"
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_latitude_without_longitude_is_invalid(self):
         self.client.force_login(self.pilot)
-        response = self.client.post(self.url, {"photo": self.photo.pk, "time": OBSERVATION_TIME, "latitude": 60.0}, content_type="application/json")
+        response = self.client.post(
+            self.url,
+            {"photo": self.photo.pk, "time": OBSERVATION_TIME, "latitude": 60.0},
+            content_type="application/json",
+        )
         self.assertEqual(response.status_code, 400)
 
     def test_unknown_photo_is_rejected(self):
@@ -356,19 +384,19 @@ class PhotoObservationApiTest(TestCase):
         lat = self.photo_lat + (self.leg_end.latitude - self.leg_start.latitude) * bearing_scale
         lon = self.photo_lon + (self.leg_end.longitude - self.leg_start.longitude) * bearing_scale
         self.set_scale(SCALE_200)  # 1 mm = 200 m -> 2 mm off
-        self.assertEqual(self.post(self.pilot, lat, lon).json()["score_fraction"], 0.0)
+        self.assertEqual(self.post(self.manager, lat, lon).json()["score_fraction"], 0.0)
         PhotoObservation.objects.all().delete()
         self.set_scale(500)  # 1 mm = 500 m -> 0.8 mm off
-        response = self.post(self.pilot, lat, lon)
+        response = self.post(self.manager, lat, lon)
         self.assertEqual(response.json()["score_fraction"], 1.0)
         self.assertAlmostEqual(response.json()["error_mm"], 0.8, delta=0.05)
 
     def test_fit_page_and_missing_configuration_default_to_1_250_000(self):
         self.set_scale(SCALE_TO_FIT)
-        self.assertEqual(self.post(self.pilot).json()["metres_per_mm"], 250.0)
+        self.assertEqual(self.post(self.manager).json()["metres_per_mm"], 250.0)
         PhotoObservation.objects.all().delete()
         FlightOrderConfiguration.objects.all().delete()
-        self.assertEqual(self.post(self.pilot).json()["metres_per_mm"], 250.0)
+        self.assertEqual(self.post(self.manager).json()["metres_per_mm"], 250.0)
 
     def test_later_registration_replaces_and_earlier_is_ignored(self):
         self.set_scale(SCALE_200)
@@ -382,7 +410,7 @@ class PhotoObservationApiTest(TestCase):
 
     def test_manager_lists_and_deletes(self):
         self.set_scale(SCALE_200)
-        self.post(self.pilot)
+        self.post(self.manager)
         self.client.force_login(self.manager)
         listing = self.client.get(self.url)
         self.assertEqual(listing.status_code, 200)
@@ -417,7 +445,7 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
     def test_legacy_task_penalises_a_missed_observation(self):
         self.set_scale(SCALE_200)
         self.assertEqual(get_scoring_mode(self.contestant), "legacy")
-        response = self.post(self.pilot, *self.along_leg(400))  # 2 mm off, beyond the 1 mm tolerance
+        response = self.post(self.manager, *self.along_leg(400))  # 2 mm off, beyond the 1 mm tolerance
         self.assertEqual(response.json()["points"], 100.0)
         self.assertEqual(self.score(), 100.0)
 
@@ -481,12 +509,12 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
         qmax = get_cima_gate_qmax(self.contestant)
         self.assertGreaterEqual(qmax, 100)  # includes Vh for the photo
         baseline = self.score()
-        full = self.post(self.pilot, *self.along_leg(300))  # 1.5 mm
+        full = self.post(self.manager, *self.along_leg(300))  # 1.5 mm
         self.assertEqual((full.json()["score_fraction"], full.json()["points"]), (1.0, 0.0))
-        half = self.post(self.pilot, *self.along_leg(600), time="2026-08-01T10:01:00Z")  # 3 mm
+        half = self.post(self.manager, *self.along_leg(600), time="2026-08-01T10:01:00Z")  # 3 mm
         self.assertEqual(half.json()["score_fraction"], 0.5)
         self.assertAlmostEqual(half.json()["points"], -1000 * 50 / qmax)
-        zero = self.post(self.pilot, *self.along_leg(1200), time="2026-08-01T10:02:00Z")  # 6 mm
+        zero = self.post(self.manager, *self.along_leg(1200), time="2026-08-01T10:02:00Z")  # 6 mm
         self.assertEqual(zero.json()["score_fraction"], 0.0)
         self.assertAlmostEqual(zero.json()["points"], -1000 * 100 / qmax)
         self.assertAlmostEqual(self.score() - baseline, -1000 * 100 / qmax)
@@ -499,7 +527,7 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
         self.navigation_task.refresh_from_db()
         self.contestant.refresh_from_db()
         qmax = get_cima_gate_qmax(self.contestant)
-        zero = self.post(self.pilot, *self.along_leg(1200))
+        zero = self.post(self.manager, *self.along_leg(1200))
         self.assertAlmostEqual(zero.json()["points"], -1000 * 200 / qmax)
 
     def test_tolerances_are_configurable_on_the_scorecard(self):
@@ -510,7 +538,7 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
         self.navigation_task.refresh_from_db()
         self.contestant.refresh_from_db()
         # 2 mm off: a miss with the legacy default of 1 mm, a hit with 3 mm
-        response = self.post(self.pilot, *self.along_leg(400))
+        response = self.post(self.manager, *self.along_leg(400))
         self.assertEqual(response.json()["score_fraction"], 1.0)
         self.assertEqual(self.score(), 0.0)
 
@@ -522,7 +550,7 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
         scorecard.save()
         self.navigation_task.refresh_from_db()
         self.contestant.refresh_from_db()
-        self.assertEqual(self.post(self.pilot, *self.along_leg(300)).json()["score_fraction"], 0.5)  # 1.5 mm
+        self.assertEqual(self.post(self.manager, *self.along_leg(300)).json()["score_fraction"], 0.5)  # 1.5 mm
         self.assertEqual(
-            self.post(self.pilot, *self.along_leg(600), time="2026-08-01T10:01:00Z").json()["score_fraction"], 0.0
+            self.post(self.manager, *self.along_leg(600), time="2026-08-01T10:01:00Z").json()["score_fraction"], 0.0
         )  # 3 mm, would have been half by default

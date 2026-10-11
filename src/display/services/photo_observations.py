@@ -84,6 +84,14 @@ def is_tracked_now(contestant: Contestant) -> bool:
     return is_currently_tracked(contestant, _now())
 
 
+def judging_is_hidden(contestant: Contestant) -> bool:
+    """
+    While the crew can still register (or re-register) observations they must not get the judging back: the score,
+    the error and the projected positions would let them correct a mark. Contest managers always see everything.
+    """
+    return bool(contestant.navigation_task.allow_observation_registration) and is_tracked_now(contestant)
+
+
 def get_currently_tracked_contestants(user, now: datetime.datetime | None = None) -> list[Contestant]:
     """The flights the user is currently tracking as crew."""
     now = now or _now()

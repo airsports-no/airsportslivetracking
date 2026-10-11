@@ -360,12 +360,15 @@ export default function CompetitionMapPage() {
   // Observation photo targets and the selected contestant's registered observations. These reveal where the
   // targets are, so they follow the same visibility rule as secret gates.
   const showPhotoObservations = !!(staticNavTaskData?.display_secrets && userShowSecrets && selectedContestantId);
-  const [targetPhotos, setTargetPhotos] = useState<TargetPhoto[]>([]);
+  // Tagged with the contestant they were fetched for, so a previous contestant's targets are never shown for the
+  // current one (e.g. when the new request fails)
+  const [fetchedPhotos, setFetchedPhotos] = useState<{ contestantId: number; photos: TargetPhoto[] } | null>(null);
+  const targetPhotos = fetchedPhotos && fetchedPhotos.contestantId === selectedContestantId ? fetchedPhotos.photos : [];
   useEffect(() => {
     if (!showPhotoObservations || !selectedContestantId) return;
     let cancelled = false;
     fetchPhotos(contestIdNum, navigationTaskIdNum, selectedContestantId)
-      .then((photos) => { if (!cancelled) setTargetPhotos(photos); })
+      .then((photos) => { if (!cancelled) setFetchedPhotos({ contestantId: selectedContestantId, photos }); })
       .catch((e) => console.error('Failed to fetch observation photos', e));
     return () => { cancelled = true; };
   }, [showPhotoObservations, selectedContestantId, contestIdNum, navigationTaskIdNum]);

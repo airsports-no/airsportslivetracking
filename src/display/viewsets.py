@@ -143,6 +143,7 @@ from display.serialisers import (
     PersonSerialiser,
     OwnPersonSerialiser,
     PhotoObservationRegistrationSerialiser,
+    PhotoObservationCrewSerialiser,
     PhotoObservationSerialiser,
     PhotoPublicSerialiser,
     PhotoSerialiser,
@@ -200,6 +201,7 @@ from display.services.photo_observations import (
     PositionNotAvailable,
     check_crew_may_modify,
     check_crew_may_register,
+    judging_is_hidden,
     delete_photo_observation,
     finalize_if_flight_over,
     get_contestant_observation_photos,
@@ -3603,6 +3605,10 @@ class ContestantViewSet(ModelViewSet):
         if request.method == "GET":
             contestant = self.get_object()  # object permissions are checked here
             observations = contestant.photo_observations.all()
+            if judging_is_hidden(contestant) and not request.user.has_perm(
+                "display.change_contest", contestant.navigation_task.contest
+            ):
+                return Response(PhotoObservationCrewSerialiser(observations, many=True).data)
             return Response(PhotoObservationSerialiser(observations, many=True).data)
 
         contestant = get_object_or_404(
@@ -3626,8 +3632,11 @@ class ContestantViewSet(ModelViewSet):
             return Response({"detail": str(e)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         except PhotoObservationError as e:
             raise ValidationError({"detail": str(e)})
+        serialiser_class = (
+            PhotoObservationCrewSerialiser if not is_manager and judging_is_hidden(contestant) else PhotoObservationSerialiser
+        )
         return Response(
-            PhotoObservationSerialiser(observation).data,
+            serialiser_class(observation).data,
             status=status.HTTP_201_CREATED if changed else status.HTTP_200_OK,
         )
 
