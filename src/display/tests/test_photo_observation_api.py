@@ -21,6 +21,7 @@ from display.models import (
     Photo,
     PhotoObservation,
     Scorecard,
+    ScoreLogEntry,
     Team,
 )
 from display.calculators.cima_score_normalization import get_cima_gate_qmax
@@ -217,6 +218,7 @@ class PhotoObservationApiTest(TestCase):
         self.assertEqual(self.post(self.pilot).status_code, 201)
         listed = self.client.get(self.photos_url()).json()
         self.assertEqual([o["photo"] for o in listed["observations"]], [self.photo.pk])
+        self.assertEqual(set(listed["observations"][0]), {"id", "photo", "photo_name", "time"}, "no score or error for the crew")
 
     def test_others_cannot_list_the_photos_of_a_flight(self):
         self.client.force_login(self.stranger)
@@ -238,6 +240,112 @@ class PhotoObservationApiTest(TestCase):
         self.assertTrue(self.client.get(self.photos_url()).json()["may_register"])
         self.set_now(START + datetime.timedelta(hours=16))
         self.assertFalse(self.client.get(self.photos_url()).json()["may_register"])
+
+    def delete_url(self, observation_id):
+        return reverse("all-contestants-delete-photo-observation", kwargs={"pk": self.contestant.pk, "observation_id": observation_id})
+
+    def add_reports(self):
+        """One position report per 10 s along the first leg, from 10:00:00."""
+        from display.models import ContestantReceivedPosition
+
+        for i in range(0, 7):
+            fraction = i / 6
+            ContestantReceivedPosition.objects.create(
+                contestant=self.contestant,
+                time=datetime.datetime(2026, 8, 1, 10, 0, 0, tzinfo=datetime.timezone.utc) + datetime.timedelta(seconds=i * 10),
+                latitude=self.leg_start.latitude + (self.leg_end.latitude - self.leg_start.latitude) * fraction,
+                longitude=self.leg_start.longitude + (self.leg_end.longitude - self.leg_start.longitude) * fraction,
+            )
+
+    def test_crew_cancels_an_observation_and_marks_again(self):
+        self.set_scale(SCALE_200)
+        self.assertEqual(self.post(self.pilot).status_code, 201)
+        observation = PhotoObservation.objects.get()
+        self.client.force_login(self.pilot)
+        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 204)
+        self.assertEqual(PhotoObservation.objects.count(), 0)
+        self.assertEqual(self.post(self.pilot).status_code, 201)
+
+    def test_crew_cannot_cancel_when_not_tracking_or_for_others(self):
+        self.assertEqual(self.post(self.manager).status_code, 201)
+        observation = PhotoObservation.objects.get()
+        self.client.force_login(self.stranger)
+        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 403)
+        self.client.force_login(self.pilot)
+        self.set_now(START + datetime.timedelta(hours=16))  # past the grace period
+        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 409)
+        self.assertEqual(PhotoObservation.objects.count(), 1)
+
+    def test_cancelling_after_the_flight_brings_back_the_miss(self):
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(allow_observation_registration=True)
+        self.set_scale(SCALE_200)
+        self.assertEqual(self.post(self.pilot).status_code, 201)
+        observation = PhotoObservation.objects.get()
+        self.set_now(START + datetime.timedelta(hours=3, minutes=30))  # after landing, inside the grace period
+        self.client.force_login(self.pilot)
+        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 204)
+        self.assertTrue(
+            ScoreLogEntry.objects.filter(contestant=self.contestant, message__contains="not marked").exists(),
+            "the cancelled photo is a miss again, it must not be a way to drop a penalty",
+        )
+
+    def test_registering_with_a_time_only_takes_the_position_from_the_reports(self):
+        self.set_scale(SCALE_200)
+        self.add_reports()
+        self.client.force_login(self.pilot)
+        # 10:00:30 is exactly the report halfway along the leg: the photo target
+        response = self.client.post(
+            self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:30Z"}, content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 201, response.content)
+        observation = PhotoObservation.objects.get()
+        self.assertAlmostEqual(observation.latitude, self.photo_lat, places=5)
+        self.assertEqual(response.json()["score_fraction"], 1.0)
+
+    def test_the_position_is_interpolated_between_two_reports(self):
+        self.add_reports()
+        self.client.force_login(self.pilot)
+        self.client.post(self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:35Z"}, content_type="application/json")
+        observation = PhotoObservation.objects.get()
+        expected = self.leg_start.latitude + (self.leg_end.latitude - self.leg_start.latitude) * (35 / 60)
+        self.assertAlmostEqual(observation.latitude, expected, places=6)
+
+    def test_a_time_without_a_position_report_is_refused_with_a_reason(self):
+        self.add_reports()
+        self.client.force_login(self.pilot)
+        response = self.client.post(
+            self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:05:00Z"}, content_type="application/json"
+        )
+        self.assertEqual(response.status_code, 422)
+        self.assertIn("position report", response.json()["detail"])
+        self.assertEqual(PhotoObservation.objects.count(), 0)
+
+    def test_a_correction_can_move_the_observation_earlier_only_when_asked_to_replace(self):
+        self.set_scale(SCALE_200)
+        self.add_reports()
+        self.client.force_login(self.pilot)
+        late = self.client.post(self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:50Z"}, content_type="application/json")
+        self.assertEqual(late.status_code, 201)
+        ignored = self.client.post(self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:30Z"}, content_type="application/json")
+        self.assertEqual(ignored.status_code, 200)
+        self.assertEqual(PhotoObservation.objects.get().time.second, 50)
+        replaced = self.client.post(
+            self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:00:30Z", "replace": True}, content_type="application/json"
+        )
+        self.assertEqual(replaced.status_code, 201)
+        self.assertEqual(PhotoObservation.objects.get().time.second, 30)
+
+    def test_the_time_cannot_be_in_the_future(self):
+        self.add_reports()
+        self.client.force_login(self.pilot)
+        self.set_now(datetime.datetime(2026, 8, 1, 10, 0, 10, tzinfo=datetime.timezone.utc))
+        response = self.client.post(self.url, {"photo": self.photo.pk, "time": "2026-08-01T10:05:00Z"}, content_type="application/json")
+        self.assertEqual(response.status_code, 400)
+
+    def test_latitude_without_longitude_is_invalid(self):
+        self.client.force_login(self.pilot)
+        response = self.client.post(self.url, {"photo": self.photo.pk, "time": OBSERVATION_TIME, "latitude": 60.0}, content_type="application/json")
+        self.assertEqual(response.status_code, 400)
 
     def test_unknown_photo_is_rejected(self):
         self.assertEqual(self.post(self.pilot, photo=999999).status_code, 400)

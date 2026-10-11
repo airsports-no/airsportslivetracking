@@ -31,10 +31,11 @@ URLs load without authentication.
 ```json
 {"enabled": true, "may_register": true,
  "photos": [{"id": 123, "name": "A", "file": "https://.../a.jpg"}],
- "observations": [ ...the contestant's registrations, as in the list below... ]}
+ "observations": [{"id": 9, "photo": 123, "photo_name": "A", "time": "2026-08-01T10:00:00Z"}]}
 ```
 
 * `enabled` is the task option; `may_register` is whether the flight is being tracked now (including the grace period).
+* `observations` only says which photos are marked and when, without score, error or positions: the app gives the crew no feedback.
 * `photos` has the registrable (non-decoy) photos, sorted by name, **without coordinates**.
 * The "now" endpoint (`get_current_app_navigation_task`) tells the app whether to offer this with
   `observation_registration` on each active contestant.
@@ -47,6 +48,12 @@ URLs load without authentication.
 {"photo": 123, "time": "2026-08-01T10:00:00Z", "latitude": 60.1, "longitude": 11.2}
 ```
 
+* `latitude` and `longitude` are optional, but only together. Without them the server takes the position from the
+  flight's position reports at `time` (interpolated between the reports on either side, or the nearest one within
+  10 s). Use this for a time the crew types in. If there is no report close enough (not stored yet, or the task delays
+  its live map) the answer is **422** with the reason. `time` may not be in the future.
+* `replace` (optional, default false): replace an existing registration of the photo even when `time` is earlier
+  than the stored one, i.e. a correction. Without it a later time replaces and an equal or earlier one is ignored.
 * `photo` is the id of the photo marker (`id` in the photos list), not its name.
 * `time` and the position are the crew's at the moment of the tap. Queue and retry offline: the call is idempotent
   per `(contestant, photo)`. A later `time` replaces an earlier registration (201), an equal or earlier one is
@@ -62,12 +69,14 @@ URLs load without authentication.
 | 400 | Invalid body, `photo` is not an observation photo of this flight, or `time` is outside the flight. |
 | 403 | Not the crew or a manager, or the task does not allow observation registration. |
 | 409 | The flight is not one the user is currently tracking (not started, or past the grace period). |
+| 422 | No position report close enough to `time` (only when no position was given). |
 
 ## List / delete
 
 * `GET /api/v1/contestant/{contestant_id}/photo_observations/` lists the registrations (public for public tasks).
-* `DELETE /api/v1/contestant/{contestant_id}/photo_observations/{id}/` (contest managers) removes one and reverses
-  its score.
+* `DELETE /api/v1/contestant/{contestant_id}/photo_observations/{id}/` removes one and reverses its score. Contest
+  managers always; the crew while they are tracking the flight (including the grace period), so they can cancel and
+  mark again. The photo then counts as not marked, and after the flight that is a miss again.
 
 Changes are also pushed on the tracking websocket as a `photo_observations` message.
 

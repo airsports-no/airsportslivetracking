@@ -41,12 +41,24 @@ MODE_CIMA = "cima"
 CIMA_OBSERVATION_SUBTYPES = (KNOWN_CIRCUIT, UNKNOWN_LEGS)
 
 
+# A phone clock that runs ahead by up to this much is not an error.
+MAX_CLOCK_SKEW_SECONDS = 120
+# Longest gap between two position reports that is still bridged by interpolation, and the furthest a single report may be
+# from the wanted time when there is only one side.
+INTERPOLATION_MAX_GAP_SECONDS = 30
+NEAREST_MAX_SECONDS = 10
+
+
 class PhotoObservationError(ValueError):
     pass
 
 
 class ObservationRegistrationDisabled(PhotoObservationError):
     """The navigation task does not allow observations to be registered from the app."""
+
+
+class PositionNotAvailable(PhotoObservationError):
+    """No position report close enough to the given time to say where the crew was."""
 
 
 class NotCurrentlyTracked(PhotoObservationError):
@@ -103,6 +115,17 @@ def check_crew_may_register(
         time = time.replace(tzinfo=datetime.timezone.utc)
     if not contestant.tracker_start_time <= time <= contestant.finished_by_time:
         raise PhotoObservationError("The observation time is outside the flight")
+    if time > now + datetime.timedelta(seconds=MAX_CLOCK_SKEW_SECONDS):
+        raise PhotoObservationError("The observation time is in the future")
+
+
+def check_crew_may_modify(contestant: Contestant, user, now: datetime.datetime | None = None) -> None:
+    """The rules for a crew member cancelling an observation: the same as for registering one, except for the time."""
+    now = now or _now()
+    if not contestant.navigation_task.allow_observation_registration:
+        raise ObservationRegistrationDisabled("Observation registration is not enabled for this navigation task")
+    if contestant.pk not in {c.pk for c in get_currently_tracked_contestants(user, now)}:
+        raise NotCurrentlyTracked("This flight is not one that you are currently tracking")
 
 
 def get_scoring_mode(contestant: Contestant) -> str | None:
@@ -331,22 +354,56 @@ def _save_scored_observation(observation: PhotoObservation, photo: Photo, result
     )
 
 
+def position_at_time(contestant: Contestant, time: datetime.datetime) -> tuple[float, float]:
+    """
+    Where the crew was at [time], from the position reports of the flight: interpolated between the reports on either
+    side when they are close enough, otherwise the nearest report if it is within a few seconds. Reports are stored
+    after the task's calculation delay, so a time that is very recent in a delayed task may not be available yet.
+    """
+    window = datetime.timedelta(seconds=INTERPOLATION_MAX_GAP_SECONDS)
+    positions = contestant.contestantreceivedposition_set.filter(time__gte=time - window, time__lte=time + window)
+    before = positions.filter(time__lte=time).order_by("-time").first()
+    after = positions.filter(time__gte=time).order_by("time").first()
+    if before and after and before.time != after.time:
+        fraction = (time - before.time) / (after.time - before.time)
+        return (
+            before.latitude + (after.latitude - before.latitude) * fraction,
+            before.longitude + (after.longitude - before.longitude) * fraction,
+        )
+    nearest = min(
+        (p for p in (before, after) if p is not None),
+        key=lambda p: abs((p.time - time).total_seconds()),
+        default=None,
+    )
+    if nearest is not None and abs((nearest.time - time).total_seconds()) <= NEAREST_MAX_SECONDS:
+        return nearest.latitude, nearest.longitude
+    raise PositionNotAvailable(
+        "There is no position report for that time (yet). Check the time, or try again shortly: positions "
+        "become available a little after they are received, and later still when the task delays its live map."
+    )
+
+
 def register_photo_observation(
     contestant: Contestant,
     *,
     photo: int,
     time: datetime.datetime,
-    latitude: float,
-    longitude: float,
+    latitude: float | None = None,
+    longitude: float | None = None,
+    replace: bool = False,
 ) -> tuple[PhotoObservation, bool]:
     """
     Registers (and scores) the crew's observation of a photo, identified by the photo's id. Registering the same
     photo again replaces the earlier registration only if it was made later, so that replays of queued requests
-    from the app are harmless. Returns the stored observation and whether it was changed.
+    from the app are harmless; with [replace] the new registration always replaces it (a correction). Without a
+    position the position is taken from the flight's position reports at [time]. Returns the stored observation and
+    whether it was changed.
     """
     if time.tzinfo is None:
         time = time.replace(tzinfo=datetime.timezone.utc)
     photo_object = resolve_photo(contestant, photo)
+    if latitude is None or longitude is None:
+        latitude, longitude = position_at_time(contestant, time)
     result = score_observation(contestant, photo_object, latitude, longitude)
     with transaction.atomic():
         observation, created = PhotoObservation.objects.select_for_update().get_or_create(
@@ -355,7 +412,7 @@ def register_photo_observation(
             defaults={"photo_name": photo_object.name, "time": time, "latitude": latitude, "longitude": longitude},
         )
         if not created:
-            if time <= observation.time:
+            if not replace and time <= observation.time:
                 return observation, False
             observation.time = time
             observation.latitude = latitude
@@ -374,6 +431,12 @@ def delete_photo_observation(observation: PhotoObservation) -> None:
             _remove_existing_score(contestant, photo)
             Contestant.objects.filter(pk=contestant.pk).update(score_version=F("score_version") + 1)
     _transmit(contestant)
+
+
+def finalize_if_flight_over(contestant: Contestant) -> None:
+    """After the flight a photo that is not marked is a miss; during it, that is decided when the flight ends."""
+    if contestant.finished_by_time <= _now():
+        finalize_photo_observations(contestant)
 
 
 def rescore_contestant_observations(contestant: Contestant) -> int:

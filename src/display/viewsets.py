@@ -197,8 +197,11 @@ from display.services.photo_observations import (
     NotCurrentlyTracked,
     ObservationRegistrationDisabled,
     PhotoObservationError,
+    PositionNotAvailable,
+    check_crew_may_modify,
     check_crew_may_register,
     delete_photo_observation,
+    finalize_if_flight_over,
     get_contestant_observation_photos,
     is_tracked_now,
     register_photo_observation,
@@ -3619,6 +3622,8 @@ class ContestantViewSet(ModelViewSet):
             raise drf_exceptions.PermissionDenied(str(e))
         except NotCurrentlyTracked as e:
             return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+        except PositionNotAvailable as e:
+            return Response({"detail": str(e)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         except PhotoObservationError as e:
             raise ValidationError({"detail": str(e)})
         return Response(
@@ -3630,7 +3635,7 @@ class ContestantViewSet(ModelViewSet):
     def observation_photos(self, request, pk=None, **kwargs):
         """
         What the app needs to let the crew register photo observations: the photos to choose from (id, name, image),
-        this flight's registrations so far and whether registering is possible right now.
+        which of them are marked so far (without any scoring information) and whether registering is possible right now.
 
         Unlike the task's photos endpoint (which needs view or change permission on the contest unless the task is
         public) this is open to the crew of the contestant, so it also works when the task or contest is private. It
@@ -3661,7 +3666,11 @@ class ContestantViewSet(ModelViewSet):
                 "enabled": enabled,
                 "may_register": enabled and is_tracked_now(contestant),
                 "photos": photos,
-                "observations": PhotoObservationSerialiser(contestant.photo_observations.all(), many=True).data,
+                # Only which photos are marked and when: no score, error or projection, the crew gets no feedback.
+                "observations": [
+                    {"id": o.pk, "photo": o.photo_id, "photo_name": o.photo_name, "time": o.time}
+                    for o in contestant.photo_observations.all()
+                ],
             }
         )
 
@@ -3671,10 +3680,29 @@ class ContestantViewSet(ModelViewSet):
         url_path="photo_observations/(?P<observation_id>\\d+)",
     )
     def delete_photo_observation(self, request, pk=None, observation_id=None, **kwargs):
-        """Removes a registered photo observation (contest managers only)."""
-        contestant = self.get_object()  # change_contest is required for non-safe methods
+        """
+        Removes a registered photo observation and reverses its score: contest managers always, the crew of the
+        flight while they are tracking it (so they can cancel and mark again). The photo then counts as not marked.
+        """
+        contestant = get_object_or_404(
+            Contestant.objects.select_related("navigation_task__contest", "team__crew__member1", "team__crew__member2"),
+            pk=pk,
+        )
+        is_manager = request.user.has_perm("display.change_contest", contestant.navigation_task.contest)
+        if not is_manager:
+            if not self._is_crew_member(request.user, contestant):
+                raise drf_exceptions.PermissionDenied("You can only cancel observations of your own flight")
+            try:
+                check_crew_may_modify(contestant, request.user)
+            except ObservationRegistrationDisabled as e:
+                raise drf_exceptions.PermissionDenied(str(e))
+            except NotCurrentlyTracked as e:
+                return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
         observation = get_object_or_404(contestant.photo_observations, pk=observation_id)
         delete_photo_observation(observation)
+        if not is_manager:
+            # Cancelling during the grace period must not undo the miss the photo would otherwise be.
+            finalize_if_flight_over(contestant)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])

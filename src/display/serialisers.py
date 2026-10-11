@@ -523,8 +523,18 @@ class PhotoObservationSerialiser(serializers.ModelSerializer):
 class PhotoObservationRegistrationSerialiser(serializers.Serializer):
     photo = serializers.IntegerField(help_text="Id of the observation photo, as listed by the navigation task photos endpoint.")
     time = serializers.DateTimeField(help_text="When the crew made the observation.")
-    latitude = serializers.FloatField(min_value=-90, max_value=90)
-    longitude = serializers.FloatField(min_value=-180, max_value=180)
+    latitude = serializers.FloatField(min_value=-90, max_value=90, required=False)
+    longitude = serializers.FloatField(min_value=-180, max_value=180, required=False)
+    replace = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Replace an existing registration of the photo even if it is later than this time (a correction).",
+    )
+
+    def validate(self, attrs):
+        if (attrs.get("latitude") is None) != (attrs.get("longitude") is None):
+            raise serializers.ValidationError("Give both latitude and longitude, or neither to use the position report at the time.")
+        return attrs
 
 
 class PhotoPublicSerialiser(serializers.ModelSerializer):
