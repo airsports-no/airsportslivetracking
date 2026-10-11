@@ -141,6 +141,8 @@ from display.serialisers import (
     OngoingNavigationSerialiser,
     PersonSerialiser,
     OwnPersonSerialiser,
+    PhotoObservationRegistrationSerialiser,
+    PhotoObservationSerialiser,
     PhotoPublicSerialiser,
     PhotoSerialiser,
     PlayingCardSerialiser,
@@ -190,6 +192,11 @@ from display.services.contest_permissions import (
     set_contest_permission_level,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.photo_observations import (
+    PhotoObservationError,
+    delete_photo_observation,
+    register_photo_observation,
+)
 from display.services.photo_management import revert_photo_to_satellite, sync_navigation_task_photo_targets
 from display.services.route_compatibility import effective_subtype_key, extract_route_primitives, get_blocking_reasons
 from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
@@ -2884,7 +2891,7 @@ class ContestantViewSet(ModelViewSet):
         return self.serializer_classes.get(self.action, self.default_serialiser_class)
 
     def get_permissions(self):
-        if self.action == "destroy":
+        if self.action in ("destroy", "delete_photo_observation"):
             return [permissions.IsAuthenticated(), ContestantDestroyPermissions()]
         return super().get_permissions()
 
@@ -3556,6 +3563,63 @@ class ContestantViewSet(ModelViewSet):
         contestant.reset_track_and_score()
         recalculate_live_data_for_contestant.apply_async((contestant.pk,))
         return Response({"detail": "Started loading track."})
+
+    @staticmethod
+    def _is_crew_member(user, contestant) -> bool:
+        email = (user.email or "").lower()
+        crew = contestant.team.crew
+        members = [crew.member1, crew.member2]
+        return bool(email) and any(m is not None and (m.email or "").lower() == email for m in members)
+
+    @extend_schema(
+        request=PhotoObservationRegistrationSerialiser,
+        responses={200: PhotoObservationSerialiser(many=True), 201: PhotoObservationSerialiser},
+    )
+    @action(detail=True, methods=["get", "post"])
+    def photo_observations(self, request, pk=None, **kwargs):
+        """
+        GET lists the contestant's registered photo observations with their scoring result (public for public
+        tasks). POST registers an observation from the app: the crew taps the button for a photo and sends the
+        photo name, the time and their position at that moment. The observation is scored by projecting the
+        position and the photo onto the track and converting the distance between them to millimetres on the
+        printed map. Only the crew of the contestant, or a contest manager, may register.
+        """
+        if request.method == "GET":
+            contestant = self.get_object()  # object permissions are checked here
+            observations = contestant.photo_observations.all()
+            return Response(PhotoObservationSerialiser(observations, many=True).data)
+
+        contestant = get_object_or_404(
+            Contestant.objects.select_related("navigation_task__contest", "team__crew__member1", "team__crew__member2"),
+            pk=pk,
+        )
+        if not (
+            request.user.has_perm("display.change_contest", contestant.navigation_task.contest)
+            or self._is_crew_member(request.user, contestant)
+        ):
+            raise drf_exceptions.PermissionDenied("You can only register observations for your own flight")
+        serialiser = PhotoObservationRegistrationSerialiser(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        try:
+            observation, changed = register_photo_observation(contestant, **serialiser.validated_data)
+        except PhotoObservationError as e:
+            raise ValidationError({"photo_name": str(e)})
+        return Response(
+            PhotoObservationSerialiser(observation).data,
+            status=status.HTTP_201_CREATED if changed else status.HTTP_200_OK,
+        )
+
+    @action(
+        detail=True,
+        methods=["delete"],
+        url_path="photo_observations/(?P<observation_id>\\d+)",
+    )
+    def delete_photo_observation(self, request, pk=None, observation_id=None, **kwargs):
+        """Removes a registered photo observation (contest managers only)."""
+        contestant = self.get_object()  # change_contest is required for non-safe methods
+        observation = get_object_or_404(contestant.photo_observations, pk=observation_id)
+        delete_photo_observation(observation)
+        return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=True, methods=["post"])
     def clear_declaration(self, request, pk=None, **kwargs):

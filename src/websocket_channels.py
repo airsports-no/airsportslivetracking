@@ -65,6 +65,27 @@ def serialize_track_annotation(annotation: "TrackAnnotation") -> dict:
     }
 
 
+def serialize_photo_observation(observation) -> dict:
+    return {
+        "id": observation.id,
+        "contestant": observation.contestant_id,
+        "photo": observation.photo_id,
+        "photo_name": observation.photo_name,
+        "time": observation.time,
+        "latitude": observation.latitude,
+        "longitude": observation.longitude,
+        "scored": observation.scored,
+        "status": observation.status,
+        "error_m": observation.error_m,
+        "error_mm": observation.error_mm,
+        "score_fraction": observation.score_fraction,
+        "projected_latitude": observation.projected_latitude,
+        "projected_longitude": observation.projected_longitude,
+        "photo_projected_latitude": observation.photo_projected_latitude,
+        "photo_projected_longitude": observation.photo_projected_longitude,
+    }
+
+
 def serialize_gate_cumulative_score(gs: "GateCumulativeScore") -> dict:
     return {
         "id": gs.id,
@@ -293,6 +314,19 @@ class WebsocketFacade:
             {
                 "type": "tracking.data",
                 "data": {"type": "annotations", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
+            },
+        )
+
+    def transmit_photo_observations(self, contestant: "Contestant"):
+        group_key = "tracking_{}".format(contestant.navigation_task.pk)
+        observations = [serialize_photo_observation(o) for o in contestant.photo_observations.all()]
+        channel_data = generate_contestant_data_block(contestant)
+        channel_data["photo_observations"] = observations
+        self._safe_group_send(
+            group_key,
+            {
+                "type": "tracking.data",
+                "data": {"type": "photo_observations", "data": json.dumps(channel_data, cls=DateTimeEncoder)},
             },
         )
 

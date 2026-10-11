@@ -51,6 +51,7 @@ from display.models import (
     NewsletterSubscriber,
     Person,
     Photo,
+    PhotoObservation,
     PlayingCard,
     Prohibited,
     Route,
@@ -491,6 +492,38 @@ class PhotoSerialiser(serializers.ModelSerializer):
                         }
                     )
         return attrs
+
+
+class PhotoObservationSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = PhotoObservation
+        fields = [
+            "id",
+            "contestant",
+            "photo",
+            "photo_name",
+            "time",
+            "latitude",
+            "longitude",
+            "scored",
+            "status",
+            "error_m",
+            "error_mm",
+            "score_fraction",
+            "metres_per_mm",
+            "projected_latitude",
+            "projected_longitude",
+            "photo_projected_latitude",
+            "photo_projected_longitude",
+        ]
+        read_only_fields = fields
+
+
+class PhotoObservationRegistrationSerialiser(serializers.Serializer):
+    photo_name = serializers.CharField(max_length=200, help_text="Name of the observation photo, as listed by the navigation task photos endpoint.")
+    time = serializers.DateTimeField(help_text="When the crew made the observation.")
+    latitude = serializers.FloatField(min_value=-90, max_value=90)
+    longitude = serializers.FloatField(min_value=-180, max_value=180)
 
 
 class PhotoPublicSerialiser(serializers.ModelSerializer):

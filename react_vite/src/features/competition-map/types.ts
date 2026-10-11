@@ -284,6 +284,27 @@ export interface ScoreAnnotation {
   score_log_entry: number | null;
 }
 
+export interface PhotoObservation {
+  id: number;
+  contestant: number;
+  photo: number | null;
+  photo_name: string;
+  time: string;
+  latitude: number;
+  longitude: number;
+  scored: boolean;
+  // "ok", "out_of_track", "map_scale_unknown" or "no_route"
+  status: string;
+  error_m: number | null;
+  error_mm: number | null;
+  score_fraction: number;
+  metres_per_mm: number | null;
+  projected_latitude: number | null;
+  projected_longitude: number | null;
+  photo_projected_latitude: number | null;
+  photo_projected_longitude: number | null;
+}
+
 export interface ScoreLogEntry {
   id: number;
   time: string;
