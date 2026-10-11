@@ -51,6 +51,7 @@ from display.models import (
     NewsletterSubscriber,
     Person,
     Photo,
+    PhotoObservation,
     PlayingCard,
     Prohibited,
     Route,
@@ -490,6 +491,58 @@ class PhotoSerialiser(serializers.ModelSerializer):
                             "name": f"'{name}' is already used by a real route feature. Choose a different name for the decoy photo."
                         }
                     )
+        return attrs
+
+
+class PhotoObservationSerialiser(serializers.ModelSerializer):
+    class Meta:
+        model = PhotoObservation
+        fields = [
+            "id",
+            "contestant",
+            "photo",
+            "photo_name",
+            "time",
+            "latitude",
+            "longitude",
+            "scored",
+            "status",
+            "error_m",
+            "error_mm",
+            "score_fraction",
+            "points",
+            "metres_per_mm",
+            "projected_latitude",
+            "projected_longitude",
+            "photo_projected_latitude",
+            "photo_projected_longitude",
+        ]
+        read_only_fields = fields
+
+
+class PhotoObservationCrewSerialiser(serializers.ModelSerializer):
+    """What is shown while registration is open: that a photo was marked and when, without any judging."""
+
+    class Meta:
+        model = PhotoObservation
+        fields = ["id", "contestant", "photo", "photo_name", "time"]
+        read_only_fields = fields
+
+
+class PhotoObservationRegistrationSerialiser(serializers.Serializer):
+    photo = serializers.IntegerField(help_text="Id of the observation photo, as listed by the navigation task photos endpoint.")
+    time = serializers.DateTimeField(help_text="When the crew made the observation.")
+    latitude = serializers.FloatField(min_value=-90, max_value=90, required=False)
+    longitude = serializers.FloatField(min_value=-180, max_value=180, required=False)
+    replace = serializers.BooleanField(
+        required=False,
+        default=False,
+        help_text="Replace an existing registration of the photo even if it is later than this time (a correction).",
+    )
+
+    def validate(self, attrs):
+        if (attrs.get("latitude") is None) != (attrs.get("longitude") is None):
+            raise serializers.ValidationError("Give both latitude and longitude, or neither to use the position report at the time.")
         return attrs
 
 
@@ -1461,6 +1514,14 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     speed_keeping_penalty_per_kt = serializers.FloatField(required=False)
     # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
     turnpoint_hunt_sequence_bonus = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    observation_photo_penalty = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    observation_photo_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    observation_photo_full_tolerance_mm = serializers.FloatField(
+        required=False, allow_null=True, validators=[MinValueValidator(0)]
+    )
+    observation_photo_half_tolerance_mm = serializers.FloatField(
+        required=False, allow_null=True, validators=[MinValueValidator(0)]
+    )
 
     class Meta:
         model = Scorecard
@@ -1502,6 +1563,10 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "speed_keeping_tolerance_kt",
             "speed_keeping_penalty_per_kt",
             "turnpoint_hunt_sequence_bonus",
+            "observation_photo_penalty",
+            "observation_photo_value",
+            "observation_photo_full_tolerance_mm",
+            "observation_photo_half_tolerance_mm",
         )
 
     def get_task_type(self, instance) -> list:
@@ -1705,6 +1770,7 @@ class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
             "wind_speed",
             "wind_direction",
             "allow_self_management",
+            "allow_observation_registration",
             "calculation_delay_minutes",
         )
         extra_kwargs = {field: {"required": False} for field in fields}

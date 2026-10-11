@@ -300,6 +300,7 @@ class NavigationTaskForm(forms.ModelForm):
             "wind_speed",
             "wind_direction",
             "allow_self_management",
+            "allow_observation_registration",
             "calculation_delay_minutes",
         )
 
@@ -339,6 +340,7 @@ class NavigationTaskForm(forms.ModelForm):
                 "original_scorecard",
                 "task_subtype",
                 "allow_self_management",
+                "allow_observation_registration",
                 "planning_time",
             ),
             Fieldset("Wind", "wind_speed", "wind_direction"),
@@ -750,6 +752,10 @@ class ScorecardForm(forms.ModelForm):
     speed_keeping_penalty_per_kt = forms.FloatField()
     # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
     turnpoint_hunt_sequence_bonus = forms.FloatField(min_value=0)
+    observation_photo_penalty = forms.FloatField(min_value=0)
+    observation_photo_value = forms.FloatField(min_value=0)
+    observation_photo_full_tolerance_mm = forms.FloatField(required=False, min_value=0)
+    observation_photo_half_tolerance_mm = forms.FloatField(required=False, min_value=0)
 
     class Meta:
         model = Scorecard

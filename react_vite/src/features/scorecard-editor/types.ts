@@ -58,6 +58,10 @@ export interface ScorecardData {
     speed_keeping_tolerance_kt?: number;
     speed_keeping_penalty_per_kt?: number;
     turnpoint_hunt_sequence_bonus?: number;
+    observation_photo_penalty?: number;
+    observation_photo_value?: number;
+    observation_photo_full_tolerance_mm?: number | null;
+    observation_photo_half_tolerance_mm?: number | null;
 
     // Merged in by the scorecard action (viewsets.py), not part of the plain serializer shape.
     applicable_gate_types: string[];

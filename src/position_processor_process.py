@@ -13,6 +13,7 @@ from django.core.exceptions import ValidationError as DjangoValidationError
 from redis.client import Redis
 from rest_framework.exceptions import ValidationError as DRFValidationError
 
+from display.services.received_positions import note_position_received
 from display.utilities.calculator_running_utilities import (
     calculator_dispatch_pending,
     calculator_is_alive,
@@ -284,6 +285,7 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
                 logger.debug(f"Received repeated position, disregarding: {device_name} {device_time}")
                 continue
         cache.set(last_seen_key, device_time)
+        note_position_received(device_name, device_time)
         # print(device_time)
         try:
             contestant_tuples = cached_find_contestant(device_name, device_time)

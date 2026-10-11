@@ -67,12 +67,9 @@ the existing flat per-event subtraction instead, unchanged from before this modu
   "speed_keeping" score_type (not GATE_SCORE_TYPE) with an uncapped per-kt penalty - excluded
   from Qmax for the same "not a finite reachable cap" reason as backtracking, and it keeps
   accumulating via the untouched flat-subtraction path in update_score_from_thread.
-- Observation evidence (2.A4/2.A5's Qh photo/marker-placement component, and 2.A3/2.A6's
-  "observation_evidence" scoring_module generally): cima_task_type_definitions.py declares this
-  as a scoring_module name, but no calculator implementing it exists anywhere in the codebase -
-  it is a documented future feature, not something Qmax needs to (or can) account for yet. What
-  Qmax DOES cover for 2.A4/2.A5 is the hidden-gate-crossing component only (real secret-point
-  gates authored on the route, scored the same GATE_SCORE_TYPE way as 2.A1/2.A2's hidden gates).
+- Observation evidence for 2.A3/2.A6 ("observation_evidence" scoring_module): no scoring exists for those.
+  For 2.A4/2.A5 the photo/marker-placement component Qh IS part of Qmax (Vh per photo, see
+  get_cima_observation_qmax in services/photo_observations.py), scored when the crew registers it.
 - 2.A7 (Circle) and 2.A8 (ANR): both use a FIXED (not route-dependent) Qmax - see
   cima_task_type_definitions.get_cima_fixed_scale_factor for ANR's uniform half-scale; Circle's
   own Pmax=250 formula is already handled entirely inside circle_calculator.py.
@@ -168,6 +165,12 @@ def get_cima_gate_qmax(contestant: "Contestant") -> float | None:
         total += _worst_case_penalty(scorecard, TAKEOFF_GATE, gate_check=False, time_check=True)
     if route.landing_gates:
         total += _worst_case_penalty(scorecard, LANDING_GATE, gate_check=False, time_check=True)
+
+    # Observation photos (2.A4/2.A5's Qh = Vh * Nh) are part of the same Q/Qmax, see
+    # services/photo_observations.py, which applies the observation deficits on the same scale.
+    from display.services.photo_observations import get_cima_observation_qmax
+
+    total += get_cima_observation_qmax(contestant)
 
     return total if total > 0 else None
 

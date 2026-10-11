@@ -31,9 +31,11 @@ from display.utilities.cima_task_type_definitions import (
     CIRCLE,
     DURATION,
     KNOWN_CIRCUIT,
+    LEGACY_PRECISION,
     LIMITED_FUEL_TURNPOINT_HUNT,
     NO_BACKBONE_TASK_SUBTYPES,
     TURNPOINT_HUNT,
+    UNKNOWN_LEGS,
 )
 from display.utilities.gate_definitions import (
     CIRCLE_ENTRY,
@@ -124,6 +126,8 @@ def get_applicable_gate_types(navigation_task: "NavigationTask") -> set[str]:
 #   (calculators/gate_calculator.py: _score_turnpoint_hunt_maximum_duration,
 #   _score_limited_fuel_deadline, _score_turnpoint_hunt_compulsory_timing).
 # - Circle -> CircleCalculator: subtype == CIRCLE only.
+# - Observation photos -> services/photo_observations.py (scored when the crew registers an observation, and for
+#   unregistered ones when the flight ends): legacy precision uses the penalty, 2.A4/2.A5 the value.
 # - Speed keeping -> GateCalculator._score_speed_keeping, gated on
 #   `subtype == "known_circuit"` only (calculators/gate_calculator.py:744-751).
 GENERAL = "General"
@@ -134,6 +138,7 @@ ANR_ROUTE = "ANR route"
 DURATION_GROUP = "Duration"
 CIRCLE_GROUP = "Circle"
 SPEED_KEEPING = "Speed keeping"
+OBSERVATION_PHOTOS = "Observation photos"
 
 _TURNPOINT_HUNT_SUBTYPES = (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT)
 
@@ -162,6 +167,10 @@ def get_applicable_scalar_groups(navigation_task: "NavigationTask") -> set[str]:
             groups.add(DURATION_GROUP)
         elif subtype == KNOWN_CIRCUIT:
             groups.add(SPEED_KEEPING)
+        # Observation photos are scored for legacy precision (penalty) and 2.A4/2.A5 (value) - see
+        # services/photo_observations.py
+        if subtype in (LEGACY_PRECISION, KNOWN_CIRCUIT, UNKNOWN_LEGS):
+            groups.add(OBSERVATION_PHOTOS)
         return groups
 
     if family in (ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE):

@@ -1,4 +1,4 @@
-import type { NavigationTask, PaginatedTrackResponse, ContestantScoreData } from './types';
+import type { NavigationTask, PaginatedTrackResponse, ContestantScoreData, PhotoObservation } from './types';
 import { reverse } from '../../urls';
 import { getCookie } from '../../utils/csrf';
 
@@ -127,9 +127,12 @@ export function makeWebSocket(navigationTaskId: number): WebSocket {
   return new WebSocket(`${wsProtocol}://${host}/ws/tracks/${navigationTaskId}/`);
 }
 
-export async function fetchPhotos(contestId: number, navigationTaskId: number): Promise<any[]> {
-    const url = reverse('navigationtasks-photos', contestId, navigationTaskId);
-    const res = await fetch(url);
+export async function fetchPhotos(contestId: number, navigationTaskId: number, contestantId?: number): Promise<any[]> {
+    const url = new URL(reverse('navigationtasks-photos', contestId, navigationTaskId), window.location.origin);
+    if (contestantId !== undefined) {
+        url.searchParams.set('contestant', String(contestantId));
+    }
+    const res = await fetch(url.toString());
     if (!res.ok) {
         throw new Error(`Failed to fetch photos: ${res.statusText}`);
     }
@@ -250,3 +253,13 @@ export async function fetchDisclaimerHtml(): Promise<string> {
     return stylesHtml + linksHtml + bodyContent;
 }
 
+
+export async function fetchPhotoObservations(contestantId: number): Promise<PhotoObservation[]> {
+    const url = reverse('all-contestants-photo-observations', contestantId);
+    const res = await fetch(url, { cache: 'no-store', headers: { 'Accept': 'application/json' } });
+    if (!res.ok) {
+        const errorMessages = await getErrorMessages(res);
+        throw new Error(`Failed to fetch photo observations: ${errorMessages}`);
+    }
+    return res.json();
+}

@@ -6,8 +6,9 @@ import useMapInit from '../route-editor/components/map/useMapInit';
 import { useCompetitionData } from './hooks/useCompetitionData';
 import { usePlayback } from './hooks/usePlayback';
 import { useMapLayers } from './hooks/useMapLayers';
+import { usePhotoLayers, TargetPhoto } from './hooks/usePhotoLayers';
 import { useToast } from './hooks/useToast'; // Import useToast
-import { fetchContestDetails } from './api';
+import { fetchContestDetails, fetchPhotoObservations, fetchPhotos } from './api';
 
 import ResultsTable from './components/ResultsTable';
 import ScoreLogTable from './components/ScoreLogTable';
@@ -99,6 +100,8 @@ export default function CompetitionMapPage() {
     contestantsById, // New, dynamic map of contestants
     positionsByContestant,
     annotationsByContestant,
+    photoObservationsByContestant,
+    setPhotoObservationsByContestant,
     scoreLogByContestant,
     gateScoresByContestant,
     dangerDataByContestant,
@@ -353,6 +356,42 @@ export default function CompetitionMapPage() {
     permanentAnnotations,
     showPenaltiesOnly,
   });
+
+  // Observation photo targets and the selected contestant's registered observations. These reveal where the
+  // targets are, so they follow the same visibility rule as secret gates.
+  const showPhotoObservations = !!(staticNavTaskData?.display_secrets && userShowSecrets && selectedContestantId);
+  // Tagged with the contestant they were fetched for, so a previous contestant's targets are never shown for the
+  // current one (e.g. when the new request fails)
+  const [fetchedPhotos, setFetchedPhotos] = useState<{ contestantId: number; photos: TargetPhoto[] } | null>(null);
+  const targetPhotos = fetchedPhotos && fetchedPhotos.contestantId === selectedContestantId ? fetchedPhotos.photos : [];
+  useEffect(() => {
+    if (!showPhotoObservations || !selectedContestantId) return;
+    let cancelled = false;
+    fetchPhotos(contestIdNum, navigationTaskIdNum, selectedContestantId)
+      .then((photos) => { if (!cancelled) setFetchedPhotos({ contestantId: selectedContestantId, photos }); })
+      .catch((e) => console.error('Failed to fetch observation photos', e));
+    return () => { cancelled = true; };
+  }, [showPhotoObservations, selectedContestantId, contestIdNum, navigationTaskIdNum]);
+
+  useEffect(() => {
+    if (!showPhotoObservations || !selectedContestantId) return;
+    let cancelled = false;
+    fetchPhotoObservations(selectedContestantId)
+      .then((observations) => {
+        if (!cancelled) setPhotoObservationsByContestant((prev) => ({ ...prev, [selectedContestantId]: observations }));
+      })
+      .catch((e) => console.error('Failed to fetch photo observations', e));
+    return () => { cancelled = true; };
+  }, [showPhotoObservations, selectedContestantId, setPhotoObservationsByContestant]);
+
+  const visibleObservations = useMemo(() => {
+    if (!selectedContestantId) return [];
+    return (photoObservationsByContestant[selectedContestantId] ?? []).filter(
+      (o) => mode === 'realtime' || new Date(o.time) <= currentTime,
+    );
+  }, [photoObservationsByContestant, selectedContestantId, mode, currentTime]);
+
+  usePhotoLayers({ mapRef, photos: showPhotoObservations ? targetPhotos : [], observations: visibleObservations, visible: showPhotoObservations });
 
   const toggleContestantFilter = (id: number) => {
     const currentIds = selectedIds ? Array.from(selectedIds) : allSortedContestants.map(c => c.id);
