@@ -11,8 +11,14 @@ way a judge scores the line drawn across the track on a paper map.
 * For crew members the contestant must be one of the flights they are currently tracking: from its tracker start
   time until its finished-by time plus a grace period (12 hours, `OBSERVATION_REGISTRATION_GRACE_MINUTES`), so a
   queue built up offline can be sent once there is wifi after landing. The observation `time` must lie within the
-  flight itself, not the grace period. A registration during the grace period replaces the "not marked" miss that
-  was scored when the flight ended.
+  flight itself, not the grace period.
+* **Marks are final when the flight is over**: when tracking stops (the calculator ends the track after the aircraft
+  has landed and stays slow) or the finished-by time has passed, whichever is first. From then on the crew cannot
+  replace (also not with `replace`) or cancel a mark: 409 with `"locked": true`. A photo that has no mark yet can
+  still be marked during the grace period (with a `time` during the flight), and replaces the "not marked" miss
+  that was scored when the flight ended. `GET .../observation_photos/` has `may_change_marks`.
+* The scores are live on the tracking map. The crew's own responses carry no judging (only `id`, `contestant`,
+  `photo`, `photo_name`, `time`) until the marks are final.
 * Contest managers may register (e.g. to correct a record) regardless of the window and the flag; with the flag off
   the observation is stored but not scored.
 

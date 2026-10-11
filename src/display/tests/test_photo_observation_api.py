@@ -27,6 +27,7 @@ from display.models import (
 from display.calculators.cima_score_normalization import get_cima_gate_qmax
 from display.services.photo_observations import (
     finalize_photo_observations,
+    judging_is_hidden,
     get_currently_tracked_contestants,
     get_scoring_mode,
 )
@@ -263,6 +264,49 @@ class PhotoObservationApiTest(TestCase):
                 longitude=self.leg_start.longitude + (self.leg_end.longitude - self.leg_start.longitude) * fraction,
             )
 
+    def test_marks_are_final_when_the_flight_is_over(self):
+        self.set_scale(SCALE_200)
+        self.set_now(START + datetime.timedelta(hours=2))
+        self.assertEqual(self.post(self.pilot, time="2026-08-01T10:20:00Z").status_code, 201)
+        observation = PhotoObservation.objects.get()
+        self.set_now(START + datetime.timedelta(hours=2, minutes=59))
+        self.assertEqual(self.post(self.pilot, time="2026-08-01T10:25:00Z").status_code, 201)  # still open
+        self.set_now(START + datetime.timedelta(hours=3, minutes=1))  # past the finished-by time
+        self.client.force_login(self.pilot)
+        locked = self.post(self.pilot, time="2026-08-01T10:26:00Z")
+        self.assertEqual((locked.status_code, locked.json()["locked"]), (409, True))
+        replaced = self.client.post(
+            self.url,
+            {"photo": self.photo.pk, "time": "2026-08-01T10:10:00Z", "replace": True},
+            content_type="application/json",
+        )
+        self.assertEqual(replaced.status_code, 409)
+        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 409)
+        self.assertEqual(PhotoObservation.objects.get().time.minute, 25)
+
+    def test_an_unmarked_photo_can_still_be_marked_after_tracking_stops(self):
+        self.set_scale(SCALE_200)
+        self.set_now(START + datetime.timedelta(hours=2))
+        self.contestant.contestanttrack.set_calculator_finished()  # the queue is sent once there is wifi
+        self.assertEqual(self.post(self.pilot, time="2026-08-01T10:20:00Z").status_code, 201)
+
+    def test_marks_are_final_when_tracking_stops(self):
+        self.set_scale(SCALE_200)
+        self.post(self.pilot, time="2026-08-01T10:00:00Z")
+        self.contestant.contestanttrack.set_calculator_finished()
+        self.assertEqual(self.post(self.pilot, time="2026-08-01T10:05:00Z").status_code, 409)
+
+    def test_managers_can_change_marks_after_the_flight(self):
+        self.set_scale(SCALE_200)
+        self.post(self.pilot, time="2026-08-01T10:00:00Z")
+        self.contestant.contestanttrack.set_calculator_finished()
+        self.assertEqual(self.post(self.manager, time="2026-08-01T10:05:00Z").status_code, 201)
+
+    def test_crew_sees_the_judging_once_marks_are_final(self):
+        self.assertTrue(judging_is_hidden(self.contestant))
+        self.contestant.contestanttrack.set_calculator_finished()
+        self.assertFalse(judging_is_hidden(self.contestant))
+
     def test_crew_cancels_an_observation_and_marks_again(self):
         self.set_scale(SCALE_200)
         self.assertEqual(self.post(self.pilot).status_code, 201)
@@ -282,18 +326,14 @@ class PhotoObservationApiTest(TestCase):
         self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 409)
         self.assertEqual(PhotoObservation.objects.count(), 1)
 
-    def test_cancelling_after_the_flight_brings_back_the_miss(self):
-        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(allow_observation_registration=True)
+    def test_the_crew_cannot_cancel_after_the_flight(self):
         self.set_scale(SCALE_200)
         self.assertEqual(self.post(self.pilot).status_code, 201)
         observation = PhotoObservation.objects.get()
         self.set_now(START + datetime.timedelta(hours=3, minutes=30))  # after landing, inside the grace period
         self.client.force_login(self.pilot)
-        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 204)
-        self.assertTrue(
-            ScoreLogEntry.objects.filter(contestant=self.contestant, message__contains="not marked").exists(),
-            "the cancelled photo is a miss again, it must not be a way to drop a penalty",
-        )
+        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 409)
+        self.assertEqual(PhotoObservation.objects.count(), 1)
 
     def test_registering_with_a_time_only_takes_the_position_from_the_reports(self):
         self.set_scale(SCALE_200)

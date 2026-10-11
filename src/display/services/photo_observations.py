@@ -65,6 +65,10 @@ class NotCurrentlyTracked(PhotoObservationError):
     """The contestant is not one of the flights the person is currently tracking."""
 
 
+class ObservationsLocked(PhotoObservationError):
+    """The flight is over (5 minutes after touchdown, or tracking has stopped): the crew's marks are final."""
+
+
 def _now() -> datetime.datetime:
     return datetime.datetime.now(datetime.timezone.utc)
 
@@ -84,12 +88,30 @@ def is_tracked_now(contestant: Contestant) -> bool:
     return is_currently_tracked(contestant, _now())
 
 
+def observations_locked(contestant: Contestant, now: datetime.datetime | None = None) -> bool:
+    """
+    True when the crew may no longer change or cancel marks: tracking has stopped (the calculator terminates the track
+    once the aircraft has landed and stays slow, see ContestantProcessor's inferred landing) or the flight's
+    finished-by time has passed, whichever is first.
+    """
+    now = now or _now()
+    track = getattr(contestant, "contestanttrack", None)
+    if track is not None and track.calculator_finished:
+        return True
+    return now >= contestant.finished_by_time
+
+
 def judging_is_hidden(contestant: Contestant) -> bool:
     """
     While the crew can still register (or re-register) observations they must not get the judging back: the score,
-    the error and the projected positions would let them correct a mark. Contest managers always see everything.
+    the error and the projected positions would let them correct a mark. Contest managers always see everything, and
+    the tracking map shows the scores live.
     """
-    return bool(contestant.navigation_task.allow_observation_registration) and is_tracked_now(contestant)
+    return (
+        bool(contestant.navigation_task.allow_observation_registration)
+        and is_tracked_now(contestant)
+        and not observations_locked(contestant)
+    )
 
 
 def get_currently_tracked_contestants(user, now: datetime.datetime | None = None) -> list[Contestant]:
@@ -107,7 +129,12 @@ def get_currently_tracked_contestants(user, now: datetime.datetime | None = None
 
 
 def check_crew_may_register(
-    contestant: Contestant, user, time: datetime.datetime, now: datetime.datetime | None = None
+    contestant: Contestant,
+    user,
+    time: datetime.datetime,
+    now: datetime.datetime | None = None,
+    photo: int | None = None,
+    replace: bool = False,
 ) -> None:
     """
     The rules for a crew member registering from the app: the navigation task must allow it, the posted flight must
@@ -123,6 +150,12 @@ def check_crew_may_register(
         time = time.replace(tzinfo=datetime.timezone.utc)
     if not contestant.tracker_start_time <= time <= contestant.finished_by_time:
         raise PhotoObservationError("The observation time is outside the flight")
+    # Once the flight is over a photo that has not been marked can still be marked from a queue built up offline, but
+    # a mark that exists is final: it cannot be replaced by a better one.
+    if photo is not None and observations_locked(contestant, now):
+        existing = PhotoObservation.objects.filter(contestant=contestant, photo_id=photo).first()
+        if existing is not None and (replace or time > existing.time):
+            raise ObservationsLocked("The flight is over, your marks can no longer be changed")
     if time > now + datetime.timedelta(seconds=MAX_CLOCK_SKEW_SECONDS):
         raise PhotoObservationError("The observation time is in the future")
 
@@ -134,6 +167,8 @@ def check_crew_may_modify(contestant: Contestant, user, now: datetime.datetime |
         raise ObservationRegistrationDisabled("Observation registration is not enabled for this navigation task")
     if contestant.pk not in {c.pk for c in get_currently_tracked_contestants(user, now)}:
         raise NotCurrentlyTracked("This flight is not one that you are currently tracking")
+    if observations_locked(contestant, now):
+        raise ObservationsLocked("The flight is over, your marks can no longer be changed")
 
 
 def get_scoring_mode(contestant: Contestant) -> str | None:
