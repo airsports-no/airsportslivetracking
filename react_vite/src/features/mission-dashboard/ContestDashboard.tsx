@@ -716,9 +716,6 @@ const ContestDashboard = () => {
                                 }
                             })
                             .map(task => {
-                                const futureContestant = myFutureFlights.find(f => f.navigation_task === task.pk);
-                                const canCancelThisFlight = futureContestant && userContestTeam && futureContestant.team.id === userContestTeam.team && userContestTeam.is_user_pilot;
-
                                 return (
                                     <TaskCard
                                         key={task.pk}
