@@ -638,8 +638,14 @@ class UserPersonViewSet(GenericViewSet):
 
 
 def own_score_for(contestant, task, may_view):
-    """The contestant's score so far, for the pilot's own app: only where the results are visible and not held back."""
-    if not may_view or task.calculation_delay_minutes > 0:
+    """
+    The contestant's score so far, for the pilot's own app: only where the results are visible. While the organizer holds
+    scores back (calculation delay) it is shown only once the flight is over and the delay has passed.
+    """
+    if not may_view:
+        return None
+    delay = datetime.timedelta(minutes=task.calculation_delay_minutes)
+    if delay > datetime.timedelta(0) and datetime.datetime.now(datetime.timezone.utc) < contestant.finished_by_time + delay:
         return None
     track = getattr(contestant, "contestanttrack", None)
     return track.score if track is not None else None

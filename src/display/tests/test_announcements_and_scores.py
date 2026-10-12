@@ -147,7 +147,18 @@ class TestScoreAndFlightOrderInNowEndpoint(Base):
         self.assertEqual(self.current()["score"], 42)
         self.task.calculation_delay_minutes = 5
         self.task.save()
-        self.assertIsNone(self.current()["score"])
+        self.assertIsNone(self.current()["score"], "held back while the flight is on")
+        # Once the flight is over and the hold-back has passed the score is released (the Now endpoint no longer lists the
+        # flight by then, so this is checked on the rule itself).
+        from display.viewsets import own_score_for
+
+        Contestant.objects.filter(pk=self.contestant.pk).update(finished_by_time=self.now - datetime.timedelta(minutes=10))
+        self.contestant.refresh_from_db()
+        self.assertEqual(own_score_for(self.contestant, self.task, True), 42)
+        Contestant.objects.filter(pk=self.contestant.pk).update(finished_by_time=self.now - datetime.timedelta(minutes=3))
+        self.contestant.refresh_from_db()
+        self.assertIsNone(own_score_for(self.contestant, self.task, True), "5 minute hold-back not over yet")
+        Contestant.objects.filter(pk=self.contestant.pk).update(finished_by_time=self.now + datetime.timedelta(hours=2))
         self.task.calculation_delay_minutes = 0
         self.task.is_public = False
         self.task.save()
@@ -183,26 +194,40 @@ class TestFlightScoredPush(Base):
         settings_patch.enable()
         self.addCleanup(settings_patch.disable)
 
-    def finish(self, score=17.5):
+    def finish(self, score=17.5, ended_minutes_ago=10):
+        Contestant.objects.filter(pk=self.contestant.pk).update(
+            finished_by_time=self.now - datetime.timedelta(minutes=ended_minutes_ago)
+        )
         ContestantTrack.objects.filter(contestant=self.contestant).update(calculator_finished=True, score=score)
 
-    def test_tells_the_pilot_once_when_the_flight_has_been_scored(self):
+    def test_tells_the_pilot_once_when_live_scoring_has_finished(self):
         self.assertEqual(push_notifications.notify_flight_scored(self.now), 0)  # not finished yet
         self.finish()
         self.assertEqual(push_notifications.notify_flight_scored(self.now), 1)
         self.assertEqual(push_notifications.notify_flight_scored(self.now), 0)
         title, body, data = self.send.call_args.args[1:4]
-        self.assertEqual((title, data["type"]), ("Your flight has been scored", "flight_scored"))
+        self.assertEqual((title, data["type"]), ("Live scoring has finished", "flight_scored"))
         self.assertIn("17.5 points", body)
+        self.assertIn("can still adjust", body)
         self.assertEqual(PushNotificationLog.objects.get().kind, "flight_scored")
 
-    def test_not_when_the_results_are_not_the_pilots_to_see_or_are_held_back(self):
+    def test_waits_a_short_settling_time_after_the_finish(self):
+        self.finish(ended_minutes_ago=1)  # the photo observations are scored just after the calculator finishes
+        self.assertEqual(push_notifications.notify_flight_scored(self.now), 0)
+        self.assertEqual(push_notifications.notify_flight_scored(self.now + datetime.timedelta(minutes=2)), 1)
+
+    def test_waits_for_the_calculation_delay_before_telling_the_pilot(self):
+        self.task.calculation_delay_minutes = 10
+        self.task.save()
+        self.finish(ended_minutes_ago=5)
+        self.assertEqual(push_notifications.notify_flight_scored(self.now), 0, "the results are still held back")
+        self.send.assert_not_called()
+        # 10 minutes of hold-back plus the settling time have passed since the finish.
+        self.assertEqual(push_notifications.notify_flight_scored(self.now + datetime.timedelta(minutes=8)), 1)
+
+    def test_not_when_the_results_are_not_the_pilots_to_see(self):
         self.finish()
         self.task.is_public = False
-        self.task.save()
-        self.assertEqual(push_notifications.notify_flight_scored(self.now), 0)
-        self.task.is_public = True
-        self.task.calculation_delay_minutes = 10
         self.task.save()
         self.assertEqual(push_notifications.notify_flight_scored(self.now), 0)
         self.send.assert_not_called()

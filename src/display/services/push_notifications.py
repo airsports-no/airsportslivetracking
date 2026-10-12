@@ -241,8 +241,11 @@ def _has_flight_open_or_soon(person: Person, now: datetime.datetime) -> bool:
 
 def notify_flight_scored(now: datetime.datetime = None) -> int:
     """
-    'Your flight has been scored: N points' once the calculator has finished. Only to people who may see the results
-    (the same rule as the live map), and only for recent flights.
+    'Live scoring has finished: N points' once the calculator has finished and the results can be seen. The calculator
+    processes positions ``calculation_delay_minutes`` late and scores are held back on the map for that long, so the message
+    waits until the finish time plus that delay, plus a short settling time for the last scoring (the photo observations the
+    crew never marked are scored just after the calculator finishes). Only to people who may see the results (the same rule
+    as the live map), and only for recent flights.
     """
     if not settings.PUSH_NOTIFICATIONS_ENABLED:
         return 0
@@ -250,16 +253,18 @@ def notify_flight_scored(now: datetime.datetime = None) -> int:
     from display.services.map_access import can_view_task_map
 
     now = now or timezone.now()
+    settle = datetime.timedelta(minutes=settings.PUSH_FLIGHT_SCORED_SETTLE_MINUTES)
     contestants = Contestant.objects.filter(
         contestanttrack__calculator_finished=True,
-        finished_by_time__gt=now - datetime.timedelta(hours=12),
+        finished_by_time__gt=now - datetime.timedelta(hours=24),
         tracking_device__in=(TRACKING_PILOT, TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT),
     ).select_related("team__crew__member1", "team__crew__member2", "navigation_task__contest", "contestanttrack")
     sent = 0
     for contestant in contestants:
         task = contestant.navigation_task
-        if task.calculation_delay_minutes > 0:
-            continue  # the organizer holds scores back
+        released_at = contestant.finished_by_time + datetime.timedelta(minutes=task.calculation_delay_minutes) + settle
+        if now < released_at:
+            continue  # the organizer still holds the scores back (or the last scoring has not settled)
         for person in _app_tracked_people(contestant):
             if not person.mobile_devices.exists():
                 continue
@@ -271,8 +276,8 @@ def notify_flight_scored(now: datetime.datetime = None) -> int:
                 PushNotificationLog.KIND_FLIGHT_SCORED,
                 contestant,
                 person,
-                "Your flight has been scored",
-                f"{task.name}: {points:g} points. Open Airsports to see the result.",
+                "Live scoring has finished",
+                f"{task.name}: {points:g} points. The organizers can still adjust the result.",
             ):
                 sent += 1
     return sent
