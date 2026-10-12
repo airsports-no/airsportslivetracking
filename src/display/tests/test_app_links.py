@@ -46,8 +46,17 @@ class TestGetAppLanding(TestCase):
 
 
 class TestWellKnownFiles(TestCase):
-    def test_android_asset_links_are_empty_until_the_fingerprints_are_configured(self):
+    @override_settings(MOBILE_ANDROID_CERT_SHA256=[])
+    def test_android_asset_links_are_empty_without_fingerprints(self):
         self.assertEqual(self.client.get("/.well-known/assetlinks.json").json(), [])
+
+    def test_android_asset_links_default_to_the_play_app_signing_key(self):
+        statement = self.client.get("/.well-known/assetlinks.json").json()[0]
+        self.assertEqual(statement["target"]["package_name"], "no.airsports.android.livetracking")
+        self.assertEqual(
+            statement["target"]["sha256_cert_fingerprints"],
+            ["8B:2C:0A:1C:3E:AF:3A:B3:40:A6:0B:95:A0:69:92:7D:22:86:4D:7F:28:82:87:DC:B2:A3:2A:0C:F1:74:7B:BE"],
+        )
 
     @override_settings(MOBILE_ANDROID_CERT_SHA256=["AA:BB"], MOBILE_ANDROID_PACKAGE="no.example.app")
     def test_android_asset_links_name_the_app_and_its_certificates(self):

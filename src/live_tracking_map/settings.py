@@ -114,7 +114,13 @@ MOBILE_ANDROID_STORE_URL = os.environ.get(
 # fingerprints of every signing certificate (debug/upload key and the Play App Signing key), comma separated; the iOS id is
 # "<Apple team id>.<bundle id>". Without them the matching well-known file lists nothing and the link stays a web page.
 MOBILE_ANDROID_PACKAGE = os.environ.get("MOBILE_ANDROID_PACKAGE", "no.airsports.android.livetracking")
-MOBILE_ANDROID_CERT_SHA256 = [c.strip() for c in os.environ.get("MOBILE_ANDROID_CERT_SHA256", "").split(",") if c.strip()]
+# Default: the Play App Signing key (the certificate of every Play-installed build; it does not change per release). Set the
+# variable to add or replace, e.g. to include the debug key of a development machine for sideloaded builds.
+MOBILE_ANDROID_CERT_SHA256 = [
+    c.strip()
+    for c in os.environ.get("MOBILE_ANDROID_CERT_SHA256", "8B:2C:0A:1C:3E:AF:3A:B3:40:A6:0B:95:A0:69:92:7D:22:86:4D:7F:28:82:87:DC:B2:A3:2A:0C:F1:74:7B:BE").split(",")
+    if c.strip()
+]
 MOBILE_IOS_APP_ID = os.environ.get("MOBILE_IOS_APP_ID", "3ZGT84Y36H.no.airports.ios.livetracking")
 MOBILE_IOS_STORE_URL = os.environ.get("MOBILE_IOS_STORE_URL", "https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686")
 MOBILE_TRACCAR_URL = os.environ.get("MOBILE_TRACCAR_URL", "https://traccarclient.airsports.no/")
