@@ -26,6 +26,10 @@ that says what a pilot, an organiser or an admin gets.
   starting line). Registering again returns the same flight. The flight order is made in the background and e-mailed as on the
   website; `registered_flight.flight_order_path` in `msfs_quickstart` is set once it is ready, so the client can poll for it. The
   website's self-registration now shares the code that creates the flight (`services/self_registration.py`).
+- **MSFS quickstart follows the website's visibility rule.** A practice flight in a non-public task or contest is only offered
+  (`msfs_quickstart`, otherwise 404) and registered for (`msfs_quickstart_register`, otherwise 400) when the signed-in user may view
+  the contest; a public task in a public contest is offered to everybody, as before. A new pilot who has no profile yet can press
+  register straight away, and a double press makes one flight.
 - **Photo observations close five minutes after the tracking window, and until then everything can be changed.** The registration
   grace period was 12 hours; it is now five minutes at most (`OBSERVATION_REGISTRATION_GRACE_MINUTES` can only shorten it). Until then
   the crew can mark, change (replace) and cancel observations; after that nothing can be registered, changed or cancelled (409). The
