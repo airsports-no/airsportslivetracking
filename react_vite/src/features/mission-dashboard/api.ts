@@ -354,6 +354,31 @@ export const shareContest = async (contestId: number, visibility: 'public' | 'pr
     return response.json();
 };
 
+export interface AnnouncementResult {
+    id: number;
+    people_reached: number;
+    created_at: string;
+}
+
+/** Sends a message to the pilots of the contest (or of one task) as a push notification and an in-app notice. */
+export const sendContestAnnouncement = async (
+    contestId: number,
+    message: string,
+    navigationTaskId?: number | null,
+): Promise<AnnouncementResult> => {
+    const url = reverse('contests-announce', contestId);
+    const response = await fetch(url, {
+        method: 'POST',
+        headers: getAuthHeaders(),
+        body: JSON.stringify({ message, navigation_task: navigationTaskId ?? null }),
+    });
+    if (!response.ok) {
+        const errorMessages = await getErrorMessages(response);
+        throw new Error(`Failed to send the announcement: ${errorMessages}`);
+    }
+    return response.json();
+};
+
 export const deleteContest = async (contestId: number): Promise<void> => {
     const url = reverse('contests-detail', contestId);
     const response = await fetch(url, { method: 'DELETE', headers: getAuthHeaders() });

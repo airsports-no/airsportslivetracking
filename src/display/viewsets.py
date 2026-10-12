@@ -55,10 +55,12 @@ from display.models import (
     Club,
     ClubManagerMembership,
     Contest,
+    ContestAnnouncement,
     Contestant,
     ContestSummary,
     ContestTeam,
     EditableRoute,
+    EmailMapLink,
     HighlightedContest,
     MyUser,
     NavigationTask,
@@ -473,6 +475,8 @@ class UserPersonViewSet(GenericViewSet):
             contestants.order_by("takeoff_time")
             .distinct()
             .select_related("navigation_task__contest", "team__crew__member1")
+            # The orders PDF itself (a binary column) is not needed for the list, only that one exists and which is newest.
+            .prefetch_related(Prefetch("emailmaplink_set", queryset=EmailMapLink.objects.only("id", "contestant_id", "created_at")))
         )
         return Response(OwnFutureFlightSerialiser(contestants, many=True, context={"request": request}).data)
 
@@ -511,10 +515,30 @@ class UserPersonViewSet(GenericViewSet):
             )
         contestants = (
             contestants.select_related("navigation_task__contest")
+            .prefetch_related(Prefetch("emailmaplink_set", queryset=EmailMapLink.objects.only("id", "contestant_id", "created_at")))
             .order_by("-takeoff_time")
             .distinct()
         )
         return Response(OwnFlightSerialiser(contestants, many=True, context={"request": request}).data)
+
+    @action(detail=False, methods=["get"])
+    def announcements(self, request, *args, **kwargs):
+        """The organizers' announcements that concern this user and are still showing, newest first (mobile app)."""
+        from display.services.announcements import announcements_for
+
+        return Response(
+            [
+                {
+                    "id": a.pk,
+                    "contest_id": a.contest_id,
+                    "contest_name": a.contest.name,
+                    "task_name": a.navigation_task.name if a.navigation_task else None,
+                    "message": a.message,
+                    "created_at": a.created_at,
+                }
+                for a in announcements_for(self.get_object())
+            ]
+        )
 
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):
@@ -581,6 +605,8 @@ class UserPersonViewSet(GenericViewSet):
                     # positions, which the task's calculation delay holds back) this is not delayed.
                     "last_received_time": last_received.isoformat() if last_received else None,
                     "calculation_delay_minutes": task.calculation_delay_minutes,
+                    "score": own_score_for(contestant, task, map_viewable[task.pk]),
+                    "flight_order_path": flight_order_path_for(contestant),
                     "training_available": training_available_for(contestant),
                     "training_feedback": training_feedback_for(contestant),
                 }
@@ -609,6 +635,20 @@ class UserPersonViewSet(GenericViewSet):
             instance._prefetched_objects_cache = {}
 
         return Response(serializer.data)
+
+
+def own_score_for(contestant, task, may_view):
+    """The contestant's score so far, for the pilot's own app: only where the results are visible and not held back."""
+    if not may_view or task.calculation_delay_minutes > 0:
+        return None
+    track = getattr(contestant, "contestanttrack", None)
+    return track.score if track is not None else None
+
+
+def flight_order_path_for(contestant):
+    """The download page of the newest generated flight order (map and orders PDF), or None when none has been made."""
+    uid = contestant.newest_flight_order_link_uid
+    return f"/display/maplink/{uid}/" if uid else None
 
 
 def training_available_for(contestant):
@@ -1421,6 +1461,37 @@ class ContestViewSet(ModelViewSet):
         else:
             response["Cache-Control"] = "private, no-cache"
         return response
+
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[permissions.IsAuthenticated & ContestModificationPermissions],
+    )
+    def announce(self, request, *args, **kwargs):
+        """
+        Send a message to the pilots of the contest (or of one task: ``navigation_task``) as a push notification and as a
+        notice in the mobile app.
+        """
+        from display.services.announcements import send_announcement
+
+        contest = self.get_object()
+        message = str(request.data.get("message", "")).strip()
+        if not message or len(message) > 500:
+            return Response({"message": "Write a message of 1 to 500 characters."}, status=status.HTTP_400_BAD_REQUEST)
+        task = None
+        task_id = request.data.get("navigation_task")
+        if task_id not in (None, ""):
+            task = NavigationTask.objects.filter(pk=task_id, contest=contest).first()
+            if task is None:
+                return Response({"navigation_task": "Not a task of this contest."}, status=status.HTTP_400_BAD_REQUEST)
+        announcement = ContestAnnouncement.objects.create(
+            contest=contest, navigation_task=task, message=message, created_by=request.user
+        )
+        reached = send_announcement(announcement)
+        return Response(
+            {"id": announcement.pk, "people_reached": reached, "created_at": announcement.created_at},
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(
         detail=True,

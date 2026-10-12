@@ -26,6 +26,7 @@ import ImportTeamsPanel from '../contest-management/components/ImportTeamsPanel'
 import TeamList from '../contest-management/components/TeamList';
 import ContestSettingsForm from '../contest-management/components/ContestSettingsForm';
 import ContestTokenPanel from './components/ContestTokenPanel';
+import AnnouncementPanel from './components/AnnouncementPanel';
 import ContestSetupChecklist from './components/ContestSetupChecklist';
 import { accessSourceLabel } from './accessLabels';
 import ConceptHint from '../../components/common/ConceptHint';
@@ -646,6 +647,7 @@ const ContestDashboard = () => {
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
+                                <AnnouncementPanel key={contest.id} contestId={contest.id} tasks={contest.navigationtask_set} />
                                 {contest.current_token_assignment && !contest.current_token_assignment.is_active_now && (
                                     <div className="alert alert-warning shadow-sm lg:col-span-2">
                                         <div>

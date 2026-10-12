@@ -237,3 +237,42 @@ def _has_flight_open_or_soon(person: Person, now: datetime.datetime) -> bool:
         tracker_start_time__lte=now + datetime.timedelta(hours=1),
         finished_by_time__gt=now,
     ).exists()
+
+
+def notify_flight_scored(now: datetime.datetime = None) -> int:
+    """
+    'Your flight has been scored: N points' once the calculator has finished. Only to people who may see the results
+    (the same rule as the live map), and only for recent flights.
+    """
+    if not settings.PUSH_NOTIFICATIONS_ENABLED:
+        return 0
+    from display.models import MyUser
+    from display.services.map_access import can_view_task_map
+
+    now = now or timezone.now()
+    contestants = Contestant.objects.filter(
+        contestanttrack__calculator_finished=True,
+        finished_by_time__gt=now - datetime.timedelta(hours=12),
+        tracking_device__in=(TRACKING_PILOT, TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT),
+    ).select_related("team__crew__member1", "team__crew__member2", "navigation_task__contest", "contestanttrack")
+    sent = 0
+    for contestant in contestants:
+        task = contestant.navigation_task
+        if task.calculation_delay_minutes > 0:
+            continue  # the organizer holds scores back
+        for person in _app_tracked_people(contestant):
+            if not person.mobile_devices.exists():
+                continue
+            user = MyUser.objects.filter(email=person.email).first()
+            if not can_view_task_map(user, task):
+                continue
+            points = contestant.contestanttrack.score
+            if _notify_once(
+                PushNotificationLog.KIND_FLIGHT_SCORED,
+                contestant,
+                person,
+                "Your flight has been scored",
+                f"{task.name}: {points:g} points. Open Airsports to see the result.",
+            ):
+                sent += 1
+    return sent

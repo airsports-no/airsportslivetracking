@@ -59,7 +59,7 @@ class OwnFlightsOfPrivateContestsTest(TestCase):
                 "id", "contest_id", "navigation_task", "contest_name", "navigation_task_name", "task_type", "contest_logo",
                 "contest_header_image", "contest_location", "contest_country", "contest_website", "map_viewable",
                 "contestant_number", "takeoff_time", "tracker_start_time", "finished_by_time", "air_speed", "wind_speed",
-                "wind_direction", "adaptive_start", "can_cancel",
+                "wind_direction", "adaptive_start", "can_cancel", "flight_order_path",
             },
         )
         for secret in ("gate_times", "declaration_payload", "compiled_effective_route_payload", "scorecard_rules", "team", "default_map_url"):

@@ -2272,6 +2272,7 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
     contest_country = serializers.SerializerMethodField()
     contest_website = serializers.SerializerMethodField()
     map_viewable = serializers.SerializerMethodField()
+    flight_order_path = serializers.SerializerMethodField()
 
     class Meta:
         model = Contestant
@@ -2296,8 +2297,16 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
             "wind_speed",
             "wind_direction",
             "adaptive_start",
+            "flight_order_path",
         )
         read_only_fields = fields
+
+    def get_flight_order_path(self, obj: Contestant) -> Optional[str]:
+        """The download page of the newest generated flight order (map and orders PDF), if one has been made."""
+        links = list(obj.emailmaplink_set.all())
+        if not links:
+            return None
+        return f"/display/maplink/{max(links, key=lambda link: link.created_at).pk}/"
 
     def get_contest_name(self, obj: Contestant) -> str:
         return obj.navigation_task.contest.name
