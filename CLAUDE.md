@@ -96,6 +96,8 @@ Lucide icons throughout: Django templates use `{% load lucide %}` + `{% lucide "
 
 ## Notes for making changes
 
+- **Mobile app change log:** every change that is made for, or that affects, the mobile apps (backend or the app repository `airsports-no/airsports-mobile`) gets a one-line entry in `documentation/mobile_changelog.md`, under today's date and in the Backend or App part.
+
 - Env-driven settings (`src/live_tracking_map/settings.py`) distinguish dev (`MODE=dev`) from production; access-control enforcement, Firebase, and several external integrations (traccar, mbtiles, redis, mysql) are all configured via env vars with dev-friendly defaults for docker-compose.
 - `documentation/` contains user manuals and API guides (some `.docx`, kept partly outdated per the README — prefer moving durable docs to the wiki rather than adding more files here).
 - The GitHub wiki (linked from `README.md`) holds the model architecture and scoring-engine overview docs; consult it for deeper domain background before large model/calculator changes.
