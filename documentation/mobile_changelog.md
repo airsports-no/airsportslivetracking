@@ -20,6 +20,12 @@ that says what a pilot, an organiser or an admin gets.
   in-air start. `GET userprofile/msfs_quickstart/` gives the MSFS client the newest active one (404 when none): task, start text,
   a ground start (take-off gate, runway heading) and an air start (2 NM before the starting point on course) computed from the
   route, the registration page and the pilot's own registration.
+- **MSFS quickstart: one-press registration.** `POST userprofile/msfs_quickstart_register/` signs the pilot up for the practice
+  contest with the quickstart's aircraft, club and speed (defaults "MSFS", "MSFS pilots", 70 kt; a pilot already signed up keeps
+  their own team) and sets up the flight with no wind and an adaptive start whose window is open now (two hours to cross the
+  starting line). Registering again returns the same flight. The flight order is made in the background and e-mailed as on the
+  website; `registered_flight.flight_order_path` in `msfs_quickstart` is set once it is ready, so the client can poll for it. The
+  website's self-registration now shares the code that creates the flight (`services/self_registration.py`).
 - **Photo observations close five minutes after the tracking window, and until then everything can be changed.** The registration
   grace period was 12 hours; it is now five minutes at most (`OBSERVATION_REGISTRATION_GRACE_MINUTES` can only shorten it). Until then
   the crew can mark, change (replace) and cancel observations; after that nothing can be registered, changed or cancelled (409). The

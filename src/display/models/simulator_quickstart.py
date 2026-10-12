@@ -31,6 +31,13 @@ class SimulatorQuickstart(models.Model):
         default=2500,
         help_text="Altitude (feet above sea level) for the client's 'start in the air' option, 2 NM before the starting point.",
     )
+    # One-press registration in the client: the team and flight are made with these, no wind and an adaptive start, so a
+    # new pilot needs to choose nothing. A pilot already registered for the contest keeps their own team and speed.
+    air_speed = models.FloatField(default=70, help_text="Cruise speed (knots) the practice flight is planned with.")
+    aircraft_registration = models.CharField(
+        max_length=20, default="MSFS", help_text="Aircraft registration used for the practice team."
+    )
+    club_name = models.CharField(max_length=200, default="MSFS pilots", help_text="Club used for the practice team.")
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:

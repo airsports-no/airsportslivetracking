@@ -9,7 +9,9 @@ from display.models import (
     Aeroplane,
     Contest,
     Contestant,
+    ContestTeam,
     Crew,
+    EmailMapLink,
     NavigationTask,
     Person,
     Route,
@@ -127,3 +129,61 @@ class TestSimulatorQuickstart(TestCase):
         self.quickstart.save()
         self.client.force_authenticate(self.user)
         self.assertEqual(404, self.client.get("/api/v1/userprofile/msfs_quickstart/").status_code)
+
+    def register(self):
+        self.client.force_authenticate(self.user)
+        with patch("display.tasks.generate_and_maybe_notify_flight_order.apply_async") as flight_order:
+            with self.captureOnCommitCallbacks(execute=True):
+                response = self.client.post("/api/v1/userprofile/msfs_quickstart_register/")
+        return response, flight_order
+
+    def test_one_press_registration_signs_up_with_the_practice_defaults(self):
+        response, flight_order = self.register()
+        self.assertEqual(201, response.status_code, response.content)
+        data = response.json()
+        flight = Contestant.objects.get(pk=data["registered_flight"]["id"])
+        self.assertTrue(flight.adaptive_start)
+        self.assertEqual(70, flight.air_speed)
+        self.assertEqual((0, 0), (flight.wind_speed, flight.wind_direction))
+        self.assertEqual("MSFS", flight.team.aeroplane.registration)
+        self.assertEqual("MSFS pilots", flight.team.club.name)
+        self.assertEqual(self.pilot, flight.team.crew.member1)
+        self.assertTrue(ContestTeam.objects.filter(contest=self.contest, team=flight.team, air_speed=70).exists())
+        # Adaptive: tracking is open now, and the starting line may be crossed for two hours.
+        self.assertLessEqual(flight.tracker_start_time, self.now + datetime.timedelta(minutes=2))
+        self.assertGreater(flight.finished_by_time, self.now + datetime.timedelta(hours=2))
+        self.assertIsNone(data["registered_flight"]["flight_order_path"], "the flight order is made in the background")
+        flight_order.assert_called_once()
+        self.assertEqual(flight.pk, flight_order.call_args[0][0][0])
+
+    def test_registering_again_returns_the_same_flight(self):
+        first, _ = self.register()
+        second, flight_order = self.register()
+        self.assertEqual(first.json()["registered_flight"]["id"], second.json()["registered_flight"]["id"])
+        self.assertEqual(1, Contestant.objects.filter(navigation_task=self.task).count())
+        flight_order.assert_not_called()
+
+    def test_a_pilot_already_signed_up_keeps_their_own_team_and_speed(self):
+        team = Team.objects.create(crew=Crew.objects.create(member1=self.pilot), aeroplane=Aeroplane.objects.create(registration="LN-OWN"))
+        ContestTeam.objects.create(contest=self.contest, team=team, air_speed=95)
+        response, _ = self.register()
+        self.assertEqual(201, response.status_code, response.content)
+        flight = Contestant.objects.get(pk=response.json()["registered_flight"]["id"])
+        self.assertEqual(team, flight.team)
+        self.assertEqual(95, flight.air_speed)
+
+    def test_the_flight_order_path_appears_once_it_is_made(self):
+        response, _ = self.register()
+        flight = Contestant.objects.get(pk=response.json()["registered_flight"]["id"])
+        link = EmailMapLink.objects.create(contestant=flight, orders=b"pdf")
+        data = self.client.get("/api/v1/userprofile/msfs_quickstart/").json()
+        self.assertEqual(f"/display/maplink/{link.pk}/", data["registered_flight"]["flight_order_path"])
+        self.assertEqual(70, data["air_speed"])
+        self.assertEqual("MSFS", data["aircraft_registration"])
+
+    def test_registering_without_an_offer_is_refused(self):
+        self.quickstart.active = False
+        self.quickstart.save()
+        response, flight_order = self.register()
+        self.assertEqual(400, response.status_code)
+        flight_order.assert_not_called()
