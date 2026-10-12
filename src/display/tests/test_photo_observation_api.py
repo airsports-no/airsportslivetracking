@@ -175,20 +175,25 @@ class PhotoObservationApiTest(TestCase):
     def test_crew_can_only_register_for_a_flight_they_are_currently_tracking(self):
         self.set_now(START + datetime.timedelta(minutes=30))  # before the tracker start time
         self.assertEqual(self.post(self.pilot).status_code, 409)
-        self.set_now(START + datetime.timedelta(hours=15, minutes=1))  # after the finished-by time and the grace period
+        self.set_now(START + datetime.timedelta(hours=3, minutes=6))  # after the finished-by time and the five minutes of grace
         self.assertEqual(self.post(self.pilot).status_code, 409)
         self.assertEqual(PhotoObservation.objects.count(), 0)
 
     def test_queued_observations_are_accepted_during_the_grace_period_after_the_flight(self):
         self.set_scale(SCALE_200)
-        self.set_now(START + datetime.timedelta(hours=9))  # finished by 12:00, twelve hours of grace
+        self.set_now(START + datetime.timedelta(hours=3, minutes=4))  # finished by 12:00, five minutes of grace
         self.contestant.contestanttrack.set_calculator_finished()
         self.assertEqual(self.post(self.pilot).status_code, 201)
-        self.set_now(START + datetime.timedelta(hours=15, minutes=5))
+        self.set_now(START + datetime.timedelta(hours=3, minutes=6))
         self.assertEqual(self.post(self.pilot, time="2026-08-01T10:01:00Z").status_code, 409)
 
+    @override_settings(OBSERVATION_REGISTRATION_GRACE_MINUTES=720)
+    def test_the_grace_period_can_never_be_longer_than_five_minutes(self):
+        self.set_now(START + datetime.timedelta(hours=3, minutes=6))
+        self.assertEqual(self.post(self.pilot).status_code, 409)
+
     @override_settings(OBSERVATION_REGISTRATION_GRACE_MINUTES=0)
-    def test_grace_period_can_be_configured(self):
+    def test_grace_period_can_be_made_shorter(self):
         self.set_now(START + datetime.timedelta(hours=3, minutes=1))
         self.assertEqual(self.post(self.pilot).status_code, 409)
 
@@ -258,9 +263,12 @@ class PhotoObservationApiTest(TestCase):
         self.client.force_login(self.pilot)
         self.set_now(START + datetime.timedelta(minutes=30))
         self.assertFalse(self.client.get(self.photos_url()).json()["may_register"])
-        self.set_now(START + datetime.timedelta(hours=3, minutes=30))  # after landing, inside the grace period
-        self.assertTrue(self.client.get(self.photos_url()).json()["may_register"])
-        self.set_now(START + datetime.timedelta(hours=16))
+        self.set_now(START + datetime.timedelta(hours=3, minutes=4))  # after landing, inside the grace period
+        data = self.client.get(self.photos_url()).json()
+        self.assertTrue(data["may_register"])
+        self.assertEqual(data["registration_grace_minutes"], 5)
+        self.assertEqual(data["registration_closes_at"], "2026-08-01T12:05:00Z")  # finished by 12:00 plus five minutes
+        self.set_now(START + datetime.timedelta(hours=3, minutes=6))
         self.assertFalse(self.client.get(self.photos_url()).json()["may_register"])
 
     def delete_url(self, observation_id):
@@ -341,7 +349,7 @@ class PhotoObservationApiTest(TestCase):
         self.client.force_login(self.stranger)
         self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 403)
         self.client.force_login(self.pilot)
-        self.set_now(START + datetime.timedelta(hours=16))  # past the grace period
+        self.set_now(START + datetime.timedelta(hours=3, minutes=6))  # past the grace period
         self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 409)
         self.assertEqual(PhotoObservation.objects.count(), 1)
 
@@ -349,7 +357,7 @@ class PhotoObservationApiTest(TestCase):
         self.set_scale(SCALE_200)
         self.assertEqual(self.post(self.pilot).status_code, 201)
         observation = PhotoObservation.objects.get()
-        self.set_now(START + datetime.timedelta(hours=3, minutes=30))  # after landing, inside the grace period
+        self.set_now(START + datetime.timedelta(hours=3, minutes=3))  # after landing, inside the grace period
         self.client.force_login(self.pilot)
         self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 409)
         self.assertEqual(PhotoObservation.objects.count(), 1)

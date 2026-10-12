@@ -74,10 +74,24 @@ def _now() -> datetime.datetime:
     return datetime.datetime.now(datetime.timezone.utc)
 
 
+# The crew can register, change or cancel observations until at most this long after the tracking window (the flight's
+# finished-by time) and never after. OBSERVATION_REGISTRATION_GRACE_MINUTES can only make it shorter.
+MAX_REGISTRATION_GRACE_MINUTES = 5
+
+
 def get_registration_grace_period() -> datetime.timedelta:
-    """How long after the flight the crew can still register observations, so that a queue built up offline
-    (or while out of coverage, e.g. until there is wifi at the airport) can be sent after landing. OBSERVATION_REGISTRATION_GRACE_MINUTES overrides it."""
-    return datetime.timedelta(minutes=getattr(settings, "OBSERVATION_REGISTRATION_GRACE_MINUTES", 12 * 60))
+    """
+    How long after the tracking window the crew can still register observations (a queue built up while out of coverage
+    can be sent just after landing): five minutes at most, then nothing can be registered, changed or cancelled.
+    OBSERVATION_REGISTRATION_GRACE_MINUTES can shorten it, never lengthen it.
+    """
+    minutes = getattr(settings, "OBSERVATION_REGISTRATION_GRACE_MINUTES", MAX_REGISTRATION_GRACE_MINUTES)
+    return datetime.timedelta(minutes=max(0, min(minutes, MAX_REGISTRATION_GRACE_MINUTES)))
+
+
+def registration_closes_at(contestant: Contestant) -> datetime.datetime:
+    """When the crew can no longer register, change or cancel observations for this flight."""
+    return contestant.finished_by_time + get_registration_grace_period()
 
 
 def is_currently_tracked(contestant: Contestant, now: datetime.datetime) -> bool:

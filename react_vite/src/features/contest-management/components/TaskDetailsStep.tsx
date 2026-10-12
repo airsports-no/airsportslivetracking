@@ -156,7 +156,7 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
             </label>
             <label className="label cursor-pointer justify-start gap-3">
                 <input type="checkbox" className="checkbox" {...register('allow_observation_registration')} />
-                <span className="label-text inline-flex items-center">Allow observation registration in the app<HelpIcon text="Lets crews register observation photos from the app while they are being tracked. Registered observations are scored, and photos that are never marked count as missed when the flight ends." /></span>
+                <span className="label-text inline-flex items-center">Allow observation registration in the app<HelpIcon text="Lets crews register observation photos from the app while they are being tracked. Registered observations are scored, and photos that are never marked count as missed when the flight ends. Crews can mark, change or cancel observations until five minutes after the tracking window; after that nothing can be changed." /></span>
             </label>
             <label className="label cursor-pointer justify-start gap-3">
                 <input type="checkbox" className="checkbox" {...register('show_live_score_in_app')} />

@@ -13,15 +13,20 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
-_Nothing yet. Add new dates here, newest first, for example:_
-
-```
-### 2026-10-20
+### 2026-10-12
 #### Backend
-- ...
+- **Photo observations close five minutes after the tracking window.** The registration grace period was 12 hours; it is now five minutes
+  at most (`OBSERVATION_REGISTRATION_GRACE_MINUTES` can only shorten it). After that nothing can be registered, changed or cancelled.
+  `observation_photos` carries `registration_closes_at` and `registration_grace_minutes` so the app can say so; the task option's help
+  text and `documentation/photo_observations_api.md` state the rule.
+
 #### App
-- ...
-```
+- **Photos page states the marking deadline** ("you can mark, change or cancel photos until 5 minutes after your tracking window
+  closes (12:05:00) ... after that nothing can be marked or changed") and says "Marking has closed" once it has passed.
+- **Cancel flight on Home.** The next-flight and tracking cards get a "Cancel flight" button whenever the flight can be cancelled from
+  My flights (same server rule and confirmation, also for a flight underway).
+
+_Add new dates above this line, newest first, each with a Backend and an App part._
 
 ---
 

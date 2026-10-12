@@ -9,13 +9,15 @@ way a judge scores the line drawn across the track on a paper map.
   off by default, in the task settings and in the task serializer) switched on. With it off the API answers 403,
   nothing is scored, and unmarked photos are not misses, so paper-marked tasks are unaffected.
 * For crew members the contestant must be one of the flights they are currently tracking: from its tracker start
-  time until its finished-by time plus a grace period (12 hours, `OBSERVATION_REGISTRATION_GRACE_MINUTES`), so a
-  queue built up offline can be sent once there is wifi after landing. The observation `time` must lie within the
+  time until its finished-by time plus a grace period of **five minutes at most** (`OBSERVATION_REGISTRATION_GRACE_MINUTES`
+  can only shorten it), so a queue built up while out of coverage can be sent just after landing. After that nothing can be
+  registered, changed or cancelled (the API answers 409). `GET .../observation_photos/` has `registration_closes_at` and
+  `registration_grace_minutes` so the app can say so. The observation `time` must lie within the
   flight itself, not the grace period.
 * **Marks are final when the flight is over**: when tracking stops (the calculator ends the track after the aircraft
   has landed and stays slow) or the finished-by time has passed, whichever is first. From then on the crew cannot
   replace (also not with `replace`) or cancel a mark: 409 with `"locked": true`. A photo that has no mark yet can
-  still be marked during the grace period (with a `time` during the flight), and replaces the "not marked" miss
+  still be marked during the five minutes of grace (with a `time` during the flight), and replaces the "not marked" miss
   that was scored when the flight ended. `GET .../observation_photos/` has `may_change_marks`.
 * The scores are live on the tracking map. The crew's own responses carry no judging (only `id`, `contestant`,
   `photo`, `photo_name`, `time`) until the marks are final.

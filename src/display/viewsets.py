@@ -207,6 +207,8 @@ from display.services.photo_observations import (
     PositionNotAvailable,
     check_crew_may_modify,
     check_crew_may_register,
+    get_registration_grace_period,
+    registration_closes_at,
     judging_is_hidden,
     delete_photo_observation,
     finalize_if_flight_over,
@@ -3859,6 +3861,9 @@ class ContestantViewSet(ModelViewSet):
                 # False once the flight is over: photos that are not marked yet can still be, but marks are final
                 "may_change_marks": enabled and is_tracked_now(contestant) and not observations_locked(contestant),
                 "photos": photos,
+                # After this nothing can be registered, changed or cancelled (the tracking window plus a few minutes).
+                "registration_closes_at": registration_closes_at(contestant),
+                "registration_grace_minutes": int(get_registration_grace_period().total_seconds() // 60),
                 # Only which photos are marked and when: no score, error or projection, the crew gets no feedback.
                 "observations": [
                     {"id": o.pk, "photo": o.photo_id, "photo_name": o.photo_name, "time": o.time}
