@@ -246,12 +246,17 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
         }
     };
 
+    // The task being booked (the contest may have been loaded without its tasks, then the title names the contest only)
+    const navigationTask = contest.navigationtask_set?.find((task) => task.pk === navigationTaskId);
+
     if (loadingPrefillData) return <div className="w-full text-center py-4"><span className="loading loading-spinner"></span> Loading registration data...</div>;
 
     return (
         <div className="card bg-base-100 shadow-xl max-w-2xl mx-auto">
             <div className="card-body">
-                <h2 className="card-title">Book start time for {contest.name}</h2>
+                <h2 className="card-title">
+                    Book start time for {navigationTask ? `${navigationTask.name} in ${contest.name}` : contest.name}
+                </h2>
                 <ConceptHint id="registration-two-steps" title="Two steps to fly in a contest">
                     <ol className="list-decimal list-inside">
                         <li><strong>Register your team</strong>: you, an optional co-pilot and your aircraft. Once per contest; done automatically below if you have not yet.</li>
