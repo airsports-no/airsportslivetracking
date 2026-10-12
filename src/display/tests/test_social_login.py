@@ -41,6 +41,8 @@ class SocialLoginPagesTest(TestCase):
     def test_the_web_config_is_the_public_firebase_config(self):
         response = self.client.get(reverse("login"))
         self.assertContains(response, "airsports-613ce")
+        # the person sees this domain on the provider's consent screen
+        self.assertContains(response, "auth.airsports.no")
 
 
 class FirebaseWebLoginTest(TestCase):

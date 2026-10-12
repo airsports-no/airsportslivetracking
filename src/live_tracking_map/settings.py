@@ -253,12 +253,14 @@ DEFAULT_FROM_EMAIL = EMAIL_FROM
 FIREBASE_SERVICE_ACCOUNT_KEY = "/secret/airsports-firebase-admin.json"
 FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY", "AIzaSyD_LDULS2RvLvhTtnLyEzARtbs-WgtFOAo")
 # The Firebase web app configuration for sign in with Google/Apple on the login and signup pages. It is public (it is
-# in every page that uses it, and at <authDomain>/__/firebase/init.json). The authDomain is Firebase's own: Apple's
-# service ID has this domain's /__/auth/handler as its return URL, and the page's domain must be in the project's
-# authorized domains.
+# in every page that uses it, and at <authDomain>/__/firebase/init.json). The authDomain is the address the provider
+# sends the person back to, and the one they see on Google's consent screen: auth.airsports.no is the project's
+# Firebase Hosting custom domain (it serves the same handler as airsports-613ce.firebaseapp.com). Both Google's OAuth
+# client and Apple's service ID must list https://<authDomain>/__/auth/handler as a redirect/return URL, and the
+# page's own domain must be in the project's authorized domains.
 FIREBASE_WEB_CONFIG = {
     "apiKey": os.environ.get("FIREBASE_WEB_APP_API_KEY", "AIzaSyAAr7wh0TChfnEt0xJQrYSv1yePTipfXnk"),
-    "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN", "airsports-613ce.firebaseapp.com"),
+    "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN", "auth.airsports.no"),
     "projectId": os.environ.get("FIREBASE_PROJECT_ID", "airsports-613ce"),
     "appId": os.environ.get("FIREBASE_WEB_APP_ID", "1:583405520610:web:fd1aa1033e4b05246cc0bb"),
 }
