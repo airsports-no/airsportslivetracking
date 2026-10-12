@@ -11,8 +11,8 @@ class Migration(migrations.Migration):
             model_name="navigationtask",
             name="show_live_score_in_app",
             field=models.BooleanField(
-                default=False,
-                help_text="If checked, pilots see a running update of their score in the mobile app while they fly. Leave it off for competitions where the score should not be visible to the pilot until the results are published.",
+                default=True,
+                help_text="If checked, pilots see a running update of their score in the mobile app while they fly. Uncheck it for competitions where the score should not be visible to the pilot until the results are published.",
             ),
         ),
     ]

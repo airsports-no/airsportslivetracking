@@ -42,6 +42,6 @@ export const navigationTaskDetailsDefaults: NavigationTaskDetailsInput = {
     wind_direction: 0,
     allow_self_management: false,
     allow_observation_registration: false,
-    show_live_score_in_app: false,
+    show_live_score_in_app: true,
     calculation_delay_minutes: 0,
 };

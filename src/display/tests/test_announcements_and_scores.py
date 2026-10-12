@@ -144,6 +144,10 @@ class TestScoreAndFlightOrderInNowEndpoint(Base):
         self.assertEqual(response.status_code, 200)
         return response.json()[0]["active_contestants"][0]
 
+    def test_a_new_task_shows_the_running_score_unless_the_organizer_switches_it_off(self):
+        fresh = self.make_task("Fresh")
+        self.assertTrue(fresh.show_live_score_in_app)
+
     def test_the_score_shows_only_when_the_task_allows_it_the_results_are_visible_and_not_held_back(self):
         ContestantTrack.objects.filter(contestant=self.contestant).update(score=42)
         self.assertEqual(self.current()["score"], 42)
