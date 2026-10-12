@@ -252,6 +252,17 @@ DEFAULT_FROM_EMAIL = EMAIL_FROM
 # a plain setting since it's genuinely this app's own config, not that package's.
 FIREBASE_SERVICE_ACCOUNT_KEY = "/secret/airsports-firebase-admin.json"
 FIREBASE_WEB_API_KEY = os.environ.get("FIREBASE_WEB_API_KEY", "AIzaSyD_LDULS2RvLvhTtnLyEzARtbs-WgtFOAo")
+# The Firebase web app configuration for sign in with Google/Apple on the login and signup pages. It is public (it is
+# in every page that uses it, and at <authDomain>/__/firebase/init.json). The authDomain is Firebase's own: Apple's
+# service ID has this domain's /__/auth/handler as its return URL, and the page's domain must be in the project's
+# authorized domains.
+FIREBASE_WEB_CONFIG = {
+    "apiKey": os.environ.get("FIREBASE_WEB_APP_API_KEY", "AIzaSyAAr7wh0TChfnEt0xJQrYSv1yePTipfXnk"),
+    "authDomain": os.environ.get("FIREBASE_AUTH_DOMAIN", "airsports-613ce.firebaseapp.com"),
+    "projectId": os.environ.get("FIREBASE_PROJECT_ID", "airsports-613ce"),
+    "appId": os.environ.get("FIREBASE_WEB_APP_ID", "1:583405520610:web:fd1aa1033e4b05246cc0bb"),
+}
+SOCIAL_LOGIN_ENABLED = os.environ.get("SOCIAL_LOGIN_ENABLED", "1") == "1"
 
 MIDDLEWARE = [
     "live_tracking_map.middleware.CDNSafetyMiddleware",
