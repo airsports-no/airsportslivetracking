@@ -1,4 +1,5 @@
 import datetime
+import uuid
 from unittest.mock import patch
 
 from django.test import TestCase, TransactionTestCase, override_settings
@@ -173,12 +174,14 @@ class TestPushNotifications(TransactionTestCase):
     def test_warns_once_when_the_phone_keeps_sending_after_the_window_closed(self):
         from display.services.received_positions import note_position_received
 
-        self.pilot.app_tracking_id = "pilot-device"
+        # A device name no earlier run has used: the received-position times live in a cache that outlasts a test run.
+        device = f"d{uuid.uuid4().hex[:20]}"
+        self.pilot.app_tracking_id = device
         self.pilot.save()
         # Window closed 30 minutes ago (finished_by_time = now + 2 h in the helper, so build one that ended earlier).
         done = self.contestant(start_in_min=-200, takeoff_in_min=-180)
         Contestant.objects.filter(pk=done.pk).update(finished_by_time=self.now - datetime.timedelta(minutes=30))
-        note_position_received("pilot-device", self.now - datetime.timedelta(seconds=20))
+        note_position_received(device, self.now - datetime.timedelta(seconds=20))
 
         self.assertEqual(push_notifications.notify_still_tracking(self.now), 1)
         self.assertEqual(push_notifications.notify_still_tracking(self.now), 0)  # once per flight
@@ -189,15 +192,16 @@ class TestPushNotifications(TransactionTestCase):
     def test_no_still_tracking_warning_when_the_phone_stopped_or_another_flight_is_near(self):
         from display.services.received_positions import note_position_received
 
-        self.pilot.app_tracking_id = "pilot-device-b"
+        device = f"d{uuid.uuid4().hex[:20]}"
+        self.pilot.app_tracking_id = device
         self.pilot.save()
         done = self.contestant(start_in_min=-200, takeoff_in_min=-180, number=1)
         Contestant.objects.filter(pk=done.pk).update(finished_by_time=self.now - datetime.timedelta(minutes=30))
         # No positions are arriving any more.
-        note_position_received("pilot-device-b", self.now - datetime.timedelta(minutes=10))
+        note_position_received(device, self.now - datetime.timedelta(minutes=10))
         self.assertEqual(push_notifications.notify_still_tracking(self.now), 0)
         # Positions arrive, but the next flight opens in 40 minutes: tracking through is normal.
-        note_position_received("pilot-device-b", self.now - datetime.timedelta(seconds=20))
+        note_position_received(device, self.now - datetime.timedelta(seconds=20))
         self.contestant(start_in_min=40, takeoff_in_min=55, number=2)
         self.assertEqual(push_notifications.notify_still_tracking(self.now), 0)
         # Too soon after the window closed: inside the grace period.
