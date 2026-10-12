@@ -197,6 +197,9 @@
         const menuToggle = document.getElementById('menu-toggle');
         const mainMenu = document.getElementById('main-menu');
 
+        // The navbar is not rendered when skip_nav is set (e.g. in the mobile app WebView).
+        if (!menuToggle || !mainMenu) return;
+
         menuToggle.addEventListener('click', function() {
             if (mainMenu.classList.contains('hidden')) {
                 mainMenu.classList.remove('hidden');
