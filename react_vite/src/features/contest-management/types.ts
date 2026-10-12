@@ -50,6 +50,7 @@ export interface NavigationTaskCreatePayload {
     wind_direction: number;
     allow_self_management: boolean;
     allow_observation_registration: boolean;
+    show_live_score_in_app: boolean;
     calculation_delay_minutes: number;
 }
 

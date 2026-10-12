@@ -24,6 +24,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
     const [windDirection, setWindDirection] = useState(String(task.wind_direction));
     const [allowSelfManagement, setAllowSelfManagement] = useState(task.allow_self_management);
     const [allowObservationRegistration, setAllowObservationRegistration] = useState(task.allow_observation_registration);
+  const [showLiveScoreInApp, setShowLiveScoreInApp] = useState(task.show_live_score_in_app);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -37,6 +38,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
       setWindDirection(String(task.wind_direction));
       setAllowSelfManagement(task.allow_self_management);
       setAllowObservationRegistration(task.allow_observation_registration);
+      setShowLiveScoreInApp(task.show_live_score_in_app);
     }, [task]);
 
     const handleSubmit = async (event: React.FormEvent) => {
@@ -52,6 +54,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
           wind_direction: Number(windDirection),
           allow_self_management: allowSelfManagement,
           allow_observation_registration: allowObservationRegistration,
+          show_live_score_in_app: showLiveScoreInApp,
         });
         (ref as React.RefObject<HTMLDialogElement>).current?.close();
         onUpdated();
@@ -139,6 +142,15 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
                 onChange={(e) => setAllowObservationRegistration(e.target.checked)}
               />
               <span className="label-text">Allow observation registration in the app</span>
+            </label>
+            <label className="label cursor-pointer justify-start gap-2">
+              <input
+                type="checkbox"
+                className="checkbox checkbox-sm"
+                checked={showLiveScoreInApp}
+                onChange={(e) => setShowLiveScoreInApp(e.target.checked)}
+              />
+              <span className="label-text">Show a running score to pilots in the app</span>
             </label>
             {error && <p className="text-error text-sm">{error}</p>}
             <div className="modal-action">

@@ -162,6 +162,11 @@ class NavigationTask(models.Model):
         default=False,
         help_text="If checked, authenticated users will be allowed to set up themselves as a contestant after having registered for the contest.",
     )
+    show_live_score_in_app = models.BooleanField(
+        default=False,
+        help_text="If checked, pilots see a running update of their score in the mobile app while they fly. Leave it off for "
+        "competitions where the score should not be visible to the pilot until the results are published.",
+    )
     allow_observation_registration = models.BooleanField(
         default=False,
         help_text="If checked, crews can register observation photos from the app while they are being tracked. "

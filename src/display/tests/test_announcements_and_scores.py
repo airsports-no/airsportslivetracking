@@ -134,6 +134,8 @@ class TestScoreAndFlightOrderInNowEndpoint(Base):
         self.user = MyUser.objects.create(username="p", email="pilot@example.com")
         self.pilot.app_tracking_id = "pilot-device-score"
         self.pilot.save()
+        self.task.show_live_score_in_app = True
+        self.task.save()
         self.client = APIClient()
         self.client.force_authenticate(self.user)
 
@@ -142,9 +144,14 @@ class TestScoreAndFlightOrderInNowEndpoint(Base):
         self.assertEqual(response.status_code, 200)
         return response.json()[0]["active_contestants"][0]
 
-    def test_the_score_shows_where_results_are_visible_and_is_held_back_otherwise(self):
+    def test_the_score_shows_only_when_the_task_allows_it_the_results_are_visible_and_not_held_back(self):
         ContestantTrack.objects.filter(contestant=self.contestant).update(score=42)
         self.assertEqual(self.current()["score"], 42)
+        self.task.show_live_score_in_app = False
+        self.task.save()
+        self.assertIsNone(self.current()["score"], "the organizer keeps the running score out of the app")
+        self.task.show_live_score_in_app = True
+        self.task.save()
         self.task.calculation_delay_minutes = 5
         self.task.save()
         self.assertIsNone(self.current()["score"], "held back while the flight is on")

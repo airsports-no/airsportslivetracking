@@ -301,6 +301,7 @@ class NavigationTaskForm(forms.ModelForm):
             "wind_direction",
             "allow_self_management",
             "allow_observation_registration",
+            "show_live_score_in_app",
             "calculation_delay_minutes",
         )
 
@@ -341,6 +342,7 @@ class NavigationTaskForm(forms.ModelForm):
                 "task_subtype",
                 "allow_self_management",
                 "allow_observation_registration",
+                "show_live_score_in_app",
                 "planning_time",
             ),
             Fieldset("Wind", "wind_speed", "wind_direction"),
