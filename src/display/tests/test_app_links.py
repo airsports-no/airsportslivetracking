@@ -50,12 +50,15 @@ class TestWellKnownFiles(TestCase):
     def test_android_asset_links_are_empty_without_fingerprints(self):
         self.assertEqual(self.client.get("/.well-known/assetlinks.json").json(), [])
 
-    def test_android_asset_links_default_to_the_play_app_signing_key(self):
+    def test_android_asset_links_default_to_the_play_app_signing_key_and_the_debug_key(self):
         statement = self.client.get("/.well-known/assetlinks.json").json()[0]
         self.assertEqual(statement["target"]["package_name"], "no.airsports.android.livetracking")
         self.assertEqual(
             statement["target"]["sha256_cert_fingerprints"],
-            ["8B:2C:0A:1C:3E:AF:3A:B3:40:A6:0B:95:A0:69:92:7D:22:86:4D:7F:28:82:87:DC:B2:A3:2A:0C:F1:74:7B:BE"],
+            [
+                "8B:2C:0A:1C:3E:AF:3A:B3:40:A6:0B:95:A0:69:92:7D:22:86:4D:7F:28:82:87:DC:B2:A3:2A:0C:F1:74:7B:BE",
+                "81:69:C8:D4:82:A7:F5:4E:BF:D3:DA:EA:D7:69:11:C4:89:B2:3F:72:19:0E:77:B6:09:2F:47:89:43:E7:47:E8",
+            ],
         )
 
     @override_settings(MOBILE_ANDROID_CERT_SHA256=["AA:BB"], MOBILE_ANDROID_PACKAGE="no.example.app")

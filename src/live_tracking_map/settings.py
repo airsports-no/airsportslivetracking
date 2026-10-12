@@ -114,11 +114,11 @@ MOBILE_ANDROID_STORE_URL = os.environ.get(
 # fingerprints of every signing certificate (debug/upload key and the Play App Signing key), comma separated; the iOS id is
 # "<Apple team id>.<bundle id>". Without them the matching well-known file lists nothing and the link stays a web page.
 MOBILE_ANDROID_PACKAGE = os.environ.get("MOBILE_ANDROID_PACKAGE", "no.airsports.android.livetracking")
-# Default: the Play App Signing key (the certificate of every Play-installed build; it does not change per release). Set the
-# variable to add or replace, e.g. to include the debug key of a development machine for sideloaded builds.
+# Default: the Play App Signing key (the certificate of every Play-installed build; it does not change per release) and the
+# developer's debug key, so sideloaded debug builds can be tested too. Set the variable to replace the list.
 MOBILE_ANDROID_CERT_SHA256 = [
     c.strip()
-    for c in os.environ.get("MOBILE_ANDROID_CERT_SHA256", "8B:2C:0A:1C:3E:AF:3A:B3:40:A6:0B:95:A0:69:92:7D:22:86:4D:7F:28:82:87:DC:B2:A3:2A:0C:F1:74:7B:BE").split(",")
+    for c in os.environ.get("MOBILE_ANDROID_CERT_SHA256", "8B:2C:0A:1C:3E:AF:3A:B3:40:A6:0B:95:A0:69:92:7D:22:86:4D:7F:28:82:87:DC:B2:A3:2A:0C:F1:74:7B:BE,81:69:C8:D4:82:A7:F5:4E:BF:D3:DA:EA:D7:69:11:C4:89:B2:3F:72:19:0E:77:B6:09:2F:47:89:43:E7:47:E8").split(",")
     if c.strip()
 ]
 MOBILE_IOS_APP_ID = os.environ.get("MOBILE_IOS_APP_ID", "3ZGT84Y36H.no.airports.ios.livetracking")
