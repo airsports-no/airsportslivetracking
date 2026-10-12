@@ -20,6 +20,7 @@ from display.views import (
     signup,
     page_not_found,
 )
+from display.views_app_links import apple_app_site_association, assetlinks, get_app_landing
 from . import api
 
 handler404 = page_not_found
@@ -41,6 +42,9 @@ urlpatterns = [
     path("api/schema/redoc/", SpectacularRedocView.as_view(url_name="schema"), name="redoc"),
     path("api/v1/reverse-urls/", urls_json, name="js_reverse"),
     path("api/v1/mobile/config/", mobile_config, name="mobile_config"),
+    path("get-app/", get_app_landing, name="get_app"),
+    path(".well-known/assetlinks.json", assetlinks, name="assetlinks"),
+    path(".well-known/apple-app-site-association", apple_app_site_association, name="apple_app_site_association"),
     path("api/v1/", include(api.urlpatterns)),
     path(
         "global/contest_details/<int:pk>/",

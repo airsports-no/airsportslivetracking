@@ -1743,16 +1743,19 @@ def generate_hangar_flyer_pdf(request, pk):
                 self.set_text_color(150, 150, 150)
                 self.cell(0, 10, "Air Sports Live Tracking - https://airsports.no", align="C")
 
-    # Determine target URL
+    # Determine target URL: both kinds go through the "get the app" link, which opens the app when it is installed and
+    # otherwise offers the download (a flight is tracked by the app, so it is needed either way).
+    from display.views_app_links import get_app_link
+
     if is_poker:
-        target_url = request.build_absolute_uri(reverse('quick_register', args=[pk]))
+        next_path = reverse("quick_register", args=[pk])
         subtitle = "Digital Poker Run - Navigation & Strategy Challenge"
     else:
         # Use frontend Schedule Flight page
-        base_url = request.build_absolute_uri('/')[:-1]
-        frontend_path = settings.FRONTEND_ROUTES.get('SCHEDULE_FLIGHT', 'schedule-flight')
-        target_url = f"{base_url}/{frontend_path}?contestId={contest.pk}&navigationTaskId={pk}"
+        frontend_path = settings.FRONTEND_ROUTES.get("SCHEDULE_FLIGHT", "schedule-flight")
+        next_path = f"/{frontend_path}?contestId={contest.pk}&navigationTaskId={pk}"
         subtitle = "Self-Management Signup - Navigation & Strategy Challenge"
+    target_url = get_app_link(request, next_path)
 
     # Prepare buffers
     qr_img = qrcode.make(target_url)
