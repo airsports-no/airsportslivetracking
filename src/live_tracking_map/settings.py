@@ -115,7 +115,7 @@ MOBILE_ANDROID_STORE_URL = os.environ.get(
 # "<Apple team id>.<bundle id>". Without them the matching well-known file lists nothing and the link stays a web page.
 MOBILE_ANDROID_PACKAGE = os.environ.get("MOBILE_ANDROID_PACKAGE", "no.airsports.android.livetracking")
 MOBILE_ANDROID_CERT_SHA256 = [c.strip() for c in os.environ.get("MOBILE_ANDROID_CERT_SHA256", "").split(",") if c.strip()]
-MOBILE_IOS_APP_ID = os.environ.get("MOBILE_IOS_APP_ID", "")
+MOBILE_IOS_APP_ID = os.environ.get("MOBILE_IOS_APP_ID", "3ZGT84Y36H.no.airports.ios.livetracking")
 MOBILE_IOS_STORE_URL = os.environ.get("MOBILE_IOS_STORE_URL", "https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686")
 MOBILE_TRACCAR_URL = os.environ.get("MOBILE_TRACCAR_URL", "https://traccarclient.airsports.no/")
 MOBILE_TRACKING_INTERVAL_MS = int(os.environ.get("MOBILE_TRACKING_INTERVAL_MS", "1000"))

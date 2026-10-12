@@ -56,13 +56,13 @@ class TestWellKnownFiles(TestCase):
         self.assertEqual(statement["target"]["package_name"], "no.example.app")
         self.assertEqual(statement["target"]["sha256_cert_fingerprints"], ["AA:BB"])
 
-    def test_ios_association_is_empty_until_the_app_id_is_configured(self):
+    @override_settings(MOBILE_IOS_APP_ID="")
+    def test_ios_association_is_empty_without_an_app_id(self):
         self.assertEqual(self.client.get("/.well-known/apple-app-site-association").json(), {"applinks": {"details": []}})
 
-    @override_settings(MOBILE_IOS_APP_ID="TEAM123.no.airports.ios.livetracking")
-    def test_ios_association_opens_the_get_app_links_in_the_app(self):
+    def test_ios_association_opens_the_get_app_links_in_the_app_with_the_team_id_by_default(self):
         details = self.client.get("/.well-known/apple-app-site-association").json()["applinks"]["details"]
-        self.assertEqual(details[0]["appIDs"], ["TEAM123.no.airports.ios.livetracking"])
+        self.assertEqual(details[0]["appIDs"], ["3ZGT84Y36H.no.airports.ios.livetracking"])
         self.assertEqual(details[0]["components"], [{"/": "/get-app/*"}])
 
 
