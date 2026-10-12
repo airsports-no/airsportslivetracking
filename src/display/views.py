@@ -1857,8 +1857,6 @@ def generate_hangar_flyer_pdf(request, pk):
     pdf.set_y(curr_y + 50)
     pdf.set_font("helvetica", "B", 16)
     pdf.cell(pdf.epw, 8, "Scan to Register", align="C", new_x="LMARGIN", new_y="NEXT")
-    pdf.set_font("helvetica", "I", 9)
-    pdf.cell(pdf.epw, 5, f"Target URL: {target_url}", align="C", new_x="LMARGIN", new_y="NEXT")
     pdf.ln(5)
     pdf.line(pdf.l_margin, pdf.get_y(), pdf.w - pdf.r_margin, pdf.get_y())
     pdf.ln(5)
