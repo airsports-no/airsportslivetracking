@@ -126,7 +126,8 @@ def register(user, now: Optional[datetime.datetime] = None) -> Contestant:
             assert_can_register_team(contest, team)
             contest_team = contest.replace_team(None, team, {"air_speed": quickstart.air_speed})
         assert_can_self_register_contestant(task, contest_team)
-        starting_point_time = (now + REGISTRATION_LEAD).replace(second=0, microsecond=0) + datetime.timedelta(minutes=1)
+        # Whole minutes, rounded down, so the tracking window (an hour before) is open already: the client tracks at once.
+        starting_point_time = (now + REGISTRATION_LEAD).replace(second=0, microsecond=0)
         contestant = create_self_managed_contestant(
             task, contest_team, starting_point_time, adaptive_start=True, wind_speed=0, wind_direction=0, declaration_input={}
         )

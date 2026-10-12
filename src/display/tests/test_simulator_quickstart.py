@@ -150,7 +150,7 @@ class TestSimulatorQuickstart(TestCase):
         self.assertEqual(self.pilot, flight.team.crew.member1)
         self.assertTrue(ContestTeam.objects.filter(contest=self.contest, team=flight.team, air_speed=70).exists())
         # Adaptive: tracking is open now, and the starting line may be crossed for two hours.
-        self.assertLessEqual(flight.tracker_start_time, self.now + datetime.timedelta(minutes=2))
+        self.assertLessEqual(flight.tracker_start_time, datetime.datetime.now(datetime.timezone.utc), "open at once")
         self.assertGreater(flight.finished_by_time, self.now + datetime.timedelta(hours=2))
         self.assertIsNone(data["registered_flight"]["flight_order_path"], "the flight order is made in the background")
         flight_order.assert_called_once()
