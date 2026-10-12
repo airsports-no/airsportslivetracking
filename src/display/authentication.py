@@ -33,6 +33,11 @@ from display.auth_backends import FirebaseMigrationBackend
 
 logger = logging.getLogger(__name__)
 
+# A token that Firebase has just issued can be a second or so "in the future" for a server whose clock is slightly
+# behind (it happens right after a sign-in with Apple or Google), which verification rejects as "Token used too
+# early". Firebase Admin accepts at most 60 seconds.
+CLOCK_SKEW_SECONDS = 60
+
 User = get_user_model()
 
 
@@ -56,7 +61,7 @@ class FirebaseTokenAuthentication(authentication.TokenAuthentication):
     def _decode_token(self, token: str) -> dict:
         FirebaseMigrationBackend()._initialize_firebase()
         try:
-            return firebase_auth.verify_id_token(token, check_revoked=True)
+            return firebase_auth.verify_id_token(token, check_revoked=True, clock_skew_seconds=CLOCK_SKEW_SECONDS)
         except Exception as e:
             logger.warning(f"Firebase token verification failed: {e}")
             raise

@@ -20,7 +20,10 @@
         <h2 class="card-title text-2xl mb-4">Create your account</h2>
         {% crispy form %}
         {% if next %}<p class="text-xs opacity-70 mt-2">After verifying your email, log in to continue where you left off.</p>{% endif %}
-        <div class="divider">OR</div>
+        {% if social_login_enabled %}
+          {% include "registration/_social_login.html" %}
+        {% endif %}
+        <div class="divider">{% if social_login_enabled %}HAVE AN ACCOUNT?{% else %}OR{% endif %}</div>
         <div class="text-center">
           <p>Already have an account? <a href="{% url 'login' %}{% if next %}?next={{ next|urlencode }}{% endif %}" class="link link-primary font-bold">Log in here</a></p>
         </div>

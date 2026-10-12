@@ -8,6 +8,8 @@ from typing import Dict, List
 
 from django.templatetags.static import static
 from django.views.decorators.csrf import csrf_exempt
+
+from display.views_social_login import allow_auth_popups, social_login_context
 from django.views.decorators.http import require_POST
 from django.views import View
 from django.views.static import serve
@@ -1405,6 +1407,7 @@ def firebase_password_reset(request):
     return render(request, "registration/password_reset_form.html", {"form": form})
 
 
+@allow_auth_popups
 def signup(request):
     """
     Dedicated signup view for creating new users.
@@ -1516,7 +1519,7 @@ def signup(request):
     else:
         form = SignUpForm()
 
-    return render(request, "registration/signup.html", {"form": form, "next": next_url})
+    return render(request, "registration/signup.html", {"form": form, "next": next_url, **social_login_context()})
 
 
 @csrf_exempt

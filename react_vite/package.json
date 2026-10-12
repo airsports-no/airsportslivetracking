@@ -19,6 +19,7 @@
     "@tailwindcss/vite": "^4.1.18",
     "@tanstack/react-table": "^8.21.3",
     "django-js-reverse": "^0.10.1-a.0",
+    "firebase": "^13.0.0",
     "leaflet": "^1.9.4",
     "lucide-react": "^1.41.0",
     "match-sorter": "^8.2.0",

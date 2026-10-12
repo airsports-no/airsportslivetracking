@@ -20,6 +20,7 @@ from display.views import (
     signup,
     page_not_found,
 )
+from display.views_social_login import SocialLoginAwareLoginView, firebase_web_login
 from display.views_app_links import apple_app_site_association, assetlinks, get_app_landing
 from . import api
 
@@ -32,6 +33,8 @@ urlpatterns = [
     path("links/", include("firebase.urls")),
     path("accounts/token/", view_token, name="token"),
     path("accounts/signup/", signup, name="signup"),
+    path("accounts/login/", SocialLoginAwareLoginView.as_view(), name="login"),
+    path("accounts/firebase_login/", firebase_web_login, name="firebase_web_login"),
     path("accounts/password_change/", firebase_password_change, name="password_change"),
     path("accounts/password_change/done/", RedirectView.as_view(url="/", permanent=False)),
     path("accounts/password_reset/", firebase_password_reset, name="password_reset"),

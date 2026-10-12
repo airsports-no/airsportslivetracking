@@ -46,6 +46,18 @@ class TestFirebaseTokenAuthentication(TestCase):
         existing.refresh_from_db()
         self.assertIsNotNone(existing.last_login)
 
+    def test_a_token_issued_a_moment_ahead_of_the_server_clock_is_tolerated(
+        self, mock_get_user, mock_verify, mock_init
+    ):
+        # Sign-in with Apple/Google hands over a fresh token that a slightly slow server clock sees as "used too early"
+        User.objects.create(email="pilot@example.com", is_active=True)
+        mock_verify.return_value = {"uid": "firebase-uid-123"}
+        mock_get_user.return_value = _make_firebase_user()
+
+        FirebaseTokenAuthentication().authenticate_credentials("some-token")
+
+        mock_verify.assert_called_once_with("some-token", check_revoked=True, clock_skew_seconds=60)
+
     def test_existing_inactive_user_is_rejected(self, mock_get_user, mock_verify, mock_init):
         User.objects.create(email="pilot@example.com", is_active=False)
         mock_verify.return_value = {"uid": "firebase-uid-123"}
