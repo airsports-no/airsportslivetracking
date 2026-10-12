@@ -16,6 +16,13 @@ class SocialLoginPagesTest(TestCase):
         self.assertEqual(response["Cross-Origin-Opener-Policy"], "same-origin-allow-popups")
         self.assertContains(response, 'name="username"')  # the password form is still there
 
+    def test_apple_hide_my_email_is_explained_on_both_pages(self):
+        for name in ("login", "signup"):
+            response = self.client.get(reverse(name))
+            self.assertContains(response, "data-apple-hide-email-note")
+            self.assertContains(response, "Hide My Email")
+            self.assertContains(response, "Share My Email")
+
     def test_the_signup_page_has_the_buttons_too(self):
         response = self.client.get(reverse("signup"))
         self.assertContains(response, 'data-provider="google"')
