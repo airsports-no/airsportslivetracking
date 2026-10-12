@@ -48,7 +48,10 @@
         <div class="form-control mt-6">
           <button type="submit" class="btn btn-primary">Login</button>
         </div>
-        <div class="divider">OR</div>
+        {% if social_login_enabled %}
+            {% include "registration/_social_login.html" %}
+        {% endif %}
+        <div class="divider">{% if social_login_enabled %}NEW HERE?{% else %}OR{% endif %}</div>
         <div class="text-center">
             <p>Don't have an account? <a href="{% url 'signup' %}{% if next and next != '/' %}?next={{ next|urlencode }}{% endif %}" class="link link-secondary font-bold text-lg">Sign up here</a></p>
         </div>
