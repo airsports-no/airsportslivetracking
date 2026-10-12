@@ -18,6 +18,7 @@ describe('describeSocialLoginError', () => {
 
   it('falls back to a generic message', () => {
     expect(describeSocialLoginError('auth/internal-error', 'google')).toContain('failed');
+    expect(describeSocialLoginError('auth/internal-error', 'apple')).toContain('(auth/internal-error)');
     expect(describeSocialLoginError(undefined, 'apple')).toContain('Apple');
   });
 });
