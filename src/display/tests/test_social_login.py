@@ -111,7 +111,18 @@ class FirebaseWebLoginTest(TestCase):
             response = self.post({"id_token": "token"})
         self.assertEqual(response.status_code, 401)
         self.assertIn("error", response.json())
+        self.assertNotIn("detail", response.json())  # the reason is for developers only, see below
         self.assertNotIn("_auth_user_id", self.client.session)
+
+    @override_settings(DEBUG=True)
+    def test_the_reason_is_included_for_developers(self):
+        with patch(
+            "display.authentication.FirebaseTokenAuthentication.authenticate_credentials",
+            side_effect=drf_exceptions.AuthenticationFailed("Token used too early"),
+        ):
+            response = self.post({"id_token": "token"})
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("Token used too early", response.json()["detail"])
 
     def test_missing_or_malformed_requests(self):
         self.assertEqual(self.post({}).status_code, 400)

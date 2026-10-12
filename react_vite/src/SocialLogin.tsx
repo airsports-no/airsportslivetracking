@@ -69,7 +69,7 @@ function init() {
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
-        showError(body.error ?? 'Sign-in failed. Please try again.');
+        showError((body.error ?? 'Sign-in failed. Please try again.') + (body.detail ? ` [${body.detail}]` : ''));
       } else {
         redirectTo = body.redirect || '/';
       }
