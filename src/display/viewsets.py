@@ -558,7 +558,7 @@ class UserPersonViewSet(GenericViewSet):
         """
         from display.services.simulator_quickstart import quickstart_for
 
-        quickstart = quickstart_for(self.get_object())
+        quickstart = quickstart_for(self.get_object(), user=request.user)
         if quickstart is None:
             raise Http404
         return Response(quickstart)
@@ -572,8 +572,10 @@ class UserPersonViewSet(GenericViewSet):
         """
         from display.services.simulator_quickstart import quickstart_for, register
 
-        register(request.user)
-        return Response(quickstart_for(self.get_object()), status=status.HTTP_201_CREATED)
+        # The person first: a pilot who has never made a profile request has none yet (get_object makes it)
+        person = self.get_object()
+        register(request.user, person)
+        return Response(quickstart_for(person, user=request.user), status=status.HTTP_201_CREATED)
 
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):

@@ -51,7 +51,9 @@ def create_self_managed_contestant(
         wind_direction=wind_direction,
     )
     logger.debug("Created contestant")
-    final_time = takeoff_time + contestant.flight_duration
+    # None for a route without any timed gates (e.g. only dummy waypoints)
+    flight_duration = contestant.flight_duration
+    final_time = takeoff_time + flight_duration if flight_duration is not None else None
     logger.debug(f"Final gate time is {final_time}")
 
     if final_time is None:

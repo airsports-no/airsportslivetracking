@@ -1,7 +1,8 @@
 import datetime
-from unittest.mock import patch
+from unittest.mock import PropertyMock, patch
 
 from django.test import TestCase
+from guardian.shortcuts import assign_perm
 from rest_framework.test import APIClient
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
@@ -19,7 +20,14 @@ from display.models import (
     Team,
 )
 from display.models.my_user import MyUser
-from display.services.simulator_quickstart import AIR_START_DISTANCE_M, air_start, current_quickstart, ground_start
+from display.services.simulator_quickstart import (
+    AIR_START_DISTANCE_M,
+    air_start,
+    current_quickstart,
+    ground_start,
+    register,
+    registered_flight,
+)
 from display.utilities.coordinate_utilities import calculate_bearing, calculate_distance_lat_lon
 from display.utilities.tracking_definitions import TRACKING_PILOT
 from display.waypoint import Waypoint
@@ -43,7 +51,10 @@ class TestSimulatorQuickstart(TestCase):
             self.addCleanup(patcher.stop)
         self.now = datetime.datetime.now(datetime.timezone.utc)
         self.contest = Contest.objects.create(
-            name="MSFS practice", start_time=self.now, finish_time=self.now + datetime.timedelta(days=30), is_public=True
+            name="MSFS practice",
+            start_time=self.now,
+            finish_time=self.now + datetime.timedelta(days=30),
+            is_public=True,
         )
         # A runway running east-west at the take-off gate (the gate line runs north-south across it); the route goes east.
         route = Route.objects.create(
@@ -93,7 +104,9 @@ class TestSimulatorQuickstart(TestCase):
         self.assertAlmostEqual(90.0, start["heading"], delta=0.1)
         distance = calculate_distance_lat_lon((start["latitude"], start["longitude"]), (59.97, 11.20))
         self.assertAlmostEqual(AIR_START_DISTANCE_M, distance, delta=50)
-        self.assertAlmostEqual(90.0, calculate_bearing((start["latitude"], start["longitude"]), (59.97, 11.20)), delta=1.0)
+        self.assertAlmostEqual(
+            90.0, calculate_bearing((start["latitude"], start["longitude"]), (59.97, 11.20)), delta=1.0
+        )
 
     def test_the_client_gets_the_flight_where_to_start_and_how_to_register(self):
         self.client.force_authenticate(self.user)
@@ -103,13 +116,17 @@ class TestSimulatorQuickstart(TestCase):
         self.assertEqual("Practice", data["title"])
         self.assertEqual("MSFS practice", data["contest_name"])
         self.assertEqual("Kjeller (ENKJ), runway 30", data["start_location"])
-        self.assertEqual(f"/schedule-flight?contestId={self.contest.pk}&navigationTaskId={self.task.pk}", data["registration_path"])
+        self.assertEqual(
+            f"/schedule-flight?contestId={self.contest.pk}&navigationTaskId={self.task.pk}", data["registration_path"]
+        )
         self.assertIsNone(data["registered_flight"])
         self.assertIsNotNone(data["ground_start"])
         self.assertIsNotNone(data["air_start"])
 
     def test_the_pilots_own_registration_is_reported(self):
-        team = Team.objects.create(crew=Crew.objects.create(member1=self.pilot), aeroplane=Aeroplane.objects.create(registration="LN-SIM"))
+        team = Team.objects.create(
+            crew=Crew.objects.create(member1=self.pilot), aeroplane=Aeroplane.objects.create(registration="LN-SIM")
+        )
         flight = Contestant.objects.create(
             team=team,
             navigation_task=self.task,
@@ -164,7 +181,9 @@ class TestSimulatorQuickstart(TestCase):
         flight_order.assert_not_called()
 
     def test_a_pilot_already_signed_up_keeps_their_own_team_and_speed(self):
-        team = Team.objects.create(crew=Crew.objects.create(member1=self.pilot), aeroplane=Aeroplane.objects.create(registration="LN-OWN"))
+        team = Team.objects.create(
+            crew=Crew.objects.create(member1=self.pilot), aeroplane=Aeroplane.objects.create(registration="LN-OWN")
+        )
         ContestTeam.objects.create(contest=self.contest, team=team, air_speed=95)
         response, _ = self.register()
         self.assertEqual(201, response.status_code, response.content)
@@ -187,3 +206,69 @@ class TestSimulatorQuickstart(TestCase):
         response, flight_order = self.register()
         self.assertEqual(400, response.status_code)
         flight_order.assert_not_called()
+
+    def make_private(self):
+        Contest.objects.filter(pk=self.contest.pk).update(is_public=False)
+        NavigationTask.objects.filter(pk=self.task.pk).update(is_public=False)
+
+    def test_a_private_practice_flight_is_only_offered_to_those_who_may_view_the_contest(self):
+        self.make_private()
+        self.client.force_authenticate(self.user)
+        self.assertEqual(404, self.client.get("/api/v1/userprofile/msfs_quickstart/").status_code)
+        response, flight_order = self.register()
+        self.assertEqual(400, response.status_code)
+        flight_order.assert_not_called()
+        self.assertFalse(ContestTeam.objects.filter(contest=self.contest).exists(), "no registration was made")
+
+        assign_perm("view_contest", self.user, Contest.objects.get(pk=self.contest.pk))
+        self.client.force_authenticate(MyUser.objects.get(pk=self.user.pk))  # no cached permissions
+        self.assertEqual(200, self.client.get("/api/v1/userprofile/msfs_quickstart/").status_code)
+        response, _ = self.register()
+        self.assertEqual(201, response.status_code)
+
+    def test_the_newest_one_the_user_may_register_in_is_offered(self):
+        private_contest = Contest.objects.create(
+            name="Private", start_time=self.now, finish_time=self.now + datetime.timedelta(days=30), is_public=False
+        )
+        private_task = NavigationTask.create(
+            name="Private practice",
+            original_scorecard=get_default_scorecard(),
+            start_time=self.now - datetime.timedelta(days=1),
+            finish_time=self.now + datetime.timedelta(days=30),
+            route=Route.objects.create(
+                name="Private route", waypoints=[waypoint("SP", 59.97, 11.20), waypoint("TP1", 59.97, 11.40)]
+            ),
+            contest=private_contest,
+            is_public=False,
+            allow_self_management=True,
+        )
+        newer = SimulatorQuickstart.objects.create(navigation_task=private_task, start_location="Elsewhere")
+        self.assertEqual(self.quickstart, current_quickstart(user=self.user), "the newest one this user may use")
+        assign_perm("view_contest", self.user, private_contest)
+        self.assertEqual(newer, current_quickstart(user=MyUser.objects.get(pk=self.user.pk)))
+
+    def test_a_new_pilot_without_a_profile_can_register_straight_away(self):
+        Person.objects.all().delete()
+        self.assertFalse(Person.objects.filter(email="pilot@example.com").exists())
+        response, _ = self.register()
+        self.assertEqual(201, response.status_code, response.content)
+        self.assertEqual(1, Contestant.objects.filter(navigation_task=self.task).count())
+
+    def test_a_double_press_makes_one_flight(self):
+        calls = []
+
+        def stale_first_check(quickstart, person, now=None):
+            # The first request looked before the other had finished: it saw nothing
+            calls.append(1)
+            return None if len(calls) == 1 else registered_flight(quickstart, person, now)
+
+        first = register(self.user, self.pilot)
+        with patch("display.services.simulator_quickstart.registered_flight", side_effect=stale_first_check):
+            second = register(self.user, self.pilot)
+        self.assertEqual(first.pk, second.pk)
+        self.assertEqual(1, Contestant.objects.filter(navigation_task=self.task).count())
+
+    def test_a_route_without_a_flight_duration_still_registers(self):
+        with patch.object(Contestant, "flight_duration", new_callable=PropertyMock, return_value=None):
+            response, _ = self.register()
+        self.assertEqual(201, response.status_code, response.content)

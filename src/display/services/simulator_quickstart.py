@@ -23,18 +23,32 @@ AIR_START_DISTANCE_M = 2 * 1852
 REGISTRATION_LEAD = datetime.timedelta(hours=1)
 
 
-def current_quickstart(now: Optional[datetime.datetime] = None) -> Optional[SimulatorQuickstart]:
-    """The newest active quickstart whose task pilots can still register for themselves, or None."""
+def may_register_for(user, navigation_task) -> bool:
+    """
+    Who may register themselves in the task, as on the website: anybody for a public task in a public contest,
+    otherwise somebody who may view the contest.
+    """
+    contest = navigation_task.contest
+    if navigation_task.is_public and contest.is_public:
+        return True
+    return bool(user is not None and user.is_authenticated and user.has_perm("display.view_contest", contest))
+
+
+def current_quickstart(now: Optional[datetime.datetime] = None, user=None) -> Optional[SimulatorQuickstart]:
+    """
+    The newest active quickstart whose task pilots can still register for themselves and that [user] may register
+    in (without a user only public ones qualify), or None.
+    """
     now = now or timezone.now()
-    return (
-        SimulatorQuickstart.objects.filter(
-            active=True,
-            navigation_task__allow_self_management=True,
-            navigation_task__finish_time__gt=now,
-        )
-        .select_related("navigation_task", "navigation_task__contest", "navigation_task__route")
-        .first()
-    )
+    candidates = SimulatorQuickstart.objects.filter(
+        active=True,
+        navigation_task__allow_self_management=True,
+        navigation_task__finish_time__gt=now,
+    ).select_related("navigation_task", "navigation_task__contest", "navigation_task__route")
+    for quickstart in candidates:
+        if may_register_for(user, quickstart.navigation_task):
+            return quickstart
+    return None
 
 
 def _runway_heading(gate, towards: Optional[tuple]) -> Optional[float]:
@@ -98,17 +112,16 @@ def registered_flight(quickstart: SimulatorQuickstart, person: Person, now: Opti
     )
 
 
-def register(user, now: Optional[datetime.datetime] = None) -> Contestant:
+def register(user, person: Person, now: Optional[datetime.datetime] = None) -> Contestant:
     """
     The client's one-press registration: signs the pilot up for the contest with the quickstart's aircraft, club and speed
     (unless they are signed up already) and sets up the flight with no wind and an adaptive start that is open now. The
     flight order is made in the background and e-mailed, as on the website. Registering again returns the same flight.
     """
     now = now or timezone.now()
-    quickstart = current_quickstart(now)
+    quickstart = current_quickstart(now, user)
     if quickstart is None:
         raise ValidationError("No practice flight is offered right now")
-    person = user.person
     existing = registered_flight(quickstart, person, now)
     if existing is not None:
         return existing
@@ -116,6 +129,10 @@ def register(user, now: Optional[datetime.datetime] = None) -> Contestant:
     contest = task.contest
     with transaction.atomic():
         Contest.objects.select_for_update().get(pk=contest.pk)
+        # Again, now that the lock is held: a double press must not make two flights
+        existing = registered_flight(quickstart, person, now)
+        if existing is not None:
+            return existing
         contest_team = ContestTeam.objects.filter(contest=contest, team__crew__member1=person).first()
         if contest_team is None:
             if ContestTeam.objects.filter(contest=contest, team__crew__member2=person).exists():
@@ -147,9 +164,9 @@ def flight_order_path(flight: Contestant) -> Optional[str]:
     return f"/display/maplink/{uid}/" if uid else None
 
 
-def quickstart_for(person: Person, now: Optional[datetime.datetime] = None) -> Optional[dict]:
+def quickstart_for(person: Person, now: Optional[datetime.datetime] = None, user=None) -> Optional[dict]:
     """What the client shows: the flight, where to start, how to register and whether the pilot has. None: nothing offered."""
-    quickstart = current_quickstart(now)
+    quickstart = current_quickstart(now, user)
     if quickstart is None:
         return None
     task = quickstart.navigation_task
