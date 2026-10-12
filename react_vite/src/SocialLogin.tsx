@@ -6,7 +6,7 @@
  * email/password form keeps working as before.
  */
 import { initializeApp } from 'firebase/app';
-import { GoogleAuthProvider, OAuthProvider, getAuth, signInWithPopup } from 'firebase/auth';
+import { GoogleAuthProvider, OAuthProvider, getAuth, inMemoryPersistence, setPersistence, signInWithPopup } from 'firebase/auth';
 import type { AuthProvider } from 'firebase/auth';
 
 import { getCookie } from './utils/csrf';
@@ -52,26 +52,36 @@ function init() {
     if (!provider) return;
     showError(null);
     setBusy(true);
+    let redirectTo: string | null = null;
     try {
+      // Firebase only vouches for the person to the server once; the browser must not keep the identity (it is
+      // persisted across restarts by default), whether or not the server login that follows succeeds.
+      await setPersistence(auth, inMemoryPersistence);
       const credential = await signInWithPopup(auth, provider);
       const idToken = await credential.user.getIdToken();
       const response = await fetch(root!.dataset.endpoint ?? '', {
         method: 'POST',
         credentials: 'same-origin',
+        // The body carries the token: never follow a redirect (a 307/308 would forward it to the new target)
+        redirect: 'error',
         headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken') ?? '' },
         body: JSON.stringify({ id_token: idToken, next: root!.dataset.next ?? '' }),
       });
       const body = await response.json().catch(() => ({}));
       if (!response.ok) {
         showError(body.error ?? 'Sign-in failed. Please try again.');
-        setBusy(false);
-        return;
+      } else {
+        redirectTo = body.redirect || '/';
       }
-      // The server session is what counts from here; do not leave a Firebase session behind in the browser
-      await auth.signOut().catch(() => undefined);
-      window.location.assign(body.redirect || '/');
     } catch (error) {
       showError(describeSocialLoginError((error as { code?: string }).code, name));
+    } finally {
+      // The server session is what counts from here
+      await auth.signOut().catch(() => undefined);
+    }
+    if (redirectTo) {
+      window.location.assign(redirectTo);
+    } else {
       setBusy(false);
     }
   }

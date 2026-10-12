@@ -1,10 +1,14 @@
 import json
 from unittest.mock import patch
 
+from utilities.mock_utilities import TraccarMock
+
 from django.contrib.auth import get_user_model
 from django.test import Client, TestCase, override_settings
 from django.urls import reverse
 from rest_framework import exceptions as drf_exceptions
+
+from display.models import Person
 
 
 class SocialLoginPagesTest(TestCase):
@@ -57,6 +61,32 @@ class FirebaseWebLoginTest(TestCase):
         self.assertEqual(response.status_code, 200)
         self.assertEqual(response.json(), {"redirect": "/mission-dashboard/"})
         authenticate.assert_called_once_with("token")
+        self.assertEqual(int(self.client.session["_auth_user_id"]), self.user.pk)
+
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def test_a_first_time_user_gets_a_person_profile(self, _traccar):
+        self.user.first_name, self.user.last_name = "Ola", "Nordmann"
+        self.user.save()
+        self.assertFalse(Person.objects.filter(email="pilot@example.com").exists())
+        with self.authenticate:
+            self.post({"id_token": "token"})
+        person = Person.objects.get(email="pilot@example.com")
+        self.assertEqual((person.first_name, person.last_name), ("Ola", "Nordmann"))
+
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def test_an_existing_person_is_left_alone(self, _traccar):
+        Person.objects.create(first_name="Existing", last_name="Pilot", email="pilot@example.com")
+        with self.authenticate:
+            self.post({"id_token": "token"})
+        self.assertEqual(Person.objects.get(email="pilot@example.com").first_name, "Existing")
+
+    def test_a_failure_to_create_the_person_does_not_block_the_sign_in(self):
+        with (
+            self.authenticate,
+            patch("display.models.Person.objects.get_or_create", side_effect=RuntimeError("traccar")),
+        ):
+            response = self.post({"id_token": "token"})
+        self.assertEqual(response.status_code, 200)
         self.assertEqual(int(self.client.session["_auth_user_id"]), self.user.pk)
 
     def test_the_session_is_valid_on_the_next_request(self):

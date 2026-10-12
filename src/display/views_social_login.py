@@ -73,6 +73,24 @@ def _safe_next(request, next_url: str) -> str:
     return settings.LOGIN_REDIRECT_URL
 
 
+def _ensure_person(user) -> None:
+    """
+    A first-time user created by the token authentication has no Person yet, and pages that look at the person of
+    the signed-in user would fail until something else creates it (the app does, with its first profile request).
+    Mirrors that creation. Never blocks the sign-in: creating a Person registers a tracker with Traccar, and the
+    profile is created on its first use anyway if this fails.
+    """
+    from display.models import Person
+
+    try:
+        Person.objects.get_or_create(
+            email=user.email,
+            defaults={"first_name": user.first_name or "", "last_name": user.last_name or ""},
+        )
+    except Exception:
+        logger.exception("Could not create the person profile for %s at website sign-in", user.email)
+
+
 @require_POST
 def firebase_web_login(request):
     """
@@ -96,6 +114,7 @@ def firebase_web_login(request):
     except drf_exceptions.AuthenticationFailed as e:
         logger.warning("Website sign-in with a Firebase token failed: %s", e)
         return JsonResponse({"error": "We could not verify your sign-in. Please try again."}, status=401)
+    _ensure_person(user)
     # The backend recorded in the session must be listed in settings.AUTHENTICATION_BACKENDS (see firebase_token_login)
     login(request, user, backend="display.auth_backends.FirebaseMigrationBackend")
     return JsonResponse({"redirect": _safe_next(request, payload.get("next") or "")})
