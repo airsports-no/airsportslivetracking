@@ -1,0 +1,129 @@
+import datetime
+from unittest.mock import patch
+
+from django.test import TestCase
+from rest_framework.test import APIClient
+
+from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
+from display.models import (
+    Aeroplane,
+    Contest,
+    Contestant,
+    Crew,
+    NavigationTask,
+    Person,
+    Route,
+    SimulatorQuickstart,
+    Team,
+)
+from display.models.my_user import MyUser
+from display.services.simulator_quickstart import AIR_START_DISTANCE_M, air_start, current_quickstart, ground_start
+from display.utilities.coordinate_utilities import calculate_bearing, calculate_distance_lat_lon
+from display.utilities.tracking_definitions import TRACKING_PILOT
+from display.waypoint import Waypoint
+from utilities.mock_utilities import TraccarMock
+
+
+def waypoint(name, latitude, longitude, gate_line=None, bearing_next=-1):
+    w = Waypoint(name)
+    w.latitude = latitude
+    w.longitude = longitude
+    w.gate_line = gate_line or []
+    w.bearing_next = bearing_next
+    return w
+
+
+class TestSimulatorQuickstart(TestCase):
+    def setUp(self):
+        for target in ("display.models.contestant.get_traccar_instance", "display.signals.get_traccar_instance"):
+            patcher = patch(target, return_value=TraccarMock)
+            patcher.start()
+            self.addCleanup(patcher.stop)
+        self.now = datetime.datetime.now(datetime.timezone.utc)
+        self.contest = Contest.objects.create(
+            name="MSFS practice", start_time=self.now, finish_time=self.now + datetime.timedelta(days=30), is_public=True
+        )
+        # A runway running east-west at the take-off gate (the gate line runs north-south across it); the route goes east.
+        route = Route.objects.create(
+            name="Practice route",
+            takeoff_gates=[waypoint("TO", 59.97, 11.03, gate_line=[[59.971, 11.03], [59.969, 11.03]])],
+            waypoints=[waypoint("SP", 59.97, 11.20, bearing_next=90.0), waypoint("TP1", 59.97, 11.40)],
+        )
+        self.task = NavigationTask.create(
+            name="Practice",
+            original_scorecard=get_default_scorecard(),
+            start_time=self.now - datetime.timedelta(days=1),
+            finish_time=self.now + datetime.timedelta(days=30),
+            route=route,
+            contest=self.contest,
+            is_public=True,
+            allow_self_management=True,
+        )
+        self.quickstart = SimulatorQuickstart.objects.create(
+            navigation_task=self.task, start_location="Kjeller (ENKJ), runway 30", air_start_altitude_ft=2000
+        )
+        self.pilot = Person.objects.create(first_name="Pi", last_name="Lot", email="pilot@example.com")
+        self.user = MyUser.objects.create(username="pilot", email="pilot@example.com")
+        self.client = APIClient()
+
+    def test_the_newest_active_quickstart_of_a_self_managed_open_task_is_offered(self):
+        self.assertEqual(self.quickstart, current_quickstart())
+        newer = SimulatorQuickstart.objects.create(navigation_task=self.task, start_location="Elsewhere", active=False)
+        self.assertEqual(self.quickstart, current_quickstart(), "an inactive one is not offered")
+        newer.active = True
+        newer.save()
+        self.assertEqual(newer, current_quickstart())
+        self.task.allow_self_management = False
+        self.task.save()
+        self.assertIsNone(current_quickstart(), "pilots could not register for it themselves")
+
+    def test_a_finished_task_is_not_offered(self):
+        self.assertIsNone(current_quickstart(self.now + datetime.timedelta(days=31)))
+
+    def test_the_ground_start_faces_along_the_runway_towards_the_route(self):
+        start = ground_start(self.quickstart)
+        self.assertEqual((59.97, 11.03), (start["latitude"], start["longitude"]))
+        self.assertAlmostEqual(90.0, start["heading"], delta=1.0)
+
+    def test_the_air_start_is_two_miles_before_the_starting_point_on_course(self):
+        start = air_start(self.quickstart)
+        self.assertEqual(2000, start["altitude_ft"])
+        self.assertAlmostEqual(90.0, start["heading"], delta=0.1)
+        distance = calculate_distance_lat_lon((start["latitude"], start["longitude"]), (59.97, 11.20))
+        self.assertAlmostEqual(AIR_START_DISTANCE_M, distance, delta=50)
+        self.assertAlmostEqual(90.0, calculate_bearing((start["latitude"], start["longitude"]), (59.97, 11.20)), delta=1.0)
+
+    def test_the_client_gets_the_flight_where_to_start_and_how_to_register(self):
+        self.client.force_authenticate(self.user)
+        response = self.client.get("/api/v1/userprofile/msfs_quickstart/")
+        self.assertEqual(200, response.status_code)
+        data = response.json()
+        self.assertEqual("Practice", data["title"])
+        self.assertEqual("MSFS practice", data["contest_name"])
+        self.assertEqual("Kjeller (ENKJ), runway 30", data["start_location"])
+        self.assertEqual(f"/schedule-flight?contestId={self.contest.pk}&navigationTaskId={self.task.pk}", data["registration_path"])
+        self.assertIsNone(data["registered_flight"])
+        self.assertIsNotNone(data["ground_start"])
+        self.assertIsNotNone(data["air_start"])
+
+    def test_the_pilots_own_registration_is_reported(self):
+        team = Team.objects.create(crew=Crew.objects.create(member1=self.pilot), aeroplane=Aeroplane.objects.create(registration="LN-SIM"))
+        flight = Contestant.objects.create(
+            team=team,
+            navigation_task=self.task,
+            tracking_device=TRACKING_PILOT,
+            contestant_number=1,
+            tracker_start_time=self.now,
+            takeoff_time=self.now + datetime.timedelta(minutes=10),
+            finished_by_time=self.now + datetime.timedelta(hours=2),
+        )
+        self.client.force_authenticate(self.user)
+        data = self.client.get("/api/v1/userprofile/msfs_quickstart/").json()
+        self.assertEqual(flight.pk, data["registered_flight"]["id"])
+
+    def test_nothing_offered_is_a_404_and_signing_in_is_required(self):
+        self.assertIn(self.client.get("/api/v1/userprofile/msfs_quickstart/").status_code, (401, 403))
+        self.quickstart.active = False
+        self.quickstart.save()
+        self.client.force_authenticate(self.user)
+        self.assertEqual(404, self.client.get("/api/v1/userprofile/msfs_quickstart/").status_code)

@@ -24,3 +24,4 @@ from .newsletter import *
 from .mobile_device import *
 from .announcement import *
 from .mobile_app_activity import *
+from .simulator_quickstart import *

@@ -550,6 +550,19 @@ class UserPersonViewSet(GenericViewSet):
             ]
         )
 
+    @action(detail=False, methods=["get"])
+    def msfs_quickstart(self, request, *args, **kwargs):
+        """
+        The practice flight the MSFS client offers new pilots: the task, where to start in the simulator, the registration
+        page and whether this pilot has registered. 404 when none is offered.
+        """
+        from display.services.simulator_quickstart import quickstart_for
+
+        quickstart = quickstart_for(self.get_object())
+        if quickstart is None:
+            raise Http404
+        return Response(quickstart)
+
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):
         kwargs["partial"] = True

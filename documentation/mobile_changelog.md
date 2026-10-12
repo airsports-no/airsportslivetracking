@@ -15,6 +15,11 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-12
 #### Backend
+- **MSFS quickstart: a practice flight for new simulator pilots.** Admins set up a `SimulatorQuickstart` (Django admin): a
+  self-managed navigation task, where to start in the simulator as text (e.g. "Kjeller (ENKJ), runway 30") and an altitude for an
+  in-air start. `GET userprofile/msfs_quickstart/` gives the MSFS client the newest active one (404 when none): task, start text,
+  a ground start (take-off gate, runway heading) and an air start (2 NM before the starting point on course) computed from the
+  route, the registration page and the pilot's own registration.
 - **Photo observations close five minutes after the tracking window, and until then everything can be changed.** The registration
   grace period was 12 hours; it is now five minutes at most (`OBSERVATION_REGISTRATION_GRACE_MINUTES` can only shorten it). Until then
   the crew can mark, change (replace) and cancel observations; after that nothing can be registered, changed or cancelled (409). The
