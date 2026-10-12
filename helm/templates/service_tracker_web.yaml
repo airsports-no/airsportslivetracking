@@ -6,6 +6,14 @@ apiVersion: v1
 kind: Service
 metadata:
   name: tracker-web-service
+  annotations:
+    # Pins the NEGs to port 80. The live Service once also exposed a "firebase-proxy" port 8080, which made GKE keep
+    # a second NEG for it that no backend service (and so no health check) is attached to. A pod in such a NEG counts
+    # as load-balancer-ready immediately ("NEG is not attached to any BackendService with health checking"), so the
+    # pod readiness gate was satisfied at once and a rolling update removed the old pods before the load balancer had
+    # confirmed the new ones healthy: "no healthy upstream". Helm does not remove fields it never managed, so the
+    # stale port itself was removed once by hand; this annotation keeps the extra NEG from coming back.
+    cloud.google.com/neg: '{"exposed_ports":{"80":{}}}'
 spec:
   ports:
   - port: 80
