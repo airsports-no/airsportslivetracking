@@ -112,10 +112,14 @@ def firebase_web_login(request):
     try:
         user, _decoded_token = FirebaseTokenAuthentication().authenticate_credentials(id_token)
     except drf_exceptions.AuthenticationFailed as e:
-        logger.warning("Website sign-in with a Firebase token failed: %s", e)
+        # authenticate_credentials wraps whatever went wrong, so the original exception is the one it was raised from
+        cause = e.__context__ or e
+        logger.warning(
+            "Website sign-in with a Firebase token failed: %s: %s", type(cause).__name__, cause, exc_info=settings.DEBUG
+        )
         body = {"error": "We could not verify your sign-in. Please try again."}
         if settings.DEBUG:
-            body["detail"] = str(e)  # for developers only: why the token or the account was not accepted
+            body["detail"] = f"{type(cause).__name__}: {cause}"  # for developers only
         return JsonResponse(body, status=401)
     _ensure_person(user)
     # The backend recorded in the session must be listed in settings.AUTHENTICATION_BACKENDS (see firebase_token_login)
