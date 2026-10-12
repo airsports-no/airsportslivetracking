@@ -126,3 +126,38 @@ export const fetchAdminActivityTrends = async (days: number, bin: FlightStatsBin
     }
     return response.json();
 };
+
+export interface MobileAppVersionRow {
+    platform: 'android' | 'ios';
+    app_version: string;
+    app_build: string;
+    users: number;
+}
+
+export interface MobileAppUserRow {
+    name: string;
+    email: string;
+    platform: 'android' | 'ios';
+    app_version: string;
+    app_build: string;
+    last_seen: string;
+    /** Where the phone last reported from, when the tracking stream has delivered a position (nothing is sent by the app for it). */
+    position: { latitude: number; longitude: number; time: string } | null;
+}
+
+export interface MobileAppsResponse {
+    window_minutes: number;
+    total: number;
+    by_version: MobileAppVersionRow[];
+    users: MobileAppUserRow[];
+}
+
+/** The mobile apps that have talked to the server in the last [minutes] minutes, with their versions. */
+export const fetchAdminMobileApps = async (minutes: number): Promise<MobileAppsResponse> => {
+    const url = `${reverse('admin-mobile-apps-list')}?minutes=${minutes}`;
+    const response = await fetch(url, { cache: 'no-store' });
+    if (!response.ok) {
+        throw new Error('Failed to fetch the mobile apps');
+    }
+    return response.json();
+};

@@ -18,11 +18,35 @@ def _key(device_name: str) -> str:
     return f"last_received_position_{device_name}"
 
 
-def note_position_received(device_name: str, device_time: datetime.datetime) -> None:
+def _position_key(device_name: str) -> str:
+    return f"last_received_coordinates_{device_name}"
+
+
+# The coordinates are kept for the admin statistics only, so they are refreshed at most this often per device.
+COORDINATES_REFRESH_SECONDS = 5
+
+
+def note_position_received(
+    device_name: str,
+    device_time: datetime.datetime,
+    latitude: Optional[float] = None,
+    longitude: Optional[float] = None,
+) -> None:
     # A report that arrives late must not move the time back: keep the newest device time seen
     current = cache.get(_key(device_name))
     if current is None or device_time > current:
         cache.set(_key(device_name), device_time, RECEIVED_TTL_SECONDS)
+    if latitude is not None and longitude is not None:
+        stored = cache.get(_position_key(device_name))
+        if stored is None or device_time >= stored["time"] + datetime.timedelta(seconds=COORDINATES_REFRESH_SECONDS):
+            cache.set(_position_key(device_name), {"latitude": latitude, "longitude": longitude, "time": device_time}, RECEIVED_TTL_SECONDS)
+
+
+def last_received_coordinates(device_name: Optional[str]) -> Optional[dict]:
+    """The last position that arrived from the device ({latitude, longitude, time}), a few seconds old at most, if known."""
+    if not device_name:
+        return None
+    return cache.get(_position_key(device_name))
 
 
 def last_received_position_time(device_name: Optional[str]) -> Optional[datetime.datetime]:

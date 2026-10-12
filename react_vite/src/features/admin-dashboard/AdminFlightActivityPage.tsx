@@ -28,6 +28,7 @@ import ActivityTrendsPanel from './components/ActivityTrendsPanel';
 import TaskTypePopularityPanel from './components/TaskTypePopularityPanel';
 import RetentionPanel from './components/RetentionPanel';
 import OverviewPanel from './components/OverviewPanel';
+import MobileAppsPanel from './components/MobileAppsPanel';
 
 const BIN_OPTIONS: { value: FlightStatsBin; label: string }[] = [
     { value: 'hour', label: 'Hour' },
@@ -327,12 +328,13 @@ function UpcomingContestantsList() {
     );
 }
 
-type Tab = 'overview' | 'flight-activity' | 'utilization';
+type Tab = 'overview' | 'flight-activity' | 'utilization' | 'mobile-apps';
 
 const TABS: { value: Tab; label: string }[] = [
     { value: 'overview', label: 'Overview' },
     { value: 'flight-activity', label: 'Flight activity' },
     { value: 'utilization', label: 'Utilization & reach' },
+    { value: 'mobile-apps', label: 'Mobile apps' },
 ];
 
 function useAdminSystemStats() {
@@ -400,6 +402,8 @@ export default function AdminFlightActivityPage() {
                     <UpcomingContestantsList />
                 </>
             )}
+
+            {tab === 'mobile-apps' && <MobileAppsPanel />}
 
             {tab === 'utilization' && (
                 <>

@@ -285,7 +285,7 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
                 logger.debug(f"Received repeated position, disregarding: {device_name} {device_time}")
                 continue
         cache.set(last_seen_key, device_time)
-        note_position_received(device_name, device_time)
+        note_position_received(device_name, device_time, position_data.get("latitude"), position_data.get("longitude"))
         # print(device_time)
         try:
             contestant_tuples = cached_find_contestant(device_name, device_time)

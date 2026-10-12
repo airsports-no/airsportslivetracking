@@ -311,6 +311,16 @@ def _contest_metadata(contestant, request) -> dict:
 
 class UserPersonViewSet(GenericViewSet):
     permission_classes = [permissions.IsAuthenticated]
+
+    def initial(self, request, *args, **kwargs):
+        super().initial(request, *args, **kwargs)
+        # The mobile app talks to this viewset at start-up and while tracking: note its version (admin statistics).
+        from display.services.mobile_app_activity import record_app_activity
+
+        try:
+            record_app_activity(request)
+        except Exception:
+            logger.exception("Could not record the mobile app activity")  # never let statistics break the app
     serializer_classes = {
         "get_current_app_navigation_task": NavigationTasksSummarySerialiser,
         "get_current_sim_navigation_task": NavigationTasksSummarySerialiser,
@@ -1904,6 +1914,23 @@ class AdminFlightStatsViewSet(ViewSet):
             timeout=self.CACHE_TIMEOUT_SECONDS,
         )
         return Response(payload)
+
+
+class AdminMobileAppsViewSet(ViewSet):
+    """Site-admin view of the mobile apps that have talked to the server recently, with their versions."""
+
+    permission_classes = [IsSuperUser]
+
+    def list(self, request):
+        from display.services.mobile_app_activity import connected_apps
+
+        try:
+            minutes = int(request.query_params.get("minutes", 15))
+        except ValueError:
+            raise ValidationError({"minutes": "Must be an integer."})
+        if minutes <= 0 or minutes > 60 * 24 * 30:
+            raise ValidationError({"minutes": "Must be between 1 and 43200 (30 days)."})
+        return Response(connected_apps(minutes))
 
 
 class AdminUpcomingContestantsViewSet(ViewSet):

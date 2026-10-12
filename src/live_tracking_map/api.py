@@ -5,6 +5,7 @@ from django.urls import path, include
 from display.viewsets import (
     AdminActivityTrendsViewSet,
     AdminFlightStatsViewSet,
+    AdminMobileAppsViewSet,
     AdminSystemStatsViewSet,
     AdminUpcomingContestantsViewSet,
     ContestViewSet,
@@ -62,6 +63,7 @@ router.register(r"photos", PhotoViewSet, basename="photos")
 router.register(r"admin/flight-stats", AdminFlightStatsViewSet, basename="admin-flight-stats")
 router.register(r"admin/upcoming-contestants", AdminUpcomingContestantsViewSet, basename="admin-upcoming-contestants")
 router.register(r"admin/system-stats", AdminSystemStatsViewSet, basename="admin-system-stats")
+router.register(r"admin/mobile-apps", AdminMobileAppsViewSet, basename="admin-mobile-apps")
 router.register(r"admin/activity-trends", AdminActivityTrendsViewSet, basename="admin-activity-trends")
 # results_details_router = routers.NestedSimpleRouter(router, r'contestresults', lookup='contest')
 # results_details_router.register(r'details', ContestResultsDetailsViewSet, basename="contestresultsdetails")
