@@ -660,17 +660,17 @@ def flight_order_path_for(contestant):
 
 def training_available_for(contestant):
     """
-    Whether the app may offer training mode for this flight: a self-managed task whose scores are not held back and where
-    the organizer shows live feedback in the app (``show_live_score_in_app``, the same switch as the running score).
+    Whether the app may offer training mode for this flight: the organizer shows live feedback in the app
+    (``show_live_score_in_app``, the same switch as the running score) and the scores are not held back by a calculation delay.
     """
     task = contestant.navigation_task
-    return bool(task.allow_self_management and task.show_live_score_in_app and task.calculation_delay_minutes <= 0)
+    return bool(task.show_live_score_in_app and task.calculation_delay_minutes <= 0)
 
 
 def training_feedback_for(contestant):
     """
     Live gate timing for the app's training mode: the last gate with a time check that the calculator passed and how far
-    from its required time (seconds, positive is late). Gates without a time check give no feedback. Only for self-managed tasks (the pilot set up their own flight), and never when the
+    from its required time (seconds, positive is late). Gates without a time check give no feedback. Only where the organizer allows live feedback (the pilot set up their own flight), and never when the
     organizer holds scores back with a calculation delay.
     """
     if not training_available_for(contestant):

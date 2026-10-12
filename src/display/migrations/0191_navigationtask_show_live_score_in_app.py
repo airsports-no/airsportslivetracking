@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
             name="show_live_score_in_app",
             field=models.BooleanField(
                 default=True,
-                help_text="If checked, pilots get live feedback in the mobile app while they fly: a running update of their score and, in self-managed tasks, gate timing in training mode. Uncheck it for competitions where the pilot should not see any of this until the results are published.",
+                help_text="If checked, pilots get live feedback in the mobile app while they fly: a running update of their score and gate timing in training mode. Uncheck it for competitions where the pilot should not see any of this until the results are published.",
             ),
         ),
     ]
