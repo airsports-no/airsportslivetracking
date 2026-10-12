@@ -200,8 +200,6 @@ from display.services.contest_permissions import (
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.photo_observations import (
     NotCurrentlyTracked,
-    ObservationsLocked,
-    observations_locked,
     ObservationRegistrationDisabled,
     PhotoObservationError,
     PositionNotAvailable,
@@ -3802,16 +3800,12 @@ class ContestantViewSet(ModelViewSet):
                     contestant,
                     request.user,
                     serialiser.validated_data["time"],
-                    photo=serialiser.validated_data["photo"],
-                    replace=serialiser.validated_data.get("replace", False),
                 )
             observation, changed = register_photo_observation(contestant, **serialiser.validated_data)
         except ObservationRegistrationDisabled as e:
             raise drf_exceptions.PermissionDenied(str(e))
         except NotCurrentlyTracked as e:
             return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
-        except ObservationsLocked as e:
-            return Response({"detail": str(e), "locked": True}, status=status.HTTP_409_CONFLICT)
         except PositionNotAvailable as e:
             return Response({"detail": str(e)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         except PhotoObservationError as e:
@@ -3858,8 +3852,6 @@ class ContestantViewSet(ModelViewSet):
             {
                 "enabled": enabled,
                 "may_register": enabled and is_tracked_now(contestant),
-                # False once the flight is over: photos that are not marked yet can still be, but marks are final
-                "may_change_marks": enabled and is_tracked_now(contestant) and not observations_locked(contestant),
                 "photos": photos,
                 # After this nothing can be registered, changed or cancelled (the tracking window plus a few minutes).
                 "registration_closes_at": registration_closes_at(contestant),
@@ -3896,8 +3888,6 @@ class ContestantViewSet(ModelViewSet):
                 raise drf_exceptions.PermissionDenied(str(e))
             except NotCurrentlyTracked as e:
                 return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
-            except ObservationsLocked as e:
-                return Response({"detail": str(e), "locked": True}, status=status.HTTP_409_CONFLICT)
         observation = get_object_or_404(contestant.photo_observations, pk=observation_id)
         delete_photo_observation(observation)
         if not is_manager:

@@ -14,13 +14,13 @@ way a judge scores the line drawn across the track on a paper map.
   registered, changed or cancelled (the API answers 409). `GET .../observation_photos/` has `registration_closes_at` and
   `registration_grace_minutes` so the app can say so. The observation `time` must lie within the
   flight itself, not the grace period.
-* **Marks are final when the flight is over**: when tracking stops (the calculator ends the track after the aircraft
-  has landed and stays slow) or the finished-by time has passed, whichever is first. From then on the crew cannot
-  replace (also not with `replace`) or cancel a mark: 409 with `"locked": true`. A photo that has no mark yet can
-  still be marked during the five minutes of grace (with a `time` during the flight), and replaces the "not marked" miss
-  that was scored when the flight ended. `GET .../observation_photos/` has `may_change_marks`.
+* **The crew can change everything until the registration closes**, five minutes at most after the tracking window (the
+  finished-by time, which is moved up when the aircraft is seen to have landed): register, replace (`replace`) and cancel
+  marks, and mark photos that have no mark yet (a photo that was left unmarked when the flight ended counted as a miss
+  until it is marked). After that the API answers 409 to everything. The `time` of a registration must still lie within the
+  flight. `GET .../observation_photos/` has `registration_closes_at`.
 * The scores are live on the tracking map. The crew's own responses carry no judging (only `id`, `contestant`,
-  `photo`, `photo_name`, `time`) until the marks are final.
+  `photo`, `photo_name`, `time`) until the registration has closed.
 * Contest managers may register (e.g. to correct a record) regardless of the window and the flag; with the flag off
   the observation is stored but not scored.
 

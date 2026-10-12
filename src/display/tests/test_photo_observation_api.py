@@ -291,25 +291,30 @@ class PhotoObservationApiTest(TestCase):
                 longitude=self.leg_start.longitude + (self.leg_end.longitude - self.leg_start.longitude) * fraction,
             )
 
-    def test_marks_are_final_when_the_flight_is_over(self):
+    def test_marks_can_be_changed_and_cancelled_until_five_minutes_after_the_tracking_window(self):
         self.set_scale(SCALE_200)
         self.set_now(START + datetime.timedelta(hours=2))
         self.assertEqual(self.post(self.pilot, time="2026-08-01T10:20:00Z").status_code, 201)
         observation = PhotoObservation.objects.get()
-        self.set_now(START + datetime.timedelta(hours=2, minutes=59))
-        self.assertEqual(self.post(self.pilot, time="2026-08-01T10:25:00Z").status_code, 201)  # still open
-        self.set_now(START + datetime.timedelta(hours=3, minutes=1))  # past the finished-by time
+        self.set_now(START + datetime.timedelta(hours=3, minutes=1))  # the tracking window is over, the grace period is not
         self.client.force_login(self.pilot)
-        locked = self.post(self.pilot, time="2026-08-01T10:26:00Z")
-        self.assertEqual((locked.status_code, locked.json()["locked"]), (409, True))
         replaced = self.client.post(
             self.url,
-            {"photo": self.photo.pk, "time": "2026-08-01T10:10:00Z", "replace": True},
+            {
+                "photo": self.photo.pk, "time": "2026-08-01T10:30:00Z", "replace": True,
+                "latitude": self.photo_lat, "longitude": self.photo_lon,
+            },
             content_type="application/json",
         )
-        self.assertEqual(replaced.status_code, 409)
-        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 409)
-        self.assertEqual(PhotoObservation.objects.get().time.minute, 25)
+        self.assertEqual(replaced.status_code, 201)
+        self.assertEqual(PhotoObservation.objects.get().time.minute, 30)
+        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 204)
+        self.assertEqual(self.post(self.pilot, time="2026-08-01T10:26:00Z").status_code, 201)
+        # Five minutes after the window nothing can be changed any more.
+        self.set_now(START + datetime.timedelta(hours=3, minutes=6))
+        self.assertEqual(self.post(self.pilot, time="2026-08-01T10:27:00Z").status_code, 409)
+        self.assertEqual(self.client.delete(self.delete_url(PhotoObservation.objects.get().pk)).status_code, 409)
+        self.assertEqual(PhotoObservation.objects.get().time.minute, 26)
 
     def test_an_unmarked_photo_can_still_be_marked_after_tracking_stops(self):
         self.set_scale(SCALE_200)
@@ -317,11 +322,11 @@ class PhotoObservationApiTest(TestCase):
         self.contestant.contestanttrack.set_calculator_finished()  # the queue is sent once there is wifi
         self.assertEqual(self.post(self.pilot, time="2026-08-01T10:20:00Z").status_code, 201)
 
-    def test_marks_are_final_when_tracking_stops(self):
+    def test_marks_can_still_be_changed_after_tracking_stops_until_the_deadline(self):
         self.set_scale(SCALE_200)
         self.post(self.pilot, time="2026-08-01T10:00:00Z")
         self.contestant.contestanttrack.set_calculator_finished()
-        self.assertEqual(self.post(self.pilot, time="2026-08-01T10:05:00Z").status_code, 409)
+        self.assertEqual(self.post(self.pilot, time="2026-08-01T10:05:00Z").status_code, 201)
 
     def test_managers_can_change_marks_after_the_flight(self):
         self.set_scale(SCALE_200)
@@ -329,9 +334,11 @@ class PhotoObservationApiTest(TestCase):
         self.contestant.contestanttrack.set_calculator_finished()
         self.assertEqual(self.post(self.manager, time="2026-08-01T10:05:00Z").status_code, 201)
 
-    def test_crew_sees_the_judging_once_marks_are_final(self):
+    def test_crew_sees_the_judging_once_the_registration_has_closed(self):
         self.assertTrue(judging_is_hidden(self.contestant))
         self.contestant.contestanttrack.set_calculator_finished()
+        self.assertTrue(judging_is_hidden(self.contestant), "still within the five minutes: a mark can still be corrected")
+        self.set_now(START + datetime.timedelta(hours=3, minutes=6))
         self.assertFalse(judging_is_hidden(self.contestant))
 
     def test_crew_cancels_an_observation_and_marks_again(self):
@@ -353,14 +360,13 @@ class PhotoObservationApiTest(TestCase):
         self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 409)
         self.assertEqual(PhotoObservation.objects.count(), 1)
 
-    def test_the_crew_cannot_cancel_after_the_flight(self):
+    def test_the_crew_can_cancel_a_mark_just_after_the_flight_and_the_photo_then_counts_as_missed(self):
         self.set_scale(SCALE_200)
         self.assertEqual(self.post(self.pilot).status_code, 201)
         observation = PhotoObservation.objects.get()
-        self.set_now(START + datetime.timedelta(hours=3, minutes=3))  # after landing, inside the grace period
+        self.set_now(START + datetime.timedelta(hours=3, minutes=3))  # after the window, inside the grace period
         self.client.force_login(self.pilot)
-        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 409)
-        self.assertEqual(PhotoObservation.objects.count(), 1)
+        self.assertEqual(self.client.delete(self.delete_url(observation.pk)).status_code, 204)
 
     def test_registering_with_a_time_only_takes_the_position_from_the_reports(self):
         self.set_scale(SCALE_200)

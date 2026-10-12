@@ -15,14 +15,17 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-12
 #### Backend
-- **Photo observations close five minutes after the tracking window.** The registration grace period was 12 hours; it is now five minutes
-  at most (`OBSERVATION_REGISTRATION_GRACE_MINUTES` can only shorten it). After that nothing can be registered, changed or cancelled.
-  `observation_photos` carries `registration_closes_at` and `registration_grace_minutes` so the app can say so; the task option's help
-  text and `documentation/photo_observations_api.md` state the rule.
+- **Photo observations close five minutes after the tracking window, and until then everything can be changed.** The registration
+  grace period was 12 hours; it is now five minutes at most (`OBSERVATION_REGISTRATION_GRACE_MINUTES` can only shorten it). Until then
+  the crew can mark, change (replace) and cancel observations; after that nothing can be registered, changed or cancelled (409). The
+  earlier "marks are final when the flight is over" rule is removed (`may_change_marks` and the `locked` answer are gone).
+  `observation_photos` carries `registration_closes_at` and `registration_grace_minutes`; the task option's help text and
+  `documentation/photo_observations_api.md` state the rule. The observation time must still lie within the flight.
 
 #### App
 - **Photos page states the marking deadline** ("you can mark, change or cancel photos until 5 minutes after your tracking window
-  closes (12:05:00) ... after that nothing can be marked or changed") and says "Marking has closed" once it has passed.
+  closes (12:05:00). After that nothing can be marked or changed") and says "Marking has closed" once it has passed. The "(final)" marks
+  and the "marks are final" note are gone.
 - **Cancel flight on Home.** The next-flight and tracking cards get a "Cancel flight" button whenever the flight can be cancelled from
   My flights (same server rule and confirmation, also for a flight underway).
 
