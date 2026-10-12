@@ -647,7 +647,6 @@ const ContestDashboard = () => {
                             </div>
 
                             <div className="grid grid-cols-1 lg:grid-cols-2 gap-6 mt-6">
-                                <AnnouncementPanel key={contest.id} contestId={contest.id} tasks={contest.navigationtask_set} />
                                 {contest.current_token_assignment && !contest.current_token_assignment.is_active_now && (
                                     <div className="alert alert-warning shadow-sm lg:col-span-2">
                                         <div>
@@ -787,6 +786,13 @@ const ContestDashboard = () => {
                                     />
                                 )}
                             </div>
+                        </div>
+                    )}
+
+                    {/* Contest managers only: the server also refuses anybody without change permission on the contest. */}
+                    {canManageThisContest && (
+                        <div className="mt-8">
+                            <AnnouncementPanel key={contest.id} contestId={contest.id} tasks={contest.navigationtask_set} />
                         </div>
                     )}
                 </div>
