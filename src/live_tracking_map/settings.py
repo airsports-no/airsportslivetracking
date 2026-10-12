@@ -130,6 +130,7 @@ MOBILE_TRACKING_INTERVAL_MS = int(os.environ.get("MOBILE_TRACKING_INTERVAL_MS", 
 PUSH_NOTIFICATIONS_ENABLED = os.environ.get("PUSH_NOTIFICATIONS_ENABLED", "false").lower() in {"1", "true", "yes"}
 PUSH_TRACKING_WINDOW_LEAD_MINUTES = int(os.environ.get("PUSH_TRACKING_WINDOW_LEAD_MINUTES", "15"))
 PUSH_NOT_TRACKING_GRACE_MINUTES = int(os.environ.get("PUSH_NOT_TRACKING_GRACE_MINUTES", "3"))
+PUSH_STILL_TRACKING_GRACE_MINUTES = int(os.environ.get("PUSH_STILL_TRACKING_GRACE_MINUTES", "10"))
 
 DEFAULT_FREE_TASK_TYPE_GROUPS = [
     item.strip() for item in os.environ.get("DEFAULT_FREE_TASK_TYPE_GROUPS", "legacy,cima").split(",") if item.strip()

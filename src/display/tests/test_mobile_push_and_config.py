@@ -170,6 +170,42 @@ class TestPushNotifications(TransactionTestCase):
         self.contestant(start_in_min=-5, takeoff_in_min=-1, number=2)  # inside the grace period
         self.assertEqual(push_notifications.notify_not_tracking(self.now), 0)
 
+    def test_warns_once_when_the_phone_keeps_sending_after_the_window_closed(self):
+        from display.services.received_positions import note_position_received
+
+        self.pilot.app_tracking_id = "pilot-device"
+        self.pilot.save()
+        # Window closed 30 minutes ago (finished_by_time = now + 2 h in the helper, so build one that ended earlier).
+        done = self.contestant(start_in_min=-200, takeoff_in_min=-180)
+        Contestant.objects.filter(pk=done.pk).update(finished_by_time=self.now - datetime.timedelta(minutes=30))
+        note_position_received("pilot-device", self.now - datetime.timedelta(seconds=20))
+
+        self.assertEqual(push_notifications.notify_still_tracking(self.now), 1)
+        self.assertEqual(push_notifications.notify_still_tracking(self.now), 0)  # once per flight
+        data = self.send.call_args.args[3]
+        self.assertEqual((data["type"], data["contestant_id"]), ("still_tracking", str(done.pk)))
+        self.assertIn("30 minutes ago", self.send.call_args.args[2])
+
+    def test_no_still_tracking_warning_when_the_phone_stopped_or_another_flight_is_near(self):
+        from display.services.received_positions import note_position_received
+
+        self.pilot.app_tracking_id = "pilot-device-b"
+        self.pilot.save()
+        done = self.contestant(start_in_min=-200, takeoff_in_min=-180, number=1)
+        Contestant.objects.filter(pk=done.pk).update(finished_by_time=self.now - datetime.timedelta(minutes=30))
+        # No positions are arriving any more.
+        note_position_received("pilot-device-b", self.now - datetime.timedelta(minutes=10))
+        self.assertEqual(push_notifications.notify_still_tracking(self.now), 0)
+        # Positions arrive, but the next flight opens in 40 minutes: tracking through is normal.
+        note_position_received("pilot-device-b", self.now - datetime.timedelta(seconds=20))
+        self.contestant(start_in_min=40, takeoff_in_min=55, number=2)
+        self.assertEqual(push_notifications.notify_still_tracking(self.now), 0)
+        # Too soon after the window closed: inside the grace period.
+        Contestant.objects.filter(pk=done.pk).update(finished_by_time=self.now - datetime.timedelta(minutes=3))
+        Contestant.objects.filter(navigation_task=self.task, contestant_number=2).delete()
+        self.assertEqual(push_notifications.notify_still_tracking(self.now), 0)
+        self.send.assert_not_called()
+
     def test_confirms_once_the_calculator_has_been_started_by_positions(self):
         from display.models import ContestantTrack
 

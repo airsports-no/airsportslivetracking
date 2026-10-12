@@ -152,12 +152,14 @@ def send_pilot_push_notifications():
     from display.services.push_notifications import (
         notify_not_tracking,
         notify_scoring_started,
+        notify_still_tracking,
         notify_upcoming_tracking_windows,
     )
 
     notify_upcoming_tracking_windows()
     notify_not_tracking()
     notify_scoring_started()
+    notify_still_tracking()
 
 
 @app.task

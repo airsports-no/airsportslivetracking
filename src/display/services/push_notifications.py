@@ -11,9 +11,11 @@ from typing import Iterable
 
 from django.conf import settings
 from django.db import IntegrityError, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from display.models import Contestant, MobileDevice, Person, PushNotificationLog
+from display.services.received_positions import last_received_position_time
 from display.utilities.tracking_definitions import (
     TRACKING_COPILOT,
     TRACKING_PILOT,
@@ -190,3 +192,48 @@ def notify_scoring_started(now: datetime.datetime = None) -> int:
             ):
                 sent += 1
     return sent
+
+
+def notify_still_tracking(now: datetime.datetime = None) -> int:
+    """
+    'Your flight window closed N minutes ago and your phone is still sending positions': a phone left tracking after landing
+    drains its battery and may keep recording. Not sent when the pilot has another flight open or about to open (tracking
+    through several flights is normal), and at most once per flight.
+    """
+    if not settings.PUSH_NOTIFICATIONS_ENABLED:
+        return 0
+    now = now or timezone.now()
+    grace = datetime.timedelta(minutes=settings.PUSH_STILL_TRACKING_GRACE_MINUTES)
+    contestants = Contestant.objects.filter(
+        finished_by_time__lte=now - grace,
+        finished_by_time__gt=now - datetime.timedelta(hours=6),
+        tracking_device__in=(TRACKING_PILOT, TRACKING_COPILOT, TRACKING_PILOT_AND_COPILOT),
+    ).select_related("team__crew__member1", "team__crew__member2", "navigation_task")
+    sent = 0
+    for contestant in contestants:
+        for person in _app_tracked_people(contestant):
+            heard = last_received_position_time(person.app_tracking_id)
+            if heard is None or heard < now - datetime.timedelta(minutes=2):
+                continue  # the phone has stopped sending
+            if _has_flight_open_or_soon(person, now):
+                continue
+            minutes = int((now - contestant.finished_by_time).total_seconds() // 60)
+            if _notify_once(
+                PushNotificationLog.KIND_STILL_TRACKING,
+                contestant,
+                person,
+                "Tracking is still on",
+                f"The tracking window for {contestant.navigation_task.name} closed {minutes} minutes ago, but your phone is "
+                "still sending positions. Open Airsports and stop tracking if you have landed.",
+            ):
+                sent += 1
+    return sent
+
+
+def _has_flight_open_or_soon(person: Person, now: datetime.datetime) -> bool:
+    """Another flight of this person is open now or opens within the hour."""
+    return Contestant.objects.filter(
+        Q(team__crew__member1=person) | Q(team__crew__member2=person),
+        tracker_start_time__lte=now + datetime.timedelta(hours=1),
+        finished_by_time__gt=now,
+    ).exists()
