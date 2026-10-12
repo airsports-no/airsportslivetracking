@@ -150,7 +150,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
                 checked={showLiveScoreInApp}
                 onChange={(e) => setShowLiveScoreInApp(e.target.checked)}
               />
-              <span className="label-text">Show a running score to pilots in the app</span>
+              <span className="label-text">Show live feedback to pilots in the app (running score, training mode)</span>
             </label>
             {error && <p className="text-error text-sm">{error}</p>}
             <div className="modal-action">

@@ -160,7 +160,7 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
             </label>
             <label className="label cursor-pointer justify-start gap-3">
                 <input type="checkbox" className="checkbox" {...register('show_live_score_in_app')} />
-                <span className="label-text inline-flex items-center">Show a running score to pilots in the app<HelpIcon text="Pilots see their score so far in the mobile app while they fly. Switch it off when pilots should not see their score until the results are published. A calculation delay holds the score back as well." /></span>
+                <span className="label-text inline-flex items-center">Show live feedback to pilots in the app<HelpIcon text="Pilots see their score so far in the mobile app while they fly and, in self-managed tasks, training mode shows how early or late they were at each gate. Switch it off when pilots should not see any of this until the results are published. A calculation delay holds it back as well." /></span>
             </label>
 
             <div className="card-actions justify-end">

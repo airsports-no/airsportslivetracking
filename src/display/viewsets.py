@@ -659,9 +659,12 @@ def flight_order_path_for(contestant):
 
 
 def training_available_for(contestant):
-    """Whether the app may offer training mode for this flight: a self-managed task whose scores are not held back."""
+    """
+    Whether the app may offer training mode for this flight: a self-managed task whose scores are not held back and where
+    the organizer shows live feedback in the app (``show_live_score_in_app``, the same switch as the running score).
+    """
     task = contestant.navigation_task
-    return bool(task.allow_self_management and task.calculation_delay_minutes <= 0)
+    return bool(task.allow_self_management and task.show_live_score_in_app and task.calculation_delay_minutes <= 0)
 
 
 def training_feedback_for(contestant):

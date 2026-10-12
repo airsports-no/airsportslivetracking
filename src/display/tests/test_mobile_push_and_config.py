@@ -345,6 +345,17 @@ class TestCalculatorStatusInNowEndpoint(TestCase):
         self.assertIsNone(self.current()["training_feedback"])
         self.assertIs(self.current()["training_available"], False)  # scores are held back: nothing to show live
 
+    def test_the_organizers_live_feedback_switch_also_controls_training_mode(self):
+        task = self.contestant.navigation_task
+        task.allow_self_management = True
+        task.save()
+        self.contestant.contestanttrack.update_last_timed_gate("TP1", -4.0)
+        self.assertIs(self.current()["training_available"], True)
+        task.show_live_score_in_app = False
+        task.save()
+        self.assertIs(self.current()["training_available"], False)
+        self.assertIsNone(self.current()["training_feedback"])
+
     def test_no_training_feedback_before_a_timed_gate_has_been_passed(self):
         task = self.contestant.navigation_task
         task.allow_self_management = True
