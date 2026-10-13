@@ -115,7 +115,8 @@ def registered_flight(quickstart: SimulatorQuickstart, person: Person, now: Opti
 def register(user, person: Person, now: Optional[datetime.datetime] = None) -> Contestant:
     """
     The client's one-press registration: signs the pilot up for the contest with the quickstart's aircraft, club and speed
-    (unless they are signed up already) and sets up the flight with no wind and an adaptive start that is open now. The
+    (unless they are signed up already) and sets up the flight at the quickstart's speed (always, also for a pilot signed
+    up with a speed of their own), with no wind and an adaptive start that is open now. The
     flight order is made in the background and e-mailed, as on the website. Registering again returns the same flight.
     """
     now = now or timezone.now()
@@ -145,8 +146,16 @@ def register(user, person: Person, now: Optional[datetime.datetime] = None) -> C
         assert_can_self_register_contestant(task, contest_team)
         # Whole minutes, rounded down, so the tracking window (an hour before) is open already: the client tracks at once.
         starting_point_time = (now + REGISTRATION_LEAD).replace(second=0, microsecond=0)
+        # Always the practice speed, also for a pilot who is signed up already: their team keeps its own speed.
         contestant = create_self_managed_contestant(
-            task, contest_team, starting_point_time, adaptive_start=True, wind_speed=0, wind_direction=0, declaration_input={}
+            task,
+            contest_team,
+            starting_point_time,
+            adaptive_start=True,
+            wind_speed=0,
+            wind_direction=0,
+            declaration_input={},
+            air_speed=quickstart.air_speed,
         )
 
         def make_flight_order():

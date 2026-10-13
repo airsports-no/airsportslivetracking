@@ -28,7 +28,8 @@ that says what a pilot, an organiser or an admin gets.
   route, the registration page and the pilot's own registration.
 - **MSFS quickstart: one-press registration.** `POST userprofile/msfs_quickstart_register/` signs the pilot up for the practice
   contest with the quickstart's aircraft, club and speed (defaults "MSFS", "MSFS pilots", 70 kt; a pilot already signed up keeps
-  their own team) and sets up the flight with no wind and an adaptive start whose window is open now (two hours to cross the
+  their own team) and sets up the flight at the quickstart's speed (always, also when the pilot's team has another speed; the team
+  itself is not changed), with no wind and an adaptive start whose window is open now (two hours to cross the
   starting line). Registering again returns the same flight. The flight order is made in the background and e-mailed as on the
   website; `registered_flight.flight_order_path` in `msfs_quickstart` is set once it is ready, so the client can poll for it. The
   website's self-registration now shares the code that creates the flight (`services/self_registration.py`).

@@ -21,10 +21,12 @@ def create_self_managed_contestant(
     wind_speed: float,
     wind_direction: float,
     declaration_input: Optional[dict] = None,
+    air_speed: Optional[float] = None,
 ) -> Contestant:
     """
     Creates and compiles the contestant. The caller checks that the pilot may register (team, contest and capacity) and
-    queues the flight order (generate_and_maybe_notify_flight_order).
+    queues the flight order (generate_and_maybe_notify_flight_order). The flight is planned at the team's speed in the
+    contest unless [air_speed] is given (the MSFS practice flight); the team's registration is not changed.
     """
     takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
     existing_contestants = navigation_task.contestant_set.all()
@@ -45,7 +47,7 @@ def create_self_managed_contestant(
         adaptive_start=adaptive_start,
         finished_by_time=tracker_start_time + datetime.timedelta(days=1) - datetime.timedelta(minutes=1),
         minutes_to_starting_point=navigation_task.minutes_to_starting_point,
-        air_speed=contest_team.air_speed,
+        air_speed=air_speed if air_speed is not None else contest_team.air_speed,
         contestant_number=contestant_number,
         wind_speed=wind_speed,
         wind_direction=wind_direction,
