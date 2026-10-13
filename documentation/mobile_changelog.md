@@ -18,6 +18,9 @@ that says what a pilot, an organiser or an admin gets.
 - **The MSFS client counts in the app statistics.** Its requests (`X-App-Platform: msfs`) are now recorded like the phone apps',
   so the admin "Mobile apps" panel lists it as "MSFS client" with its version and build, and shows where the pilot's simulator
   aircraft is (the simulator tracking id) instead of their phone. It still cannot register for push notifications.
+- **The MSFS practice flight is always flown at the quickstart's speed.** A pilot already signed up for the practice contest got
+  their team's speed (e.g. 200 kt) on "Go flying"; the flight now gets the quickstart's speed (70 kt by default). Their team and
+  its speed in the contest are not changed, and the website's own registration still uses the team's speed.
 
 ### 2026-10-12
 #### Backend
@@ -28,8 +31,7 @@ that says what a pilot, an organiser or an admin gets.
   route, the registration page and the pilot's own registration.
 - **MSFS quickstart: one-press registration.** `POST userprofile/msfs_quickstart_register/` signs the pilot up for the practice
   contest with the quickstart's aircraft, club and speed (defaults "MSFS", "MSFS pilots", 70 kt; a pilot already signed up keeps
-  their own team) and sets up the flight at the quickstart's speed (always, also when the pilot's team has another speed; the team
-  itself is not changed), with no wind and an adaptive start whose window is open now (two hours to cross the
+  their own team) and sets up the flight with no wind and an adaptive start whose window is open now (two hours to cross the
   starting line). Registering again returns the same flight. The flight order is made in the background and e-mailed as on the
   website; `registered_flight.flight_order_path` in `msfs_quickstart` is set once it is ready, so the client can poll for it. The
   website's self-registration now shares the code that creates the flight (`services/self_registration.py`).
