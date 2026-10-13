@@ -20,6 +20,7 @@ from display.models import (
     Team,
 )
 from display.models.my_user import MyUser
+from display.services.self_registration import create_self_managed_contestant
 from display.services.simulator_quickstart import (
     AIR_START_DISTANCE_M,
     air_start,
@@ -180,15 +181,28 @@ class TestSimulatorQuickstart(TestCase):
         self.assertEqual(1, Contestant.objects.filter(navigation_task=self.task).count())
         flight_order.assert_not_called()
 
-    def test_a_pilot_already_signed_up_keeps_their_own_team_and_speed(self):
+    def test_a_pilot_already_signed_up_keeps_their_team_but_flies_the_practice_speed(self):
         team = Team.objects.create(
             crew=Crew.objects.create(member1=self.pilot), aeroplane=Aeroplane.objects.create(registration="LN-OWN")
         )
-        ContestTeam.objects.create(contest=self.contest, team=team, air_speed=95)
+        contest_team = ContestTeam.objects.create(contest=self.contest, team=team, air_speed=200)
         response, _ = self.register()
         self.assertEqual(201, response.status_code, response.content)
         flight = Contestant.objects.get(pk=response.json()["registered_flight"]["id"])
         self.assertEqual(team, flight.team)
+        self.assertEqual(70, flight.air_speed, "the practice flight is always planned at the quickstart's speed")
+        self.assertEqual(70, response.json()["registered_flight"]["air_speed"])
+        contest_team.refresh_from_db()
+        self.assertEqual(200, contest_team.air_speed, "the pilot's own registration is not changed")
+
+    def test_the_website_registration_still_uses_the_teams_speed(self):
+        team = Team.objects.create(
+            crew=Crew.objects.create(member1=self.pilot), aeroplane=Aeroplane.objects.create(registration="LN-OWN")
+        )
+        contest_team = ContestTeam.objects.create(contest=self.contest, team=team, air_speed=95)
+        flight = create_self_managed_contestant(
+            self.task, contest_team, self.now + datetime.timedelta(hours=1), adaptive_start=True, wind_speed=0, wind_direction=0
+        )
         self.assertEqual(95, flight.air_speed)
 
     def test_the_flight_order_path_appears_once_it_is_made(self):

@@ -13,6 +13,21 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-13
+#### Backend
+- **The MSFS client counts in the app statistics.** Its requests (`X-App-Platform: msfs`) are now recorded like the phone apps',
+  so the admin "Mobile apps" panel lists it as "MSFS client" with its version and build, and shows where the pilot's simulator
+  aircraft is (the simulator tracking id) instead of their phone. It still cannot register for push notifications.
+- **Flight notifications for the MSFS client.** It has no push, so the notifications the phones get (tracking opens soon, no
+  positions, scoring started, tracking still on, flight scored) are also kept for a pilot who used the MSFS client in the last 30
+  days, with wording for the client ("press play"), and `GET userprofile/client_notifications/?after=<id>` returns the new ones
+  of the last 24 hours. "Tracking still on" now also looks at the simulator tracking id: the client is told about the simulator,
+  the phone only about the phone. Still only while `PUSH_NOTIFICATIONS_ENABLED` is on. Admins see them under "Client
+  notifications".
+- **The MSFS practice flight is always flown at the quickstart's speed.** A pilot already signed up for the practice contest got
+  their team's speed (e.g. 200 kt) on "Go flying"; the flight now gets the quickstart's speed (70 kt by default). Their team and
+  its speed in the contest are not changed, and the website's own registration still uses the team's speed.
+
 ### 2026-10-12
 #### Backend
 - **MSFS quickstart: a practice flight for new simulator pilots.** Admins set up a `SimulatorQuickstart` (Django admin): a

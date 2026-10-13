@@ -34,6 +34,7 @@ from display.models import (
     UserEntitlementGrant,
     MobileDevice,
     PushNotificationLog,
+    ClientNotification,
     SimulatorQuickstart,
 )
 from solo.admin import SingletonModelAdmin
@@ -454,3 +455,14 @@ class PushNotificationLogAdmin(ReadOnlyAdmin):
     search_fields = ("person__email",)
     ordering = ("-sent_at",)
     list_select_related = ("person", "contestant")
+
+
+@admin.register(ClientNotification)
+class ClientNotificationAdmin(ReadOnlyAdmin):
+    """The flight notifications kept for the MSFS client, which fetches them while it runs."""
+
+    list_display = ("created_at", "kind", "person", "title")
+    list_filter = ("kind",)
+    search_fields = ("person__email",)
+    ordering = ("-id",)
+    list_select_related = ("person",)

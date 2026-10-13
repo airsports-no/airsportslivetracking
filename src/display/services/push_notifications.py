@@ -1,5 +1,6 @@
 """
-Push notifications to the Airsports mobile apps through Firebase Cloud Messaging.
+Push notifications to the Airsports mobile apps through Firebase Cloud Messaging, and the same flight notifications for
+the MSFS client, which has no push: they are kept as ClientNotification rows that the client fetches while it runs.
 
 Nothing is sent unless ``settings.PUSH_NOTIFICATIONS_ENABLED`` is true. FCM tokens that Google reports as dead are
 deleted so we stop sending to them.
@@ -14,7 +15,8 @@ from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.utils import timezone
 
-from display.models import Contestant, MobileDevice, Person, PushNotificationLog
+from display.models import ClientNotification, Contestant, MobileAppActivity, MobileDevice, Person, PushNotificationLog
+from display.models.mobile_device import PLATFORM_MSFS
 from display.services.received_positions import last_received_position_time
 from display.utilities.tracking_definitions import (
     TRACKING_COPILOT,
@@ -87,21 +89,68 @@ def _app_tracked_people(contestant: Contestant) -> list[Person]:
     return []  # hardware tracker: nothing for the phone to do
 
 
-def _notify_once(kind: str, contestant: Contestant, person: Person, title: str, body: str) -> bool:
-    """Sends at most once per (kind, contestant, person). Returns True when something was sent."""
-    if not person.mobile_devices.exists():
+# A pilot who used the MSFS client this recently gets the flight notifications there too.
+MSFS_CLIENT_ACTIVE_DAYS = 30
+# How long the client can still fetch a notification (it shows only the ones that arrive while it runs).
+CLIENT_NOTIFICATION_KEEP_DAYS = 7
+
+
+def uses_msfs_client(person: Person, now: datetime.datetime = None) -> bool:
+    """The person's MSFS client has talked to the server in the last MSFS_CLIENT_ACTIVE_DAYS."""
+    now = now or timezone.now()
+    return MobileAppActivity.objects.filter(
+        platform=PLATFORM_MSFS,
+        user__email__iexact=person.email,
+        last_seen__gte=now - datetime.timedelta(days=MSFS_CLIENT_ACTIVE_DAYS),
+    ).exists()
+
+
+def _notify_once(
+    kind: str,
+    contestant: Contestant,
+    person: Person,
+    title: str,
+    body: str,
+    client_body: str = None,
+    to_phone: bool = True,
+    to_client: bool = True,
+    now: datetime.datetime = None,
+) -> bool:
+    """
+    Sends at most once per (kind, contestant, person): by push to the person's phones, and to the MSFS client's
+    notifications when they use it ([client_body] instead of [body] there, for text about the phone). [to_phone] /
+    [to_client] limit it to one of them. Returns True when something was sent.
+    """
+    phone = to_phone and person.mobile_devices.exists()
+    client = to_client and uses_msfs_client(person, now)
+    if not phone and not client:
         return False
     try:
         with transaction.atomic():
             log = PushNotificationLog.objects.create(kind=kind, contestant=contestant, person=person)
     except IntegrityError:
         return False  # already sent
-    reached = send_to_person(
-        person,
-        title,
-        body,
-        {"type": kind, "contestant_id": str(contestant.pk), "navigation_task_id": str(contestant.navigation_task_id)},
-    )
+    reached = 0
+    if phone:
+        reached += send_to_person(
+            person,
+            title,
+            body,
+            {"type": kind, "contestant_id": str(contestant.pk), "navigation_task_id": str(contestant.navigation_task_id)},
+        )
+    if client:
+        ClientNotification.objects.create(
+            person=person,
+            kind=kind,
+            title=title,
+            body=client_body or body,
+            contestant=contestant,
+            navigation_task_id=contestant.navigation_task_id,
+        )
+        ClientNotification.objects.filter(
+            person=person, created_at__lt=timezone.now() - datetime.timedelta(days=CLIENT_NOTIFICATION_KEEP_DAYS)
+        ).delete()
+        reached += 1
     if reached == 0:
         # Nothing got through (FCM error or only dead tokens): forget it so the next run can retry.
         log.delete()
@@ -133,6 +182,9 @@ def notify_upcoming_tracking_windows(now: datetime.datetime = None) -> int:
                 "Tracking opens soon",
                 f"{contestant.navigation_task.name}: tracking opens in about {minutes} min. "
                 "Open Airsports and tap Start tracking.",
+                client_body=f"{contestant.navigation_task.name}: tracking opens in about {minutes} min. "
+                "Have MSFS and the Air Sports client running, and press play to start tracking.",
+                now=now,
             ):
                 sent += 1
     return sent
@@ -160,6 +212,9 @@ def notify_not_tracking(now: datetime.datetime = None) -> int:
                 "We are not receiving your position",
                 f"{contestant.navigation_task.name} has started but no positions have arrived. "
                 "Open Airsports and make sure tracking is on.",
+                client_body=f"{contestant.navigation_task.name} has started but no positions have arrived. "
+                "Make sure the Air Sports client is connected to MSFS and tracking is on (the play button).",
+                now=now,
             ):
                 sent += 1
     return sent
@@ -189,6 +244,7 @@ def notify_scoring_started(now: datetime.datetime = None) -> int:
                 "Your flight is being scored",
                 f"{contestant.navigation_task.name}: your positions are arriving and scoring has started. "
                 "Everything is working.",
+                now=now,
             ):
                 sent += 1
     return sent
@@ -197,8 +253,9 @@ def notify_scoring_started(now: datetime.datetime = None) -> int:
 def notify_still_tracking(now: datetime.datetime = None) -> int:
     """
     'Your flight window closed N minutes ago and your phone is still sending positions': a phone left tracking after landing
-    drains its battery and may keep recording. Not sent when the pilot has another flight open or about to open (tracking
-    through several flights is normal), and at most once per flight.
+    drains its battery and may keep recording. The same for the MSFS client left tracking (its simulator tracking id): that
+    message goes to the client only, and the phone's only to the phone. Not sent when the pilot has another flight open or
+    about to open (tracking through several flights is normal), and at most once per flight.
     """
     if not settings.PUSH_NOTIFICATIONS_ENABLED:
         return 0
@@ -212,22 +269,34 @@ def notify_still_tracking(now: datetime.datetime = None) -> int:
     sent = 0
     for contestant in contestants:
         for person in _app_tracked_people(contestant):
-            heard = last_received_position_time(person.app_tracking_id)
-            if heard is None or heard < now - datetime.timedelta(minutes=2):
-                continue  # the phone has stopped sending
+            phone_sending = _still_sending(person.app_tracking_id, now)
+            simulator_sending = _still_sending(person.simulator_tracking_id, now)
+            if not phone_sending and not simulator_sending:
+                continue  # both have stopped sending
             if _has_flight_open_or_soon(person, now):
                 continue
             minutes = int((now - contestant.finished_by_time).total_seconds() // 60)
+            closed = f"The tracking window for {contestant.navigation_task.name} closed {minutes} minutes ago, but "
             if _notify_once(
                 PushNotificationLog.KIND_STILL_TRACKING,
                 contestant,
                 person,
                 "Tracking is still on",
-                f"The tracking window for {contestant.navigation_task.name} closed {minutes} minutes ago, but your phone is "
-                "still sending positions. Open Airsports and stop tracking if you have landed.",
+                closed + "your phone is still sending positions. Open Airsports and stop tracking if you have landed.",
+                client_body=closed + "the Air Sports client is still sending positions from the simulator. "
+                "Stop tracking in the client if you have landed.",
+                to_phone=phone_sending,
+                to_client=simulator_sending,
+                now=now,
             ):
                 sent += 1
     return sent
+
+
+def _still_sending(device: str, now: datetime.datetime) -> bool:
+    """Positions from [device] arrived in the last two minutes."""
+    heard = last_received_position_time(device) if device else None
+    return heard is not None and heard >= now - datetime.timedelta(minutes=2)
 
 
 def _has_flight_open_or_soon(person: Person, now: datetime.datetime) -> bool:
@@ -266,7 +335,7 @@ def notify_flight_scored(now: datetime.datetime = None) -> int:
         if now < released_at:
             continue  # the organizer still holds the scores back (or the last scoring has not settled)
         for person in _app_tracked_people(contestant):
-            if not person.mobile_devices.exists():
+            if not person.mobile_devices.exists() and not uses_msfs_client(person, now):
                 continue
             user = MyUser.objects.filter(email=person.email).first()
             if not can_view_task_map(user, task):
@@ -278,6 +347,7 @@ def notify_flight_scored(now: datetime.datetime = None) -> int:
                 person,
                 "Live scoring has finished",
                 f"{task.name}: {points:g} points. The organizers can still adjust the result.",
+                now=now,
             ):
                 sent += 1
     return sent

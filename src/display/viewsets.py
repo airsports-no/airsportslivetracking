@@ -577,6 +577,36 @@ class UserPersonViewSet(GenericViewSet):
         register(request.user, person)
         return Response(quickstart_for(person, user=request.user), status=status.HTTP_201_CREATED)
 
+    @action(detail=False, methods=["get"])
+    def client_notifications(self, request, *args, **kwargs):
+        """
+        The MSFS client's flight notifications (it has no push): the pilot's notifications of the last 24 hours, newest
+        first, at most 20. ``?after=<id>`` returns only newer ones; the client remembers the newest id it has seen.
+        """
+        from display.models import ClientNotification
+
+        try:
+            after = int(request.query_params.get("after") or 0)
+        except ValueError:
+            raise drf_exceptions.ValidationError({"after": "Must be a notification id."})
+        rows = ClientNotification.objects.filter(
+            person=self.get_object(), id__gt=after, created_at__gte=timezone.now() - datetime.timedelta(hours=24)
+        ).order_by("-id")[:20]
+        return Response(
+            [
+                {
+                    "id": row.pk,
+                    "kind": row.kind,
+                    "title": row.title,
+                    "body": row.body,
+                    "contestant_id": row.contestant_id,
+                    "navigation_task_id": row.navigation_task_id,
+                    "created_at": row.created_at,
+                }
+                for row in rows
+            ]
+        )
+
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):
         kwargs["partial"] = True

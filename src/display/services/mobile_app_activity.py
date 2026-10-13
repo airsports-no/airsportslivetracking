@@ -7,7 +7,7 @@ from django.core.cache import cache
 from django.utils import timezone
 
 from display.models import MobileAppActivity, Person
-from display.models.mobile_device import PLATFORM_ANDROID, PLATFORM_IOS
+from display.models.mobile_device import APP_PLATFORMS, PLATFORM_MSFS
 from display.services.received_positions import last_received_coordinates
 
 PLATFORM_HEADER = "HTTP_X_APP_PLATFORM"
@@ -20,15 +20,15 @@ WRITE_INTERVAL_SECONDS = 60
 
 def record_app_activity(request) -> bool:
     """
-    Notes that the signed-in user's app just made a request, from the headers the apps send (X-App-Platform, X-App-Version,
-    X-App-Build). Does nothing for other clients, anonymous users, or when it has already been noted this minute.
-    Returns True when a row was written.
+    Notes that the signed-in user's app (Android, iOS or the MSFS client) just made a request, from the headers the apps
+    send (X-App-Platform, X-App-Version, X-App-Build). Does nothing for other clients, anonymous users, or when it has
+    already been noted this minute. Returns True when a row was written.
     """
     user = getattr(request, "user", None)
     if user is None or not getattr(user, "is_authenticated", False):
         return False
     platform = request.META.get(PLATFORM_HEADER, "").strip().lower()
-    if platform not in (PLATFORM_ANDROID, PLATFORM_IOS):
+    if platform not in {key for key, _ in APP_PLATFORMS}:
         return False
     version = request.META.get(VERSION_HEADER, "").strip()[:40]
     build = request.META.get(BUILD_HEADER, "").strip()[:20]
@@ -51,7 +51,7 @@ def connected_apps(minutes: int, now: Optional[datetime.datetime] = None) -> dic
         .select_related("user")
         .order_by("-last_seen")
     )
-    # The last position the tracking stream delivered for each person's phone (nothing is sent by the app for this).
+    # The last position the tracking stream delivered for each person's phone or simulator (nothing is sent by the app for this).
     people = {p.email.lower(): p for p in Person.objects.filter(email__in=[row.user.email for row in rows])}
     by_version: dict[tuple, int] = {}
     for row in rows:
@@ -72,16 +72,22 @@ def connected_apps(minutes: int, now: Optional[datetime.datetime] = None) -> dic
                 "app_version": row.app_version,
                 "app_build": row.app_build,
                 "last_seen": row.last_seen,
-                "position": _position_of(people.get((row.user.email or "").lower())),
+                "position": _position_of(people.get((row.user.email or "").lower()), row.platform),
             }
             for row in rows
         ],
     }
 
 
-def _position_of(person: Optional[Person]) -> Optional[dict]:
-    """Where the person's phone last reported from, with the time of that report; None when no position is known."""
-    coordinates = last_received_coordinates(person.app_tracking_id) if person else None
+def _position_of(person: Optional[Person], platform: str) -> Optional[dict]:
+    """
+    Where the person's phone, or for the MSFS client their simulator, last reported from, with the time of that report;
+    None when no position is known.
+    """
+    if person is None:
+        return None
+    device = person.simulator_tracking_id if platform == PLATFORM_MSFS else person.app_tracking_id
+    coordinates = last_received_coordinates(device) if device else None
     if not coordinates:
         return None
     return {"latitude": coordinates["latitude"], "longitude": coordinates["longitude"], "time": coordinates["time"]}
