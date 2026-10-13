@@ -69,3 +69,26 @@ class PushNotificationLog(models.Model):
         constraints = [
             models.UniqueConstraint(fields=["kind", "contestant", "person"], name="unique_push_per_contestant_person")
         ]
+
+
+class ClientNotification(models.Model):
+    """
+    A pilot notification for the MSFS client, which has no push: the same messages the phones get by push
+    (PushNotificationLog kinds), kept for a while so the client can fetch the new ones while it runs
+    (``userprofile/client_notifications``) and show them as Windows notifications and in the simulator.
+    """
+
+    person = models.ForeignKey(Person, on_delete=models.CASCADE, related_name="client_notifications")
+    kind = models.CharField(max_length=40, choices=PushNotificationLog.KINDS)
+    title = models.CharField(max_length=200)
+    body = models.TextField()
+    contestant = models.ForeignKey("display.Contestant", on_delete=models.SET_NULL, null=True, blank=True)
+    navigation_task_id = models.IntegerField(null=True, blank=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+
+    class Meta:
+        ordering = ("-id",)
+        indexes = [models.Index(fields=["person", "id"], name="client_notification_person")]
+
+    def __str__(self):
+        return f"{self.person}: {self.title}"
