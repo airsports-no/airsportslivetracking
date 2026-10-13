@@ -550,6 +550,33 @@ class UserPersonViewSet(GenericViewSet):
             ]
         )
 
+    @action(detail=False, methods=["get"])
+    def msfs_quickstart(self, request, *args, **kwargs):
+        """
+        The practice flight the MSFS client offers new pilots: the task, where to start in the simulator, the registration
+        page and whether this pilot has registered. 404 when none is offered.
+        """
+        from display.services.simulator_quickstart import quickstart_for
+
+        quickstart = quickstart_for(self.get_object(), user=request.user)
+        if quickstart is None:
+            raise Http404
+        return Response(quickstart)
+
+    @action(detail=False, methods=["post"])
+    def msfs_quickstart_register(self, request, *args, **kwargs):
+        """
+        One-press registration for the practice flight, with the quickstart's aircraft, club and speed, no wind and an
+        adaptive start. Answers like msfs_quickstart, now with registered_flight. 400 when nothing is offered or the pilot
+        cannot register.
+        """
+        from display.services.simulator_quickstart import quickstart_for, register
+
+        # The person first: a pilot who has never made a profile request has none yet (get_object makes it)
+        person = self.get_object()
+        register(request.user, person)
+        return Response(quickstart_for(person, user=request.user), status=status.HTTP_201_CREATED)
+
     @action(detail=False, methods=["patch"])
     def partial_update_profile(self, request, *args, **kwargs):
         kwargs["partial"] = True
@@ -2357,56 +2384,18 @@ class NavigationTaskViewSet(ModelViewSet):
             assert_can_self_register_contestant(navigation_task, contest_team)
             if contest_team.team.crew.member1.email != request.user.email:
                 raise drf_exceptions.ValidationError("You cannot add a team where you are not the pilot")
+            from display.services.self_registration import create_self_managed_contestant
+
             # Pretend that the submitted time is in the contest time zone
-            starting_point_time = serialiser.validated_data["starting_point_time"]
-            takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
-            existing_contestants = navigation_task.contestant_set.all()
-            if existing_contestants.exists():
-                contestant_number = max([item.contestant_number for item in existing_contestants]) + 1
-            else:
-                contestant_number = 1
-            adaptive_start = serialiser.validated_data["adaptive_start"]
-            tracker_start_time = takeoff_time - datetime.timedelta(minutes=10)
-            if adaptive_start:
-                tracker_start_time = starting_point_time - datetime.timedelta(hours=1)
-                takeoff_time = tracker_start_time
-
-            contestant = Contestant(
-                team=contest_team.team,
-                takeoff_time=takeoff_time,
-                navigation_task=navigation_task,
-                tracker_start_time=tracker_start_time,
-                adaptive_start=adaptive_start,
-                finished_by_time=tracker_start_time + datetime.timedelta(days=1) - datetime.timedelta(minutes=1),
-                minutes_to_starting_point=navigation_task.minutes_to_starting_point,
-                air_speed=contest_team.air_speed,
-                contestant_number=contestant_number,
-                wind_speed=serialiser.validated_data["wind_speed"],
-                wind_direction=serialiser.validated_data["wind_direction"],
+            contestant = create_self_managed_contestant(
+                navigation_task,
+                contest_team,
+                serialiser.validated_data["starting_point_time"],
+                serialiser.validated_data["adaptive_start"],
+                serialiser.validated_data["wind_speed"],
+                serialiser.validated_data["wind_direction"],
+                serialiser.validated_data.get("declaration_payload"),
             )
-            logger.debug("Created contestant")
-            final_time = takeoff_time + contestant.flight_duration
-            logger.debug(f"Final gate time is {final_time}")
-
-            if final_time is None:
-                final_time = starting_point_time
-            if adaptive_start:
-                duration = final_time - starting_point_time
-                # Properly account for how final time is created when adaptive start is active
-                final_time = starting_point_time + datetime.timedelta(hours=1) + duration
-            logger.debug(f"Take-off time is {contestant.takeoff_time}")
-            logger.debug(f"Final time is {final_time}")
-            contestant.finished_by_time = final_time + datetime.timedelta(
-                minutes=navigation_task.minutes_to_landing + 2
-            )
-            logger.debug(f"Finished by time is {contestant.finished_by_time}")
-
-            contestant.save()
-            declaration_payload = ContestantTaskCompiler(contestant).build_declaration_payload_from_input(
-                serialiser.validated_data.get("declaration_payload")
-            )
-            ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=True)
-            logger.debug("Updated contestant")
             # mail_link = EmailMapLink.objects.create(contestant=contestant)
             # mail_link.send_email(request.user.email, request.user.first_name)
             generate_and_maybe_notify_flight_order.apply_async(

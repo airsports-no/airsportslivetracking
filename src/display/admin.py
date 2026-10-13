@@ -34,6 +34,7 @@ from display.models import (
     UserEntitlementGrant,
     MobileDevice,
     PushNotificationLog,
+    SimulatorQuickstart,
 )
 from solo.admin import SingletonModelAdmin
 
@@ -54,6 +55,14 @@ class ContestantInline(admin.TabularInline):
 
 class NavigationTaskAdmin(admin.ModelAdmin):
     inlines = (ContestantInline,)
+
+
+class SimulatorQuickstartAdmin(admin.ModelAdmin):
+    """The practice flight the MSFS client offers new pilots (newest active one)."""
+
+    list_display = ("__str__", "navigation_task", "start_location", "active", "created_at")
+    list_filter = ("active",)
+    raw_id_fields = ("navigation_task",)
 
 
 class PersonAdmin(admin.ModelAdmin):
@@ -362,6 +371,7 @@ admin.site.register(Contest, ContestAdmin)
 # roadmap) - nothing writes real GateScore rows anymore, so nothing to edit; the table
 # itself is still around as a historical snapshot until it's dropped for real.
 admin.site.register(Aeroplane)
+admin.site.register(SimulatorQuickstart, SimulatorQuickstartAdmin)
 admin.site.register(Team)
 admin.site.register(Crew)
 admin.site.register(Contestant, ContestantTrackAdmin)

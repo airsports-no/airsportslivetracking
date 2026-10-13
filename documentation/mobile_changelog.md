@@ -15,6 +15,21 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-12
 #### Backend
+- **MSFS quickstart: a practice flight for new simulator pilots.** Admins set up a `SimulatorQuickstart` (Django admin): a
+  self-managed navigation task, where to start in the simulator as text (e.g. "Kjeller (ENKJ), runway 30") and an altitude for an
+  in-air start. `GET userprofile/msfs_quickstart/` gives the MSFS client the newest active one (404 when none): task, start text,
+  a ground start (take-off gate, runway heading) and an air start (2 NM before the starting point on course) computed from the
+  route, the registration page and the pilot's own registration.
+- **MSFS quickstart: one-press registration.** `POST userprofile/msfs_quickstart_register/` signs the pilot up for the practice
+  contest with the quickstart's aircraft, club and speed (defaults "MSFS", "MSFS pilots", 70 kt; a pilot already signed up keeps
+  their own team) and sets up the flight with no wind and an adaptive start whose window is open now (two hours to cross the
+  starting line). Registering again returns the same flight. The flight order is made in the background and e-mailed as on the
+  website; `registered_flight.flight_order_path` in `msfs_quickstart` is set once it is ready, so the client can poll for it. The
+  website's self-registration now shares the code that creates the flight (`services/self_registration.py`).
+- **MSFS quickstart follows the website's visibility rule.** A practice flight in a non-public task or contest is only offered
+  (`msfs_quickstart`, otherwise 404) and registered for (`msfs_quickstart_register`, otherwise 400) when the signed-in user may view
+  the contest; a public task in a public contest is offered to everybody, as before. A new pilot who has no profile yet can press
+  register straight away, and a double press makes one flight.
 - **Photo observations close five minutes after the tracking window, and until then everything can be changed.** The registration
   grace period was 12 hours; it is now five minutes at most (`OBSERVATION_REGISTRATION_GRACE_MINUTES` can only shorten it). Until then
   the crew can mark, change (replace) and cancel observations; after that nothing can be registered, changed or cancelled (409). The
