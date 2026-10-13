@@ -13,6 +13,12 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-13
+#### Backend
+- **The MSFS client counts in the app statistics.** Its requests (`X-App-Platform: msfs`) are now recorded like the phone apps',
+  so the admin "Mobile apps" panel lists it as "MSFS client" with its version and build, and shows where the pilot's simulator
+  aircraft is (the simulator tracking id) instead of their phone. It still cannot register for push notifications.
+
 ### 2026-10-12
 #### Backend
 - **MSFS quickstart: a practice flight for new simulator pilots.** Admins set up a `SimulatorQuickstart` (Django admin): a

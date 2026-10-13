@@ -45,6 +45,20 @@ class TestRecordingAppActivity(TestCase):
         self.assertEqual(MobileAppActivity.objects.get(user=self.user).app_build, "101")
         self.assertEqual(MobileAppActivity.objects.filter(user=self.user).count(), 1)
 
+    def test_notes_the_msfs_client_as_its_own_platform(self):
+        self.assertEqual(self.get(**self.app_headers(platform="msfs", build="35")).status_code, 200)
+        row = MobileAppActivity.objects.get(user=self.user)
+        self.assertEqual((row.platform, row.app_version, row.app_build), ("msfs", self.version, "35"))
+        # A pilot with the phone app and the MSFS client has one row for each.
+        self.get(**self.app_headers(platform="android"))
+        self.assertEqual(set(MobileAppActivity.objects.filter(user=self.user).values_list("platform", flat=True)), {"msfs", "android"})
+
+    def test_the_msfs_client_cannot_register_for_push_notifications(self):
+        response = self.client.post(
+            "/api/v1/userprofile/register_device/", {"platform": "msfs", "push_token": unique("t")}, format="json"
+        )
+        self.assertEqual(response.status_code, 400)
+
     def test_ignores_requests_that_do_not_come_from_the_app(self):
         self.get()
         self.get(HTTP_X_APP_PLATFORM="windows", HTTP_X_APP_VERSION=self.version)
@@ -92,6 +106,19 @@ class TestAdminMobileApps(TestCase):
         users = {u["email"]: u for u in connected_apps(15)["users"]}
         self.assertEqual((users[self.pilot.email]["position"]["latitude"], users[self.pilot.email]["position"]["longitude"]), (59.9139, 10.7522))
         self.assertIsNone(users[no_position.email]["position"])
+
+    def test_the_msfs_client_shows_where_the_simulator_aircraft_is(self):
+        from display.services.received_positions import note_position_received
+
+        person = Person.objects.create(first_name="Pi", last_name="Lot", email=self.pilot.email)
+        self.assertTrue(person.simulator_tracking_id)
+        self.seen(self.pilot, "msfs", "2.0.0", "35", 1)
+        note_position_received(person.app_tracking_id, timezone.now(), 1.0, 1.0)  # the phone, elsewhere
+        note_position_received(person.simulator_tracking_id, timezone.now(), 59.97, 11.03)
+        result = connected_apps(15)
+        self.assertEqual({(v["platform"], v["app_build"]) for v in result["by_version"]}, {("msfs", "35")})
+        position = result["users"][0]["position"]
+        self.assertEqual((position["latitude"], position["longitude"]), (59.97, 11.03))
 
     def test_coordinates_are_refreshed_at_most_every_few_seconds(self):
         from display.services.received_positions import last_received_coordinates, note_position_received

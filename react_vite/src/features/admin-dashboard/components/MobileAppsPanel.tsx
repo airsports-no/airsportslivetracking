@@ -10,7 +10,7 @@ const WINDOWS: { minutes: number; label: string }[] = [
     { minutes: 7 * 24 * 60, label: 'Last 7 days' },
 ];
 
-const PLATFORM_LABEL = { android: 'Android', ios: 'iOS' } as const;
+const PLATFORM_LABEL = { android: 'Android', ios: 'iOS', msfs: 'MSFS client' } as const;
 
 /** "12 s ago", "5 min ago" or "2 h ago". */
 const ageLabel = (iso: string) => {
@@ -78,7 +78,7 @@ export default function MobileAppsPanel() {
                         <div className="text-sm opacity-75">
                             {data.total} {data.total === 1 ? 'user' : 'users'} with the app in the chosen period. A user counts when
                             their app made a request: at start-up, and every few seconds while tracking. The position is the last one
-                            the tracking stream delivered, if any.
+                            the tracking stream delivered, if any (for the MSFS client: the simulator aircraft).
                         </div>
 
                         <div>

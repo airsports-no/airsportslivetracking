@@ -10,6 +10,10 @@ logger = logging.getLogger(__name__)
 PLATFORM_ANDROID = "android"
 PLATFORM_IOS = "ios"
 MOBILE_PLATFORMS = ((PLATFORM_ANDROID, "Android"), (PLATFORM_IOS, "iOS"))
+# The Windows client for Microsoft Flight Simulator. It reports its activity like the phone apps but has no push
+# notifications, so it is not one of the MOBILE_PLATFORMS a device token can be registered for.
+PLATFORM_MSFS = "msfs"
+APP_PLATFORMS = MOBILE_PLATFORMS + ((PLATFORM_MSFS, "MSFS client"),)
 
 
 class MobileDevice(models.Model):

@@ -128,7 +128,7 @@ export const fetchAdminActivityTrends = async (days: number, bin: FlightStatsBin
 };
 
 export interface MobileAppVersionRow {
-    platform: 'android' | 'ios';
+    platform: 'android' | 'ios' | 'msfs';
     app_version: string;
     app_build: string;
     users: number;
@@ -137,7 +137,7 @@ export interface MobileAppVersionRow {
 export interface MobileAppUserRow {
     name: string;
     email: string;
-    platform: 'android' | 'ios';
+    platform: 'android' | 'ios' | 'msfs';
     app_version: string;
     app_build: string;
     last_seen: string;
