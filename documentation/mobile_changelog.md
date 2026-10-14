@@ -28,6 +28,12 @@ that says what a pilot, an organiser or an admin gets.
   their team's speed (e.g. 200 kt) on "Go flying"; the flight now gets the quickstart's speed (70 kt by default). Their team and
   its speed in the contest are not changed, and the website's own registration still uses the team's speed.
 
+### 2026-10-14
+#### App
+- **"Restore purchases" now really restores.** The button used to re-read the subscription only; it now asks the store to sync first (iOS
+  `AppStore.sync()`, which may ask for the Apple ID password) and then says what it found ("Your subscription was found" or why not). On iOS
+  the message notes that App Store purchases are not visible in TestFlight builds, which use a test store.
+
 ### 2026-10-12
 #### Backend
 - **MSFS quickstart: a practice flight for new simulator pilots.** Admins set up a `SimulatorQuickstart` (Django admin): a
