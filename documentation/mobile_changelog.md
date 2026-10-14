@@ -13,6 +13,14 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-14
+#### Backend
+- **Sign in to the MSFS client with Google or Apple.** The client opens `accounts/desktop_sign_in/` in the browser, where
+  the person signs in with the website's Google / Apple buttons. The browser is then sent back to the client on the same
+  PC (`http://127.0.0.1:<port>/callback`) with a one-time code, which the client trades, together with a secret only it
+  holds (as in OAuth PKCE), for a Firebase custom token (`accounts/desktop_sign_in/token/`): the same Firebase user as on
+  the website and in the apps. Codes expire after two minutes and work once. Off when `SOCIAL_LOGIN_ENABLED` is off.
+
 ### 2026-10-13
 #### Backend
 - **The MSFS client counts in the app statistics.** Its requests (`X-App-Platform: msfs`) are now recorded like the phone apps',

@@ -1,0 +1,28 @@
+{% extends "base_tailwind.html" %}
+
+{% comment %}
+Sign in to the Airsports client for MSFS (Windows) with Google or Apple. The client opens this page in the browser; after
+the sign-in the browser is sent back to the client on this PC (display.views_social_login.desktop_sign_in).
+{% endcomment %}
+
+{% block content %}
+<div class="hero min-h-screen bg-base-200">
+  <div class="card shrink-0 w-full max-w-sm shadow-2xl bg-base-100">
+    <div class="card-body">
+      <h1 class="text-2xl font-bold">Sign in to the Airsports client</h1>
+      {% if error %}
+        <div role="alert" class="alert alert-error"><span>{{ error }}</span></div>
+        <p class="text-sm">Start the sign-in again from the Airsports client.</p>
+      {% elif not social_login_enabled %}
+        <div role="alert" class="alert alert-warning"><span>Sign-in with Google or Apple is not available right now. Sign in with your email and password in the client.</span></div>
+      {% else %}
+        <p class="text-sm">
+          Sign in here, and the Airsports client on this PC signs you in with the same account as on the website and in
+          the Air Sports app.
+        </p>
+        {% include "registration/_social_login.html" with social_login_endpoint=complete_endpoint social_login_provider=provider social_login_no_divider=True %}
+      {% endif %}
+    </div>
+  </div>
+</div>
+{% endblock %}

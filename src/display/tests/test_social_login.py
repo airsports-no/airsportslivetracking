@@ -140,3 +140,116 @@ class FirebaseWebLoginTest(TestCase):
     def test_it_is_off_when_switched_off(self):
         with self.authenticate:
             self.assertEqual(self.post({"id_token": "token"}).status_code, 404)
+
+
+class DesktopSignInTest(TestCase):
+    """Google / Apple sign-in for the MSFS client: browser page, loopback callback, code + verifier for a custom token."""
+
+    VERIFIER = "v" * 50
+    # base64url(sha256(VERIFIER)) without padding, as the client sends it
+    CHALLENGE = __import__("base64").urlsafe_b64encode(__import__("hashlib").sha256(b"v" * 50).digest()).rstrip(b"=").decode()
+    STATE = "s" * 32
+
+    def setUp(self):
+        from django.core.cache import cache
+
+        cache.clear()
+        self.user = get_user_model().objects.create_user(username="pilot@example.com", email="pilot@example.com")
+        self.authenticate = patch(
+            "display.authentication.FirebaseTokenAuthentication.authenticate_credentials",
+            return_value=(self.user, {"uid": "firebase-uid-1"}),
+        )
+        self.person = patch("display.views_social_login._ensure_person")
+        self.person.start()
+        self.addCleanup(self.person.stop)
+
+    def query(self, **overrides):
+        params = {"port": "53682", "state": self.STATE, "code_challenge": self.CHALLENGE}
+        params.update(overrides)
+        return "&".join(f"{k}={v}" for k, v in params.items())
+
+    def complete(self, client=None, **overrides):
+        client = client or Client(enforce_csrf_checks=False)
+        with self.authenticate:
+            return client.post(
+                f"{reverse('desktop_sign_in_complete')}?{self.query(**overrides)}",
+                json.dumps({"id_token": "token"}),
+                content_type="application/json",
+            )
+
+    def code_from(self, response) -> str:
+        redirect = response.json()["redirect"]
+        self.assertTrue(redirect.startswith("http://127.0.0.1:53682/callback?code="), redirect)
+        self.assertTrue(redirect.endswith(f"&state={self.STATE}"))
+        return redirect.split("code=")[1].split("&")[0]
+
+    def token(self, code, verifier=None):
+        return self.client.post(
+            reverse("desktop_sign_in_token"),
+            json.dumps({"code": code, "code_verifier": verifier or self.VERIFIER}),
+            content_type="application/json",
+        )
+
+    def test_the_page_has_the_buttons_and_finishes_at_the_desktop_endpoint(self):
+        response = self.client.get(f"{reverse('desktop_sign_in')}?{self.query(provider='apple')}")
+        self.assertEqual(response.status_code, 200)
+        self.assertContains(response, 'data-provider="apple"')
+        self.assertNotContains(response, 'data-provider="google"')  # the client asked for Apple
+        self.assertContains(response, f"{reverse('desktop_sign_in_complete')}?port=53682&amp;state={self.STATE}")
+        self.assertEqual(response["Cross-Origin-Opener-Policy"], "same-origin-allow-popups")
+        self.assertIn("csrftoken", response.cookies)  # SocialLogin.tsx sends it
+
+    def test_a_bad_link_is_refused(self):
+        for overrides in ({"port": "80"}, {"port": "x"}, {"state": "short"}, {"code_challenge": "abc"}, {"provider": "facebook"}):
+            response = self.client.get(f"{reverse('desktop_sign_in')}?{self.query(**overrides)}")
+            self.assertEqual(response.status_code, 400, overrides)
+            self.assertNotContains(response, "data-provider", status_code=400)
+
+    def test_the_client_gets_a_custom_token_for_the_same_firebase_user_once(self):
+        response = self.complete()
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("_auth_user_id", self.client.session)  # no website session: the sign-in is for the client
+        code = self.code_from(response)
+        with patch("display.auth_backends.FirebaseMigrationBackend._initialize_firebase"), patch(
+            "firebase_admin.auth.create_custom_token", return_value=b"custom-token"
+        ) as create:
+            first = self.token(code)
+            second = self.token(code)
+        self.assertEqual(first.json(), {"custom_token": "custom-token"})
+        create.assert_called_once_with("firebase-uid-1")
+        self.assertEqual(second.status_code, 400)  # a code works once
+
+    def test_the_code_is_useless_without_the_clients_secret(self):
+        code = self.code_from(self.complete())
+        with patch("firebase_admin.auth.create_custom_token") as create:
+            response = self.token(code, verifier="w" * 50)
+            self.assertEqual(response.status_code, 400)
+            self.assertEqual(self.token(code).status_code, 400)  # and it is gone after the failed try
+        create.assert_not_called()
+
+    def test_a_token_firebase_does_not_accept_is_refused(self):
+        failing = patch(
+            "display.authentication.FirebaseTokenAuthentication.authenticate_credentials",
+            side_effect=drf_exceptions.AuthenticationFailed("bad"),
+        )
+        with failing:
+            response = Client().post(
+                f"{reverse('desktop_sign_in_complete')}?{self.query()}",
+                json.dumps({"id_token": "token"}),
+                content_type="application/json",
+            )
+        self.assertEqual(response.status_code, 401)
+        self.assertIn("error", response.json())
+
+    def test_the_complete_step_needs_the_csrf_token_like_the_login_page(self):
+        response = self.complete(client=Client(enforce_csrf_checks=True))
+        self.assertEqual(response.status_code, 403)
+
+    @override_settings(SOCIAL_LOGIN_ENABLED=False)
+    def test_nothing_works_when_social_login_is_off(self):
+        response = self.client.get(f"{reverse('desktop_sign_in')}?{self.query()}")
+        self.assertNotContains(response, "data-provider")
+        self.assertEqual(self.complete().status_code, 404)
+
+    def test_the_done_page_sends_the_person_back_to_the_client(self):
+        self.assertContains(self.client.get(reverse("desktop_sign_in_done")), "Go back to the Airsports client")
