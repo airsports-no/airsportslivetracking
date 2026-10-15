@@ -28,6 +28,13 @@ that says what a pilot, an organiser or an admin gets.
   their team's speed (e.g. 200 kt) on "Go flying"; the flight now gets the quickstart's speed (70 kt by default). Their team and
   its speed in the contest are not changed, and the website's own registration still uses the team's speed.
 
+### 2026-10-15
+#### App
+- **Android test builds can be uploaded to Google Play from CI.** The manual `android-release` workflow builds the signed release bundle with the
+  new upload key (version name from `version.properties`, build number 200 plus the run number), checks that it is signed and uploads it, with the
+  R8 mapping file, to a Play track (internal testing by default). It needs the keystore, the real `google-services.json` and a Play
+  service-account key as repository secrets.
+
 ### 2026-10-14
 #### App
 - **"Restore purchases" now really restores.** The button used to re-read the subscription only; it now asks the store to sync first (iOS
