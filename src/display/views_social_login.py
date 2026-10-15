@@ -234,8 +234,11 @@ def desktop_sign_in_complete(request):
 def desktop_sign_in_token(request):
     """
     POST {"code": <from the callback>, "code_verifier": <the client's secret>} from the client. Answers
-    {"custom_token": <Firebase custom token>} once per code, or {"error": ...} with 400.
+    {"custom_token": <Firebase custom token>} once per code, or {"error": ...} with 400 (bad or used code), 404 (switched
+    off) or 503 (Firebase could not make the token).
     """
+    if not getattr(settings, "SOCIAL_LOGIN_ENABLED", False):
+        return JsonResponse({"error": "Sign-in with Google or Apple is not enabled."}, status=404)
     try:
         payload = json.loads(request.body or b"{}")
     except ValueError:
@@ -245,8 +248,12 @@ def desktop_sign_in_token(request):
     if not isinstance(code, str) or not isinstance(verifier, str) or not code or not verifier:
         return JsonResponse({"error": "Invalid request."}, status=400)
     key = _desktop_code_key(code)
+    # Once, whatever happens next, also for two requests at the same moment: cache.add is atomic (only one of them
+    # adds the claim), where a get followed by a delete would let both read the code.
+    if not cache.add(f"{key}:claimed", 1, DESKTOP_CODE_SECONDS):
+        return JsonResponse({"error": "The sign-in has expired. Please sign in again."}, status=400)
     entry = cache.get(key)
-    cache.delete(key)  # once, whatever happens next
+    cache.delete(key)
     if not entry:
         return JsonResponse({"error": "The sign-in has expired. Please sign in again."}, status=400)
     expected = base64.urlsafe_b64encode(hashlib.sha256(verifier.encode()).digest()).rstrip(b"=").decode()
@@ -258,7 +265,12 @@ def desktop_sign_in_token(request):
     from display.auth_backends import FirebaseMigrationBackend
 
     FirebaseMigrationBackend()._initialize_firebase()
-    token = firebase_auth.create_custom_token(entry["uid"])
+    try:
+        token = firebase_auth.create_custom_token(entry["uid"])
+    except Exception:
+        # E.g. no service account key: answer in the client's JSON terms instead of an HTML error page
+        logger.exception("Could not create a Firebase custom token for the desktop sign-in")
+        return JsonResponse({"error": "The sign-in could not be completed. Please try again."}, status=503)
     return JsonResponse({"custom_token": token.decode() if isinstance(token, bytes) else token})
 
 

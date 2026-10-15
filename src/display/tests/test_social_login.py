@@ -253,3 +253,32 @@ class DesktopSignInTest(TestCase):
 
     def test_the_done_page_sends_the_person_back_to_the_client(self):
         self.assertContains(self.client.get(reverse("desktop_sign_in_done")), "Go back to the Airsports client")
+
+    def test_a_code_from_before_the_switch_was_turned_off_gets_no_token(self):
+        code = self.code_from(self.complete())
+        with override_settings(SOCIAL_LOGIN_ENABLED=False), patch("firebase_admin.auth.create_custom_token") as create:
+            response = self.token(code)
+        self.assertEqual(response.status_code, 404)
+        create.assert_not_called()
+
+    def test_a_code_claimed_by_a_request_at_the_same_moment_is_refused(self):
+        from django.core.cache import cache
+
+        from display.views_social_login import _desktop_code_key
+
+        code = self.code_from(self.complete())
+        # The other request has claimed the code but not yet deleted it.
+        self.assertTrue(cache.add(f"{_desktop_code_key(code)}:claimed", 1, 60))
+        with patch("firebase_admin.auth.create_custom_token") as create:
+            response = self.token(code)
+        self.assertEqual(response.status_code, 400)
+        create.assert_not_called()
+
+    def test_firebase_failing_to_make_the_token_is_a_json_error(self):
+        code = self.code_from(self.complete())
+        with patch("display.auth_backends.FirebaseMigrationBackend._initialize_firebase"), patch(
+            "firebase_admin.auth.create_custom_token", side_effect=ValueError("no service account key")
+        ):
+            response = self.token(code)
+        self.assertEqual(response.status_code, 503)
+        self.assertEqual(response.json(), {"error": "The sign-in could not be completed. Please try again."})
