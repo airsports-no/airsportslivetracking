@@ -18,6 +18,7 @@ export function describeSocialLoginError(code: string | undefined, provider: str
     case 'auth/unauthorized-domain':
       return 'Sign-in with ' + name + ' is not enabled for this address.';
     default:
-      return `Sign-in with ${name} failed. Please try again, or use your email and password.`;
+      // The code is what anyone helping needs to know why it failed
+      return `Sign-in with ${name} failed. Please try again, or use your email and password.${code ? ` (${code})` : ''}`;
   }
 }
