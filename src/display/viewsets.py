@@ -625,6 +625,8 @@ class UserPersonViewSet(GenericViewSet):
         contestants_data = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
+        # What the position processor would ignore is not the pilot's current flight
+        contestants_data = [(c, is_simulator) for c, is_simulator in contestants_data if c.accepts_positions_from(is_simulator)]
         return self._format_navigation_tasks_response(request, contestants_data, person.simulator_tracking_id)
 
     @action(detail=False, methods=["get"])
@@ -633,6 +635,8 @@ class UserPersonViewSet(GenericViewSet):
         contestants_data = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, person.app_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
+        # What the position processor would ignore is not the pilot's current flight
+        contestants_data = [(c, is_simulator) for c, is_simulator in contestants_data if c.accepts_positions_from(is_simulator)]
         return self._format_navigation_tasks_response(request, contestants_data, person.app_tracking_id)
 
     def _format_navigation_tasks_response(self, request, contestants_data, device_name=None):
@@ -1278,6 +1282,13 @@ class ContestViewSet(ModelViewSet):
         if timezone_name and timezone_name not in pytz.all_timezones_set:
             return Response({"detail": "Unknown timezone."}, status=status.HTTP_400_BAD_REQUEST)
         tasks = open_registration_tasks_today(timezone_name, now, request.user)
+        # The MSFS client and the phone apps only list the tasks that accept their kind of flight
+        from display.services.self_registration import implied_flight_mode
+        from display.utilities.simulator_policy import FLIGHT_MODE_SIMULATOR, policy_allows
+
+        mode = implied_flight_mode(request)
+        if mode:
+            tasks = [task for task in tasks if policy_allows(task.simulator_policy, mode == FLIGHT_MODE_SIMULATOR)]
         response = Response([describe(task, now) for task in tasks])
         # The list depends on who asks and on settings an organizer may have changed a moment ago, and the CDN does not
         # key on the session, so it must never be shared-cached.
@@ -2414,8 +2425,9 @@ class NavigationTaskViewSet(ModelViewSet):
             assert_can_self_register_contestant(navigation_task, contest_team)
             if contest_team.team.crew.member1.email != request.user.email:
                 raise drf_exceptions.ValidationError("You cannot add a team where you are not the pilot")
-            from display.services.self_registration import create_self_managed_contestant
+            from display.services.self_registration import create_self_managed_contestant, resolve_flight_mode
 
+            flight_mode = resolve_flight_mode(request, serialiser.validated_data.get("flight_mode"), navigation_task)
             # Pretend that the submitted time is in the contest time zone
             contestant = create_self_managed_contestant(
                 navigation_task,
@@ -2425,6 +2437,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 serialiser.validated_data["wind_speed"],
                 serialiser.validated_data["wind_direction"],
                 serialiser.validated_data.get("declaration_payload"),
+                flight_mode=flight_mode,
             )
             # mail_link = EmailMapLink.objects.create(contestant=contestant)
             # mail_link.send_email(request.user.email, request.user.first_name)

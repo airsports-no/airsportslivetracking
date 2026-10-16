@@ -300,6 +300,7 @@ class NavigationTaskForm(forms.ModelForm):
             "wind_speed",
             "wind_direction",
             "allow_self_management",
+            "simulator_policy",
             "allow_observation_registration",
             "show_live_score_in_app",
             "calculation_delay_minutes",
@@ -310,6 +311,8 @@ class NavigationTaskForm(forms.ModelForm):
         user = kwargs.pop("user", None)
         super().__init__(*args, **kwargs)
         self.fields["original_scorecard"].queryset = Scorecard.get_originals()
+        # Left out of a submission it keeps the task's value (a new task: the default, "not allowed")
+        self.fields["simulator_policy"].required = False
         instance = getattr(self, "instance", None)
         if instance and instance.pk:
             self.fields["original_scorecard"].disabled = True
@@ -341,6 +344,7 @@ class NavigationTaskForm(forms.ModelForm):
                 "original_scorecard",
                 "task_subtype",
                 "allow_self_management",
+                "simulator_policy",
                 "allow_observation_registration",
                 "show_live_score_in_app",
                 "planning_time",

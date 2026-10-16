@@ -84,6 +84,7 @@ class TestContestantGatesCalculation(APITestCase):
             "adaptive_start": True,
             "wind_speed": 5,
             "wind_direction": 170,
+            "flight_mode": "real",
         }
         url = reverse(
             "navigationtasks-contestant-self-registration",
@@ -121,6 +122,7 @@ class TestContestantGatesCalculation(APITestCase):
             "adaptive_start": False,
             "wind_speed": 5,
             "wind_direction": 170,
+            "flight_mode": "real",
         }
         url = reverse(
             "navigationtasks-contestant-self-registration",
@@ -148,6 +150,7 @@ class TestContestantGatesCalculation(APITestCase):
             "contest_team": self.contest_team.pk,
             "wind_speed": 5,
             "wind_direction": 170,
+            "flight_mode": "real",
         }
         url = reverse(
             "navigationtasks-contestant-self-registration",
@@ -170,6 +173,7 @@ class TestContestantGatesCalculation(APITestCase):
             "contest_team": self.contest_team.pk,
             "wind_speed": 5,
             "wind_direction": 170,
+            "flight_mode": "real",
         }
         url = reverse(
             "navigationtasks-contestant-self-registration",
@@ -188,6 +192,7 @@ class TestContestantGatesCalculation(APITestCase):
             "contest_team": self.contest_team.pk,
             "wind_speed": 5,
             "wind_direction": 170,
+            "flight_mode": "real",
         }
         url = reverse(
             "navigationtasks-contestant-self-registration",
@@ -225,6 +230,7 @@ class TestContestantGatesCalculation(APITestCase):
             "adaptive_start": False,
             "wind_speed": 5,
             "wind_direction": 170,
+            "flight_mode": "real",
         }
         url = reverse(
             "navigationtasks-contestant-self-registration",
@@ -255,6 +261,7 @@ class TestContestantGatesCalculation(APITestCase):
             "adaptive_start": False,
             "wind_speed": 5,
             "wind_direction": 170,
+            "flight_mode": "real",
         }
         url = reverse(
             "navigationtasks-contestant-self-registration",

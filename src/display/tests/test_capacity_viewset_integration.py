@@ -347,6 +347,7 @@ class TestCapacityViewsetIntegration(APITestCase):
                 "adaptive_start": False,
                 "wind_speed": 5,
                 "wind_direction": 170,
+                "flight_mode": "real",
             },
             format="json",
         )
@@ -373,6 +374,7 @@ class TestCapacityViewsetIntegration(APITestCase):
                 "adaptive_start": False,
                 "wind_speed": 5,
                 "wind_direction": 170,
+                "flight_mode": "real",
                 "declaration_payload": {
                     "declared_before_mp": ["A"],
                     "declared_after_mp": ["C"],

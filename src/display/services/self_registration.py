@@ -7,8 +7,16 @@ import datetime
 import logging
 from typing import Optional
 
+from rest_framework.exceptions import ValidationError
+
 from display.models import Contestant, ContestTeam, NavigationTask
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.utilities.simulator_policy import (
+    FLIGHT_MODE_SIMULATOR,
+    SIMULATOR_NOT_ALLOWED,
+    flight_mode_for_platform,
+    policy_allows,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -22,6 +30,7 @@ def create_self_managed_contestant(
     wind_direction: float,
     declaration_input: Optional[dict] = None,
     air_speed: Optional[float] = None,
+    flight_mode: Optional[str] = None,
 ) -> Contestant:
     """
     Creates and compiles the contestant. The caller checks that the pilot may register (team, contest and capacity) and
@@ -51,6 +60,7 @@ def create_self_managed_contestant(
         contestant_number=contestant_number,
         wind_speed=wind_speed,
         wind_direction=wind_direction,
+        flight_mode=flight_mode,
     )
     logger.debug("Created contestant")
     # None for a route without any timed gates (e.g. only dummy waypoints)
@@ -74,3 +84,29 @@ def create_self_managed_contestant(
     ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=True)
     logger.debug("Updated contestant")
     return contestant
+
+
+def implied_flight_mode(request) -> Optional[str]:
+    """The flight mode the requesting client implies (MSFS client: simulator, phone apps: real), None for the website."""
+    return flight_mode_for_platform(request.META.get("HTTP_X_APP_PLATFORM")) or flight_mode_for_platform(
+        getattr(request, "embed_client", None)
+    )
+
+
+def resolve_flight_mode(request, declared: Optional[str], navigation_task: NavigationTask) -> str:
+    """
+    The flight mode (real aircraft or simulator) of a registration made through [request]. The MSFS client and the phone apps
+    are recognised by the server (their X-App-Platform header, or the client marker of their embedded web pages) and decide for
+    themselves; on the website the pilot has to choose, so nothing is assumed. Refused when the task does not accept that kind
+    of flight.
+    """
+    mode = implied_flight_mode(request) or declared
+    if not mode:
+        raise ValidationError({"flight_mode": "Choose whether you will fly a real aircraft or in a flight simulator."})
+    if not policy_allows(navigation_task.simulator_policy, mode == FLIGHT_MODE_SIMULATOR):
+        if navigation_task.simulator_policy == SIMULATOR_NOT_ALLOWED:
+            message = "This task does not accept flights flown in a simulator."
+        else:
+            message = "This task is for flight simulators only."
+        raise ValidationError({"flight_mode": message})
+    return mode

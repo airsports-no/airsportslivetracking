@@ -22,6 +22,8 @@ def build_positions_from_flymaster(file_data: str) -> tuple["Contestant| None", 
                 contestants = Contestant.get_contestant_for_device_at_time(
                     TrackingService.FLY_MASTER, identifier, timestamp
                 )
+                # A Flymaster is a real tracker: skip flights that do not accept real positions (simulator-only tasks)
+                contestants = [item for item in contestants if item[0].accepts_positions_from(False)]
                 if contestants:
                     contestant, _ = contestants[0]
                     logger.info(

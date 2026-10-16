@@ -5,6 +5,7 @@ import { ContestantRow, TeamDisplay } from '../types';
 import { formatDateHeadingInZone, formatDateKeyInZone, formatTimeInZone, formatWholeNumber, formatWindDirection } from '../utils';
 import ContestantActionsMenu from './ContestantActionsMenu';
 import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
+import SimulatorBadge from '../../../components/common/SimulatorBadge';
 
 const TeamDisplayLabel: React.FC<{ team: TeamDisplay; missingDeclaration?: boolean; declarationErrors?: string[]; onClick: () => void }> = ({
   team,
@@ -191,6 +192,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="badge badge-neutral font-mono font-bold shrink-0">#{contestant.contestant_number}</span>
+                        <SimulatorBadge isSimulator={contestant.is_simulator_flight} blockedPositionsAt={contestant.blocked_positions_at} />
                         <span className="font-bold text-lg break-words leading-tight">
                           <TeamDisplayLabel
                             team={contestant.team}
@@ -296,7 +298,10 @@ const ContestantList: React.FC<ContestantListProps> = ({
                 </tr>
                 {group.contestants.map((contestant) => (
                   <tr key={contestant.pk} className="hover">
-                    <td className="font-bold text-base-content/70">{contestant.contestant_number}</td>
+                    <td className="font-bold text-base-content/70">
+                      {contestant.contestant_number}{' '}
+                      <SimulatorBadge isSimulator={contestant.is_simulator_flight} blockedPositionsAt={contestant.blocked_positions_at} />
+                    </td>
                     <td className="whitespace-nowrap font-medium">
                       <TeamDisplayLabel
                         team={contestant.team}

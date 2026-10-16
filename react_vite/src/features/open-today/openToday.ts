@@ -11,6 +11,7 @@ export interface OpenRegistrationTask {
     start_time: string;
     finish_time: string;
     is_open_now: boolean;
+    simulator_policy?: 'not_allowed' | 'allowed' | 'simulator_only';
 }
 
 export interface ContestGroup {

@@ -37,7 +37,25 @@ that says what a pilot, an organiser or an admin gets.
   its speed in the contest are not changed, and the website's own registration still uses the team's speed.
 
 ### 2026-10-16
+#### Backend
+- **Real flights and simulator flights are kept apart (`documentation/PLAN_simulator_separation.md`).** Every navigation task has a
+  simulator policy: not allowed (the default, also for all existing tasks), allowed (simulator flights count like any other and carry
+  a simulator badge) or simulator only. The position processor drops the positions the policy does not accept (a simulator tracking id
+  on a task that does not allow simulators, a tracker or app on a simulator-only task) before any calculator starts, and notes the
+  first time on the flight (`blocked_positions_at`, shown to organizers as "ignored"). The same filter decides the Traccar device ids
+  used when a track is recalculated and which flight `get_current_sim/app_navigation_task` returns.
+- **A flight now has a declared flight mode (real aircraft or simulator).** The website's "Book start time" has a required drop-down
+  "How will you fly this?" (empty by default, with the consequence of a wrong choice spelled out; options the task does not accept are
+  disabled). The MSFS client and the phone apps are recognised by the server and do not ask: from `X-App-Platform`, or from
+  `?client=msfs|android|ios`, which their embedded web pages now send and `EmbedModeMiddleware` keeps in a cookie. A registration the task
+  does not accept is refused with a clear message, a flight only uses positions of its own kind, and `open_registration_today` lists only
+  the tasks that accept the asking client's flights. Registration without a flight mode now needs the website's choice (400 otherwise).
+- **The MSFS practice flight only offers a task that accepts simulators.** `current_quickstart` skips a quickstart whose task is "not
+  allowed", the admin refuses to save one, and the one-press registration declares a simulator flight.
+
 #### App
+- **Web pages opened in the app say which client opens them** (`embed=app&client=android|ios`), so a flight booked there is a real
+  flight and the open-today list only shows tasks that accept real flights. The MSFS client does the same with `client=msfs`.
 - **Cancel on Home follows My flights.** Home now looks the flight up among all upcoming flights (it used to fetch only the first three), so the Cancel flight button shows exactly when the same flight can be cancelled on the upcoming flights page.
 - **Home layout.** The link buttons on the next-flight card now wrap, so "Cancel flight" is no longer cut off on narrow phones (it still shows only when the server allows cancelling). The footer links are compact text links with the version line. The "Flight cancelled." note on the flights list disappears after four seconds and when the page is left or reopened.
 - **First Android test build on Google Play.** Version 2.0.0 (201) was built by `android-release` and uploaded to the internal testing track.

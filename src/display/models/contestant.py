@@ -34,6 +34,14 @@ from display.utilities.navigation_task_type_definitions import (
     LANDING,
 )
 from display.utilities.traccar_factory import get_traccar_instance
+from display.utilities.simulator_policy import (
+    FLIGHT_MODE_CHOICES,
+    FLIGHT_MODE_REAL,
+    FLIGHT_MODE_SIMULATOR,
+    SIMULATOR_NOT_ALLOWED,
+    SIMULATOR_ONLY,
+    policy_allows,
+)
 from display.utilities.track_merger import merge_tracks
 from display.utilities.task_information import build_navigation_task_rules_latex
 from display.utilities.tracking_definitions import (
@@ -191,6 +199,20 @@ class Contestant(models.Model):
         default=False,
         help_text="Is true if any positions for the contestant has been received from the simulator tracking ID",
     )
+    flight_mode = models.CharField(
+        max_length=20,
+        choices=FLIGHT_MODE_CHOICES,
+        null=True,
+        blank=True,
+        help_text="What the pilot declared when registering: a real aircraft or a flight simulator. Positions of the other kind are "
+        "ignored. Empty for flights registered before this existed: then only the task's simulator policy decides.",
+    )
+    blocked_positions_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="When positions were first ignored because of the simulator policy or the flight mode (the positions themselves are not kept).",
+    )
     schedule_locked = models.BooleanField(
         default=False,
         help_text="If true, the contestant's timing should not be modified by the scheduling algorithm.",
@@ -315,6 +337,14 @@ class Contestant(models.Model):
 
     def save(self, **kwargs):
         self.tracker_device_id = self.tracker_device_id.strip() if self.tracker_device_id else ""
+        if self.pk is None and not self.flight_mode:
+            # A task that accepts only one kind of flight decides the flight mode; on a task that accepts both somebody
+            # has to say (the pilot when registering, or the organizer).
+            policy = self.navigation_task.simulator_policy
+            if policy == SIMULATOR_NOT_ALLOWED:
+                self.flight_mode = FLIGHT_MODE_REAL
+            elif policy == SIMULATOR_ONLY:
+                self.flight_mode = FLIGHT_MODE_SIMULATOR
         # Guard matches the equivalent signal handler (create_tracker_in_traccar,
         # display/signals.py) - without len(...) > 0, every app-tracked contestant
         # (empty tracker_device_id, see Person.simulator_tracking_id's help text)
@@ -1127,6 +1157,25 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             return False
         delay = datetime.timedelta(minutes=self.navigation_task.calculation_delay_minutes)
         return now >= self.tracker_start_time + delay
+
+    @property
+    def is_simulator_flight(self) -> bool:
+        """The flight is a simulator flight: declared so, or (for older flights without a declaration) tracked by the simulator."""
+        if self.flight_mode:
+            return self.flight_mode == FLIGHT_MODE_SIMULATOR
+        return self.has_been_tracked_by_simulator
+
+    def accepts_positions_from(self, is_simulator: bool) -> bool:
+        """
+        Whether positions tracked by the simulator tracking ID (is_simulator) or by a real tracker or the app (not
+        is_simulator) are used for this flight: the task's simulator policy and the flight mode the pilot declared must
+        both agree.
+        """
+        if not policy_allows(self.navigation_task.simulator_policy, is_simulator):
+            return False
+        if self.flight_mode:
+            return (self.flight_mode == FLIGHT_MODE_SIMULATOR) == is_simulator
+        return True
 
     def is_currently_tracked_by_device(self, device_id: str) -> bool:
         """

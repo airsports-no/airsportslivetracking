@@ -4,6 +4,7 @@ declare global {
       is_superuser: boolean;
       isAuthenticated: boolean;
       embeddedInApp?: boolean;
+      embedClient?: string;
       isOrganizer: boolean;
       userId: number | null;
       userEmail?: string;

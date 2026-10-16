@@ -1,6 +1,7 @@
 import React, { forwardRef, useEffect, useState } from 'react';
 import { updateNavigationTaskDetails } from '../api';
 import { NavigationTaskDetail } from '../types';
+import { SIMULATOR_POLICY_HELP, SIMULATOR_POLICY_OPTIONS, SimulatorPolicy } from '../../../utils/simulatorPolicy';
 
 interface UpdateTaskDetailsModalProps {
   contestId: number;
@@ -24,6 +25,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
     const [windDirection, setWindDirection] = useState(String(task.wind_direction));
     const [allowSelfManagement, setAllowSelfManagement] = useState(task.allow_self_management);
     const [allowObservationRegistration, setAllowObservationRegistration] = useState(task.allow_observation_registration);
+    const [simulatorPolicy, setSimulatorPolicy] = useState<SimulatorPolicy>(task.simulator_policy ?? 'not_allowed');
   const [showLiveScoreInApp, setShowLiveScoreInApp] = useState(task.show_live_score_in_app);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
@@ -38,6 +40,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
       setWindDirection(String(task.wind_direction));
       setAllowSelfManagement(task.allow_self_management);
       setAllowObservationRegistration(task.allow_observation_registration);
+      setSimulatorPolicy(task.simulator_policy ?? 'not_allowed');
       setShowLiveScoreInApp(task.show_live_score_in_app);
     }, [task]);
 
@@ -54,6 +57,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
           wind_direction: Number(windDirection),
           allow_self_management: allowSelfManagement,
           allow_observation_registration: allowObservationRegistration,
+          simulator_policy: simulatorPolicy,
           show_live_score_in_app: showLiveScoreInApp,
         });
         (ref as React.RefObject<HTMLDialogElement>).current?.close();
@@ -142,6 +146,19 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
                 onChange={(e) => setAllowObservationRegistration(e.target.checked)}
               />
               <span className="label-text">Allow observation registration in the app</span>
+            </label>
+            <label className="form-control w-full">
+              <span className="label-text">Flight simulators</span>
+              <select
+                className="select select-bordered select-sm w-full"
+                value={simulatorPolicy}
+                onChange={(e) => setSimulatorPolicy(e.target.value as SimulatorPolicy)}
+              >
+                {SIMULATOR_POLICY_OPTIONS.map((option) => (
+                  <option key={option.value} value={option.value}>{option.label}</option>
+                ))}
+              </select>
+              <span className="text-xs opacity-70">{SIMULATOR_POLICY_HELP}</span>
             </label>
             <label className="label cursor-pointer justify-start gap-2">
               <input

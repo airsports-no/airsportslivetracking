@@ -32,4 +32,4 @@ def sentry_settings(request):
 
 def embed_mode(request):
     """Hides the website's navigation bar when a page is embedded in the mobile apps (EmbedModeMiddleware)."""
-    return {"skip_nav": getattr(request, "embed_app", False)}
+    return {"skip_nav": getattr(request, "embed_app", False), "embed_client": getattr(request, "embed_client", None) or ""}

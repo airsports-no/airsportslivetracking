@@ -93,6 +93,7 @@ export interface NavigationTask {
         requires_contestant_configuration: boolean;
     } | null;
     allow_self_management: boolean;
+    simulator_policy?: 'not_allowed' | 'allowed' | 'simulator_only';
     future_contestants?: any[];
     contestant_set: ContestantResult[];
     score_sorting_direction: 'asc' | 'desc';
@@ -221,6 +222,8 @@ export interface ScheduleFlightPayload {
     adaptive_start: boolean;
     wind_speed: number;
     wind_direction: number;
+    /** Real aircraft or flight simulator; the MSFS client and the phone apps are recognised by the server and need not send it. */
+    flight_mode?: 'real' | 'simulator';
 }
 
 export interface RegisterTeamPayload {
