@@ -37,6 +37,10 @@ that says what a pilot, an organiser or an admin gets.
   its speed in the contest are not changed, and the website's own registration still uses the team's speed.
 
 ### 2026-10-16
+#### Backend
+- **The live map only shows observation photos for tasks that use observation registration.** The task `photos` endpoint now leaves the
+  observation photos out for everyone but the organizers while "allow observation registration" is off; the route's waypoint photos stay.
+
 #### App
 - **Training banner readable.** The gate label ("SP on time") was dark on the dark dock; it is now light. The preview run used for store screenshots got sample images, a running flight with score and training, and a synthetic GPS track. Store screenshots (iPhone, and cropped for Play) and the 2.0 store listing (English and Norwegian) are in `docs/store-screenshots/` and `distribution/store-listing/` of the app repository.
 - **Cancel on Home follows My flights.** Home now looks the flight up among all upcoming flights (it used to fetch only the first three), so the Cancel flight button shows exactly when the same flight can be cancelled on the upcoming flights page.

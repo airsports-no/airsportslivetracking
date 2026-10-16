@@ -2204,6 +2204,13 @@ class NavigationTaskViewSet(ModelViewSet):
     def photos(self, request, pk=None, contest_pk=None):
         navigation_task = self.get_object()
         photos = sync_navigation_task_photo_targets(navigation_task)
+        if not navigation_task.allow_observation_registration and not navigation_task.user_has_change_permissions(
+            request.user
+        ):
+            # Observation photos are the answer key and only belong to tasks that use observation registration: hide
+            # them from everyone but the organizers (the route's waypoint photos stay).
+            hidden = get_observation_photo_names(navigation_task)
+            photos = [photo for photo in photos if photo.name not in hidden]
         if request.query_params.get("kind") == "observation":
             # Only the observation photos, not those of the route's waypoints (what the live map shows)
             names = get_observation_photo_names(navigation_task)
