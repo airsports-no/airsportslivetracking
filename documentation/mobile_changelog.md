@@ -38,6 +38,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-16
 #### Backend
+- **Terms and privacy page updated for 2.0** (`airsports_static/src/pages/terms_and_conditions.astro`, English and Norwegian), on branch `mobile-integration` only until the board has read it: what the apps collect (precise location in the background while tracking, account data, push token, crash reports, app version activity), the SafeSky position feed (registration only), in-app account deletion, Google Cloud hosting in Finland, the third-party list (Firebase, Apple, Google, Sentry), version 2.0 of 16 October 2026.
 - **The live map only shows observation photos for tasks that use observation registration.** The task `photos` endpoint now leaves the
   observation photos out for everyone but the organizers while "allow observation registration" is off; the route's waypoint photos stay.
 - **Real flights and simulator flights are kept apart (`documentation/PLAN_simulator_separation.md`).** Every navigation task has a
