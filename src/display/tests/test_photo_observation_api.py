@@ -259,6 +259,27 @@ class PhotoObservationApiTest(TestCase):
         data = self.client.get(self.photos_url()).json()
         self.assertEqual((data["enabled"], data["may_register"], data["photos"]), (False, False, []))
 
+    def test_task_photos_show_the_observation_photos_only_when_the_task_uses_registration(self):
+        Contest.objects.filter(pk=self.contest.pk).update(is_public=True)
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(is_public=True)
+        url = f"/api/v1/contests/{self.contest.pk}/navigationtasks/{self.navigation_task.pk}/photos/"
+
+        def names(user, **params):
+            self.client.logout()
+            if user:
+                self.client.force_login(user)
+            response = self.client.get(url, params)
+            self.assertEqual(response.status_code, 200, response.content)
+            return {item["name"] for item in response.json()}
+
+        self.assertEqual(names(None, kind="observation"), {"A"})
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(allow_observation_registration=False)
+        self.assertEqual(names(None, kind="observation"), set())
+        self.assertEqual(names(self.stranger, kind="observation"), set())
+        self.assertNotIn("A", names(None))
+        self.assertIn("TP1", names(None), "the route waypoint photos are not observations")
+        self.assertIn("A", names(self.manager, kind="observation"), "the organizers keep their photos")
+
     def test_may_register_follows_the_tracking_window_and_grace_period(self):
         self.client.force_login(self.pilot)
         self.set_now(START + datetime.timedelta(minutes=30))

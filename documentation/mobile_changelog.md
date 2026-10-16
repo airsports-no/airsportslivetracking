@@ -38,6 +38,8 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-16
 #### Backend
+- **The live map only shows observation photos for tasks that use observation registration.** The task `photos` endpoint now leaves the
+  observation photos out for everyone but the organizers while "allow observation registration" is off; the route's waypoint photos stay.
 - **Real flights and simulator flights are kept apart (`documentation/PLAN_simulator_separation.md`).** Every navigation task has a
   simulator policy: not allowed (the default, also for all existing tasks), allowed (simulator flights count like any other and carry
   a simulator badge) or simulator only. The position processor drops the positions the policy does not accept (a simulator tracking id
@@ -54,6 +56,7 @@ that says what a pilot, an organiser or an admin gets.
   allowed", the admin refuses to save one, and the one-press registration declares a simulator flight.
 
 #### App
+- **Training banner readable.** The gate label ("SP on time") was dark on the dark dock; it is now light. The preview run used for store screenshots got sample images, a running flight with score and training, and a synthetic GPS track. Store screenshots (iPhone, and cropped for Play) and the 2.0 store listing (English and Norwegian) are in `docs/store-screenshots/` and `distribution/store-listing/` of the app repository.
 - **Web pages opened in the app say which client opens them** (`embed=app&client=android|ios`), so a flight booked there is a real
   flight and the open-today list only shows tasks that accept real flights. The MSFS client does the same with `client=msfs`.
 - **Cancel on Home follows My flights.** Home now looks the flight up among all upcoming flights (it used to fetch only the first three), so the Cancel flight button shows exactly when the same flight can be cancelled on the upcoming flights page.
