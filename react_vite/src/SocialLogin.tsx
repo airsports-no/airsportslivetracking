@@ -74,6 +74,7 @@ function init() {
         redirectTo = body.redirect || '/';
       }
     } catch (error) {
+      console.error(`Sign-in with ${name} failed`, error);
       showError(describeSocialLoginError((error as { code?: string }).code, name));
     } finally {
       // The server session is what counts from here

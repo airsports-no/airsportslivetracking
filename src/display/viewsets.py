@@ -432,8 +432,18 @@ class UserPersonViewSet(GenericViewSet):
         Permanently deletes the signed-in user's account (login, profile and Firebase account); the profile is
         anonymized instead of deleted when it is part of a team. The body must contain the account's email as
         confirmation. Required by the App Store / Google Play for apps with account creation.
+
+        Organizers can delete too: their contests and all results are kept (they lose their management rights, and
+        support is told about contests that nobody else manages). Only staff and superusers are refused (409).
+        204: deleted. 400: the confirmation does not match. 409: refused, ``detail`` says why. 503: nothing was changed,
+        try again later.
         """
-        from display.services.account_deletion import AccountDeletionBlocked, blocked_reason, delete_account
+        from display.services.account_deletion import (
+            AccountDeletionBlocked,
+            AccountDeletionFailed,
+            blocked_reason,
+            delete_account,
+        )
 
         user = request.user
         reason = blocked_reason(user)
@@ -446,6 +456,9 @@ class UserPersonViewSet(GenericViewSet):
             delete_account(user.email)
         except AccountDeletionBlocked as e:
             return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+        except AccountDeletionFailed as e:
+            # Nothing was changed (the whole deletion is rolled back): the pilot can simply try again
+            return Response({"detail": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["get"])
@@ -625,8 +638,6 @@ class UserPersonViewSet(GenericViewSet):
         contestants_data = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, person.simulator_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
-        # What the position processor would ignore is not the pilot's current flight
-        contestants_data = [(c, is_simulator) for c, is_simulator in contestants_data if c.accepts_positions_from(is_simulator)]
         return self._format_navigation_tasks_response(request, contestants_data, person.simulator_tracking_id)
 
     @action(detail=False, methods=["get"])
@@ -635,8 +646,6 @@ class UserPersonViewSet(GenericViewSet):
         contestants_data = Contestant.get_contestant_for_device_at_time(
             TrackingService.TRACCAR, person.app_tracking_id, datetime.datetime.now(datetime.timezone.utc)
         )
-        # What the position processor would ignore is not the pilot's current flight
-        contestants_data = [(c, is_simulator) for c, is_simulator in contestants_data if c.accepts_positions_from(is_simulator)]
         return self._format_navigation_tasks_response(request, contestants_data, person.app_tracking_id)
 
     def _format_navigation_tasks_response(self, request, contestants_data, device_name=None):
@@ -646,7 +655,7 @@ class UserPersonViewSet(GenericViewSet):
 
         tasks_map = {}
         map_viewable = {}  # per task: the permission check can hit the database
-        for contestant, _ in contestants_data:
+        for contestant, is_simulator in contestants_data:
             task = contestant.navigation_task
             if task.pk not in map_viewable:
                 map_viewable[task.pk] = can_view_task_map(request.user, task)
@@ -680,6 +689,10 @@ class UserPersonViewSet(GenericViewSet):
                     "flight_order_path": flight_order_path_for(contestant),
                     "training_available": training_available_for(contestant),
                     "training_feedback": training_feedback_for(contestant),
+                    # Whether the positions of this device are used for the flight (the task's simulator policy and the flight
+                    # mode the pilot declared) and, if not, why: the app tells the pilot instead of silently showing nothing.
+                    "positions_accepted": contestant.accepts_positions_from(is_simulator),
+                    "positions_ignored_reason": contestant.positions_ignored_reason(is_simulator),
                 }
             )
 

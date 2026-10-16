@@ -206,12 +206,31 @@ class TestPositionIngest(SimulatorSeparationTestCase):
         Contestant.objects.filter(pk=contestant.pk).update(flight_mode=None)
         self.assertEqual(1, len(self.find(self.pilot.simulator_tracking_id)))
 
-    def test_the_current_task_endpoints_only_offer_flights_that_would_be_tracked(self):
+    def test_the_current_task_endpoints_tell_the_pilot_why_positions_are_ignored(self):
         self.make_contestant()
         client = APIClient()
         client.force_authenticate(self.user)
-        self.assertEqual(404, client.get("/api/v1/userprofile/get_current_sim_navigation_task/").status_code)
-        self.assertEqual(200, client.get("/api/v1/userprofile/get_current_app_navigation_task/").status_code)
+
+        def current(endpoint):
+            response = client.get(f"/api/v1/userprofile/{endpoint}/")
+            self.assertEqual(200, response.status_code, response.content)
+            return response.json()[0]["active_contestants"][0]
+
+        app = current("get_current_app_navigation_task")
+        self.assertEqual((True, None), (app["positions_accepted"], app["positions_ignored_reason"]))
+        simulator = current("get_current_sim_navigation_task")
+        self.assertFalse(simulator["positions_accepted"])
+        self.assertIn("does not accept flights flown in a simulator", simulator["positions_ignored_reason"])
+
+    def test_the_reason_names_the_cause(self):
+        self.set_policy(SIMULATOR_ALLOWED)
+        real = self.make_contestant(FLIGHT_MODE_REAL, 1)
+        self.assertIn("booked as a real aircraft flight", real.positions_ignored_reason(True))
+        self.assertIsNone(real.positions_ignored_reason(False))
+        simulator = self.make_contestant(FLIGHT_MODE_SIMULATOR, 2)
+        self.assertIn("booked as a simulator flight", simulator.positions_ignored_reason(False))
+        self.set_policy(SIMULATOR_ONLY)
+        self.assertIn("for flight simulators only", Contestant.objects.get(pk=real.pk).positions_ignored_reason(False))
 
 
 class TestRegistrationIntent(SimulatorSeparationTestCase):

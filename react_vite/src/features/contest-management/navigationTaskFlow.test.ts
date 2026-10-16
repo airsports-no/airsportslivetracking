@@ -1,4 +1,4 @@
-import { requiredParameters, nextStep, contestLocalTimeToIso, ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE, PRECISION, LANDING } from './navigationTaskFlow';
+import { requiredParameters, withParameterDefaults, nextStep, contestLocalTimeToIso, ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE, PRECISION, LANDING } from './navigationTaskFlow';
 
 describe('contestLocalTimeToIso', () => {
     it('embeds the contest timezone offset rather than the browser/server one', () => {
@@ -72,5 +72,23 @@ describe('nextStep', () => {
         expect(nextStep('template', entry, PRECISION)).toBe('contest');
         expect(nextStep('contest', entry, PRECISION)).toBe('details');
         expect(nextStep('contest', entry, ANR_CORRIDOR)).toBe('parameters');
+    });
+});
+
+describe('withParameterDefaults', () => {
+    it('sends rounded_corners=false when the checkbox was never touched', () => {
+        expect(withParameterDefaults(AIRSPORT_CHALLENGE, {})).toEqual({ rounded_corners: false });
+        expect(withParameterDefaults(AIRSPORTS, {})).toEqual({ rounded_corners: false });
+        expect(withParameterDefaults(ANR_CORRIDOR, { corridor_width: 1 })).toEqual({ corridor_width: 1, rounded_corners: false });
+    });
+
+    it('keeps what the user chose', () => {
+        expect(withParameterDefaults(AIRSPORT_CHALLENGE, { rounded_corners: true })).toEqual({ rounded_corners: true });
+        expect(withParameterDefaults(AIRSPORT_CHALLENGE, { rounded_corners: false })).toEqual({ rounded_corners: false });
+    });
+
+    it('adds nothing for task types without the parameter', () => {
+        expect(withParameterDefaults(PRECISION, {})).toEqual({});
+        expect(withParameterDefaults(LANDING, {})).toEqual({});
     });
 });
