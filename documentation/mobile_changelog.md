@@ -13,6 +13,16 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-17
+#### Backend
+- **The current-flight endpoints say when positions are ignored.** `get_current_app_navigation_task` and `get_current_sim_navigation_task` return a
+  flight whose positions the task's simulator policy or the declared flight mode rejects (they used to hide it, so the pilot saw nothing),
+  with `positions_accepted: false` and `positions_ignored_reason` in words for the pilot.
+
+#### App
+- **"Your flight is not being recorded".** The phone apps and the MSFS client show a notice on Home with the server's reason when their
+  positions are ignored for the current flight (for example a simulator pilot on a flight booked as a real one).
+
 ### 2026-10-14
 #### Backend
 - **Sign in to the MSFS client with Google or Apple.** The client opens `accounts/desktop_sign_in/` in the browser, where
