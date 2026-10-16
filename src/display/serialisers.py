@@ -90,6 +90,7 @@ from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
 from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
+from display.utilities.simulator_policy import FLIGHT_MODE_CHOICES, FLIGHT_MODE_SIMULATOR, policy_allows
 from display.utilities.tracking_definitions import (
     TRACKING_COPILOT,
     TRACKING_DEVICES,
@@ -776,6 +777,7 @@ class NavigationTasksLightSerialiser(serializers.ModelSerializer):
             "finish_time",
             "tracking_link",
             "allow_self_management",
+            "simulator_policy",
             "route",
             "flown_contestants_count",
             "contestant_count",
@@ -823,6 +825,7 @@ class NavigationTasksSummarySerialiser(serializers.ModelSerializer):
             "finish_time",
             "tracking_link",
             "allow_self_management",
+            "simulator_policy",
             "route",
             "flown_contestants_count",
             "score_sorting_direction",
@@ -1103,6 +1106,13 @@ class SelfManagementSerialiser(serializers.Serializer):
     wind_speed = serializers.FloatField(validators=[MaxValueValidator(40), MinValueValidator(0)])
     wind_direction = serializers.FloatField(validators=[MaxValueValidator(360), MinValueValidator(0)])
     declaration_payload = serializers.JSONField(required=False)
+    flight_mode = serializers.ChoiceField(
+        choices=FLIGHT_MODE_CHOICES,
+        required=False,
+        allow_null=True,
+        help_text="Whether the pilot will fly a real aircraft or a flight simulator. The MSFS client and the phone apps are "
+        "identified by the server and need not send it; the website must.",
+    )
 
 
 class SignupSerialiser(serializers.Serializer):
@@ -1770,6 +1780,7 @@ class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
             "wind_speed",
             "wind_direction",
             "allow_self_management",
+            "simulator_policy",
             "allow_observation_registration",
             "show_live_score_in_app",
             "calculation_delay_minutes",
@@ -1960,6 +1971,8 @@ class ContestantSerialiser(serializers.ModelSerializer):
     # producing URLs like ".../flightordersprogress/?contestant_pk=undefined" and an edit-modal
     # open(undefined) call that opens create mode instead.
     pk = serializers.ReadOnlyField()
+    # Declared (flight_mode) or, for older flights, tracked by the simulator: what the simulator badge shows.
+    is_simulator_flight = serializers.ReadOnlyField()
 
     class Meta:
         model = Contestant
@@ -2075,7 +2088,12 @@ class ContestantSerialiser(serializers.ModelSerializer):
 
     def validate(self, attrs):
         # Retrieve necessary data from attrs or instance
-        navigation_task = attrs.get("navigation_task") or (self.instance.navigation_task if self.instance else None)
+        # The task of a new contestant is not in attrs (read-only field): the view puts it in the context
+        navigation_task = (
+            attrs.get("navigation_task")
+            or (self.instance.navigation_task if self.instance else None)
+            or self.context.get("navigation_task")
+        )
         team = attrs.get("team") or (self.instance.team if self.instance else None)
 
         registration = None
@@ -2104,6 +2122,13 @@ class ContestantSerialiser(serializers.ModelSerializer):
             self.instance.tracker_start_time if self.instance else None
         )
         finished_by_time = attrs.get("finished_by_time") or (self.instance.finished_by_time if self.instance else None)
+
+        flight_mode = attrs.get("flight_mode") or (self.instance.flight_mode if self.instance else None)
+        if flight_mode and getattr(navigation_task, "simulator_policy", None):
+            if not policy_allows(navigation_task.simulator_policy, flight_mode == FLIGHT_MODE_SIMULATOR):
+                raise ValidationError(
+                    {"flight_mode": "This task does not accept this kind of flight (see the task's simulator policy)."}
+                )
 
         # Basic check to ensure we have enough data to validate (e.g. during creation)
         if not (team and tracker_start_time and finished_by_time):

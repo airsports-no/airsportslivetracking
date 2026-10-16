@@ -154,6 +154,10 @@ class EmbedModeMiddleware:
     """
 
     COOKIE = "embed"
+    CLIENT_COOKIE = "embed_client"
+    # The clients that embed pages: ?client=<platform> (the X-App-Platform value) tells the pages which one it is (the page loads
+    # inside a web view carry no X-App-Platform header). Anything else is ignored.
+    CLIENTS = ("msfs", "android", "ios")
     MAX_AGE = 60 * 60 * 24 * 30
 
     def __init__(self, get_response):
@@ -162,12 +166,27 @@ class EmbedModeMiddleware:
     def __call__(self, request):
         flag = request.GET.get("embed")
         request.embed_app = flag == "app" or (flag is None and request.COOKIES.get(self.COOKIE) == "app")
+        client = request.GET.get("client")
+        if client not in self.CLIENTS:
+            client = None
+        request.embed_client = (
+            client
+            if client
+            else (request.COOKIES.get(self.CLIENT_COOKIE) if request.embed_app else None)
+        )
+        if request.embed_client not in self.CLIENTS:
+            request.embed_client = None
         response = self.get_response(request)
         if response.get("Content-Type", "").startswith("text/html"):
             # Only pages differ by embed mode; keep public API responses cacheable.
             patch_vary_headers(response, ("Cookie",))
         if flag == "app":
             response.set_cookie(self.COOKIE, "app", max_age=self.MAX_AGE, samesite="Lax", httponly=True, secure=request.is_secure())
+            if client:
+                response.set_cookie(
+                    self.CLIENT_COOKIE, client, max_age=self.MAX_AGE, samesite="Lax", httponly=True, secure=request.is_secure()
+                )
         elif flag == "off":
             response.delete_cookie(self.COOKIE)
+            response.delete_cookie(self.CLIENT_COOKIE)
         return response

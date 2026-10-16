@@ -14,6 +14,7 @@ from display.models import Contest, Contestant, ContestTeam, Person, SimulatorQu
 from display.services.capacity_enforcement import assert_can_register_team, assert_can_self_register_contestant
 from display.services.self_registration import create_self_managed_contestant
 from display.utilities.coordinate_utilities import calculate_bearing, project_position_lat_lon
+from display.utilities.simulator_policy import FLIGHT_MODE_REAL, FLIGHT_MODE_SIMULATOR, policy_allows
 
 # The client's "start in the air" puts the aircraft this far before the starting point, on the course to it.
 AIR_START_DISTANCE_M = 2 * 1852
@@ -46,6 +47,9 @@ def current_quickstart(now: Optional[datetime.datetime] = None, user=None) -> Op
         navigation_task__finish_time__gt=now,
     ).select_related("navigation_task", "navigation_task__contest", "navigation_task__route")
     for quickstart in candidates:
+        # A task that does not accept simulator flights would drop every position of the practice flight.
+        if not policy_allows(quickstart.navigation_task.simulator_policy, True):
+            continue
         if may_register_for(user, quickstart.navigation_task):
             return quickstart
     return None
@@ -107,6 +111,8 @@ def registered_flight(quickstart: SimulatorQuickstart, person: Person, now: Opti
             team__crew__member1=person,
             finished_by_time__gt=now,
         )
+        # A real flight in the same task is not the practice flight: it would reject the simulator's positions
+        .exclude(flight_mode=FLIGHT_MODE_REAL)
         .order_by("takeoff_time")
         .first()
     )
@@ -156,6 +162,7 @@ def register(user, person: Person, now: Optional[datetime.datetime] = None) -> C
             wind_direction=0,
             declaration_input={},
             air_speed=quickstart.air_speed,
+            flight_mode=FLIGHT_MODE_SIMULATOR,
         )
 
         def make_flight_order():

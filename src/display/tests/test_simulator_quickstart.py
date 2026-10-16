@@ -72,6 +72,7 @@ class TestSimulatorQuickstart(TestCase):
             contest=self.contest,
             is_public=True,
             allow_self_management=True,
+            simulator_policy="simulator_only",
         )
         self.quickstart = SimulatorQuickstart.objects.create(
             navigation_task=self.task, start_location="Kjeller (ENKJ), runway 30", air_start_altitude_ft=2000
@@ -255,6 +256,7 @@ class TestSimulatorQuickstart(TestCase):
             contest=private_contest,
             is_public=False,
             allow_self_management=True,
+            simulator_policy="simulator_only",
         )
         newer = SimulatorQuickstart.objects.create(navigation_task=private_task, start_location="Elsewhere")
         self.assertEqual(self.quickstart, current_quickstart(user=self.user), "the newest one this user may use")

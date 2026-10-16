@@ -68,6 +68,19 @@ def print_contestant_positions_debug():
             logger.warning("Unable to persist position processor heartbeat to Redis cache", exc_info=True)
 
 
+def _accepts_or_note_blocked(contestant: Contestant, is_simulator: bool) -> bool:
+    """
+    Whether the contestant uses positions from this kind of device (the task's simulator policy and the flight mode the pilot
+    declared, see Contestant.accepts_positions_from). Ignored positions are dropped without starting a calculator; the first
+    time it happens is noted on the contestant (once: the instance is cached) so organizers and the pilot can see why.
+    """
+    if contestant.accepts_positions_from(is_simulator):
+        return True
+    if contestant.note_blocked_positions():
+        logger.info(f"Ignoring {'simulator' if is_simulator else 'real'} positions for {contestant}")
+    return False
+
+
 def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> List[Tuple[Contestant, bool]]:
     try:
         contestant_tuples, valid_to = contestant_cache[device_name]
@@ -79,6 +92,11 @@ def cached_find_contestant(device_name: str, device_time: datetime.datetime) -> 
         )
         if contestant_tuples:
             logger.info(f"Found contestants for incoming position {contestant_tuples}")
+            contestant_tuples = [
+                (contestant, is_simulator)
+                for contestant, is_simulator in contestant_tuples
+                if _accepts_or_note_blocked(contestant, is_simulator)
+            ]
             for contestant, is_simulator in contestant_tuples:
                 if is_simulator and not contestant.has_been_tracked_by_simulator:
                     contestant.has_been_tracked_by_simulator = True

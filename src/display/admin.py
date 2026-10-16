@@ -56,6 +56,8 @@ class ContestantInline(admin.TabularInline):
 
 class NavigationTaskAdmin(admin.ModelAdmin):
     inlines = (ContestantInline,)
+    list_display = ("__str__", "contest", "simulator_policy", "allow_self_management", "start_time", "finish_time")
+    list_filter = ("simulator_policy", "allow_self_management")
 
 
 class SimulatorQuickstartAdmin(admin.ModelAdmin):

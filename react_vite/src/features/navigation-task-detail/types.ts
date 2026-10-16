@@ -22,6 +22,8 @@ export interface TeamDisplay {
 export interface ContestantRow {
   pk: number;
   contestant_number: number;
+  is_simulator_flight?: boolean;
+  blocked_positions_at?: string | null;
   team: TeamDisplay;
   contestanttrack: { current_state: string; calculator_finished: boolean };
   tracker_id_display: TrackerIdDisplay[];
@@ -74,6 +76,7 @@ export interface NavigationTaskDetail {
   wind_direction: number;
   allow_self_management: boolean;
   allow_observation_registration: boolean;
+  simulator_policy: 'not_allowed' | 'allowed' | 'simulator_only';
   show_live_score_in_app: boolean;
   calculation_delay_minutes: number;
   guest_capacity_status: GuestCapacityStatus;

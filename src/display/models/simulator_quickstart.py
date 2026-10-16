@@ -1,3 +1,4 @@
+from django.core.exceptions import ValidationError
 from django.db import models
 
 
@@ -39,6 +40,16 @@ class SimulatorQuickstart(models.Model):
     )
     club_name = models.CharField(max_length=200, default="MSFS pilots", help_text="Club used for the practice team.")
     created_at = models.DateTimeField(auto_now_add=True)
+
+    def clean(self):
+        from display.utilities.simulator_policy import policy_allows
+
+        task = getattr(self, "navigation_task", None)
+        if task is not None and not policy_allows(task.simulator_policy, True):
+            raise ValidationError(
+                {"navigation_task": "This task does not accept simulator flights (its simulator policy is 'not allowed'). "
+                 "Choose 'simulator only' or 'allowed' on the task first."}
+            )
 
     class Meta:
         ordering = ("-created_at",)

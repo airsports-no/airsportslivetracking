@@ -5,6 +5,7 @@ import Select from 'react-select';
 import { selectStyles } from '../../../utils/selectStyles';
 import { fetchScorecardChoices } from '../api';
 import HelpIcon from '../../../components/common/HelpIcon';
+import { SIMULATOR_POLICY_HELP, SIMULATOR_POLICY_OPTIONS } from '../../../utils/simulatorPolicy';
 import {
     NavigationTaskDetailsFormValues,
     NavigationTaskDetailsInput,
@@ -153,6 +154,14 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
             <label className="label cursor-pointer justify-start gap-3">
                 <input type="checkbox" className="checkbox" {...register('allow_self_management')} />
                 <span className="label-text inline-flex items-center">Allow self-management<HelpIcon text="Lets pilots who are registered for the contest book their own start time. The task must also be public and featured for pilots to see it." /></span>
+            </label>
+            <label className="form-control w-full">
+                <div className="label"><span className="label-text inline-flex items-center">Flight simulators<HelpIcon text={SIMULATOR_POLICY_HELP} /></span></div>
+                <select className="select select-bordered w-full" {...register('simulator_policy')}>
+                    {SIMULATOR_POLICY_OPTIONS.map((option) => (
+                        <option key={option.value} value={option.value}>{option.label}</option>
+                    ))}
+                </select>
             </label>
             <label className="label cursor-pointer justify-start gap-3">
                 <input type="checkbox" className="checkbox" {...register('allow_observation_registration')} />

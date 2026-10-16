@@ -31,6 +31,7 @@ from display.utilities.navigation_task_type_definitions import (
     POKER,
     PRECISION,
 )
+from display.utilities.simulator_policy import SIMULATOR_NOT_ALLOWED, SIMULATOR_POLICY_CHOICES
 from display.utilities.task_information import build_navigation_task_information
 
 if typing.TYPE_CHECKING:
@@ -161,6 +162,13 @@ class NavigationTask(models.Model):
     allow_self_management = models.BooleanField(
         default=False,
         help_text="If checked, authenticated users will be allowed to set up themselves as a contestant after having registered for the contest.",
+    )
+    simulator_policy = models.CharField(
+        max_length=20,
+        choices=SIMULATOR_POLICY_CHOICES,
+        default=SIMULATOR_NOT_ALLOWED,
+        help_text="Whether flights flown in a flight simulator are accepted. Positions that the policy does not accept are ignored "
+        "and never scored. Changes take effect within about a minute.",
     )
     show_live_score_in_app = models.BooleanField(
         default=True,

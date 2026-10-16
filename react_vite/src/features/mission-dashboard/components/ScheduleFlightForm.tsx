@@ -8,6 +8,7 @@ import PersonPicker from '../../../components/common/PersonPicker';
 import { PersonOption, personOptionFromPerson } from '../../../components/common/personOption';
 import ConceptHint from '../../../components/common/ConceptHint';
 import HelpIcon from '../../../components/common/HelpIcon';
+import { embedClient, FlightMode, impliedFlightMode, policyAcceptsMode } from '../../../utils/simulatorPolicy';
 
 const formatInTimeZone = (date: Date, timeZone: string) => {
     const parts = new Intl.DateTimeFormat('en-US', {
@@ -64,6 +65,9 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
     const [windSpeed, setWindSpeed] = useState<number>(0);
     const [windDirection, setWindDirection] = useState<number>(0);
     const [adaptiveStart, setAdaptiveStart] = useState<boolean>(false);
+    // The MSFS client and the phone apps embed this page and are recognised by the server; on the website the pilot must choose.
+    const clientFlightMode = impliedFlightMode(embedClient());
+    const [flightMode, setFlightMode] = useState<FlightMode | ''>('');
 
     const [loading, setLoading] = useState<boolean>(false);
     const [error, setError] = useState<string | null>(null);
@@ -132,6 +136,10 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
         }
         if (!(airspeed > 0)) {
             setError('Airspeed must be greater than 0 knots.');
+            return;
+        }
+        if (!clientFlightMode && !flightMode) {
+            setError('Choose whether you will fly a real aircraft or in a flight simulator.');
             return;
         }
         setLoading(true);
@@ -225,6 +233,7 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     adaptive_start: adaptiveStart,
                     wind_speed: windSpeed,
                     wind_direction: windDirection,
+                    ...(clientFlightMode || !flightMode ? {} : { flight_mode: flightMode }),
                 };
                 const result = await api.scheduleFlight(contest.id, navigationTaskId, schedulePayload);
                 const done = onRegistered ?? onClose;
@@ -306,6 +315,34 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     </>
                     
                     <div className="divider">Flight Details</div>
+                    {!clientFlightMode && (
+                        <label className="form-control w-full">
+                            <div className="label"><span className="label-text">How will you fly this? *</span></div>
+                            <select
+                                required
+                                className="select select-bordered w-full"
+                                value={flightMode}
+                                onChange={e => setFlightMode(e.target.value as FlightMode | '')}
+                            >
+                                <option value="" disabled>Choose…</option>
+                                <option value="real" disabled={!policyAcceptsMode(navigationTask?.simulator_policy, 'real')}>
+                                    In a real aircraft (tracked by the app or a tracker)
+                                </option>
+                                <option value="simulator" disabled={!policyAcceptsMode(navigationTask?.simulator_policy, 'simulator')}>
+                                    In a flight simulator
+                                </option>
+                            </select>
+                            <div className="label">
+                                <span className="label-text-alt text-base-content/70 whitespace-normal">
+                                    {navigationTask?.simulator_policy === 'not_allowed' && 'This task does not accept flights flown in a simulator. '}
+                                    {navigationTask?.simulator_policy === 'simulator_only' && 'This task is for flight simulators only. '}
+                                    Choose carefully: if you choose a real aircraft and then fly in a simulator, your simulator positions are ignored and your flight is not recorded.
+                                    If you choose a simulator and then fly a real aircraft, your tracker and app positions are ignored.
+                                    {navigationTask?.simulator_policy === 'allowed' && ' Simulator flights are marked as such in the results.'}
+                                </span>
+                            </div>
+                        </label>
+                    )}
                     <label className="form-control w-full">
                         <div className="label"><span className="label-text inline-flex items-center">Starting Point Time ({contest.time_zone || 'UTC'})
                             <HelpIcon text="When you plan to fly over the starting gate, in the contest's local time. Your take-off is calculated from this." />

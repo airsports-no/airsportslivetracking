@@ -67,4 +67,5 @@ def describe(task: NavigationTask, now: datetime.datetime) -> dict:
         "start_time": task.start_time,
         "finish_time": task.finish_time,
         "is_open_now": task.start_time <= now <= task.finish_time,
+        "simulator_policy": task.simulator_policy,
     }
