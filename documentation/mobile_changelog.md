@@ -56,6 +56,7 @@ that says what a pilot, an organiser or an admin gets.
   allowed", the admin refuses to save one, and the one-press registration declares a simulator flight.
 
 #### App
+- **MSFS client crash reporting plan.** `documentation/msfs_client_sentry.md`: the client already has Sentry, but only reads its DSN from an environment variable, so the shipped client sends nothing. The note describes building the DSN into the release, a better init (release with build number, environment, user id) and symbol upload from the release workflows.
 - **Training banner readable.** The gate label ("SP on time") was dark on the dark dock; it is now light. The preview run used for store screenshots got sample images, a running flight with score and training, and a synthetic GPS track. Store screenshots (iPhone, and cropped for Play) and the 2.0 store listing (English and Norwegian) are in `docs/store-screenshots/` and `distribution/store-listing/` of the app repository.
 - **Web pages opened in the app say which client opens them** (`embed=app&client=android|ios`), so a flight booked there is a real
   flight and the open-today list only shows tasks that accept real flights. The MSFS client does the same with `client=msfs`.
