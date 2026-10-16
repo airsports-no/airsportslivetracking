@@ -37,6 +37,10 @@ that says what a pilot, an organiser or an admin gets.
   its speed in the contest are not changed, and the website's own registration still uses the team's speed.
 
 ### 2026-10-16
+#### Backend
+- **The live map only shows observation photos for tasks that use observation registration.** The task `photos` endpoint now leaves the
+  observation photos out for everyone but the organizers while "allow observation registration" is off; the route's waypoint photos stay.
+
 #### App
 - **Cancel on Home follows My flights.** Home now looks the flight up among all upcoming flights (it used to fetch only the first three), so the Cancel flight button shows exactly when the same flight can be cancelled on the upcoming flights page.
 - **Home layout.** The link buttons on the next-flight card now wrap, so "Cancel flight" is no longer cut off on narrow phones (it still shows only when the server allows cancelling). The footer links are compact text links with the version line. The "Flight cancelled." note on the flights list disappears after four seconds and when the page is left or reopened.
