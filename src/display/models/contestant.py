@@ -1171,11 +1171,28 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         is_simulator) are used for this flight: the task's simulator policy and the flight mode the pilot declared must
         both agree.
         """
+        return self.positions_ignored_reason(is_simulator) is None
+
+    def positions_ignored_reason(self, is_simulator: bool) -> Optional[str]:
+        """
+        Why positions tracked by the simulator tracking ID (is_simulator) or by a real tracker or the app (not is_simulator) are not
+        used for this flight, in words for the pilot; None when they are used.
+        """
         if not policy_allows(self.navigation_task.simulator_policy, is_simulator):
-            return False
-        if self.flight_mode:
-            return (self.flight_mode == FLIGHT_MODE_SIMULATOR) == is_simulator
-        return True
+            if is_simulator:
+                return "This task does not accept flights flown in a simulator, so your simulator positions are ignored."
+            return "This task is for flight simulators only, so positions from the app or a tracker are ignored."
+        if self.flight_mode and (self.flight_mode == FLIGHT_MODE_SIMULATOR) != is_simulator:
+            if is_simulator:
+                return (
+                    "This flight was booked as a real aircraft flight, so your simulator positions are ignored. "
+                    "Book a new flight as a simulator flight to fly it in the simulator."
+                )
+            return (
+                "This flight was booked as a simulator flight, so positions from the app or a tracker are ignored. "
+                "Book a new flight as a real aircraft flight to fly it for real."
+            )
+        return None
 
     def note_blocked_positions(self, at: Optional[datetime.datetime] = None) -> bool:
         """
