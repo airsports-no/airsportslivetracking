@@ -30,6 +30,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-16
 #### App
+- **Home layout.** The link buttons on the next-flight card now wrap, so "Cancel flight" is no longer cut off on narrow phones (it still shows only when the server allows cancelling). The footer links are compact text links with the version line. The "Flight cancelled." note on the flights list disappears after four seconds and when the page is left or reopened.
 - **First Android test build on Google Play.** Version 2.0.0 (201) was built by `android-release` and uploaded to the internal testing track.
 - **Production path in the Android release workflow.** `android-release` can release to production: it needs `publish` typed in a confirmation
   field, runs from `main` only, rolls out in stages (10, 25 or 50 percent, or 100), runs in the GitHub environment `production` (required reviewers can be
