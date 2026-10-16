@@ -36,6 +36,28 @@ that says what a pilot, an organiser or an admin gets.
   their team's speed (e.g. 200 kt) on "Go flying"; the flight now gets the quickstart's speed (70 kt by default). Their team and
   its speed in the contest are not changed, and the website's own registration still uses the team's speed.
 
+### 2026-10-16
+#### App
+- **Cancel on Home follows My flights.** Home now looks the flight up among all upcoming flights (it used to fetch only the first three), so the Cancel flight button shows exactly when the same flight can be cancelled on the upcoming flights page.
+- **Home layout.** The link buttons on the next-flight card now wrap, so "Cancel flight" is no longer cut off on narrow phones (it still shows only when the server allows cancelling). The footer links are compact text links with the version line. The "Flight cancelled." note on the flights list disappears after four seconds and when the page is left or reopened.
+- **First Android test build on Google Play.** Version 2.0.0 (201) was built by `android-release` and uploaded to the internal testing track.
+- **Production path in the Android release workflow.** `android-release` can release to production: it needs `publish` typed in a confirmation
+  field, runs from `main` only, rolls out in stages (10, 25 or 50 percent, or 100), runs in the GitHub environment `production` (required reviewers can be
+  set there), sends release notes from `distribution/whatsnew/` and tags the commit `android-v<version>-<build>`.
+
+### 2026-10-15
+#### App
+- **Android test builds can be uploaded to Google Play from CI.** The manual `android-release` workflow builds the signed release bundle with the
+  new upload key (version name from `version.properties`, build number 200 plus the run number), checks that it is signed and uploads it, with the
+  R8 mapping file, to a Play track (internal testing by default). It needs the keystore, the real `google-services.json` and a Play
+  service-account key as repository secrets.
+
+### 2026-10-14
+#### App
+- **"Restore purchases" now really restores.** The button used to re-read the subscription only; it now asks the store to sync first (iOS
+  `AppStore.sync()`, which may ask for the Apple ID password) and then says what it found ("Your subscription was found" or why not). On iOS
+  the message notes that App Store purchases are not visible in TestFlight builds, which use a test store.
+
 ### 2026-10-12
 #### Backend
 - **MSFS quickstart: a practice flight for new simulator pilots.** Admins set up a `SimulatorQuickstart` (Django admin): a
