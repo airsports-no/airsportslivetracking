@@ -28,6 +28,13 @@ that says what a pilot, an organiser or an admin gets.
   their team's speed (e.g. 200 kt) on "Go flying"; the flight now gets the quickstart's speed (70 kt by default). Their team and
   its speed in the contest are not changed, and the website's own registration still uses the team's speed.
 
+### 2026-10-16
+#### App
+- **First Android test build on Google Play.** Version 2.0.0 (201) was built by `android-release` and uploaded to the internal testing track.
+- **Production path in the Android release workflow.** `android-release` can release to production: it needs `publish` typed in a confirmation
+  field, runs from `main` only, rolls out in stages (10, 25 or 50 percent, or 100), runs in the GitHub environment `production` (required reviewers can be
+  set there), sends release notes from `distribution/whatsnew/` and tags the commit `android-v<version>-<build>`.
+
 ### 2026-10-15
 #### App
 - **Android test builds can be uploaded to Google Play from CI.** The manual `android-release` workflow builds the signed release bundle with the
