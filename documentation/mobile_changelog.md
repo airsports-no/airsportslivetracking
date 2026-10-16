@@ -50,6 +50,7 @@ that says what a pilot, an organiser or an admin gets.
 - **The current-flight endpoints say when positions are ignored.** `get_current_app_navigation_task` and `get_current_sim_navigation_task` return a
   flight whose positions the task's simulator policy or the declared flight mode rejects (they used to hide it, so the pilot saw nothing),
   with `positions_accepted: false` and `positions_ignored_reason` in words for the pilot.
+- **Terms and privacy page updated for 2.0** (`airsports_static/src/pages/terms_and_conditions.astro`, English and Norwegian), on branch `mobile-integration` only until the board has read it: what the apps collect (precise location in the background while tracking, account data, push token, crash reports, app version activity), the SafeSky position feed (registration only), in-app account deletion, Google Cloud hosting in Finland, the third-party list (Firebase, Apple, Google, Sentry), version 2.0 of 16 October 2026.
 - **The live map only shows observation photos for tasks that use observation registration.** The task `photos` endpoint now leaves the
   observation photos out for everyone but the organizers while "allow observation registration" is off; the route's waypoint photos stay.
 - **Real flights and simulator flights are kept apart (`documentation/PLAN_simulator_separation.md`).** Every navigation task has a
