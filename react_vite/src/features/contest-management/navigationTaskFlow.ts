@@ -25,6 +25,21 @@ export function requiredParameters(taskType: string): Array<'corridor_width' | '
     return [];
 }
 
+// The parameters to send with a new task: the wizard's checkbox shows "unchecked" for a parameter nobody touched, but the state then holds
+// nothing at all, and the backend refuses a task whose required rounded_corners is missing ("Missing 'rounded_corners'"). An untouched
+// checkbox means false, so send that explicitly. corridor_width has no default: the wizard does not let the user continue without it.
+export interface NavigationTaskParameters {
+    corridor_width?: number;
+    rounded_corners?: boolean;
+}
+
+export function withParameterDefaults(taskType: string, parameters: NavigationTaskParameters): NavigationTaskParameters {
+    if (requiredParameters(taskType).includes('rounded_corners') && parameters.rounded_corners === undefined) {
+        return { ...parameters, rounded_corners: false };
+    }
+    return parameters;
+}
+
 // Which step comes after the current one, given what's already been picked. `entry.kind ===
 // 'route'` skips the route-selection step (the route is already fixed by the entry context) -
 // this is what lets NavigationTaskCreationFlow serve both NewNavigationTaskWizard's replacement

@@ -8,6 +8,7 @@ import {
     contestLocalTimeToIso,
     nextStep,
     requiredParameters,
+    withParameterDefaults,
     NavigationTaskCreationEntry,
     NavigationTaskCreationStep,
 } from '../navigationTaskFlow';
@@ -143,7 +144,7 @@ const NavigationTaskCreationFlow: React.FC<NavigationTaskCreationFlowProps> = ({
                 finish_time: contestLocalTimeToIso(values.finish_time, contest.time_zone),
                 editable_route: editableRouteId,
                 task_subtype: template.task_subtype,
-                ...parameters,
+                ...withParameterDefaults(template.task_type, parameters),
             });
             const responseWarnings = response.warnings ?? [];
             setWarnings(responseWarnings);
