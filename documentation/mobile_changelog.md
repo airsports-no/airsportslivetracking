@@ -30,6 +30,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-16
 #### App
+- **Cancel on Home follows My flights.** Home now looks the flight up among all upcoming flights (it used to fetch only the first three), so the Cancel flight button shows exactly when the same flight can be cancelled on the upcoming flights page.
 - **Home layout.** The link buttons on the next-flight card now wrap, so "Cancel flight" is no longer cut off on narrow phones (it still shows only when the server allows cancelling). The footer links are compact text links with the version line. The "Flight cancelled." note on the flights list disappears after four seconds and when the page is left or reopened.
 - **First Android test build on Google Play.** Version 2.0.0 (201) was built by `android-release` and uploaded to the internal testing track.
 - **Production path in the Android release workflow.** `android-release` can release to production: it needs `publish` typed in a confirmation
