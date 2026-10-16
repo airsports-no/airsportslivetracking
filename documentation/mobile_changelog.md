@@ -38,6 +38,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-16
 #### App
+- **Training banner readable.** The gate label ("SP on time") was dark on the dark dock; it is now light. The preview run used for store screenshots got sample images, a running flight with score and training, and a synthetic GPS track. Store screenshots (iPhone, and cropped for Play) and the 2.0 store listing (English and Norwegian) are in `docs/store-screenshots/` and `distribution/store-listing/` of the app repository.
 - **Cancel on Home follows My flights.** Home now looks the flight up among all upcoming flights (it used to fetch only the first three), so the Cancel flight button shows exactly when the same flight can be cancelled on the upcoming flights page.
 - **Home layout.** The link buttons on the next-flight card now wrap, so "Cancel flight" is no longer cut off on narrow phones (it still shows only when the server allows cancelling). The footer links are compact text links with the version line. The "Flight cancelled." note on the flights list disappears after four seconds and when the page is left or reopened.
 - **First Android test build on Google Play.** Version 2.0.0 (201) was built by `android-release` and uploaded to the internal testing track.
