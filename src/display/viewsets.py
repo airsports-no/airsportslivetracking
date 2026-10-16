@@ -432,8 +432,18 @@ class UserPersonViewSet(GenericViewSet):
         Permanently deletes the signed-in user's account (login, profile and Firebase account); the profile is
         anonymized instead of deleted when it is part of a team. The body must contain the account's email as
         confirmation. Required by the App Store / Google Play for apps with account creation.
+
+        Organizers can delete too: their contests and all results are kept (they lose their management rights, and
+        support is told about contests that nobody else manages). Only staff and superusers are refused (409).
+        204: deleted. 400: the confirmation does not match. 409: refused, ``detail`` says why. 503: nothing was changed,
+        try again later.
         """
-        from display.services.account_deletion import AccountDeletionBlocked, blocked_reason, delete_account
+        from display.services.account_deletion import (
+            AccountDeletionBlocked,
+            AccountDeletionFailed,
+            blocked_reason,
+            delete_account,
+        )
 
         user = request.user
         reason = blocked_reason(user)
@@ -446,6 +456,9 @@ class UserPersonViewSet(GenericViewSet):
             delete_account(user.email)
         except AccountDeletionBlocked as e:
             return Response({"detail": str(e)}, status=status.HTTP_409_CONFLICT)
+        except AccountDeletionFailed as e:
+            # Nothing was changed (the whole deletion is rolled back): the pilot can simply try again
+            return Response({"detail": str(e)}, status=status.HTTP_503_SERVICE_UNAVAILABLE)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
     @action(detail=False, methods=["get"])

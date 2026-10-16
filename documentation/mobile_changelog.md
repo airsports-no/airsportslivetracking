@@ -13,16 +13,6 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
-### 2026-10-17
-#### Backend
-- **The current-flight endpoints say when positions are ignored.** `get_current_app_navigation_task` and `get_current_sim_navigation_task` return a
-  flight whose positions the task's simulator policy or the declared flight mode rejects (they used to hide it, so the pilot saw nothing),
-  with `positions_accepted: false` and `positions_ignored_reason` in words for the pilot.
-
-#### App
-- **"Your flight is not being recorded".** The phone apps and the MSFS client show a notice on Home with the server's reason when their
-  positions are ignored for the current flight (for example a simulator pilot on a flight booked as a real one).
-
 ### 2026-10-14
 #### Backend
 - **Sign in to the MSFS client with Google or Apple.** The client opens `accounts/desktop_sign_in/` in the browser, where
@@ -48,6 +38,18 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-16
 #### Backend
+- **Organizers can delete their own account in the app.** `DELETE userprofile/delete_account/` now accepts organizers (members of
+  "ContestCreator", or anybody with the global add-contest permission); only staff and superusers are still refused (409, "Staff and
+  administrator accounts must be deleted by support. Contact support@airsports.no."). The organizer's contests, routes, tasks, teams
+  and every result are kept: the login, the profile (deleted, or anonymized when it is in a team, as before), the management rights and
+  the uploaded maps go, and the contest no longer names a creator. Contests that nobody else can manage afterwards are listed in an
+  e-mail to support (marked when running) so they can get a new manager. If a contest still runs on a token the organizer bought, the
+  login row stays as an anonymous, deactivated tombstone (no name, address, password or rights) instead of being deleted. The deletion
+  is one transaction together with the Firebase deletion: if the Firebase account cannot be deleted nothing is changed and the app gets
+  503 with a message to try again. The 204 on success is unchanged.
+- **The current-flight endpoints say when positions are ignored.** `get_current_app_navigation_task` and `get_current_sim_navigation_task` return a
+  flight whose positions the task's simulator policy or the declared flight mode rejects (they used to hide it, so the pilot saw nothing),
+  with `positions_accepted: false` and `positions_ignored_reason` in words for the pilot.
 - **The live map only shows observation photos for tasks that use observation registration.** The task `photos` endpoint now leaves the
   observation photos out for everyone but the organizers while "allow observation registration" is off; the route's waypoint photos stay.
 - **Real flights and simulator flights are kept apart (`documentation/PLAN_simulator_separation.md`).** Every navigation task has a
@@ -66,6 +68,8 @@ that says what a pilot, an organiser or an admin gets.
   allowed", the admin refuses to save one, and the one-press registration declares a simulator flight.
 
 #### App
+- **"Your flight is not being recorded".** The phone apps and the MSFS client show a notice on Home with the server's reason when their
+  positions are ignored for the current flight (for example a simulator pilot on a flight booked as a real one).
 - **MSFS client crash reporting plan.** `documentation/msfs_client_sentry.md`: the client already has Sentry, but only reads its DSN from an environment variable, so the shipped client sends nothing. The note describes building the DSN into the release, a better init (release with build number, environment, user id) and symbol upload from the release workflows.
 - **Training banner readable.** The gate label ("SP on time") was dark on the dark dock; it is now light. The preview run used for store screenshots got sample images, a running flight with score and training, and a synthetic GPS track. Store screenshots (iPhone, and cropped for Play) and the 2.0 store listing (English and Norwegian) are in `docs/store-screenshots/` and `distribution/store-listing/` of the app repository.
 - **Web pages opened in the app say which client opens them** (`embed=app&client=android|ios`), so a flight booked there is a real
