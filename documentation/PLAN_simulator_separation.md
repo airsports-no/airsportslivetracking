@@ -1,6 +1,7 @@
 # Plan: separating simulator flights from real flights
 
-Status: planned, nothing implemented. Written 2026-10-16.
+Status: implemented in PR #821 (backend), with the `client=` marker in the phone apps and the MSFS client (written 2026-10-16). This
+document keeps the original reasoning; where the final rules differ, the "Rules as implemented" section below wins.
 
 ## Problem
 
@@ -22,7 +23,21 @@ adds load (every tracked contestant runs a live calculator, see `display.tasks.r
 
 At registration or scheduling time we cannot tell whether the pilot will fly for real or in the simulator: the registration belongs to a
 person, who owns both ids. **The tracking data is the only reliable signal**, so enforcement happens where positions arrive.
-Registration-time information is used only to warn and to guide, never to decide.
+What the pilot declared at registration (section 5) refines that rule, see "Rules as implemented".
+
+## Rules as implemented
+
+A position is used for a flight only when `Contestant.accepts_positions_from(is_simulator)` says so:
+
+1. The task's `simulator_policy` must accept that kind of position (`not_allowed`: real only, `simulator_only`: simulator only, `allowed`: both).
+2. If the flight has a declared `flight_mode`, it must match too (a `real` flight ignores simulator positions and the other way round).
+3. A flight without a declared mode (flights from before this feature, and flights created by organizers on `allowed` tasks without
+   choosing) follows the policy alone, so on an `allowed` task it accepts both kinds.
+4. A contestant created on a `not_allowed` or `simulator_only` task gets the matching mode automatically. The serializer and
+   `resolve_flight_mode` refuse a declared mode the policy does not accept.
+5. The processor caches the contestants it finds for up to 60 seconds (`CACHE_TTL`), so a changed policy or flight mode takes effect
+   within about a minute (stated on the field's help text). Ignored positions are noted once per flight in `blocked_positions_at`
+   (the MSFS quickstart, the Flymaster path and the position processor all use `Contestant.note_blocked_positions`).
 
 ## Design
 

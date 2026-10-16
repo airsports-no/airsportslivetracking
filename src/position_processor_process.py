@@ -76,12 +76,7 @@ def _accepts_or_note_blocked(contestant: Contestant, is_simulator: bool) -> bool
     """
     if contestant.accepts_positions_from(is_simulator):
         return True
-    if contestant.blocked_positions_at is None:
-        contestant.blocked_positions_at = datetime.datetime.now(datetime.timezone.utc)
-        try:
-            contestant.save(update_fields=("blocked_positions_at",))
-        except Exception:
-            logger.exception(f"Failed noting ignored positions for {contestant}")
+    if contestant.note_blocked_positions():
         logger.info(f"Ignoring {'simulator' if is_simulator else 'real'} positions for {contestant}")
     return False
 

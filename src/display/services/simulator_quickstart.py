@@ -14,7 +14,7 @@ from display.models import Contest, Contestant, ContestTeam, Person, SimulatorQu
 from display.services.capacity_enforcement import assert_can_register_team, assert_can_self_register_contestant
 from display.services.self_registration import create_self_managed_contestant
 from display.utilities.coordinate_utilities import calculate_bearing, project_position_lat_lon
-from display.utilities.simulator_policy import FLIGHT_MODE_SIMULATOR, policy_allows
+from display.utilities.simulator_policy import FLIGHT_MODE_REAL, FLIGHT_MODE_SIMULATOR, policy_allows
 
 # The client's "start in the air" puts the aircraft this far before the starting point, on the course to it.
 AIR_START_DISTANCE_M = 2 * 1852
@@ -111,6 +111,8 @@ def registered_flight(quickstart: SimulatorQuickstart, person: Person, now: Opti
             team__crew__member1=person,
             finished_by_time__gt=now,
         )
+        # A real flight in the same task is not the practice flight: it would reject the simulator's positions
+        .exclude(flight_mode=FLIGHT_MODE_REAL)
         .order_by("takeoff_time")
         .first()
     )

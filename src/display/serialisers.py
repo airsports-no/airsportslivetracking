@@ -2088,7 +2088,12 @@ class ContestantSerialiser(serializers.ModelSerializer):
 
     def validate(self, attrs):
         # Retrieve necessary data from attrs or instance
-        navigation_task = attrs.get("navigation_task") or (self.instance.navigation_task if self.instance else None)
+        # The task of a new contestant is not in attrs (read-only field): the view puts it in the context
+        navigation_task = (
+            attrs.get("navigation_task")
+            or (self.instance.navigation_task if self.instance else None)
+            or self.context.get("navigation_task")
+        )
         team = attrs.get("team") or (self.instance.team if self.instance else None)
 
         registration = None

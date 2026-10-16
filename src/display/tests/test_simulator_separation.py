@@ -302,3 +302,32 @@ class TestEmbedClientMarker(TestCase):
         client = APIClient()
         client.get("/?embed=app&client=somethingelse")
         self.assertNotIn("embed_client", client.cookies)
+
+
+class TestReviewFixes(SimulatorSeparationTestCase):
+    def test_a_real_flight_is_not_the_practice_flight(self):
+        from display.services.simulator_quickstart import registered_flight
+
+        self.set_policy(SIMULATOR_ALLOWED)
+        quickstart = SimulatorQuickstart.objects.create(navigation_task=self.task, start_location="Kjeller")
+        self.make_contestant(FLIGHT_MODE_REAL, 1)
+        self.assertIsNone(registered_flight(quickstart, self.pilot))
+        simulator = self.make_contestant(FLIGHT_MODE_SIMULATOR, 2)
+        self.assertEqual(simulator, registered_flight(quickstart, self.pilot))
+
+    def test_the_serializer_refuses_a_flight_mode_the_new_contestants_task_does_not_accept(self):
+        from display.serialisers import ContestantSerialiser
+
+        serialiser = ContestantSerialiser(context={"navigation_task": self.task})
+        with self.assertRaises(ValidationError):
+            serialiser.validate({"flight_mode": FLIGHT_MODE_SIMULATOR})
+        serialiser.validate({"flight_mode": FLIGHT_MODE_REAL})
+
+    def test_ignored_flymaster_positions_are_noted_once(self):
+        self.set_policy(SIMULATOR_ONLY)
+        contestant = self.make_contestant()
+        first = self.now - datetime.timedelta(minutes=1)
+        self.assertTrue(contestant.note_blocked_positions(first))
+        self.assertFalse(contestant.note_blocked_positions(self.now))
+        contestant.refresh_from_db()
+        self.assertEqual(first, contestant.blocked_positions_at)

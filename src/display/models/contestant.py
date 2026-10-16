@@ -1177,6 +1177,20 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             return (self.flight_mode == FLIGHT_MODE_SIMULATOR) == is_simulator
         return True
 
+    def note_blocked_positions(self, at: Optional[datetime.datetime] = None) -> bool:
+        """
+        Records that positions were ignored because of the simulator policy or the flight mode (only the first time; the positions
+        themselves are not kept). Returns true when this was the first time.
+        """
+        if self.blocked_positions_at is not None:
+            return False
+        self.blocked_positions_at = at or datetime.datetime.now(datetime.timezone.utc)
+        try:
+            self.save(update_fields=("blocked_positions_at",))
+        except Exception:
+            logger.exception(f"Failed noting ignored positions for {self}")
+        return True
+
     def is_currently_tracked_by_device(self, device_id: str) -> bool:
         """
         Returns true unless tracking_device is TRACKING_PILOT_AND_COPILOT because the contestant cannot be tracked
