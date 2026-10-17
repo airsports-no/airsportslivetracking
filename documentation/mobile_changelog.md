@@ -15,6 +15,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-17
 #### Backend
+- **Deleting the account in the app no longer fails with a server error.** The removed Firebase login package left two tables in the database with a foreign key to the user, so deleting any user failed (Sentry `PYTHON-DJANGO-1Z`, 500 from `delete_account/`). The user's rows in them are now removed first, which also fixes deletion from the admin.
 - **The profile no longer carries `is_public` and `last_seen`.** Both fields on the person (profile and crew in the API) are gone: nothing read them (neither the apps nor the MSFS client), and `last_seen` cost a database write for every received position. The tracker list of a contestant no longer has `is_active`. Migration `0198`.
 - **The task wizard asks "Who will fly this task?" first.** Real aircraft only, simulators allowed, or simulator only, as three plain choices at the top of the task details (also when editing a task), instead of a buried drop-down.
 - **The results page's "Replay track" link works, and links to the contest.** Website only.

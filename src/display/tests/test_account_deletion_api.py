@@ -327,3 +327,34 @@ class TestOrganizerAccountDeletion(TestCase):
         from display.services.account_deletion import blocked_reason
 
         self.assertIsNone(blocked_reason(self.organizer))
+
+
+class TestLegacyFirebaseRows(TestCase):
+    """Deleting a user must not trip over the tables the removed drf_firebase_auth package left behind."""
+
+    def test_user_can_be_deleted_when_the_legacy_tables_do_not_exist(self):
+        user = get_user_model().objects.create(email="legacy-none@example.com")
+        user.delete()
+        self.assertFalse(get_user_model().objects.filter(email="legacy-none@example.com").exists())
+
+    def test_legacy_rows_of_the_user_are_removed(self):
+        from django.db import connection
+
+        user = get_user_model().objects.create(email="legacy-rows@example.com")
+        other = get_user_model().objects.create(email="legacy-other@example.com")
+        with connection.cursor() as cursor:
+            # Temporary tables, so that nothing is committed outside the test's transaction
+            cursor.execute("CREATE TEMPORARY TABLE drf_firebase_auth_firebaseuser (id INT, uid VARCHAR(50), user_id INT)")
+            cursor.execute("CREATE TEMPORARY TABLE drf_firebase_auth_firebaseuserprovider (id INT, firebase_user_id INT)")
+            cursor.execute("INSERT INTO drf_firebase_auth_firebaseuser VALUES (1, 'a', %s), (2, 'b', %s)", [user.pk, other.pk])
+            cursor.execute("INSERT INTO drf_firebase_auth_firebaseuserprovider VALUES (1, 1), (2, 2)")
+
+        user.delete()
+
+        with connection.cursor() as cursor:
+            cursor.execute("SELECT user_id FROM drf_firebase_auth_firebaseuser")
+            self.assertEqual(cursor.fetchall(), ((other.pk,),))
+            cursor.execute("SELECT firebase_user_id FROM drf_firebase_auth_firebaseuserprovider")
+            self.assertEqual(cursor.fetchall(), ((2,),))
+            cursor.execute("DROP TEMPORARY TABLE drf_firebase_auth_firebaseuserprovider")
+            cursor.execute("DROP TEMPORARY TABLE drf_firebase_auth_firebaseuser")
