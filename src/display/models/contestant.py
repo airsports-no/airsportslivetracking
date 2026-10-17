@@ -996,7 +996,6 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 {
                     "tracker": self.team.crew.member1.email,
                     "has_user": get_user_model().objects.filter(email=self.team.crew.member1.email).exists(),
-                    "is_active": self.team.crew.member1.is_tracking_active,
                 }
             )
         if (
@@ -1007,7 +1006,6 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
                 {
                     "tracker": self.team.crew.member2.email,
                     "has_user": get_user_model().objects.filter(email=self.team.crew.member2.email).exists(),
-                    "is_active": self.team.crew.member2.is_tracking_active,
                 }
             )
         return devices
@@ -1094,14 +1092,6 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         results = []
         for contestant in contestants:
             is_simulator = False
-            # last_seen is NOT updated here (unlike _try_to_get_copilot_tracking
-            # below): live_position_transmitter.py already writes
-            # contestant.team.crew.member1.last_seen on essentially every
-            # position (~1Hz, via global_map_queue), far more frequently than
-            # this method runs (throttled by cached_find_contestant's ~60s
-            # cache) - a second write here to the same field was pure
-            # redundant work. member2 (copilot) has no such other writer, so
-            # that one stays.
             if contestant.team.crew.member1:
                 if contestant.team.crew.member1.simulator_tracking_id == device:
                     is_simulator = True
@@ -1126,8 +1116,6 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         for contestant in contestants:
             is_simulator = False
             if contestant.team.crew.member2:
-                contestant.team.crew.member2.last_seen = stamp
-                contestant.team.crew.member2.save(update_fields=["last_seen"])
                 if contestant.team.crew.member2.simulator_tracking_id == device:
                     is_simulator = True
             results.append((contestant, is_simulator))

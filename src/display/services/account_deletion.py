@@ -125,7 +125,6 @@ def _anonymize_person(person: Person):
     person.picture = None
     person.biography = ""
     person.app_aircraft_registration = ""
-    person.is_public = False
     person.save()
 
 

@@ -67,8 +67,6 @@ def live_position_transmitter_process(queue):
         if data_type == PERSON_TYPE:
             try:
                 person = fetch_person(person_or_contestant)
-                person.last_seen = device_time
-                person.save(update_fields=["last_seen"])
                 global_tracking_name = person.app_aircraft_registration
             except ObjectDoesNotExist:
                 pass
@@ -85,12 +83,6 @@ def live_position_transmitter_process(queue):
                 contestant = fetch_contestant(person_or_contestant)
                 if contestant is not None:
                     global_tracking_name = contestant.team.aeroplane.registration
-                    try:
-                        person = contestant.team.crew.member1
-                        person.last_seen = device_time
-                        person.save(update_fields=["last_seen"])
-                    except:
-                        logger.exception(f"Failed fetching person data for contestant {contestant}")
                     if contestant.navigation_task.everything_public:
                         navigation_task_id = contestant.navigation_task_id
             except OperationalError:

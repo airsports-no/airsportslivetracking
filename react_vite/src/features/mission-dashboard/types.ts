@@ -166,8 +166,6 @@ export interface Person {
     picture: string;
     biography: string;
     country: string;
-    is_public: boolean;
-    last_seen: string;
 }
 
 export interface ClubManagerMembership {
@@ -190,7 +188,6 @@ export interface Club {
 export interface TrackerIdDisplay {
     tracker: string;
     has_user: boolean;
-    is_active: boolean;
 }
 
 export interface PaginatedContests {

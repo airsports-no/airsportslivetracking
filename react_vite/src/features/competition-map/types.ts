@@ -60,7 +60,6 @@ export interface ContestantTrackSummary {
 export interface TrackerDisplay {
   tracker: string;
   has_user: boolean;
-  is_active: boolean;
 }
 
 export interface Contest {

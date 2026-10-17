@@ -93,7 +93,7 @@ class ContestTeam(models.Model):
 class Contest(models.Model):
     """
     A contest represents a flying competition that consists of a set of tasks. A contest has a time period and a
-    location (to be viewable on the global map) together with other useful parameters.
+    location (shown in the public contest list) together with other useful parameters.
     """
 
     DESCENDING = "desc"
@@ -247,7 +247,7 @@ class Contest(models.Model):
 
     def make_public(self):
         """
-        Makes the contest publicly visible on the global map and enlist views.
+        Makes the contest publicly listed and visible in enlist views.
         """
         self.is_public = True
         self.is_featured = True

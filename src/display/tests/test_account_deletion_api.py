@@ -87,7 +87,6 @@ class TestAccountDeletionApi(TestCase):
         self.person.refresh_from_db()
         self.assertEqual((self.person.first_name, self.person.last_name), ("Unknown", "Unknown"))
         self.assertEqual(self.person.email, f"internal_{self.person.pk}@airsports.no")
-        self.assertFalse(self.person.is_public)
 
     def test_staff_and_superusers_cannot_self_delete(self):
         for flag in ("is_staff", "is_superuser"):

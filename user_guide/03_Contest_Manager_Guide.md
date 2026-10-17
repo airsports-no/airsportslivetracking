@@ -20,7 +20,7 @@ To host a contest, you need **Organizer** status. This is **automatically approv
 4.  **Sharing:**
     *   **Private:** Only visible to the creator.
     *   **Unlisted:** Accessible via a direct link.
-    *   **Public:** Publicly listed on the global map.
+    *   **Public:** Publicly listed.
 ---
 
 ## 2. Creating Navigation Tasks
@@ -119,5 +119,5 @@ ASLT utilizes a granular permission system to protect sensitive data.
     *   **Unprotected Maps:** These are available for any organizer to use in their tasks.
     *   **Protected Maps:** Access is restricted to users who have explicit `view_useruploadedmap` permissions. 
     *   **Automatic Access:** Contest managers can automatically access maps uploaded by other staff members associated with the same contest.
-*   **Public vs. Private:** Remember that setting a Navigation Task to `is_public=false` hides the tracks from the global map, which is essential for maintaining the "quarantine" of pilots during a major event.
+*   **Public vs. Private:** Remember that setting a Navigation Task to `is_public=false` hides the tracks from public view, which is essential for maintaining the "quarantine" of pilots during a major event.
 *   **Flight simulators:** Each navigation task has a "Flight simulators" setting. *Not allowed* (the default) ignores positions from flight simulators, so simulator pilots cannot disturb a real competition. *Allowed* accepts simulator flights under the normal rules and marks them with a SIM badge. *Simulator only* ignores real trackers and the app. A pilot booking a flight on the website has to say whether they will fly a real aircraft or a simulator; the MSFS client and the phone apps are recognised automatically. The setting takes effect within about a minute.

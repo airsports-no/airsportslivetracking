@@ -137,7 +137,7 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
                 {(() => {
                     const currentVisibility = contest.is_public ? (contest.is_featured ? 'public' : 'unlisted') : 'private';
                     const options = [
-                        { value: 'public' as const, icon: Globe, description: 'Visible on the global map and in contest listings.' },
+                        { value: 'public' as const, icon: Globe, description: 'Visible in contest listings.' },
                         { value: 'unlisted' as const, icon: LinkIcon, description: 'Visible only to anyone with the direct link - not listed or shown on the map.' },
                         { value: 'private' as const, icon: Lock, description: 'Visible only to users with explicit access to this contest.' },
                     ];

@@ -134,8 +134,8 @@ class AirsportsPositionsConsumer(ParallelDispatchMixin, WebsocketConsumer):
     external partners (SafeSky) to consume, not something ASLT consumes.
     Fed by live_position_transmitter.py's transmit_airsports_position_data:
     only non-simulator positions (Person.simulator_tracking_id help_text:
-    "Persons or contestants identified by this field should not be displayed
-    on the global map") within EXTERNAL_TRAFFIC_MAX_AGE_SECONDS seconds of "now" are
+    "Persons or contestants identified by this field are not sent on the
+    partner traffic feed") within EXTERNAL_TRAFFIC_MAX_AGE_SECONDS seconds of "now" are
     forwarded, so an app/simulator-tracked contestant never appears here even
     though it scores normally.
     """

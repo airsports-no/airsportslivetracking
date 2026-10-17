@@ -15,6 +15,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-17
 #### Backend
+- **The profile no longer carries `is_public` and `last_seen`.** Both fields on the person (profile and crew in the API) are gone: nothing read them (neither the apps nor the MSFS client), and `last_seen` cost a database write for every received position. The tracker list of a contestant no longer has `is_active`. Migration `0198`.
 - **The task wizard asks "Who will fly this task?" first.** Real aircraft only, simulators allowed, or simulator only, as three plain choices at the top of the task details (also when editing a task), instead of a buried drop-down.
 - **The results page's "Replay track" link works, and links to the contest.** Website only.
 - **Task wizard sends `rounded_corners=false` when the checkbox was never touched** (16 October). Website only.

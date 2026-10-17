@@ -129,7 +129,7 @@ def clean_db_positions():
         c.close_if_unusable_or_obsolete()
 
 
-def initial_processor(queue: Queue, global_map_queue: Queue):
+def initial_processor(queue: Queue, transmitter_queue: Queue):
     try:
         cache.set(LAST_DEBUG_KEY, last_debug, 10 * DEBUG_INTERVAL)
     except Exception:
@@ -147,15 +147,15 @@ def initial_processor(queue: Queue, global_map_queue: Queue):
         clean_db_positions()
         try:
             data = queue.get(timeout=DEBUG_INTERVAL)
-            build_and_push_position_data(data, traccar, global_map_queue)
+            build_and_push_position_data(data, traccar, transmitter_queue)
         except Empty:
             pass
         print_contestant_positions_debug()
 
 
-def build_and_push_position_data(data, traccar, global_map_queue):
+def build_and_push_position_data(data, traccar, transmitter_queue):
     global global_received_positions
-    received_positions = map_positions_to_contestants(traccar, data.get("positions", []), global_map_queue)
+    received_positions = map_positions_to_contestants(traccar, data.get("positions", []), transmitter_queue)
     for contestant, positions in received_positions.items():
         global_received_positions += len(positions)
         add_positions_to_calculator(contestant, positions)
@@ -268,7 +268,7 @@ def cleanup_calculators():
             processes.pop(key)
 
 
-def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_queue) -> Dict[Contestant, List[Dict]]:
+def map_positions_to_contestants(traccar: Traccar, positions: List, transmitter_queue) -> Dict[Contestant, List[Dict]]:
     """
     Determine which contestant the position data belongs to. Forward the position with the associated person or
     contestant to the global queue.
@@ -326,7 +326,7 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
                     received_tracks[contestant].append(position_data)
                 except KeyError:
                     received_tracks[contestant] = [position_data]
-                global_map_queue.put(
+                transmitter_queue.put(
                     (
                         CONTESTANT_TYPE,
                         contestant.pk,
@@ -336,5 +336,5 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, global_map_q
                     )
                 )
         else:
-            global_map_queue.put((PERSON_TYPE, device_name, position_data, device_time, False))
+            transmitter_queue.put((PERSON_TYPE, device_name, position_data, device_time, False))
     return received_tracks

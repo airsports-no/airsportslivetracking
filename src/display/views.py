@@ -301,7 +301,6 @@ def delete_user_and_person(request):
                     person.phone = None
                     person.picture = None
                     person.biography = ""
-                    person.is_public = False
                     person.save()
                     messages.warning(request, f"Deleting the person failed, but we renamed them to {person}")
     return render(request, "display/delete_user_form.html", {"form": form})

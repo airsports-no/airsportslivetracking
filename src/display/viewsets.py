@@ -1036,7 +1036,7 @@ class ContestPagination(MyCursorPagination):
 class ContestViewSet(ModelViewSet):
     """
     A contest is a high level wrapper for multiple tasks. It provides a lightweight view of a contest and is used by
-    the front end to display the contest list on the global map.
+    the front end to display the contest list.
     """
 
     queryset = Contest.objects.all()

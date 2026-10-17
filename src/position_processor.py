@@ -32,7 +32,7 @@ logger = logging.getLogger(__name__)
 
 FAILED_TRACCAR_CONNECTION_COUNT_LIMIT = 10
 DEBUG_INTERVAL = 60
-global_map_queue = Queue()
+transmitter_queue = Queue()
 processing_queue = Queue()
 
 received_messages = 0
@@ -113,13 +113,13 @@ headers["Upgrade"] = "websocket"
 if __name__ == "__main__":
     """
     Incoming positions are first sent to the initial processor. The person or contestant is then forwarded  to the live
-    position transmitter process  to appear on the global map and on the air sports data feed.
+    position transmitter process, which feeds the air sports data feed for partners (SafeSky).
     """
     django.db.connections.close_all()
     cache.clear()
     Process(
         target=live_position_transmitter_process,
-        args=(global_map_queue,),
+        args=(transmitter_queue,),
         daemon=True,
         name="live_position_transmitter",
     ).start()
@@ -127,7 +127,7 @@ if __name__ == "__main__":
     logger.info("Creating initial processor")
     Process(
         target=initial_processor,
-        args=(processing_queue, global_map_queue),
+        args=(processing_queue, transmitter_queue),
         daemon=False,
         name="initial_processor",
     ).start()

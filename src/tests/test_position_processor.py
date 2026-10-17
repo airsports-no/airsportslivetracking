@@ -30,8 +30,8 @@ def test_map_positions_to_multiple_contestants(mocked_find, mock_cache):
         }
     ]
     
-    # Mock global_map_queue
-    global_map_queue = MagicMock()
+    # Mock transmitter_queue
+    transmitter_queue = MagicMock()
     
     # Mock contestants
     contestant1 = MagicMock()
@@ -46,7 +46,7 @@ def test_map_positions_to_multiple_contestants(mocked_find, mock_cache):
     mocked_find.return_value = [(contestant1, False), (contestant2, True)]
     
     # Call the function
-    received_tracks = map_positions_to_contestants(traccar, positions, global_map_queue)
+    received_tracks = map_positions_to_contestants(traccar, positions, transmitter_queue)
     
     # 1. Check if received_tracks contains both contestants as keys
     assert contestant1 in received_tracks
@@ -58,10 +58,10 @@ def test_map_positions_to_multiple_contestants(mocked_find, mock_cache):
     assert received_tracks[contestant1][0]["deviceId"] == "device1"
     assert received_tracks[contestant2][0]["deviceId"] == "device1"
     
-    # 3. Check if global_map_queue.put was called for each contestant
-    assert global_map_queue.put.call_count == 2
+    # 3. Check if transmitter_queue.put was called for each contestant
+    assert transmitter_queue.put.call_count == 2
     
-    calls = global_map_queue.put.call_args_list
+    calls = transmitter_queue.put.call_args_list
     
     # Expected message format: (CONTESTANT_TYPE, contestant.pk, position_data, device_time, is_simulator)
     

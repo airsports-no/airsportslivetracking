@@ -1,4 +1,3 @@
-import datetime
 import logging
 import typing
 from typing import Optional
@@ -54,31 +53,18 @@ class Person(models.Model):
     simulator_tracking_id = models.CharField(
         max_length=28,
         editable=False,
-        help_text="An automatically generated tracking ID which is distributed to the simulator integration. Persons or contestants identified by this field should not be displayed on the global map.",
+        help_text="An automatically generated tracking ID which is distributed to the simulator integration. Persons or contestants identified by this field are not sent on the partner traffic feed.",
         db_index=True,  # same lookup as app_tracking_id above
     )
     app_aircraft_registration = models.CharField(
         max_length=100,
         default="",
         blank=True,
-        help_text="The display name of person positions on the global tracking map (should be an aircraft registration",
+        help_text="The callsign of the person's positions on the partner traffic feed when they are tracked without a contestant (should be an aircraft registration",
     )
     picture = models.ImageField(null=True, blank=True)
     biography = models.TextField(blank=True)
     country = CountryField(blank=True)
-    is_public = models.BooleanField(
-        default=False,
-        help_text="If true, the person's name will be displayed together with the callsign on the global map",
-    )
-    last_seen = models.DateTimeField(null=True, blank=True)
-
-    @property
-    def is_tracking_active(self):
-        return (
-            # We assume the tracker is active if we have seen it today
-            self.last_seen
-            and datetime.datetime.now(datetime.timezone.utc).date() == self.last_seen.date()
-        )
 
     @property
     def phone_country_prefix(self):
