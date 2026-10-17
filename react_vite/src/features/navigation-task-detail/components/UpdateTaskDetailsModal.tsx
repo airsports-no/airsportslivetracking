@@ -1,7 +1,8 @@
 import React, { forwardRef, useEffect, useState } from 'react';
 import { updateNavigationTaskDetails } from '../api';
 import { NavigationTaskDetail } from '../types';
-import { SIMULATOR_POLICY_HELP, SIMULATOR_POLICY_OPTIONS, SimulatorPolicy } from '../../../utils/simulatorPolicy';
+import SimulatorPolicyChoice from '../../../components/common/SimulatorPolicyChoice';
+import { SimulatorPolicy } from '../../../utils/simulatorPolicy';
 
 interface UpdateTaskDetailsModalProps {
   contestId: number;
@@ -147,19 +148,12 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
               />
               <span className="label-text">Allow observation registration in the app</span>
             </label>
-            <label className="form-control w-full">
-              <span className="label-text">Flight simulators</span>
-              <select
-                className="select select-bordered select-sm w-full"
-                value={simulatorPolicy}
-                onChange={(e) => setSimulatorPolicy(e.target.value as SimulatorPolicy)}
-              >
-                {SIMULATOR_POLICY_OPTIONS.map((option) => (
-                  <option key={option.value} value={option.value}>{option.label}</option>
-                ))}
-              </select>
-              <span className="text-xs opacity-70">{SIMULATOR_POLICY_HELP}</span>
-            </label>
+            <SimulatorPolicyChoice
+              name="update_simulator_policy"
+              value={simulatorPolicy}
+              onChange={setSimulatorPolicy}
+              suggestSelfManagement={!allowSelfManagement}
+            />
             <label className="label cursor-pointer justify-start gap-2">
               <input
                 type="checkbox"

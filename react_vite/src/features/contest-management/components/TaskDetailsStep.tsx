@@ -5,7 +5,8 @@ import Select from 'react-select';
 import { selectStyles } from '../../../utils/selectStyles';
 import { fetchScorecardChoices } from '../api';
 import HelpIcon from '../../../components/common/HelpIcon';
-import { SIMULATOR_POLICY_HELP, SIMULATOR_POLICY_OPTIONS } from '../../../utils/simulatorPolicy';
+import SimulatorPolicyChoice from '../../../components/common/SimulatorPolicyChoice';
+import { SimulatorPolicy } from '../../../utils/simulatorPolicy';
 import {
     NavigationTaskDetailsFormValues,
     NavigationTaskDetailsInput,
@@ -37,6 +38,11 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
     const [scorecardsError, setScorecardsError] = useState<string | null>(null);
     const [retryCount, setRetryCount] = useState(0);
     const originalScorecard = watch('original_scorecard');
+
+    // The simulator policy is chosen with radio buttons that set the value directly: register it so it is always part of the submission
+    useEffect(() => {
+        register('simulator_policy');
+    }, [register]);
 
     useEffect(() => {
         let cancelled = false;
@@ -70,6 +76,12 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
                 <input className="input input-bordered w-full" {...register('name')} />
                 {errors.name && <span className="text-error text-sm">{errors.name.message}</span>}
             </label>
+
+            <SimulatorPolicyChoice
+                value={(watch('simulator_policy') ?? 'not_allowed') as SimulatorPolicy}
+                onChange={(policy) => setValue('simulator_policy', policy, { shouldDirty: true })}
+                suggestSelfManagement={!watch('allow_self_management')}
+            />
 
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <label className="form-control w-full">
@@ -154,14 +166,6 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
             <label className="label cursor-pointer justify-start gap-3">
                 <input type="checkbox" className="checkbox" {...register('allow_self_management')} />
                 <span className="label-text inline-flex items-center">Allow self-management<HelpIcon text="Lets pilots who are registered for the contest book their own start time. The task must also be public and featured for pilots to see it." /></span>
-            </label>
-            <label className="form-control w-full">
-                <div className="label"><span className="label-text inline-flex items-center">Flight simulators<HelpIcon text={SIMULATOR_POLICY_HELP} /></span></div>
-                <select className="select select-bordered w-full" {...register('simulator_policy')}>
-                    {SIMULATOR_POLICY_OPTIONS.map((option) => (
-                        <option key={option.value} value={option.value}>{option.label}</option>
-                    ))}
-                </select>
             </label>
             <label className="label cursor-pointer justify-start gap-3">
                 <input type="checkbox" className="checkbox" {...register('allow_observation_registration')} />
