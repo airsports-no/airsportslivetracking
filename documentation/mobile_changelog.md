@@ -14,7 +14,15 @@ that says what a pilot, an organiser or an admin gets.
 ## Changes after the initial development
 
 ### 2026-10-17
+#### Backend
+- **The task wizard asks "Who will fly this task?" first.** Real aircraft only, simulators allowed, or simulator only, as three plain choices at the top of the task details (also when editing a task), instead of a buried drop-down.
+- **The results page's "Replay track" link works, and links to the contest.** Website only.
+- **Task wizard sends `rounded_corners=false` when the checkbox was never touched** (16 October). Website only.
+
 #### App
+- **MSFS client: training mode on by default.** It is on at every start (and after sign-out), and still only shows where the organizer allows it; the pilot can switch it off. The phone apps keep it off until the pilot switches it on.
+- **MSFS client: photo marks update in place.** A new photo mark could stay hidden until the screen was reopened; each card is now updated in place.
+- **MSFS client: build 43 on flightsim.to**, with crash reports mentioned in the README and listing.
 - **Home asks the server again when the next window opens** (app PR #3). While the pilot is on Home and not tracking, the app waits until the next flight's window opens, then asks for the current flight (retrying every 10 s for up to 2 minutes), so the "not active yet" note goes and Timer and Photos appear without pressing Refresh. The card also uses a ticking time. While tracking, the existing poll already did this.
 - **Home says plainly when the next flight is not active yet** (app PR #2; the MSFS client got the same in its PR #18). Before the tracking window opens the server has no current flight, so positions are not scored. The header now reads "Next flight, not active yet", the card starts with the tracking window (date and time, with the end date too if it runs past midnight) and an amber note says when it opens and that positions are not scored until then. The note is only shown for a window that opens later: an open window with no current flight (positions ignored, request failed) keeps the plain "Next flight".
 
@@ -55,7 +63,7 @@ that says what a pilot, an organiser or an admin gets.
 - **The current-flight endpoints say when positions are ignored.** `get_current_app_navigation_task` and `get_current_sim_navigation_task` return a
   flight whose positions the task's simulator policy or the declared flight mode rejects (they used to hide it, so the pilot saw nothing),
   with `positions_accepted: false` and `positions_ignored_reason` in words for the pilot.
-- **Terms and privacy page updated for 2.0** (`airsports_static/src/pages/terms_and_conditions.astro`, English and Norwegian), on branch `mobile-integration` only until the board has read it: what the apps collect (precise location in the background while tracking, account data, push token, crash reports, app version activity), the SafeSky position feed (registration only), in-app account deletion, Google Cloud hosting in Finland, the third-party list (Firebase, Apple, Google, Sentry), version 2.0 of 16 October 2026.
+- **Terms and privacy page updated for 2.0** (`airsports_static/src/pages/terms_and_conditions.astro`, English and Norwegian), (merged to `main`, with the Crashlytics and MSFS-client Sentry wording): what the apps collect (precise location in the background while tracking, account data, push token, crash reports, app version activity), the SafeSky position feed (registration only), in-app account deletion, Google Cloud hosting in Finland, the third-party list (Firebase, Apple, Google, Sentry), version 2.0 of 16 October 2026.
 - **The live map only shows observation photos for tasks that use observation registration.** The task `photos` endpoint now leaves the
   observation photos out for everyone but the organizers while "allow observation registration" is off; the route's waypoint photos stay.
 - **Real flights and simulator flights are kept apart (`documentation/PLAN_simulator_separation.md`).** Every navigation task has a
@@ -76,7 +84,7 @@ that says what a pilot, an organiser or an admin gets.
 #### App
 - **"Your flight is not being recorded".** The phone apps and the MSFS client show a notice on Home with the server's reason when their
   positions are ignored for the current flight (for example a simulator pilot on a flight booked as a real one).
-- **MSFS client crash reporting plan.** `documentation/msfs_client_sentry.md`: the client already has Sentry, but only reads its DSN from an environment variable, so the shipped client sends nothing. The note describes building the DSN into the release, a better init (release with build number, environment, user id) and symbol upload from the release workflows.
+- **MSFS client crash reporting is built.** Release builds of the client send unhandled exceptions and startup sessions to Sentry: the DSN is built into the release (`SENTRY_DSN` repository variable or secret), the release is `msfsclient@<version>+<build>`, and the pilot's Airsports user id (never the name or e-mail) tags the report. `documentation/msfs_client_sentry.md` keeps the plan. It sends nothing until `SENTRY_DSN` is set in the client repository.
 - **Training banner readable.** The gate label ("SP on time") was dark on the dark dock; it is now light. The preview run used for store screenshots got sample images, a running flight with score and training, and a synthetic GPS track. Store screenshots (iPhone, and cropped for Play) and the 2.0 store listing (English and Norwegian) are in `docs/store-screenshots/` and `distribution/store-listing/` of the app repository.
 - **Web pages opened in the app say which client opens them** (`embed=app&client=android|ios`), so a flight booked there is a real
   flight and the open-today list only shows tasks that accept real flights. The MSFS client does the same with `client=msfs`.
