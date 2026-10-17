@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-17
+#### App
+- **Home says plainly when the next flight is not active yet** (app PR #2; the MSFS client got the same in its PR #18). Before the tracking window opens the server has no current flight, so positions are not scored. The header now reads "Next flight, not active yet", the card starts with the tracking window (date and time, with the end date too if it runs past midnight) and an amber note says when it opens and that positions are not scored until then. The note is only shown for a window that opens later: an open window with no current flight (positions ignored, request failed) keeps the plain "Next flight".
+
 ### 2026-10-14
 #### Backend
 - **Sign in to the MSFS client with Google or Apple.** The client opens `accounts/desktop_sign_in/` in the browser, where
