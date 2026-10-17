@@ -4,7 +4,6 @@ import typing
 import html2text
 from django.core.mail import send_mail
 from django.db import models
-from django.template.loader import render_to_string
 from django_use_email_as_username.models import BaseUser, BaseUserManager
 from guardian.mixins import GuardianUserMixin
 
@@ -55,8 +54,8 @@ class MyUser(BaseUser, GuardianUserMixin):
             if len(html) == 0:
                 raise Exception("Did not receive any text for welcome email")
         except:
-            logger.exception("Failed to generate welcome email, fall back to earlier implementation.")
-            html = render_to_string("display/welcome_email.html", {"person": person})
+            logger.exception("Failed to generate welcome email")
+            return
         converter = html2text.HTML2Text()
         plaintext = converter.handle(html)
         try:
@@ -76,8 +75,8 @@ class MyUser(BaseUser, GuardianUserMixin):
             if len(html) == 0:
                 raise Exception("Did not receive any text for welcome email")
         except:
-            logger.exception("Failed to generate contest creation email, fall back to earlier implementation.")
-            html = render_to_string("display/contestmanagement_email.html", {"person": person})
+            logger.exception("Failed to generate contest creation email")
+            return
         converter = html2text.HTML2Text()
         plaintext = converter.handle(html)
         logger.debug(f"Sending contest creation email to {person}")

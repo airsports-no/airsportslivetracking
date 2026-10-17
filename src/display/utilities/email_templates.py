@@ -1,57 +1,91 @@
-WELCOME_EMAIL = """
-<p>Dear {{ person.first_name }} {{ person.last_name }}</p>
+# Inline styles only: mail clients ignore <style> blocks. The plain-text part is generated from this HTML.
+_STEP = 'style="margin:0 0 14px;padding:2px 0 2px 14px;border-left:3px solid #4f55c7;"'
+_NOTE = 'style="margin:22px 0;padding:12px 16px;background:#f3f4fb;border-radius:6px;"'
 
-<p><strong>Welcome to Air Sports Live Tracking</strong><br>
-Thank you for downloading the Air Sports Live Tracking APP and being part of the Air Sports Live Tracking Team. We hope you enjoy it.</p>
-  
-<p><strong>With Air Sports Live Tracking you can:</strong></p>
-<ol>
-    <li>Maximize the use of the Live Tracking app. Read our guide for useful tips on installing and using the App. <a href="https://airsports.no/docs/02_Contestant_Guide"><strong>– Installation Guide –</strong></a></li>
-    <li>Register yourself for a competition and receive an automatically generated Flight Order. No preparation, just go flying! Find the event on the mission dashboard and click: “Register” to attend. <a href="https://airsports.no/tutorials/#SelfRegistration">Watch this Self-Register tutorial</a>.</li>
-    <li>Become a Contest Administrator and create your own competitions. To get started, go to your <a href="https://airsports.no">Mission Dashboard</a> and click the <strong>"Become Organizer"</strong> button in the top menu. This will instantly grant you the privileges needed to host and manage your own events.</li>
-</ol>
-  
-<p>For more info visit our <strong>News & FAQ</strong>: <a href="https://airsports.no/faq">airsports.no/faq</a> or see our tutorials on <a href="https://www.youtube.com/c/AirSportsLiveTracking?sub_confirmation=1">YouTube</a>, and please subscribe.</p>
+WELCOME_EMAIL = f"""
+<h1 style="margin:0 0 12px;font-size:24px;color:#2b2f77;">Welcome aboard, {{{{ person.first_name }}}}!</h1>
 
-<p><strong>IMPORTANT:</strong><br>
-<strong>Access to position</strong> : The app requires access to position even when the APP is in the background. This is especially important in a competition.<br>
-<strong>Huawei/OnePlus</strong> : We have experienced that some phones do not provide access to the battery when the app is in the background. Smartphone owners must therefore check, and go into the settings and manually give the APP access to the battery when the app is in the background mode. <a href="https://airsports.no/docs/02_Contestant_Guide#4-troubleshooting-tracking"><strong>Please read the guide for crucial settings and helpful tips!</strong></a></p>
+<p>We are glad to have you at Air Sports Live Tracking. Your phone is now your tracker: organisers, crew and spectators can follow
+your flight live, and in a competition you are scored as you fly.</p>
 
-<p>Read more about Air Sports Live Tracking; <a href="https://airsports.no">airsports.no</a>.</p>
-  
-<p>We wish you all the best and let us know if you have any questions. If you want, we can arrange a webinar for you and your friends, to show some of the most important features.</p>
+<h2 style="margin:22px 0 6px;font-size:16px;color:#2b2f77;">Getting started</h2>
+
+<div {_STEP}><strong>1. Set up the app.</strong> Sign in with the same e-mail you register for events with, and allow location
+"all the time" so tracking keeps running with the screen off. The app has a <strong>pre-flight check</strong> that finds
+problems (location, battery saver, internet, clock) and fixes them with a tap.
+<a href="https://airsports.no/docs/02_Contestant_Guide">Read the pilot guide</a>.</div>
+
+<div {_STEP}><strong>2. Register for an event.</strong> Find it on the <a href="https://airsports.no">mission dashboard</a> or in the app
+under "Open for registration today", and press <strong>Register</strong>. You get your flight order automatically, no preparation.
+<a href="https://airsports.no/tutorials/#SelfRegistration">Watch the 2-minute tutorial</a>.</div>
+
+<div {_STEP}><strong>3. Fly.</strong> Press play in the app before take-off. Your next flight and its tracking window are on the
+home screen, and the app tells you if something stops the positions from reaching us.</div>
+
+<div {_STEP}><strong>Flying in Microsoft Flight Simulator?</strong> The simulator client works the same way, and events say whether
+they accept simulator flights.
+<a href="https://airsports.no/docs/08_MSFS_Integration">Set it up here</a>.</div>
+
+<div {_STEP}><strong>Want to run your own events?</strong> Press <strong>Become an Organizer</strong> in the top bar of the dashboard.
+It is instant, and our <a href="https://airsports.no/docs/12_First_Contest_in_15_Minutes">first contest in 15 minutes</a> guide
+takes you from there.</div>
+
+<div {_NOTE}><strong>One thing worth knowing:</strong> some phones (Huawei, OnePlus and others) stop apps in the background to save
+battery. If your track freezes, give the app unrestricted battery use.
+<a href="https://airsports.no/docs/02_Contestant_Guide#4-troubleshooting-tracking">Here is how</a>.
+Tracking is a small annual subscription through the App Store or Google Play.</div>
+
+<p>Questions are always welcome: write to <a href="mailto:support@airsports.no">support@airsports.no</a> or browse the
+<a href="https://airsports.no/faq">FAQ</a>. We are happy to run a short webinar for you and your friends if that helps.</p>
+
+<p>Happy flying!</p>
 """
 
-CONTEST_CREATION_EMAIL = """
-<p>Dear {{ person.first_name }} {{ person.last_name }}</p>
+CONTEST_CREATION_EMAIL = f"""
+<h1 style="margin:0 0 12px;font-size:24px;color:#2b2f77;">You can now create contests, {{{{ person.first_name }}}}</h1>
 
-<p>Thank you for your inquiry. You now have access to create and manage contests.<br>
-To create contests and design routes, we recommend using a computer for the best experience.</p>
-  
-<p>If you have not logged in to the <a href="https://airsports.no/">airsports.no</a> dashboard, you can access it by using your registered email. If you need a password, you can request one via the login page. <a href="https://airsports.no/accounts/login/">Log in here</a></p>
+<p>Thank you for your interest. Your account is set up to create and manage contests. A computer is the easiest way to work
+with routes and tasks. <a href="https://airsports.no/accounts/login/">Log in here</a> with the same e-mail you use in the app
+(use "Reset password" if you have not set one).</p>
 
-<p>Setting up a competition is straightforward. Follow this flow to get your first event live:</p>
-  
-<p><strong>THE ORGANIZER FLOW:</strong></p>
-<ol>
-    <li><strong>Create a Contest</strong>: Click the <strong>"Create New Contest"</strong> button in the top right corner of your Mission Dashboard. This establishes the overall event, its dates, and location.</li>
-    <li><strong>Manage Contest</strong>: After creating your contest, click the <strong>"Manage"</strong> button on the contest card to enter the administrative area.</li>
-    <li><strong>Create a Route</strong>: Before you can track pilots, you need a <strong>Route</strong> (the geometric building blocks like gates and corridors). Inside Contest Management, click <strong>"Create Your First Route"</strong> or use the "Route Management" link in the top menu.</li>
-    <li><strong>Establish Tasks</strong>: Once your route is saved, you can create a <strong>Navigation Task</strong> (a specific competition instance). You can do this by clicking <strong>"Add New Navigation Task"</strong> inside your Contest Management page, or by clicking <strong>"Create Task from Route"</strong> directly from your list of saved routes.</li>
-    <li><strong>Custom Background Maps</strong>: You can also upload your own georeferenced background maps (aeronautical charts or custom imagery) to be used for both the live competition map and printed flight orders. Manage your uploads via the <strong>"My Maps"</strong> link in the top menu.</li>
-</ol>
-  
-<p>Once your tasks are created, participants can register themselves through the dashboard or app. You can then use the <strong>"Auto Schedule"</strong> feature to assign takeoff times and generate flight orders automatically.</p>
+<p>Tip: build your first contest as a private practice event. Contests are private until you change the visibility, so nobody
+sees it before you are ready.</p>
 
-<p><strong>RESOURCES:</strong></p>
-<ul>
-    <li><a href="https://airsports.no/docs/04_Route_Creation_and_Tasks"><strong>Route Creation & Task Guide</strong></a></li>
-    <li><a href="https://airsports.no/tutorials/#CreateContest"><strong>Step-by-step Video Tutorials</strong></a></li>
-    <li><a href="https://www.youtube.com/@AirSportsLiveTracking"><strong>YouTube Channel</strong></a></li>
+<h2 style="margin:22px 0 6px;font-size:16px;color:#2b2f77;">Five steps to your first event</h2>
+
+<div {_STEP}><strong>1. Create the contest.</strong> <em>Management &rarr; My contests &rarr; Create New Contest</em>: name,
+dates, time zone and location. A <strong>setup checklist</strong> on the contest page then shows what is left.</div>
+
+<div {_STEP}><strong>2. Draw a route.</strong> <em>Management &rarr; Route editor &rarr; Create new route</em>, or
+<strong>Import route</strong> from KML, KMZ, GPX or CSV. A route can be reused in many contests.</div>
+
+<div {_STEP}><strong>3. Add a navigation task.</strong> On the contest page press <strong>Add navigation task</strong>, choose the
+task type and the route. The first question is <strong>who will fly the task</strong>: real aircraft only (the default),
+simulators allowed, or simulator only.</div>
+
+<div {_STEP}><strong>4. Add teams and start times.</strong> Pilots can register themselves from the app or the dashboard
+(tick <em>allow self-management</em> on the task), or you add them with <strong>Add team</strong>, <strong>Quick Add</strong> or
+<strong>Scheduling</strong>. Flight orders with map and photos are generated for you.</div>
+
+<div {_STEP}><strong>5. Choose who can see it.</strong> In <em>Contest settings &rarr; Publicity</em> choose public, unlisted or
+private. You can keep a task hidden until it goes live.</div>
+
+<div {_NOTE}><strong>Before the flight:</strong> every pilot must be registered with the e-mail they use in the app, and each
+flight has a tracking window (start and finish). The contestant list shows who is missing the app. A co-pilot can also run
+the app as a backup phone.</div>
+
+<h2 style="margin:22px 0 6px;font-size:16px;color:#2b2f77;">Guides and help</h2>
+<ul style="margin:0 0 14px;padding-left:20px;">
+    <li><a href="https://airsports.no/docs/12_First_Contest_in_15_Minutes">Your first contest in 15 minutes</a></li>
+    <li><a href="https://airsports.no/docs/03_Contest_Manager_Guide">Contest manager guide</a> and
+        <a href="https://airsports.no/docs/04_Route_Creation_and_Tasks">route and task guide</a></li>
+    <li><a href="https://airsports.no/tutorials/#CreateContest">Video tutorial: create a contest</a></li>
+    <li><a href="https://airsports.no/faq">FAQ</a></li>
 </ul>
 
-<p><strong>HELP – Do not hesitate to contact us</strong> if you have any questions. We can arrange Skype or MS Teams meetings to show you the ropes, or review your first contest setup to ensure everything is in order before the first flight. Visit <a href="https://airsports.no/faq"><strong>airsports.no/faq</strong></a> for more helpful information.</p>
-  
+<p>Stuck, or want a second pair of eyes? Write to <a href="mailto:support@airsports.no">support@airsports.no</a>. We are happy to
+join a video call and look through your first contest before the first flight.</p>
+
 <p>Good luck with your event!</p>
 """
 
@@ -64,7 +98,6 @@ DELETION_EMAIL = """
 """
 
 EMAIL_SIGNATURE = """
-<p>–</p>
-<p><strong>Team Air Sports Live Tracking</strong><br>
+<p style="margin-top:28px;padding-top:14px;border-top:1px solid #e3e5f0;"><strong>Team Air Sports Live Tracking</strong><br>
 <a href="https://airsports.no">airsports.no</a></p>
 """
