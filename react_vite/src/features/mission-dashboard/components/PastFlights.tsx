@@ -1,10 +1,11 @@
 import React, { useState, useEffect, useMemo } from 'react';
+import { Link } from 'react-router-dom';
 import { Contest, NavigationTask } from '../types';
 import { useMissionDashboardStore } from '../store';
 import { fetchNavigationTask } from '../../competition-map/api';
 import Select from 'react-select';
 import { selectStyles } from '../../../utils/selectStyles';
-import { reverse } from '../../../urls';
+import { generatePath, reverse } from '../../../urls';
 import { Contestant } from '../../competition-map/types';
 import { Loading } from '../../route-editor/components/basicComponents';
 import ContestCard from '../components/ContestCard';
@@ -128,13 +129,21 @@ const PastFlights = () => {
                 <div className="fixed inset-0 bg-black bg-opacity-50 z-[1000] flex justify-center items-start overflow-y-auto px-4 pb-4 pt-12">
                     <div className="card bg-base-100 shadow-xl max-w-4xl w-full">
                         <div className="card-body">
-                            <h2 className="card-title">Results for {selectedContest.name}</h2>
+                            <div className="flex flex-wrap items-center justify-between gap-2">
+                                <h2 className="card-title">Results for {selectedContest.name}</h2>
+                                <Link
+                                    to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: selectedContest.id })}
+                                    className="btn btn-sm btn-outline"
+                                >
+                                    Go to contest
+                                </Link>
+                            </div>
                             {loadingModal ? (
                                 <Loading />
                             ) : (
                                 <div className="max-h-96 overflow-y-auto space-y-4 p-4">
                                     {modalContent && modalContent.map(task => (
-                                        <div key={task.pk} className="p-2 rounded-lg bg-base-200">
+                                        <div key={task.pk ?? (task as { id?: number }).id} className="p-2 rounded-lg bg-base-200">
                                             <h4 className="font-bold text-lg">{task.name}</h4>
                                             <TaskScoreDisplay task={task} myContestantIds={myContestantIds} contestId={selectedContest?.id} />
                                         </div>
