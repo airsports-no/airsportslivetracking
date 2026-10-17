@@ -32,7 +32,7 @@ takes you from there.</div>
 
 <div {_NOTE}><strong>One thing worth knowing:</strong> some phones (Huawei, OnePlus and others) stop apps in the background to save
 battery. If your track freezes, give the app unrestricted battery use.
-<a href="https://airsports.no/docs/02_Contestant_Guide#4-troubleshooting-tracking">Here is how</a>.
+<a href="https://airsports.no/docs/02_Contestant_Guide#5-troubleshooting-tracking">Here is how</a>.
 Tracking is a small annual subscription through the App Store or Google Play.</div>
 
 <p>Questions are always welcome: write to <a href="mailto:support@airsports.no">support@airsports.no</a> or browse the
