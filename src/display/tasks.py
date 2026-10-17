@@ -24,6 +24,7 @@ from display.models.email_map_link import EmailMapLink
 from display.models.flymaster_data import FlymasterData
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import is_termination_requested
+from display.utilities.mbtiles_stitch import EmptyMBTilesError
 from live_tracking_map.celery import app
 from live_tracking_map.settings import REDIS_HOST, REDIS_PORT, REDIS_PASSWORD
 
@@ -412,6 +413,13 @@ def process_user_uploaded_map(map_id: int):
         instance.processing_status = UserUploadedMap.PROCESSING_READY
         instance.processing_error = ""
         instance.save()
+    except EmptyMBTilesError as ex:
+        # A bad upload, not a fault in the system: tell the user, do not raise an error report
+        logger.warning(f"UserUploadedMap {map_id} has no tiles")
+        UserUploadedMap.objects.filter(pk=map_id).update(
+            processing_status=UserUploadedMap.PROCESSING_FAILED,
+            processing_error=f"{ex}. Check that the file is a valid mbtiles file with tiles in it.",
+        )
     except Exception as ex:
         logger.exception(f"Failed processing UserUploadedMap {map_id}")
         UserUploadedMap.objects.filter(pk=map_id).update(

@@ -1,7 +1,7 @@
 import os
 from io import BytesIO
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import MagicMock, PropertyMock, patch
 
 from django.contrib.auth import get_user_model
 from django.core.files.uploadedfile import SimpleUploadedFile
@@ -16,6 +16,7 @@ from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Contest, EditableRoute, NavigationTask, Route, Scorecard
 from display.models.user_uploaded_map import UserUploadedMap
 from display.tasks import process_user_uploaded_map
+from display.utilities.mbtiles_stitch import EmptyMBTilesError, MBTilesHelper
 
 
 def _make_instance(user, default_zoom=12) -> UserUploadedMap:
@@ -130,6 +131,27 @@ class ProcessUserUploadedMapTaskTests(TestCase):
         self.assertEqual(instance.processing_status, UserUploadedMap.PROCESSING_FAILED)
         self.assertIn("corrupt mbtiles", instance.processing_error)
 
+    @override_settings(MBTILES_PUBLISH_ROOT="/tilesets-test")
+    def test_map_without_tiles_fails_with_a_clear_message_and_no_error_report(self):
+        instance = _make_instance(self.user)
+
+        with patch.object(UserUploadedMap, "create_thumbnail", side_effect=EmptyMBTilesError("The map file contains no tiles")):
+            with self.assertNoLogs("display.tasks", level="ERROR"):
+                process_user_uploaded_map(instance.pk)
+
+        instance.refresh_from_db()
+        self.assertEqual(instance.processing_status, UserUploadedMap.PROCESSING_FAILED)
+        self.assertIn("contains no tiles", instance.processing_error)
+        self.assertNotIn("list index", instance.processing_error)
+
+    @override_settings(MBTILES_PUBLISH_ROOT="/tilesets-test")
+    def test_file_size_is_none_when_the_file_is_gone_from_storage(self):
+        instance = _make_instance(self.user)
+
+        # The storage backend raises its own NotFound, which is neither an OSError nor a ValueError
+        with patch.object(FieldFile, "size", new_callable=PropertyMock, side_effect=Exception("File does not exist")):
+            self.assertIsNone(instance.safe_map_file_size)
+
     def test_default_service_key_and_relative_path(self):
         instance = _make_instance(self.user)
         self.assertEqual(instance.default_service_key, f"user-uploaded-map-{instance.pk}")
@@ -166,6 +188,17 @@ def _make_mbtiles_pod(name, ready=True, terminating=False):
     ready_condition = MagicMock(type="Ready", status="True" if ready else "False")
     pod.status.conditions = [ready_condition]
     return pod
+
+
+class MBTilesHelperTests(TestCase):
+    def test_file_without_tiles_raises_a_clear_error(self):
+        mbtiles = MagicMock()
+        mbtiles.meta = {}
+        mbtiles.zoom_range.return_value = (0, 0)
+        mbtiles.list_tiles.return_value = []
+
+        with self.assertRaises(EmptyMBTilesError):
+            MBTilesHelper(mbtiles)
 
 
 class RequestMbtilesReloadTests(TestCase):

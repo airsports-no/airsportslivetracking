@@ -1,3 +1,4 @@
+import logging
 import os
 from io import BytesIO
 from pathlib import Path
@@ -11,6 +12,8 @@ from django.utils.text import slugify
 from pymbtiles import MBtiles
 
 from display.utilities.mbtiles_stitch import MBTilesHelper
+
+logger = logging.getLogger(__name__)
 
 
 def validate_file_size(value):
@@ -113,7 +116,9 @@ class UserUploadedMap(models.Model):
             return self.published_absolute_path.stat().st_size
         try:
             return self.map_file.size
-        except (FileNotFoundError, OSError, ValueError):
+        except Exception:
+            # Includes the storage backend's own NotFound (a record whose file is gone from the bucket)
+            logger.warning(f"Could not read the size of the map file of UserUploadedMap {self.pk}")
             return None
 
     @property

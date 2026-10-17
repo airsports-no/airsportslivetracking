@@ -9,6 +9,10 @@ from pymbtiles import MBtiles, Tile
 logger = logging.getLogger(__name__)
 
 
+class EmptyMBTilesError(ValueError):
+    """The mbtiles file has no tiles at its largest zoom level, so no map can be built from it."""
+
+
 class MBTilesHelper:
     def __init__(self, mbtiles: MBtiles):
         self.mbtiles = mbtiles
@@ -16,6 +20,8 @@ class MBTilesHelper:
         smallest_zoom, largest_zoom = self.mbtiles.zoom_range()
         logger.info(f"Selecting zoom level {smallest_zoom}")
         self.tiles = [tile for tile in self.mbtiles.list_tiles() if tile.z == largest_zoom]
+        if not self.tiles:
+            raise EmptyMBTilesError("The map file contains no tiles")
         self.tile_width, self.tile_height = self.get_image_size(self.mbtiles.read_tile(*self.tiles[0]))
         self.min_x = min([tile.x for tile in self.tiles])
         self.max_x = max([tile.x for tile in self.tiles])
