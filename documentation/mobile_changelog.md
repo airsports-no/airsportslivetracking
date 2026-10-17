@@ -20,7 +20,8 @@ that says what a pilot, an organiser or an admin gets.
 - **Task wizard sends `rounded_corners=false` when the checkbox was never touched** (16 October). Website only.
 
 #### App
-- **MSFS client: training mode on by default.** It is on at every start (and after sign-out), and still only shows where the organizer allows it; the pilot can switch it off. The phone apps keep it off until the pilot switches it on.
+- **Training mode on by default in the phone apps too** (as in the MSFS client). It is on at every app start, shows only where the organizer allows it for the navigation task, and the pilot can switch it off.
+- **MSFS client: training mode on by default.** It is on at every start (and after sign-out), and still only shows where the organizer allows it; the pilot can switch it off.
 - **MSFS client: photo marks update in place.** A new photo mark could stay hidden until the screen was reopened; each card is now updated in place.
 - **MSFS client: build 43 on flightsim.to**, with crash reports mentioned in the README and listing.
 - **Home asks the server again when the next window opens** (app PR #3). While the pilot is on Home and not tracking, the app waits until the next flight's window opens, then asks for the current flight (retrying every 10 s for up to 2 minutes), so the "not active yet" note goes and Timer and Photos appear without pressing Refresh. The card also uses a ticking time. While tracking, the existing poll already did this.
@@ -261,7 +262,7 @@ flight-scored push, `0191` `show_live_score_in_app`, `0192` mobile app activity.
   their own metadata, a link to the website dashboard, terms and privacy.
 - After the flight: your score so far, a notice when live scoring has finished, flight orders (opened in the browser) and a share
   button for the live link. Organiser announcements show as dismissible cards on Home.
-- Training mode (the pilot switches it on; it shows after each timed gate how early or late it was; only where the server offers it).
+- Training mode (on by default, the pilot can switch it off; it shows after each timed gate how early or late it was; only where the server offers it).
 
 **Timer and photos**
 - Adaptive-start timer on the nearest whole minute (GPS time on Android, phone clock checked against network time on iOS), an
