@@ -15,6 +15,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-17
 #### App
+- **Home asks the server again when the next window opens** (app PR #3). While the pilot is on Home and not tracking, the app waits until the next flight's window opens, then asks for the current flight (retrying every 10 s for up to 2 minutes), so the "not active yet" note goes and Timer and Photos appear without pressing Refresh. The card also uses a ticking time. While tracking, the existing poll already did this.
 - **Home says plainly when the next flight is not active yet** (app PR #2; the MSFS client got the same in its PR #18). Before the tracking window opens the server has no current flight, so positions are not scored. The header now reads "Next flight, not active yet", the card starts with the tracking window (date and time, with the end date too if it runs past midnight) and an amber note says when it opens and that positions are not scored until then. The note is only shown for a window that opens later: an open window with no current flight (positions ignored, request failed) keeps the plain "Next flight".
 
 ### 2026-10-14
