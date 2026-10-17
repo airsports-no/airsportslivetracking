@@ -22,6 +22,8 @@ that says what a pilot, an organiser or an admin gets.
 - **Task wizard sends `rounded_corners=false` when the checkbox was never touched** (16 October). Website only.
 
 #### App
+- **My flights looks like the rest of the app.** Upcoming and past flights are the same flight cards as on Home (contest logo, task type, tracking window, take-off, airspeed and wind), under day headings (Today, Tomorrow, Sat 24 Oct), with tabs, a spinner, a Refresh button and, when there is nothing to show, a button to find an event. Cancel, flight orders, directions and the map or results work as before.
+- **"Register today" is a list in the app.** The events open for self-registration today are cards with the country, the distance from the phone (nearest first), an "Open now" label, directions and a **Register a flight** button that opens the website's form for that task. The phone's position stays on the phone and is only used to sort the list. If the list cannot be loaded, the website's list is offered. Android first; the iOS build was not run for this change.
 - **Training mode on by default in the phone apps too** (as in the MSFS client). It is on at every app start, shows only where the organizer allows it for the navigation task, and the pilot can switch it off.
 - **MSFS client: training mode on by default.** It is on at every start (and after sign-out), and still only shows where the organizer allows it; the pilot can switch it off.
 - **MSFS client: photo marks update in place.** A new photo mark could stay hidden until the screen was reopened; each card is now updated in place.
