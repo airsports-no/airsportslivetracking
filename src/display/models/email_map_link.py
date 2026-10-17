@@ -3,9 +3,11 @@ import uuid
 
 from django.core.mail import send_mail
 from django.db import models
-from django.templatetags.static import static
+from django.template import Context, Template
 from django.urls import reverse
-from django.utils.html import escape
+
+from display.utilities.email_templates import EMAIL_SIGNATURE, FLIGHT_ORDER_EMAIL, PLAIN_SIGNATURE
+from display.utilities.welcome_emails import FOOTER, HEADER
 
 logger = logging.getLogger(__name__)
 
@@ -25,64 +27,9 @@ class EmailMapLink(models.Model):
 
     @property
     def HTML_SIGNATURE(self):
-        return f"""
-<h3><strong>Best Regards,</strong><br /><span style="color: #000080;">
-<strong>Team&nbsp;Air Sports Live Tracking</strong>
-<strong>&nbsp;</strong>
-</span></h3>
-<p>Flight Tracking and competition flying made easy!&nbsp;<br /> <br /> 
-<em>Air Sports Live Tracking gives you live tracking and live scoring of competitions in Precision Flying and Air 
-Navigation Racing. GA pilot? We also provide an open GA flight tracking service. Using your mobile as a tracker you 
-can follow it live on&nbsp;</em><em><a href="http://www.airsports.no/" data-saferedirecturl="https://www.google.com/url?q=http://www.airsports.no/&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNGxwqYMGGRw9YV110LVORQjwrEKSg">www.airsports.no</a></em><em>.</em></p>
+        return EMAIL_SIGNATURE
 
-<p><em>Download APP:&nbsp;&nbsp;</em><em><a href="https://apps.apple.com/no/app/air-sports-live-tracking/id1559193686?l=nb" data-saferedirecturl="https://www.google.com/url?q=https://apps.apple.com/no/app/air-sports-live-tracking/id1559193686?l%3Dnb&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNEaGuuRKna3cTbq1d9pFS5W0XjhHg">Apple Store</a></em><em>&nbsp;|&nbsp;</em><em><a href="https://play.google.com/store/apps/details?id=no.airsports.android.livetracking" data-saferedirecturl="https://www.google.com/url?q=https://play.google.com/store/apps/details?id%3Dno.airsports.android.livetracking&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNGm5zuqA1ARkWWhBHJFCMoEHOEITQ">Google Play</a></em><br /> <br /> Follow us:&nbsp;<a href="https://www.instagram.com/AirSportsLive" data-saferedirecturl="https://www.google.com/url?q=https://www.instagram.com/AirSportsLive&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNHQAv3QL2PQFDIv8jmTQj6QVXNDng">Instagram</a>&nbsp;|&nbsp;&nbsp;<a href="https://twitter.com/AirSportsLive" data-saferedirecturl="https://www.google.com/url?q=https://twitter.com/AirSportsLive&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNFgfCQfnysD__aABYrpmxbmDh36EQ">Twitter</a>&nbsp; |&nbsp;&nbsp;<a href="https://www.facebook.com/AirSportsLive" data-saferedirecturl="https://www.google.com/url?q=https://www.facebook.com/AirSportsLive&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNHYjyR8NJqLEAtt7acO6jaJCF7Suw">Facebook</a>&nbsp; |&nbsp;&nbsp;<a href="https://www.youtube.com/channel/UCgKCfAzU9wl42wnb1Tj_SCA" data-saferedirecturl="https://www.google.com/url?q=https://www.youtube.com/channel/UCgKCfAzU9wl42wnb1Tj_SCA&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNHx8Xk2Xlrp6S9RRedRguMFi2Gi7w">YouTube</a><br /> <br /> <span style="color: #ff0000;"><strong>Partners:&nbsp;</strong></span><br /> <strong>Norges Luftsportforbund /&nbsp;<em>Norwegian Air Sports Federation&nbsp;</em></strong><strong><a href="https://nlf.no/" data-saferedirecturl="https://www.google.com/url?q=https://nlf.no/&amp;source=gmail&amp;ust=1630044200327000&amp;usg=AFQjCNH_cLc2E8CUYMNJH9lDgRKxaAQksw">&gt;&gt;</a></strong><br /> <strong>IG - TRADE WITH IG&nbsp;</strong><strong><a href="https://www.ig.com/no/demokonto/?CHID=15&amp;QPID=35652" data-saferedirecturl="https://www.google.com/url?q=https://www.ig.com/no/demokonto/?CHID%3D15%26QPID%3D35652&amp;source=gmail&amp;ust=1630044200328000&amp;usg=AFQjCNET2W7jI_hyJLIFfL986LWWgdaA7g">&gt;&gt;</a></strong></p>
-
-<p><br /> <em>Air Sports Live Tracking is based on voluntary work and is a non-profit organization.&nbsp;We depend on 
-partners who support our work.&nbsp;If you want to become our partners, please get in touch, we are very grateful for 
-your support.&nbsp;Thanks!</em></p>
-
-<p><em><img src="{static("img/AirSportsLiveTracking.png")}" alt="Air Sports Live Tracking" width="350" height="52" /></em></p>
-<p><span style="color: #999999;">____________________________________________________________</span></p>
-<p><span style="color: #999999;"><em>NOTICE: This e-mail transmission, and any documents, files or previous e-mail 
-messages attached to it, may contain confidential or privileged information. If you are not the intended recipient, or 
-a person responsible for delivering it to the intended recipient, you are hereby notified that any disclosure, copying, 
-distribution or use of any of the information contained in or attached to this message is STRICTLY PROHIBITED. If you 
-have received this transmission in error, please immediately notify the sender and delete the e-mail and attached 
-documents. Thank you.</em></span></p>
-<p><span style="color: #999999;">____________________________________________________________</span></p>"""
-
-    PLAINTEXT_SIGNATURE = """Best Regards,
-Team Air Sports Live Tracking 
-Flight Tracking and competition flying made easy! 
-
-Air Sports Live Tracking gives you live tracking and live scoring of competitions in Precision Flying and Air Navigation 
-Racing. GA pilot? We also provide an open GA flight tracking service. Using your mobile as a tracker you can follow it 
-live on www.airsports.no.
-
-Download the APP from:
-Apple Store (https://apps.apple.com/no/app/air-sports-live-tracking/id1559193686?l=nb)
-Google Play (https://play.google.com/store/apps/details?id=no.airsports.android.livetracking)
-
-Follow us: 
-Instagram (https://www.instagram.com/AirSportsLive)
-Twitter (https://twitter.com/AirSportsLive)
-Facebook (https://www.facebook.com/AirSportsLive)
-YouTube (https://www.youtube.com/channel/UCgKCfAzU9wl42wnb1Tj_SCA)
-
-Partners: 
-Norges Luftsportforbund / Norwegian Air Sports Federation (https://nlf.no/)
-IG - TRADE WITH IG (https://www.ig.com/no/demokonto/?CHID=15&QPID=35652)
-
-Air Sports Live Tracking is based on voluntary work and is a non-profit organization. We depend on partners who support 
-our work. If you want to become our partners, please get in touch, we need your  support. Thanks!
-____________________________________________________________
- NOTICE: This e-mail transmission, and any documents, files or previous e-mail messages attached to it, may contain 
- confidential or privileged information. If you are not the intended recipient, or a person responsible for delivering 
- it to the intended recipient, you are hereby notified that any disclosure, copying, distribution or use of any of the 
- information contained in or attached to this message is STRICTLY PROHIBITED. If you have received this transmission in 
- error, please immediately notify the sender and delete the e-mail and attached documents. Thank you.
-____________________________________________________________    
-"""
+    PLAINTEXT_SIGNATURE = PLAIN_SIGNATURE
 
     def __str__(self):
         return str(self.contestant) + " " + str(self.contestant.navigation_task)
@@ -103,27 +50,34 @@ ____________________________________________________________
         starting_point_time_string = self.contestant.starting_point_time_local.strftime("%Y-%m-%d %H:%M:%S %Z")
         tracking_start_time_string = self.contestant.tracker_start_time_local.strftime("%Y-%m-%d %H:%M:%S %Z")
         time_kind = "estimated" if self.contestant.adaptive_start else "exact"
-        adaptive_text = (
-            f" and adaptive start (with earliest takeoff time {tracking_start_time_string})"
-            if self.contestant.adaptive_start
-            else ""
+        adaptive = self.contestant.adaptive_start
+
+        description = (
+            f"{navigation_task.name} in {contest_name}, {time_kind} starting point time {starting_point_time_string}"
         )
-
-        def describe(task_name: str, contest_title: str) -> str:
-            return (
-                f"your navigation task '{task_name}' in the contest '{contest_title}' with {time_kind} "
-                f"starting point time {starting_point_time_string}{adaptive_text}"
+        # Task, contest and first names are user-controlled; Template autoescapes them in the HTML body
+        html = Template(HEADER + FLIGHT_ORDER_EMAIL).render(
+            Context(
+                {
+                    "first_name": first_name,
+                    "task": navigation_task.name,
+                    "contest": contest_name,
+                    "start_time": starting_point_time_string,
+                    "time_kind": time_kind,
+                    "adaptive": adaptive,
+                    "tracking_start": tracking_start_time_string,
+                    "url": url,
+                }
             )
-
-        description = describe(navigation_task.name, contest_name)
-        # Task, contest and first names are user-controlled; escape them for the HTML body only
-        description_html = describe(escape(navigation_task.name), escape(contest_name))
+        )
         send_mail(
             f"Flight orders for task {navigation_task.name} ({contest_name})",
-            f"Hi {first_name},\n\nHere is the link to download the flight orders for {description}.\n\n"
-            f"{url}\n{self.PLAINTEXT_SIGNATURE}",
+            f"Hi {first_name},\n\nHere are the flight orders for {description}.\n"
+            f"Tracking window opens: {tracking_start_time_string}.\n\n"
+            f"Open your flight orders: {url}\n\n"
+            "On the day: open the app, run the pre-flight check and press play before take-off.\n"
+            f"{self.PLAINTEXT_SIGNATURE}",
             None,  # Should default to system from email
             recipient_list=[email_address],
-            html_message=f"Hi {escape(first_name)},<p>Here is the link to download the flight orders for {description_html}.<p>"
-            f"<a href='{url}'>Flight orders link</a><p>{self.HTML_SIGNATURE}",
+            html_message=html + self.HTML_SIGNATURE + FOOTER,
         )

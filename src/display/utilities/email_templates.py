@@ -90,14 +90,52 @@ join a video call and look through your first contest before the first flight.</
 """
 
 DELETION_EMAIL = """
-<p>Hi.</p>
+<h1 style="margin:0 0 12px;font-size:24px;color:#2b2f77;">Your account has been deleted</h1>
 
-<p>Your profile has now been deleted, but we welcome you back at any time.</p>
+<p>We have removed your Air Sports Live Tracking account and your personal details. Where you appear in the results of a
+contest you flew in, your name has been replaced so that the results stay complete.</p>
 
-<p>Air Sports Live Tracking is currently at an early stage of the development. We are constantly working to improve the platform. If you have any feedback or suggestions, please let us know.</p>
+<p>Thank you for flying with us. If you ever want to come back, install the app and sign up again, it takes a minute.</p>
+
+<p>If you have a moment, we would like to hear what we could have done better:
+<a href="mailto:support@airsports.no">support@airsports.no</a>.</p>
+"""
+
+FLIGHT_ORDER_EMAIL = f"""
+<h1 style="margin:0 0 12px;font-size:22px;color:#2b2f77;">Your flight orders for {{{{ task }}}}</h1>
+
+<p>Hi {{{{ first_name }}}},</p>
+
+<p>Here are the flight orders for <strong>{{{{ task }}}}</strong> in <strong>{{{{ contest }}}}</strong>.</p>
+
+<div {_STEP}>Starting point time: <strong>{{{{ start_time }}}}</strong> ({{{{ time_kind }}}}){{% if adaptive %}}<br>
+Adaptive start: you choose your start in the app, no earlier than {{{{ tracking_start }}}}{{% endif %}}<br>
+Tracking window opens: <strong>{{{{ tracking_start }}}}</strong></div>
+
+<p style="margin:20px 0;"><a href="{{{{ url }}}}" style="display:inline-block;padding:12px 22px;background:#4f55c7;color:#ffffff;text-decoration:none;border-radius:6px;font-weight:bold;">Open your flight orders</a></p>
+
+<div {_NOTE}><strong>On the day:</strong> open the app, run the pre-flight check and press play before take-off. Positions are
+scored inside your tracking window, so start tracking while you are still on the ground. If something is wrong, the app tells
+you.</div>
+
+<p>Have a great flight!</p>
 """
 
 EMAIL_SIGNATURE = """
 <p style="margin-top:28px;padding-top:14px;border-top:1px solid #e3e5f0;"><strong>Team Air Sports Live Tracking</strong><br>
-<a href="https://airsports.no">airsports.no</a></p>
+<a href="https://airsports.no">airsports.no</a> &middot; <a href="https://airsports.no/faq">FAQ</a> &middot;
+<a href="mailto:support@airsports.no">support@airsports.no</a><br>
+<a href="https://apps.apple.com/no/app/air-sports-live-tracking/id1559193686">App Store</a> &middot;
+<a href="https://play.google.com/store/apps/details?id=no.airsports.android.livetracking">Google Play</a> &middot;
+<a href="https://www.youtube.com/@AirSportsLiveTracking">YouTube</a></p>
+<p style="font-size:12px;color:#6b6f85;">Air Sports Live Tracking is a non-profit organisation run on voluntary work.</p>
+"""
+
+PLAIN_SIGNATURE = """
+--
+Team Air Sports Live Tracking
+https://airsports.no  |  FAQ: https://airsports.no/faq  |  support@airsports.no
+App Store: https://apps.apple.com/no/app/air-sports-live-tracking/id1559193686
+Google Play: https://play.google.com/store/apps/details?id=no.airsports.android.livetracking
+Air Sports Live Tracking is a non-profit organisation run on voluntary work.
 """
