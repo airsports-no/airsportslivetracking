@@ -44,7 +44,7 @@ In many events the Contest Manager does all the setup and you only make sure the
 
 ### Timer and adaptive start
 ASLT uses an **Adaptive Start** to accommodate pre-flight delays.
-*   **Flexibility:** you have a window around your scheduled time to cross the start gate.
+*   **Flexibility:** you have a **2-hour window** (1 hour before to 1 hour after your scheduled time) to cross the start gate.
 *   **Synchronisation:** scoring follows the **actual time** you cross the start line. If you are delayed by 5 minutes, your planned gate times shift by 5 minutes and your navigation scoring stays fair.
 *   **Timer tab:** the **Timer** page counts down to a start on the nearest whole minute, with an optional countdown buffer.
 
