@@ -8,7 +8,7 @@ from string import ascii_lowercase, ascii_uppercase, digits
 from django.contrib.auth.models import Group, User
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
-from django.db import IntegrityError, OperationalError, ProgrammingError, connection, transaction
+from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
@@ -669,23 +669,3 @@ def calculate_editable_route_statistics(sender, instance: EditableRoute, **kwarg
         number_of_waypoints=instance.calculate_number_of_waypoints(), route_length=instance.calculate_route_length()
     )
 
-
-@receiver(pre_delete, sender=MyUser)
-def delete_legacy_firebase_rows(sender, instance: MyUser, **kwargs):
-    """
-    The removed drf_firebase_auth package left two tables in the database (see display/authentication.py) with a
-    database-level foreign key to the user. No Django model knows them any more, so deleting a user fails with an
-    IntegrityError unless their rows are removed first. A database without the tables is fine.
-    """
-    statements = (
-        "DELETE FROM drf_firebase_auth_firebaseuserprovider WHERE firebase_user_id IN "
-        "(SELECT id FROM drf_firebase_auth_firebaseuser WHERE user_id = %s)",
-        "DELETE FROM drf_firebase_auth_firebaseuser WHERE user_id = %s",
-    )
-    for statement in statements:
-        try:
-            # A savepoint, so that a missing table does not break the surrounding transaction
-            with transaction.atomic(), connection.cursor() as cursor:
-                cursor.execute(statement, [instance.pk])
-        except (ProgrammingError, OperationalError):
-            return
