@@ -13,6 +13,9 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantI
         return <p>No scores recorded for this task yet.</p>;
     }
 
+    // The task detail endpoint used to send only "id": fall back to it so the replay link works against an older backend as well
+    const navigationTaskId: number | undefined = task.pk ?? (task as { id?: number }).id;
+
     const isStruckThrough = (contestant: any) =>
         (contestant.contestanttrack.calculator_started === false && contestant.contestanttrack.score === 0) ||
         contestant.contestanttrack.current_state === 'Waiting...';
@@ -50,9 +53,9 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantI
                                 {isCurrentUser && !isStrikethrough && (
                                     <span>Rank {ranked.findIndex(entry => entry.id === contestant.id) + 1} of {ranked.length}</span>
                                 )}
-                                {isCurrentUser && contestId !== undefined && (
+                                {isCurrentUser && contestId !== undefined && navigationTaskId !== undefined && (
                                     <a
-                                        href={generatePath('COMPETITION_MAP_DETAIL', { contestId, navigationTaskId: task.pk })}
+                                        href={generatePath('COMPETITION_MAP_DETAIL', { contestId, navigationTaskId })}
                                         className="link"
                                         target="_blank"
                                         rel="noopener noreferrer"

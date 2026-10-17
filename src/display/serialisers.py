@@ -2418,6 +2418,9 @@ class FutureContestantNestedTeamSerialiser(ContestantNestedTeamSerialiser):
 
 
 class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
+    # ModelSerializer only exposes the model field name ("id"), not the .pk alias that the frontend's NavigationTask type and its
+    # consumers read (the results page built "Replay track" links ending in "undefined" from task.pk).
+    pk = serializers.ReadOnlyField()
     contestant_set = ContestantNestedTeamSerialiserWithContestantTrack(many=True, read_only=True)
     task_catalogue_targets = serializers.SerializerMethodField()
     task_config = serializers.JSONField(required=False)
