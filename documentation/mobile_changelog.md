@@ -13,6 +13,11 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-18
+#### App
+- **The MSFS client's My flights and Register today look like the phone app's.** My flights uses the same flight strips as Home under day headings (Today, Tomorrow, Sat 24 Oct), with a tab bar, a progress ring, Refresh and an empty state that leads to Register today; Register today is a list in the client: one card per contest, nearest the simulator aircraft first, "Open now", directions and a **Register a flight** button that opens the website's form for that task. The aircraft's position stays on the PC and is only used for sorting. `--preview past` and `--preview open-today` show the new screens.
+- **Register today names the day when a window is not today** (phone apps and MSFS client): "Tomorrow 04:00 and 12:00" instead of times that could be read as today's.
+
 ### 2026-10-17
 #### Backend
 - **Deleting the account in the app no longer fails with a server error.** The removed Firebase login package left two tables in the database with a foreign key to the user, so deleting any user failed (Sentry `PYTHON-DJANGO-1Z`, 500 from `delete_account/`). Migration `0199` drops the two unused tables, which also fixes deletion from the admin.
