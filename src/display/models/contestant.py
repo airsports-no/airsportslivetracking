@@ -213,6 +213,13 @@ class Contestant(models.Model):
         editable=False,
         help_text="When positions were first ignored because of the simulator policy or the flight mode (the positions themselves are not kept).",
     )
+    mock_positions_at = models.DateTimeField(
+        null=True,
+        blank=True,
+        editable=False,
+        help_text="When the phone app first sent a position that the phone itself reported as simulated (a fake-GPS app). The positions are "
+        "used as usual; organizers see a warning.",
+    )
     schedule_locked = models.BooleanField(
         default=False,
         help_text="If true, the contestant's timing should not be modified by the scheduling algorithm.",
@@ -1194,6 +1201,20 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             self.save(update_fields=("blocked_positions_at",))
         except Exception:
             logger.exception(f"Failed noting ignored positions for {self}")
+        return True
+
+    def note_mock_positions(self, at: Optional[datetime.datetime] = None) -> bool:
+        """
+        Records that the tracking phone reported a simulated position (only the first time). The positions are scored as usual: this
+        only tells the organizers. Returns true when this was the first time.
+        """
+        if self.mock_positions_at is not None:
+            return False
+        self.mock_positions_at = at or datetime.datetime.now(datetime.timezone.utc)
+        try:
+            self.save(update_fields=("mock_positions_at",))
+        except Exception:
+            logger.exception(f"Failed noting simulated positions for {self}")
         return True
 
     def is_currently_tracked_by_device(self, device_id: str) -> bool:

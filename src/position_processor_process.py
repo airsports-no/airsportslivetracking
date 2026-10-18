@@ -320,8 +320,13 @@ def map_positions_to_contestants(traccar: Traccar, positions: List, transmitter_
                 except:
                     pass
             contestant_tuples = []
+        # The phone apps send mock=true when the phone itself says the position is simulated (a fake-GPS app); Traccar keeps it
+        # as an attribute. The position is used as usual, the organizers are told.
+        reported_mock = (position_data.get("attributes") or {}).get("mock") in (True, "true")
         if contestant_tuples:
             for contestant, is_simulator in contestant_tuples:
+                if reported_mock:
+                    contestant.note_mock_positions(device_time)
                 try:
                     received_tracks[contestant].append(position_data)
                 except KeyError:

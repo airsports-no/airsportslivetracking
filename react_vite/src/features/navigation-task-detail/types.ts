@@ -24,6 +24,7 @@ export interface ContestantRow {
   contestant_number: number;
   is_simulator_flight?: boolean;
   blocked_positions_at?: string | null;
+  mock_positions_at?: string | null;
   team: TeamDisplay;
   contestanttrack: { current_state: string; calculator_finished: boolean };
   tracker_id_display: TrackerIdDisplay[];

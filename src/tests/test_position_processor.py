@@ -157,3 +157,24 @@ class TestAddPositionsToCalculatorDispatchLock:
 
         mock_lock_cls.assert_called_once()
         mock_conn.assert_called_once()
+
+
+@patch("position_processor_process.note_position_received")
+@patch("position_processor_process.cache")
+@patch("position_processor_process.cached_find_contestant")
+def test_a_position_the_phone_reports_as_simulated_is_noted_and_still_used(mocked_find, mock_cache, _received):
+    traccar = MagicMock()
+    traccar.device_map = {"device1": "device_name1"}
+    now = datetime.datetime.now(datetime.timezone.utc).isoformat().replace("+00:00", "Z")
+    position = {"deviceId": "device1", "deviceTime": now, "serverTime": now, "latitude": 60.0, "longitude": 10.0}
+    contestant = MagicMock()
+    mock_cache.get.return_value = None
+    mocked_find.return_value = [(contestant, False)]
+
+    tracks = map_positions_to_contestants(traccar, [dict(position, attributes={"mock": True})], MagicMock())
+    assert len(tracks[contestant]) == 1, "the position is still scored"
+    contestant.note_mock_positions.assert_called_once()
+
+    contestant.reset_mock()
+    map_positions_to_contestants(traccar, [dict(position, attributes={"batteryLevel": 80.0})], MagicMock())
+    contestant.note_mock_positions.assert_not_called()

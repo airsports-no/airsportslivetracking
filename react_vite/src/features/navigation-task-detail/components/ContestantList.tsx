@@ -192,7 +192,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                     <div className="flex-1 min-w-0">
                       <div className="flex items-center gap-2 min-w-0">
                         <span className="badge badge-neutral font-mono font-bold shrink-0">#{contestant.contestant_number}</span>
-                        <SimulatorBadge isSimulator={contestant.is_simulator_flight} blockedPositionsAt={contestant.blocked_positions_at} />
+                        <SimulatorBadge isSimulator={contestant.is_simulator_flight} blockedPositionsAt={contestant.blocked_positions_at} mockPositionsAt={contestant.mock_positions_at} />
                         <span className="font-bold text-lg break-words leading-tight">
                           <TeamDisplayLabel
                             team={contestant.team}
@@ -300,7 +300,7 @@ const ContestantList: React.FC<ContestantListProps> = ({
                   <tr key={contestant.pk} className="hover">
                     <td className="font-bold text-base-content/70">
                       {contestant.contestant_number}{' '}
-                      <SimulatorBadge isSimulator={contestant.is_simulator_flight} blockedPositionsAt={contestant.blocked_positions_at} />
+                      <SimulatorBadge isSimulator={contestant.is_simulator_flight} blockedPositionsAt={contestant.blocked_positions_at} mockPositionsAt={contestant.mock_positions_at} />
                     </td>
                     <td className="whitespace-nowrap font-medium">
                       <TeamDisplayLabel
