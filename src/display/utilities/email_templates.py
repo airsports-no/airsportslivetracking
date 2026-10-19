@@ -101,6 +101,23 @@ contest you flew in, your name has been replaced so that the results stay comple
 <a href="mailto:support@airsports.no">support@airsports.no</a>.</p>
 """
 
+SQUADRON_INVITATION_EMAIL = f"""
+<h1 style="margin:0 0 12px;font-size:22px;color:#2b2f77;">You are invited to {{{{ squadron }}}}</h1>
+
+<p>{{{{ inviter }}}} has invited you to join the squadron <strong>{{{{ squadron }}}}</strong> at Air Sports Live Tracking{{% if admin %}}, as an admin{{% endif %}}.</p>
+
+{{% if description %}}<div {_NOTE}>{{{{ description }}}}</div>{{% endif %}}
+
+<p>A squadron is a group of people who compete together. When an organiser shares a contest with the squadron, all its
+members can see the contest, also when it is private, and register for it.</p>
+
+<p style="margin:22px 0;"><a href="{{{{ url }}}}" style="padding:10px 18px;background:#4f55c7;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;">See the invitation</a></p>
+
+<p>Log in, or create an account, with <strong>this e-mail address</strong> ({{{{ email }}}}): the invitation is waiting for you
+on the Squadrons page, where you can accept or decline it. You are not in the squadron until you accept. If you do not know
+{{{{ inviter }}}} or do not want this, just ignore the e-mail.</p>
+"""
+
 FLIGHT_ORDER_EMAIL = f"""
 <h1 style="margin:0 0 12px;font-size:22px;color:#2b2f77;">Your flight orders for {{{{ task }}}}</h1>
 

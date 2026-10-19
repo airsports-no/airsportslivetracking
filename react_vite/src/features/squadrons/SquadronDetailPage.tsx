@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Plus, Trash2, UserPlus } from 'lucide-react';
+import { ArrowLeft, Copy, Link2, Plus, Trash2, UserPlus } from 'lucide-react';
 import { generatePath } from '../../urls';
 import PersonPicker from '../../components/common/PersonPicker';
 import { PersonOption } from '../../components/common/personOption';
@@ -11,8 +11,11 @@ import {
     SquadronRole,
     addContestToSquadron,
     deleteSquadron,
+    disableSquadronInviteLink,
+    enableSquadronInviteLink,
     fetchShareableContests,
     fetchSquadron,
+    inviteLinkUrl,
     inviteToSquadron,
     leaveSquadron,
     removeContestFromSquadron,
@@ -42,6 +45,7 @@ const SquadronDetailPage: React.FC = () => {
     const [description, setDescription] = useState('');
     const [shareable, setShareable] = useState<ShareableContest[]>([]);
     const [contestChoice, setContestChoice] = useState('');
+    const [copied, setCopied] = useState(false);
 
     const [reloads, setReloads] = useState(0);
     const load = () => setReloads(count => count + 1);
@@ -183,6 +187,59 @@ const SquadronDetailPage: React.FC = () => {
                             </select>
                             <button className="btn btn-primary btn-sm" type="submit" disabled={busy || !invitee}>Invite</button>
                         </form>
+                    </div>
+                </div>
+            )}
+
+            {isAdmin && (
+                <div className="card bg-base-200 border border-base-300">
+                    <div className="card-body p-5 space-y-2">
+                        <h2 className="card-title text-lg flex items-center gap-2"><Link2 size={18} /> Invite link</h2>
+                        <p className="text-sm opacity-70">
+                            Post the link in your group chat. Anybody who is logged in and opens it can join as a member by pressing Join. Anyone
+                            with the link can use it, so switch it off, or make a new one, when it has been shared too widely.
+                        </p>
+                        {squadron.invite_token ? (
+                            <>
+                                <div className="join w-full">
+                                    <input className="input input-bordered input-sm join-item w-full font-mono text-xs" readOnly value={inviteLinkUrl(squadron.invite_token)} onFocus={e => e.target.select()} />
+                                    <button
+                                        className="btn btn-sm join-item gap-1"
+                                        onClick={async () => {
+                                            try {
+                                                await navigator.clipboard.writeText(inviteLinkUrl(squadron.invite_token!));
+                                                setCopied(true);
+                                                setTimeout(() => setCopied(false), 2000);
+                                            } catch {
+                                                setError('Could not copy the link. Select it and copy it by hand.');
+                                            }
+                                        }}
+                                    >
+                                        <Copy size={14} /> {copied ? 'Copied' : 'Copy'}
+                                    </button>
+                                </div>
+                                <div className="flex gap-2 justify-end">
+                                    <button
+                                        className="btn btn-outline btn-sm"
+                                        disabled={busy}
+                                        onClick={() => {
+                                            if (window.confirm('Make a new link? The old one stops working.')) run(() => enableSquadronInviteLink(id));
+                                        }}
+                                    >
+                                        New link
+                                    </button>
+                                    <button className="btn btn-outline btn-error btn-sm" disabled={busy} onClick={() => run(() => disableSquadronInviteLink(id))}>
+                                        Switch off
+                                    </button>
+                                </div>
+                            </>
+                        ) : (
+                            <div className="flex justify-end">
+                                <button className="btn btn-primary btn-sm" disabled={busy} onClick={() => run(() => enableSquadronInviteLink(id))}>
+                                    Create an invite link
+                                </button>
+                            </div>
+                        )}
                     </div>
                 </div>
             )}

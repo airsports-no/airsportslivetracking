@@ -4,14 +4,20 @@ and who may share a contest with a squadron. Shared by the REST actions; the aud
 decided in display/services/contest_visibility.py.
 """
 
+import secrets
+
 from django.core.exceptions import ValidationError as DjangoValidationError
 from django.core.validators import validate_email
 from django.db import transaction
 from django.utils import timezone
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied
 from rest_framework.exceptions import ValidationError
 
 from display.models import Contest, MyUser, Squadron, SquadronContestShare, SquadronInvitation, SquadronMembership
+
+
+# More open invitations than this is not a squadron being built up but an address list being used
+MAX_PENDING_INVITATIONS = 50
 
 
 def create_squadron(user: MyUser, name: str, description: str = "") -> Squadron:
@@ -66,11 +72,25 @@ def invite(squadron: Squadron, acting_user: MyUser, identifier: str, role: str =
         Squadron.objects.select_for_update().get(pk=squadron.pk)
         if SquadronMembership.objects.filter(squadron=squadron, user__email__iexact=email).exists():
             raise ValidationError("They are already in the squadron.")
-        if SquadronInvitation.objects.filter(
-            squadron=squadron, email=email, status=SquadronInvitation.PENDING
-        ).exists():
+        pending = SquadronInvitation.objects.filter(squadron=squadron, status=SquadronInvitation.PENDING)
+        if pending.filter(email=email).exists():
             raise ValidationError("They have already been invited.")
-        return SquadronInvitation.objects.create(squadron=squadron, email=email, role=role, invited_by=acting_user)
+        if pending.count() >= MAX_PENDING_INVITATIONS:
+            raise ValidationError(
+                f"There are already {MAX_PENDING_INVITATIONS} invitations waiting for an answer. "
+                "Cancel some, or share the invite link instead."
+            )
+        invitation = SquadronInvitation.objects.create(
+            squadron=squadron, email=email, role=role, invited_by=acting_user
+        )
+        transaction.on_commit(lambda: _queue_invitation_email(invitation.pk))
+        return invitation
+
+
+def _queue_invitation_email(invitation_pk: int) -> None:
+    from display.tasks import send_squadron_invitation_email_task
+
+    send_squadron_invitation_email_task.delay(invitation_pk)
 
 
 def pending_invitations_for(user: MyUser):
@@ -145,6 +165,42 @@ def remove_member(squadron: Squadron, acting_user: MyUser, membership: SquadronM
                 "A squadron needs at least one admin. Make somebody else an admin first, or delete the squadron."
             )
         membership.delete()
+
+
+def enable_invite_link(squadron: Squadron, acting_user: MyUser) -> str:
+    """Switch the invite link on, or give it a new address (the old one stops working). Returns the token."""
+    require_admin(squadron, acting_user)
+    squadron.invite_token = secrets.token_urlsafe(24)
+    squadron.save(update_fields=["invite_token"])
+    return squadron.invite_token
+
+
+def disable_invite_link(squadron: Squadron, acting_user: MyUser) -> None:
+    require_admin(squadron, acting_user)
+    squadron.invite_token = None
+    squadron.save(update_fields=["invite_token"])
+
+
+def squadron_for_invite_token(token: str) -> Squadron:
+    """The squadron an invite link is for. A link that is off, or never existed, is not found."""
+    squadron = Squadron.objects.filter(invite_token=token).first() if token else None
+    if squadron is None:
+        raise NotFound("This invite link does not work any more.")
+    return squadron
+
+
+def join_by_invite_link(token: str, user: MyUser) -> SquadronMembership:
+    """Opening the link and pressing Join is the acceptance: the user joins as a member."""
+    squadron = squadron_for_invite_token(token)
+    with transaction.atomic():
+        membership, _created = SquadronMembership.objects.get_or_create(
+            squadron=squadron, user=user, defaults={"role": SquadronMembership.MEMBER}
+        )
+        # An invitation to the same address is answered by joining
+        SquadronInvitation.objects.filter(
+            squadron=squadron, email=user.email.strip().lower(), status=SquadronInvitation.PENDING
+        ).update(status=SquadronInvitation.ACCEPTED, responded_at=timezone.now())
+    return membership
 
 
 def delete_squadron(squadron: Squadron, acting_user: MyUser) -> None:

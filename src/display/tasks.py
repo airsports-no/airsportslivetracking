@@ -340,6 +340,21 @@ def notify_flight_order(contestant_pk: int, email: str, first_name: str):
 
 
 @app.task
+def send_squadron_invitation_email_task(invitation_pk: int):
+    from display.models import SquadronInvitation
+    from display.services.squadron_emails import send_squadron_invitation_email
+
+    invitation = SquadronInvitation.objects.select_related("squadron", "invited_by").filter(pk=invitation_pk).first()
+    if invitation is None:
+        return
+    try:
+        send_squadron_invitation_email(invitation)
+    except Exception:
+        # The invitation exists and is shown in the app whatever happens to the mail
+        logger.exception(f"Failed sending the squadron invitation e-mail for invitation {invitation_pk}")
+
+
+@app.task
 def delete_old_flight_orders():
     EmailMapLink.objects.filter(
         contestant__finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5)

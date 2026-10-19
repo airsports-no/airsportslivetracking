@@ -89,10 +89,17 @@ class SquadronDetailSerialiser(SquadronSerialiser):
     members = serializers.SerializerMethodField()
     invitations = serializers.SerializerMethodField()
     contests = serializers.SerializerMethodField()
+    invite_token = serializers.SerializerMethodField()
 
     class Meta(SquadronSerialiser.Meta):
-        fields = SquadronSerialiser.Meta.fields + ("members", "invitations", "contests")
+        fields = SquadronSerialiser.Meta.fields + ("members", "invitations", "contests", "invite_token")
         read_only_fields = fields
+
+    def get_invite_token(self, squadron) -> str | None:
+        # The token is the key to the squadron: only its admins get to see it
+        if not squadrons.is_admin(squadron, self.context["request"].user):
+            return None
+        return squadron.invite_token
 
     def get_members(self, squadron) -> list:
         memberships = list(squadron.memberships.select_related("user"))
@@ -273,6 +280,16 @@ class SquadronViewSet(
         squadrons.unshare_contest(share.contest, squadron, request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
 
+    @extend_schema(request=None, responses={200: None, 204: None})
+    @action(detail=True, methods=["post", "delete"], url_path="invite-link")
+    def invite_link(self, request, *args, **kwargs):
+        """POST switches the invite link on, or gives it a new address; DELETE switches it off."""
+        squadron = self.get_object()
+        if request.method == "DELETE":
+            squadrons.disable_invite_link(squadron, request.user)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        return Response({"invite_token": squadrons.enable_invite_link(squadron, request.user)})
+
     @extend_schema(request=None, responses={204: None})
     @action(detail=True, methods=["post"])
     def leave(self, request, *args, **kwargs):
@@ -302,6 +319,34 @@ class SquadronInvitationViewSet(mixins.ListModelMixin, GenericViewSet):
     def decline(self, request, *args, **kwargs):
         squadrons.decline_invitation(self.get_object(), request.user)
         return Response(status=status.HTTP_204_NO_CONTENT)
+
+
+class SquadronJoinViewSet(GenericViewSet):
+    """What an invite link shows and does. The token is the key: nothing about the squadron is shown without it."""
+
+    permission_classes = [permissions.IsAuthenticated]
+    lookup_field = "token"
+    lookup_value_regex = r"[A-Za-z0-9_-]+"
+    queryset = Squadron.objects.none()
+    serializer_class = serializers.Serializer
+
+    @extend_schema(responses={200: None})
+    def retrieve(self, request, token=None, *args, **kwargs):
+        squadron = squadrons.squadron_for_invite_token(token)
+        return Response(
+            {
+                "name": squadron.name,
+                "description": squadron.description,
+                "member_count": squadron.memberships.count(),
+                "already_member": squadrons.membership_of(squadron, request.user) is not None,
+            }
+        )
+
+    @extend_schema(request=None, responses={200: None})
+    @action(detail=True, methods=["post"])
+    def join(self, request, token=None, *args, **kwargs):
+        membership = squadrons.join_by_invite_link(token, request.user)
+        return Response({"id": membership.squadron_id, "my_role": membership.role})
 
 
 def contest_squadrons_payload(contest: Contest, user) -> list:

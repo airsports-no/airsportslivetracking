@@ -19,6 +19,13 @@ class Squadron(models.Model):
         settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="created_squadrons"
     )
     created_at = models.DateTimeField(auto_now_add=True)
+    invite_token = models.CharField(
+        max_length=64,
+        unique=True,
+        null=True,
+        blank=True,
+        help_text="Anybody logged in who opens the squadron's invite link with this token can join as a member. Empty: the link is off.",
+    )
 
     class Meta:
         ordering = ("name",)

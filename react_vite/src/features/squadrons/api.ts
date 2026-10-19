@@ -51,6 +51,16 @@ export interface SquadronDetail extends Squadron {
     members: SquadronMember[];
     invitations: SentInvitation[];
     contests: SquadronContest[];
+    /** Only for admins: the key in the squadron's invite link, empty while the link is off */
+    invite_token: string | null;
+}
+
+/** What an invite link shows before the user decides to join */
+export interface JoinPreview {
+    name: string;
+    description: string;
+    member_count: number;
+    already_member: boolean;
 }
 
 export interface SharedSquadron {
@@ -94,10 +104,19 @@ async function errorMessage(response: Response): Promise<string> {
     return response.statusText;
 }
 
+export class ApiError extends Error {
+    status: number;
+
+    constructor(message: string, status: number) {
+        super(message);
+        this.status = status;
+    }
+}
+
 async function request<T>(url: string, init?: RequestInit): Promise<T> {
     const response = await fetch(url, { headers: headers(), ...init });
     if (!response.ok) {
-        throw new Error(await errorMessage(response));
+        throw new ApiError(await errorMessage(response), response.status);
     }
     return response.status === 204 ? (undefined as T) : response.json();
 }
@@ -145,6 +164,20 @@ export const addContestToSquadron = (squadronId: number, contestId: number) =>
 
 export const removeContestFromSquadron = (squadronId: number, contestId: number) =>
     request<void>(reverse('squadrons-contest', squadronId, contestId), send('DELETE'));
+
+export const enableSquadronInviteLink = (squadronId: number) =>
+    request<{ invite_token: string }>(reverse('squadrons-invite-link', squadronId), send('POST'));
+
+export const disableSquadronInviteLink = (squadronId: number) =>
+    request<void>(reverse('squadrons-invite-link', squadronId), send('DELETE'));
+
+export const fetchJoinPreview = (token: string) => request<JoinPreview>(reverse('squadron-join-detail', token));
+
+export const joinSquadronViaLink = (token: string) =>
+    request<{ id: number; my_role: SquadronRole }>(reverse('squadron-join-join', token), send('POST'));
+
+/** The address to share: opening it, logged in, shows the squadron and a Join button */
+export const inviteLinkUrl = (token: string) => `${window.location.origin}/squadrons/join/${token}`;
 
 export const fetchMySquadronInvitations = () => request<SquadronInvitation[]>(reverse('squadron-invitations-list'));
 

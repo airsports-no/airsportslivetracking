@@ -2,7 +2,7 @@ from rest_framework_nested import routers
 
 from django.urls import path, include
 
-from display.viewsets_squadrons import SquadronInvitationViewSet, SquadronViewSet
+from display.viewsets_squadrons import SquadronInvitationViewSet, SquadronJoinViewSet, SquadronViewSet
 from display.viewsets import (
     AdminActivityTrendsViewSet,
     AdminFlightStatsViewSet,
@@ -59,6 +59,7 @@ router.register(r"aircraft", AircraftViewSet, basename="aircraft")
 router.register(r"clubs", ClubViewSet, basename="clubs")
 router.register(r"squadrons", SquadronViewSet, basename="squadrons")
 router.register(r"squadron_invitations", SquadronInvitationViewSet, basename="squadron-invitations")
+router.register(r"squadron_join", SquadronJoinViewSet, basename="squadron-join")
 router.register(r"teams", TeamViewSet, basename="teams")
 router.register(r"scorecards", GetScorecardsViewSet, basename="scorecards")
 router.register(r"editableroutes", EditableRouteViewSet, basename="editableroutes")
