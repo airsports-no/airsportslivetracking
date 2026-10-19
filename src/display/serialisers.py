@@ -79,7 +79,11 @@ from display.services.capacity_enforcement import (
     assert_can_register_team,
 )
 from display.services.contest_permissions import CONTEST_PERMISSION_LEVELS, resolve_permission_target_user
-from display.services.contest_visibility import can_view_navigation_task, is_contest_audience
+from display.services.contest_visibility import (
+    audience_contests,
+    can_view_navigation_task,
+    is_contest_audience,
+)
 from display.services.contestant_persistence import (
     create_contestant_with_related_state,
     update_contestant_with_related_state,
@@ -1048,13 +1052,22 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         return {"change_contest": [user], "delete_contest": [user], "view_contest": [user]}
 
     @extend_schema_field(NavigationTasksLightSerialiser(many=True))
+    def _in_audience(self, contest) -> bool:
+        """
+        Whether the requesting user is in the contest's audience. A list asks this of every contest, so the contests the user
+        is in the audience of are looked up once for the whole request instead of once per contest.
+        """
+        ids = self.context.get("_audience_contest_ids")
+        if ids is None:
+            ids = set(audience_contests(self.context["request"].user).values_list("pk", flat=True))
+            self.context["_audience_contest_ids"] = ids
+        return contest.pk in ids
+
     def get_visiblenavigationtasks(self, contest):
         if self.context.get("exclude_tasks"):
             return []
 
-        user = self.context["request"].user
-
-        if is_contest_audience(user, contest):
+        if self._in_audience(contest):
             tasks_queryset = contest.navigationtask_set.all()
         else:
             # Filter at the database level for non-viewable contests
@@ -1085,8 +1098,7 @@ class HighlightedContestSerialiser(serializers.ModelSerializer):
 class ContestParticipationSerialiser(ContestSerialiser):
     @extend_schema_field(NavigationTasksSummaryParticipationSerialiser(many=True))
     def get_visiblenavigationtasks(self, contest):
-        user = self.context["request"].user
-        viewable_contest = is_contest_audience(user, contest)
+        viewable_contest = self._in_audience(contest)
         items = filter(
             lambda task: (
                 task.allow_self_management

@@ -298,3 +298,38 @@ class TestContestListFollowsDirectGrants(SquadronApiTestBase):
         self.assertNotIn("Private", self.names())
         assign_perm("view_contest", self.outsider, self.contest)
         self.assertIn("Private", self.names())
+
+
+class TestContestListQueries(SquadronApiTestBase):
+    """The audience of the contests is looked up once for a list, not once for every contest in it."""
+
+    def queries_about_squadrons(self, contests):
+        from django.db import connection
+        from django.test.utils import CaptureQueriesContext
+
+        import datetime
+
+        from display.models import Contest
+
+        now = datetime.datetime.now(datetime.timezone.utc)
+        for number in range(contests):
+            Contest.objects.create(
+                name=f"Public {self.counter}-{number}",
+                start_time=now,
+                finish_time=now + datetime.timedelta(days=1),
+                location="60, 11",
+                is_public=True,
+            )
+        self.counter += 1
+        self.login(self.outsider)
+        with CaptureQueriesContext(connection) as captured:
+            result = self.client.get("/api/v1/contests/")
+        self.assertEqual(result.status_code, 200)
+        return len([query for query in captured.captured_queries if "squadron" in query["sql"].lower()])
+
+    def test_the_number_of_queries_about_squadrons_does_not_grow_with_the_number_of_contests(self):
+        self.counter = 0
+        few = self.queries_about_squadrons(3)
+        many = self.queries_about_squadrons(9)
+        self.assertLessEqual(many, 2)
+        self.assertEqual(few, many)
