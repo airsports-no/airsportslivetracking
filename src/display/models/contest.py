@@ -140,6 +140,13 @@ class Contest(models.Model):
         default=False,
         help_text="Always equal to is_public (kept for the apps that still read it).",
     )
+    shared_with_squadrons = models.ManyToManyField(
+        "Squadron",
+        blank=True,
+        through="SquadronContestShare",
+        related_name="contests",
+        help_text="The members of these squadrons can see the contest, also when it is private, and take part in it.",
+    )
     contest_website = models.CharField(help_text="URL to contest website", blank=True, default="", max_length=300)
     header_image = models.ImageField(
         null=True,

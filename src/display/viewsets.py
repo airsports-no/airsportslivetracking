@@ -194,6 +194,7 @@ from display.services.capacity_enforcement import (
     scheduling_capacity_preview,
 )
 from display.services.contest_visibility import visible_contests, visible_navigation_tasks_q
+from display.viewsets_squadrons import ContestSquadronsMixin
 from display.services.contest_permissions import (
     list_contest_permission_grants,
     remove_contest_permission_grant,
@@ -1035,7 +1036,7 @@ class ContestPagination(MyCursorPagination):
     max_page_size = 200
 
 
-class ContestViewSet(ModelViewSet):
+class ContestViewSet(ContestSquadronsMixin, ModelViewSet):
     """
     A contest is a high level wrapper for multiple tasks. It provides a lightweight view of a contest and is used by
     the front end to display the contest list.

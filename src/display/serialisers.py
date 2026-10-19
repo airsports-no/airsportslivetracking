@@ -1040,7 +1040,8 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
 
     class Meta:
         model = Contest
-        fields = "__all__"
+        # Sharing with squadrons goes through the contest's squadrons action, which checks the membership
+        exclude = ("shared_with_squadrons",)
 
     def get_permissions_map(self, created):
         user = self.context["request"].user
@@ -2812,7 +2813,7 @@ class ContestResultsDetailsSerialiser(CountryFieldMixin, serializers.ModelSerial
 
     class Meta:
         model = Contest
-        fields = "__all__"
+        exclude = ("shared_with_squadrons",)
 
 
 # Team summary entry

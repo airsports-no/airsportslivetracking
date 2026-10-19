@@ -2,8 +2,9 @@
 Who may see a contest and its navigation tasks, in one place.
 
 A contest is either public, open to anybody, or private. A private contest, and a private task in any contest, is only
-open to the contest's audience: the people with a view grant on the contest. Every manager has a view grant too. Being in the audience means seeing the contest as a spectator does and taking part in it,
-never managing it: screens only organisers need check change_contest instead.
+open to the contest's audience: the people with a view grant on the contest, and the members of the squadrons it is shared
+with. Every manager has a view grant too. Being in the audience means seeing the contest as a spectator does and taking
+part in it, never managing it: screens only organisers need check change_contest instead.
 """
 
 from django.contrib.auth.models import AnonymousUser
@@ -18,14 +19,29 @@ def _is_authenticated(user) -> bool:
 
 
 def audience_contests(user: MyUser | AnonymousUser | None) -> QuerySet[Contest]:
-    """The contests [user] is in the audience of, whatever their visibility. Superusers are in every audience."""
+    """
+    The contests [user] is in the audience of, whatever their visibility: those they have a view grant on and those
+    shared with a squadron they are a member of. Superusers are in every audience.
+    """
     if not _is_authenticated(user):
         return Contest.objects.none()
-    return get_objects_for_user(user, "display.view_contest", klass=Contest, accept_global_perms=False)
+    granted = get_objects_for_user(user, "display.view_contest", klass=Contest, accept_global_perms=False)
+    if user.is_superuser:
+        return granted
+    return Contest.objects.filter(Q(pk__in=granted.values("pk")) | Q(pk__in=squadron_contests(user).values("pk")))
+
+
+def squadron_contests(user: MyUser | AnonymousUser | None) -> QuerySet[Contest]:
+    """The contests shared with a squadron [user] is a member of."""
+    if not _is_authenticated(user):
+        return Contest.objects.none()
+    return Contest.objects.filter(shared_with_squadrons__memberships__user=user)
 
 
 def is_contest_audience(user: MyUser | AnonymousUser | None, contest: Contest) -> bool:
-    return _is_authenticated(user) and user.has_perm("display.view_contest", contest)
+    if not _is_authenticated(user):
+        return False
+    return user.has_perm("display.view_contest", contest) or squadron_contests(user).filter(pk=contest.pk).exists()
 
 
 def can_view_contest(user: MyUser | AnonymousUser | None, contest: Contest) -> bool:
