@@ -226,3 +226,187 @@ class TestStandingsEndpoint(SeriesApiTestBase):
         self.assertEqual(standings.status_code, 200)
         self.assertEqual(standings.json()["name"], "Open cup")
         self.assertEqual([leg["name"] for leg in standings.json()["legs"]], ["Public leg"])
+
+
+class TestEnrolmentRequests(SeriesApiTestBase):
+    """A federation runs the series and clubs run the contests: each side asks, the other side answers."""
+
+    def setUp(self):
+        super().setUp()
+        self.federation = make_user("federation@example.com", organiser=True)
+        self.club = make_user("club@example.com", organiser=True)
+        self.club_contest = make_contest("Club leg", is_public=True)
+        manage(self.club, self.club_contest)
+        self.series = Series.objects.create(name="Open cup", is_public=True)
+        for permission in ("view_series", "change_series", "delete_series"):
+            assign_perm(permission, self.federation, self.series)
+
+    def enrol(self, contest, **extra):
+        return self.client.post("/api/v1/series_requests/", {"series": self.series.pk, "contest": contest.pk, **extra}, format="json")
+
+    def test_somebody_who_manages_both_adds_the_contest_at_once(self):
+        manage(self.federation, self.club_contest)
+        self.login(self.federation)
+        result = self.enrol(self.club_contest)
+        self.assertEqual(result.status_code, 201, result.content)
+        self.assertTrue(SeriesContest.objects.filter(series=self.series, contest=self.club_contest).exists())
+
+    def test_the_club_asks_to_join_and_the_federation_accepts(self):
+        self.login(self.club)
+        asked = self.enrol(self.club_contest)
+        self.assertEqual(asked.status_code, 202, asked.content)
+        self.assertEqual(asked.json()["from_side"], "contest")
+        self.assertTrue(asked.json()["can_cancel"])
+        self.assertFalse(asked.json()["can_answer"])
+        self.assertFalse(SeriesContest.objects.exists(), "not a leg until the federation says yes")
+
+        self.login(self.federation)
+        waiting = self.client.get("/api/v1/series_requests/").json()
+        self.assertEqual([item["contest_name"] for item in waiting], ["Club leg"])
+        self.assertTrue(waiting[0]["can_answer"])
+        accepted = self.client.post(f"/api/v1/series_requests/{waiting[0]['id']}/accept/")
+        self.assertEqual(accepted.status_code, 200, accepted.content)
+        link = SeriesContest.objects.get()
+        self.assertEqual((link.series, link.contest, link.added_by), (self.series, self.club_contest, self.club))
+        self.assertEqual(self.client.get("/api/v1/series_requests/").json(), [])
+
+    def test_the_federation_invites_a_contest_and_the_club_answers(self):
+        self.login(self.federation)
+        invited = self.enrol(self.club_contest)
+        self.assertEqual(invited.status_code, 202, invited.content)
+        self.assertEqual(invited.json()["from_side"], "series")
+        request_id = invited.json()["id"]
+        # the federation cannot answer its own invitation, the club can
+        self.assertEqual(self.client.post(f"/api/v1/series_requests/{request_id}/accept/").status_code, 403)
+        self.login(self.club)
+        self.assertEqual(self.client.post(f"/api/v1/series_requests/{request_id}/accept/").status_code, 200)
+        self.assertTrue(SeriesContest.objects.filter(series=self.series, contest=self.club_contest).exists())
+
+    def test_a_declined_request_changes_nothing_and_can_be_made_again(self):
+        self.login(self.club)
+        request_id = self.enrol(self.club_contest).json()["id"]
+        self.login(self.federation)
+        self.assertEqual(self.client.post(f"/api/v1/series_requests/{request_id}/decline/").status_code, 204)
+        self.assertFalse(SeriesContest.objects.exists())
+        self.login(self.club)
+        self.assertEqual(self.enrol(self.club_contest).status_code, 202)
+
+    def test_the_asking_side_can_take_the_request_back_but_not_answer_it(self):
+        self.login(self.club)
+        request_id = self.enrol(self.club_contest).json()["id"]
+        self.assertEqual(self.client.post(f"/api/v1/series_requests/{request_id}/accept/").status_code, 403)
+        self.assertEqual(self.client.post(f"/api/v1/series_requests/{request_id}/cancel/").status_code, 204)
+        self.assertEqual(self.client.post(f"/api/v1/series_requests/{request_id}/accept/").status_code, 404, "closed")
+
+    def test_the_answering_side_cannot_cancel_it(self):
+        self.login(self.club)
+        request_id = self.enrol(self.club_contest).json()["id"]
+        self.login(self.federation)
+        self.assertEqual(self.client.post(f"/api/v1/series_requests/{request_id}/cancel/").status_code, 403)
+
+    def test_nobody_else_sees_or_answers_a_request(self):
+        self.login(self.club)
+        request_id = self.enrol(self.club_contest).json()["id"]
+        self.login(self.other)
+        self.assertEqual(self.client.get("/api/v1/series_requests/").json(), [])
+        self.assertEqual(self.client.post(f"/api/v1/series_requests/{request_id}/accept/").status_code, 404)
+
+    def test_only_one_request_at_a_time_and_none_for_a_leg(self):
+        self.login(self.club)
+        self.enrol(self.club_contest)
+        self.assertEqual(self.enrol(self.club_contest).status_code, 400)
+        SeriesContest.objects.create(series=self.series, contest=self.club_contest)
+        self.assertEqual(self.enrol(self.club_contest).status_code, 400)
+
+    def test_a_private_contest_cannot_be_asked_into_a_public_series(self):
+        private = make_contest("Club private")
+        manage(self.club, private)
+        self.login(self.club)
+        self.assertEqual(self.enrol(private).status_code, 400)
+
+    def test_someone_who_manages_neither_cannot_ask(self):
+        self.login(self.other)
+        self.assertEqual(self.enrol(self.club_contest).status_code, 403)
+
+    def test_a_private_series_cannot_be_asked_into_by_somebody_who_cannot_see_it(self):
+        private_series = Series.objects.create(name="Secret")
+        self.login(self.club)
+        result = self.client.post(
+            "/api/v1/series_requests/", {"series": private_series.pk, "contest": self.club_contest.pk}, format="json"
+        )
+        self.assertEqual(result.status_code, 404)
+
+    def test_the_federation_cannot_invite_a_private_contest_it_cannot_see(self):
+        private = make_contest("Club private")
+        manage(self.club, private)
+        private_series = Series.objects.create(name="Fed private")
+        assign_perm("change_series", self.federation, private_series)
+        assign_perm("view_series", self.federation, private_series)
+        self.login(self.federation)
+        result = self.client.post(
+            "/api/v1/series_requests/", {"series": private_series.pk, "contest": private.pk}, format="json"
+        )
+        self.assertEqual(result.status_code, 403)
+
+    def test_a_leg_can_always_leave_also_a_private_series(self):
+        private_series = Series.objects.create(name="Fed private")
+        SeriesContest.objects.create(series=private_series, contest=self.club_contest)
+        self.login(self.club)
+        self.assertEqual(self.client.get(f"/api/v1/series/{private_series.pk}/").status_code, 404, "not visible")
+        result = self.client.delete(f"/api/v1/series/{private_series.pk}/contests/{self.club_contest.pk}/")
+        self.assertEqual(result.status_code, 204, result.content)
+        self.assertFalse(SeriesContest.objects.exists())
+
+    def test_a_series_is_found_by_its_contest(self):
+        SeriesContest.objects.create(series=self.series, contest=self.club_contest)
+        Series.objects.create(name="Other cup", is_public=True)
+        self.login(self.club)
+        found = self.client.get(f"/api/v1/series/?contest={self.club_contest.pk}").json()
+        self.assertEqual([item["name"] for item in found], ["Open cup"])
+
+
+class TestContestNameFilter(SeriesApiTestBase):
+    def test_contests_are_found_by_part_of_their_name(self):
+        self.login(self.pilot)
+        found = self.client.get("/api/v1/contests/?search=public&public_only=true").json()["results"]
+        self.assertEqual([contest["name"] for contest in found], ["Public leg"])
+        self.assertEqual(self.client.get("/api/v1/contests/?search=nothing-like-it").json()["results"], [])
+
+
+class TestStandingsCachingAndCsv(SeriesApiTestBase):
+    def setUp(self):
+        super().setUp()
+        from display.models import Aeroplane, ContestSummary, ContestTeam, Crew, Person, Team
+
+        pilot = Person.objects.create(first_name="=HYPERLINK", last_name="Pilot", email="p@example.com")
+        crew = Crew.objects.create(member1=pilot)
+        team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration="LN-ABC"))
+        ContestTeam.objects.create(contest=self.public_contest, team=team)
+        ContestSummary.objects.create(contest=self.public_contest, team=team, points=12)
+        self.series = Series.objects.create(name="Open cup", is_public=True)
+        SeriesContest.objects.create(series=self.series, contest=self.public_contest)
+
+    def test_the_standings_of_a_public_series_are_shared_cacheable(self):
+        response = self.client.get(f"/api/v1/series/{self.series.pk}/standings/")
+        self.assertIn("s-maxage=60", response["Cache-Control"])
+        self.assertTrue(response["Cache-Control"].startswith("public"))
+
+    def test_the_standings_of_a_private_series_never_reach_the_shared_cache(self):
+        private = Series.objects.create(name="Private cup")
+        assign_perm("view_series", self.organiser, private)
+        self.login(self.organiser)
+        response = self.client.get(f"/api/v1/series/{private.pk}/standings/")
+        self.assertEqual(response["Cache-Control"], "private, no-cache")
+
+    def test_the_csv_has_the_standings_and_cannot_run_a_formula(self):
+        response = self.client.get(f"/api/v1/series/{self.series.pk}/standings-csv/")
+        self.assertEqual(response.status_code, 200)
+        self.assertEqual(response["Content-Type"], "text/csv")
+        self.assertIn("open-cup_standings.csv", response["Content-Disposition"])
+        lines = response.content.decode().strip().splitlines()
+        self.assertEqual(lines[0], "Rank,Name,Club,Public leg,Total")
+        self.assertEqual(lines[1], "1,'=HYPERLINK Pilot,,1,1.0")
+
+    def test_the_csv_of_a_private_series_is_not_for_everybody(self):
+        private = Series.objects.create(name="Private cup")
+        self.assertEqual(self.client.get(f"/api/v1/series/{private.pk}/standings-csv/").status_code, 404)

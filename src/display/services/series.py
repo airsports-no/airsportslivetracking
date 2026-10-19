@@ -4,10 +4,12 @@ keeps a public series from showing a private contest. The standings are in displ
 """
 
 from django.db import transaction
+from django.utils import timezone
 from guardian.shortcuts import assign_perm, get_objects_for_user
 from rest_framework.exceptions import PermissionDenied, ValidationError
 
-from display.models import Contest, MyUser, Series, SeriesContest
+from display.models import Contest, MyUser, Series, SeriesContest, SeriesContestRequest
+from display.services.contest_visibility import can_view_contest
 
 SERIES_PERMISSIONS = ("view_series", "change_series", "delete_series")
 
@@ -29,6 +31,14 @@ def visible_series(user: MyUser):
         return Series.objects.filter(is_public=True)
     managed = get_objects_for_user(user, "display.view_series", klass=Series, accept_global_perms=False)
     return Series.objects.filter(is_public=True) | managed
+
+
+def series_of_managed_contests(user: MyUser):
+    """The series that have a contest [user] manages as a leg, also private ones: so a leg can always leave."""
+    managed_contests = get_objects_for_user(
+        user, "display.change_contest", klass=Contest, accept_global_perms=False, with_superuser=False
+    )
+    return Series.objects.filter(contests__in=managed_contests.values("pk"))
 
 
 def require_manager(user: MyUser, series: Series) -> None:
@@ -100,6 +110,128 @@ def add_contest(
         return SeriesContest.objects.create(
             series=series, contest=contest, leg_number=leg_number, weight=weight, added_by=user
         )
+
+
+def can_manage_contest(user: MyUser, contest: Contest) -> bool:
+    return bool(user and user.is_authenticated and user.has_perm("display.change_contest", contest))
+
+
+def _check_can_join(series: Series, contest: Contest) -> None:
+    if SeriesContest.objects.filter(series=series, contest=contest).exists():
+        raise ValidationError("The contest is already in the series.")
+    if series.is_public and not contest.is_public:
+        raise ValidationError("A public series can only contain public contests. Make the contest public first.")
+
+
+def request_enrolment(series: Series, contest: Contest, user: MyUser):
+    """
+    Get [contest] into [series]. Somebody who manages both adds it at once (returns the leg). Otherwise the managers of
+    the other side get a request to answer (returns the request): the managers of the series invite a contest they can
+    see, the managers of a contest ask to join a series they can see.
+    """
+    manages_series = can_manage(user, series)
+    manages_contest = can_manage_contest(user, contest)
+    if manages_series and manages_contest:
+        return add_contest(series, contest, user)
+    if manages_series:
+        if not can_view_contest(user, contest):
+            raise PermissionDenied("You can only invite contests you can see.")
+        side = SeriesContestRequest.FROM_SERIES
+    elif manages_contest:
+        if not can_view(user, series):
+            raise PermissionDenied("You can only ask to join series you can see.")
+        side = SeriesContestRequest.FROM_CONTEST
+    else:
+        raise PermissionDenied("You need to manage the series or the contest.")
+    with transaction.atomic():
+        # Locking the series makes the check for an earlier request safe against a double click
+        Series.objects.select_for_update().get(pk=series.pk)
+        _check_can_join(series, contest)
+        if SeriesContestRequest.objects.filter(
+            series=series, contest=contest, status=SeriesContestRequest.PENDING
+        ).exists():
+            raise ValidationError("There is already a request for this contest and series waiting for an answer.")
+        return SeriesContestRequest.objects.create(series=series, contest=contest, from_side=side, requested_by=user)
+
+
+def _managers_of_the_other_side(request: SeriesContestRequest, user: MyUser) -> bool:
+    if request.from_side == SeriesContestRequest.FROM_SERIES:
+        return can_manage_contest(user, request.contest)
+    return can_manage(user, request.series)
+
+
+def _managers_of_the_asking_side(request: SeriesContestRequest, user: MyUser) -> bool:
+    if request.from_side == SeriesContestRequest.FROM_SERIES:
+        return can_manage(user, request.series)
+    return can_manage_contest(user, request.contest)
+
+
+def can_answer(request: SeriesContestRequest, user: MyUser) -> bool:
+    return request.status == SeriesContestRequest.PENDING and _managers_of_the_other_side(request, user)
+
+
+def can_cancel(request: SeriesContestRequest, user: MyUser) -> bool:
+    return request.status == SeriesContestRequest.PENDING and _managers_of_the_asking_side(request, user)
+
+
+def _close(request: SeriesContestRequest, status: str, user: MyUser) -> None:
+    request.status = status
+    request.responded_by = user
+    request.responded_at = timezone.now()
+    request.save(update_fields=["status", "responded_by", "responded_at"])
+
+
+def accept_request(request: SeriesContestRequest, user: MyUser) -> SeriesContest:
+    """The managers of the other side say yes: the contest becomes a leg."""
+    with transaction.atomic():
+        request = (
+            SeriesContestRequest.objects.select_for_update().select_related("series", "contest").get(pk=request.pk)
+        )
+        if not can_answer(request, user):
+            raise PermissionDenied("This request is not open for you to answer.")
+        _check_can_join(request.series, request.contest)
+        last = SeriesContest.objects.filter(series=request.series).order_by("-leg_number").first()
+        link = SeriesContest.objects.create(
+            series=request.series,
+            contest=request.contest,
+            leg_number=(last.leg_number + 1) if last else 1,
+            added_by=request.requested_by,
+        )
+        _close(request, SeriesContestRequest.ACCEPTED, user)
+    return link
+
+
+def decline_request(request: SeriesContestRequest, user: MyUser) -> None:
+    if not can_answer(request, user):
+        raise PermissionDenied("This request is not open for you to answer.")
+    _close(request, SeriesContestRequest.DECLINED, user)
+
+
+def cancel_request(request: SeriesContestRequest, user: MyUser) -> None:
+    if not can_cancel(request, user):
+        raise PermissionDenied("Only the side that asked can take the request back.")
+    _close(request, SeriesContestRequest.CANCELLED, user)
+
+
+def requests_for(user: MyUser):
+    """The open requests that involve [user]: those they can answer, and those they or their co-managers made."""
+    if user is None or not user.is_authenticated:
+        return SeriesContestRequest.objects.none()
+    managed_series = get_objects_for_user(
+        user, "display.change_series", klass=Series, accept_global_perms=False, with_superuser=False
+    )
+    managed_contests = get_objects_for_user(
+        user, "display.change_contest", klass=Contest, accept_global_perms=False, with_superuser=False
+    )
+    pending = SeriesContestRequest.objects.filter(status=SeriesContestRequest.PENDING)
+    return (
+        (
+            pending.filter(series__in=managed_series.values("pk"))
+            | pending.filter(contest__in=managed_contests.values("pk"))
+        )
+        .select_related("series", "contest", "requested_by")
+        .distinct()
+    )
 
 
 def update_leg(link: SeriesContest, user: MyUser, leg_number: int | None = None, weight: float | None = None):

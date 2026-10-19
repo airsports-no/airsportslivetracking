@@ -66,6 +66,29 @@ export interface AddableContest {
     is_public: boolean;
 }
 
+export interface SeriesRequest {
+    id: number;
+    series_id: number;
+    series_name: string;
+    contest_id: number;
+    contest_name: string;
+    from_side: 'series' | 'contest';
+    status: string;
+    requested_by_name: string;
+    created_at: string;
+    can_answer: boolean;
+    can_cancel: boolean;
+}
+
+/** What asking for a contest to join a series led to: it was added at once, or the other side has to answer */
+export type EnrolmentOutcome = { added: true; leg: SeriesLeg } | { added: false; request: SeriesRequest };
+
+export interface ContestSearchResult {
+    id: number;
+    name: string;
+    start_time: string;
+}
+
 export type SeriesSettings = Partial<
     Pick<Series, 'name' | 'description' | 'is_public' | 'scoring_method' | 'entrant_identity' | 'best_results_counted' | 'points_table'>
 >;
@@ -122,6 +145,45 @@ export const fetchAddableContests = (seriesId: number) =>
 
 export const addContestToSeries = (seriesId: number, contestId: number) =>
     request<SeriesLeg>(reverse('series-contests', seriesId), send('POST', { contest: contestId }));
+
+/**
+ * Get a contest into a series: added at once by somebody who manages both, otherwise the managers of the other side get
+ * a request to answer.
+ */
+export const enrolContest = async (seriesId: number, contestId: number): Promise<EnrolmentOutcome> => {
+    const response = await fetch(reverse('series-requests-list'), { headers: headers(), ...send('POST', { series: seriesId, contest: contestId }) });
+    if (!response.ok) {
+        throw new Error(await errorMessage(response));
+    }
+    const data = await response.json();
+    return response.status === 201 ? { added: true, leg: data } : { added: false, request: data };
+};
+
+export const fetchSeriesRequests = (filter: { series?: number; contest?: number } = {}) => {
+    const params = new URLSearchParams();
+    if (filter.series) params.set('series', String(filter.series));
+    if (filter.contest) params.set('contest', String(filter.contest));
+    const query = params.toString();
+    return request<SeriesRequest[]>(`${reverse('series-requests-list')}${query ? `?${query}` : ''}`);
+};
+
+export const acceptSeriesRequest = (requestId: number) =>
+    request<SeriesLeg>(reverse('series-requests-accept', requestId), send('POST'));
+
+export const declineSeriesRequest = (requestId: number) =>
+    request<void>(reverse('series-requests-decline', requestId), send('POST'));
+
+export const cancelSeriesRequest = (requestId: number) =>
+    request<void>(reverse('series-requests-cancel', requestId), send('POST'));
+
+export const fetchSeriesOfContest = (contestId: number) => request<Series[]>(`${reverse('series-list')}?contest=${contestId}`);
+
+/** Contests anybody may see, found by part of the name */
+export const searchContests = async (name: string): Promise<ContestSearchResult[]> => {
+    const params = new URLSearchParams({ search: name, public_only: 'true', exclude_tasks: 'true', exclude_teams: 'true' });
+    const data = await request<{ results: ContestSearchResult[] }>(`${reverse('contests-list')}?${params.toString()}`);
+    return data.results;
+};
 
 export const updateLeg = (seriesId: number, contestId: number, change: { leg_number?: number; weight?: number }) =>
     request<SeriesLeg>(reverse('series-contest', seriesId, contestId), send('PATCH', change));

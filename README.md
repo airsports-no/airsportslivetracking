@@ -130,6 +130,8 @@ ASLT is optimized for Google Cloud CDN. The caching strategy relies on three lev
 3.  **Track Version (Telemetry):**
     Stored on the `Contestant` model in the database. The telemetry `/slice/` API uses an ETag derived from `track_version`. If a GPX is uploaded or a track is refreshed, only that specific contestant's telemetry cache is invalidated across the CDN.
 
+**Series standings** (`/api/v1/series/<id>/standings/` and `standings-csv/`) are computed from the results of the legs on every request and are not versioned: a public series gets `s-maxage=60` like the contest results, so the CDN shields the origin and the table is at most a minute behind the scoring; a private series is always `private, no-cache`.
+
 **Cache Headers:**
 -   **Public Data:** Uses `stale-while-revalidate`, allowing the CDN to serve data instantly while fetching updates in the background.
 -   **Private Data:** Always marked `private, no-cache` to prevent sensitive data leakage to the CDN edge.

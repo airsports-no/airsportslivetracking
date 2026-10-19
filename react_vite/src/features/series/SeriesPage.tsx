@@ -1,19 +1,24 @@
 import React, { useEffect, useState } from 'react';
 import { Link, useNavigate, useParams } from 'react-router-dom';
-import { ArrowLeft, Globe, Lock, Plus, Trash2 } from 'lucide-react';
-import { generatePath } from '../../urls';
+import { ArrowLeft, Download, Globe, Lock, Plus, Trash2 } from 'lucide-react';
+import { generatePath, reverse } from '../../urls';
 import { Loading } from '../route-editor/components/basicComponents';
+import ContestSearch from './ContestSearch';
+import SeriesRequests from './SeriesRequests';
 import StandingsTable from './StandingsTable';
 import {
     AddableContest,
     EntrantIdentity,
     ScoringMethod,
     SeriesDetail,
+    SeriesRequest,
     Standings,
     addContestToSeries,
     deleteSeries,
+    enrolContest,
     fetchAddableContests,
     fetchSeries,
+    fetchSeriesRequests,
     fetchStandings,
     removeContestFromSeries,
     updateLeg,
@@ -37,6 +42,8 @@ const SeriesPage: React.FC = () => {
     const [series, setSeries] = useState<SeriesDetail | null>(null);
     const [standings, setStandings] = useState<Standings | null>(null);
     const [addable, setAddable] = useState<AddableContest[]>([]);
+    const [requests, setRequests] = useState<SeriesRequest[]>([]);
+    const [notice, setNotice] = useState<string | null>(null);
     const [contestChoice, setContestChoice] = useState('');
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
@@ -70,6 +77,11 @@ const SeriesPage: React.FC = () => {
                     fetchAddableContests(id)
                         .then(contests => {
                             if (!cancelled) setAddable(contests);
+                        })
+                        .catch(() => {});
+                    fetchSeriesRequests({ series: id })
+                        .then(waiting => {
+                            if (!cancelled) setRequests(waiting);
                         })
                         .catch(() => {});
                 }
@@ -139,11 +151,17 @@ const SeriesPage: React.FC = () => {
             <div className="card bg-base-100 border border-base-300">
                 <div className="card-body p-4">
                     <StandingsTable standings={standings} />
+                    {standings.rows.length > 0 && (
+                        <div className="flex justify-end">
+                            <a className="btn btn-ghost btn-xs gap-1" href={reverse('series-standings-csv', id)}><Download size={12} /> CSV</a>
+                        </div>
+                    )}
                 </div>
             </div>
 
             {series.can_manage && (
                 <>
+                    <SeriesRequests requests={requests} onChanged={reload} heading="Contests waiting to join" />
                     <div className="card bg-base-200 border border-base-300">
                         <div className="card-body p-5 space-y-2">
                             <h2 className="card-title text-lg">Legs</h2>
@@ -203,6 +221,20 @@ const SeriesPage: React.FC = () => {
                             ) : (
                                 <p className="text-xs opacity-60">{series.is_public ? 'Only public contests you manage can be added.' : 'Only contests you manage can be added.'}</p>
                             )}
+                            <div className="pt-2 space-y-1">
+                                <div className="text-sm font-semibold">Invite somebody else's contest</div>
+                                <p className="text-xs opacity-70">The people who manage the contest get a request and decide whether it becomes a leg.</p>
+                                <ContestSearch
+                                    disabled={busy}
+                                    onPick={contest =>
+                                        run(async () => {
+                                            const outcome = await enrolContest(id, contest.id);
+                                            setNotice(outcome.added ? `${contest.name} is a leg of the series.` : `The managers of ${contest.name} have been asked.`);
+                                        })
+                                    }
+                                />
+                                {notice && <div className="text-xs text-success">{notice}</div>}
+                            </div>
                         </div>
                     </div>
 

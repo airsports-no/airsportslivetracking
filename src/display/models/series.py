@@ -93,3 +93,40 @@ class SeriesContest(models.Model):
 
     def __str__(self):
         return f"{self.contest} in {self.series}"
+
+
+class SeriesContestRequest(models.Model):
+    """
+    A request for a contest to become a leg of a series, from the side that does not manage the other: the managers of
+    the series invite a contest, or the managers of a contest ask to join a series. The managers of the other side answer.
+    """
+
+    FROM_SERIES = "series"
+    FROM_CONTEST = "contest"
+    SIDES = ((FROM_SERIES, "From the series"), (FROM_CONTEST, "From the contest"))
+    PENDING = "pending"
+    ACCEPTED = "accepted"
+    DECLINED = "declined"
+    CANCELLED = "cancelled"
+    STATUSES = ((PENDING, "Pending"), (ACCEPTED, "Accepted"), (DECLINED, "Declined"), (CANCELLED, "Cancelled"))
+
+    series = models.ForeignKey(Series, on_delete=models.CASCADE)
+    contest = models.ForeignKey("Contest", on_delete=models.CASCADE)
+    from_side = models.CharField(max_length=10, choices=SIDES)
+    status = models.CharField(max_length=10, choices=STATUSES, default=PENDING)
+    requested_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    created_at = models.DateTimeField(auto_now_add=True)
+    responded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    responded_at = models.DateTimeField(null=True, blank=True)
+
+    class Meta:
+        ordering = ("-created_at",)
+        # At most one pending request per series and contest is kept by the series service: MySQL has no conditional
+        # unique constraints.
+
+    def __str__(self):
+        return f"{self.contest} in {self.series} ({self.from_side}, {self.status})"

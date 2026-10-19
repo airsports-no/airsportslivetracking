@@ -32,6 +32,7 @@ import { accessSourceLabel } from './accessLabels';
 import ConceptHint from '../../components/common/ConceptHint';
 import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
 import ContestSquadronsPanel from '../contest-management/components/ContestSquadronsPanel';
+import ContestSeriesPanel from '../contest-management/components/ContestSeriesPanel';
 import * as contestManagementApi from '../contest-management/api';
 import {
     assignContestToken,
@@ -433,6 +434,7 @@ const ContestDashboard = () => {
                                     }}
                                 />
                                 <ContestSquadronsPanel contestId={contest.id} />
+                                <ContestSeriesPanel contestId={contest.id} />
                             </div>
                         </div>
                     </div>

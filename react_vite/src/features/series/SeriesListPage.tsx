@@ -3,7 +3,8 @@ import { Link } from 'react-router-dom';
 import { Globe, Lock, Medal, Plus } from 'lucide-react';
 import { generatePath } from '../../urls';
 import { Loading } from '../route-editor/components/basicComponents';
-import { Series, createSeries, fetchSeriesList } from './api';
+import SeriesRequests from './SeriesRequests';
+import { Series, SeriesRequest, createSeries, fetchSeriesList, fetchSeriesRequests } from './api';
 
 /**
  * The series the user can see: a series ranks the teams of several contests together, for a cup or championship held at
@@ -11,6 +12,7 @@ import { Series, createSeries, fetchSeriesList } from './api';
  */
 const SeriesListPage: React.FC = () => {
     const [series, setSeries] = useState<Series[] | null>(null);
+    const [requests, setRequests] = useState<SeriesRequest[]>([]);
     const [error, setError] = useState<string | null>(null);
     const [busy, setBusy] = useState(false);
     const [name, setName] = useState('');
@@ -18,10 +20,11 @@ const SeriesListPage: React.FC = () => {
 
     useEffect(() => {
         let cancelled = false;
-        fetchSeriesList()
-            .then(list => {
+        Promise.all([fetchSeriesList(), document.configuration.isAuthenticated ? fetchSeriesRequests() : Promise.resolve([])])
+            .then(([list, waiting]) => {
                 if (cancelled) return;
                 setSeries(list);
+                setRequests(waiting);
                 setError(null);
             })
             .catch(e => {
@@ -60,6 +63,7 @@ const SeriesListPage: React.FC = () => {
                 </p>
             </div>
             {error && <div role="alert" className="alert alert-error">{error}</div>}
+            <SeriesRequests requests={requests} onChanged={() => setReloads(count => count + 1)} heading="Contests waiting to join a series" />
             <div className="space-y-2">
                 {series.length === 0 && <p className="opacity-70">There are no series to show yet.</p>}
                 {series.map(item => (
