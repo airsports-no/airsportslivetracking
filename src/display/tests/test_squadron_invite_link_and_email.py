@@ -273,3 +273,28 @@ class TestUnshareAnswer(SquadronApiTestBase):
         answer = self.client.delete(f"/api/v1/contests/{self.contest.pk}/squadrons/{second.pk}/")
         self.assertEqual(answer.status_code, 200, answer.content)
         self.assertEqual(answer.json(), [])
+
+
+class TestContestListFollowsDirectGrants(SquadronApiTestBase):
+    """A view grant given or taken away by an organiser shows in the cached contest list at once."""
+
+    def names(self):
+        return {contest["name"] for contest in self.client.get("/api/v1/contests/").json()["results"]}
+
+    def test_the_list_follows_the_grants_on_a_contest(self):
+        from display.services.contest_permissions import set_contest_permission_level
+
+        self.login(self.outsider)
+        self.assertNotIn("Private", self.names())  # fills the cache for this user
+
+        set_contest_permission_level(self.contest, self.outsider, "view", self.organiser)
+        self.assertIn("Private", self.names(), "given the right to view")
+
+        set_contest_permission_level(self.contest, self.outsider, "nothing", self.organiser)
+        self.assertNotIn("Private", self.names(), "taken away again")
+
+    def test_the_list_follows_a_grant_made_directly_with_guardian(self):
+        self.login(self.outsider)
+        self.assertNotIn("Private", self.names())
+        assign_perm("view_contest", self.outsider, self.contest)
+        self.assertIn("Private", self.names())
