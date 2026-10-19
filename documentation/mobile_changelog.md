@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-19
+#### App
+- **Cancel flight and the flight's links show again on cards with many facts.** The flight cards on Home and My flights were sized in a way that cut off their bottom lines when the facts wrapped (an adaptive-start flight with wind, airspeed and contestant number): the Home card lost all its buttons and My flights lost **Cancel flight**. The cards now always take their full height. Both phones.
+
 ### 2026-10-18
 #### Backend
 - **Organizers see when a pilot's phone reported simulated positions.** The phone apps send `mock=true` with a position the phone itself reports as simulated (a fake-GPS app); Traccar keeps it as an attribute, the position processor notes the first one on the flight (`Contestant.mock_positions_at`, migration `0200`) and the contestant list shows a red "fake GPS" badge. The positions are still scored.
