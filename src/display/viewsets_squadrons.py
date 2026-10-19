@@ -402,4 +402,7 @@ class ContestSquadronsMixin:
         contest = self.get_object()
         squadron = get_object_or_404(Squadron, pk=squadron_pk, contests=contest)
         squadrons.unshare_contest(contest, squadron, request.user)
+        if not request.user.has_perm("display.change_contest", contest):
+            # An admin of the squadron or whoever shared it need not know what else the contest is shared with
+            return Response(status=status.HTTP_204_NO_CONTENT)
         return Response(contest_squadrons_payload(contest, request.user))

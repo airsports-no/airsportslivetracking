@@ -3,12 +3,13 @@
 from unittest.mock import patch
 
 from django.core import mail
+from guardian.shortcuts import assign_perm
 from rest_framework.exceptions import NotFound, PermissionDenied, ValidationError
 
 from display.models import SquadronInvitation, SquadronMembership
 from display.services import squadrons
 from display.services.squadron_emails import send_squadron_invitation_email
-from display.tests.test_squadrons import SquadronTestBase
+from display.tests.test_squadrons import SquadronTestBase, make_user
 from display.tests.test_squadrons_api import SquadronApiTestBase
 
 
@@ -177,3 +178,98 @@ class TestInvitationLimit(SquadronTestBase):
             first = SquadronInvitation.objects.filter(squadron=self.squadron).first()
             squadrons.revoke_invitation(first, self.admin)
             squadrons.invite(self.squadron, self.admin, "one-too-many@example.com")
+
+
+class TestReviewFixes(SquadronTestBase):
+    """Found in the review of the squadron PR."""
+
+    def test_joining_by_link_leaves_an_admin_invitation_open_so_that_accepting_it_promotes(self):
+        admin_invitation = squadrons.invite(self.squadron, self.admin, "outsider@example.com", SquadronMembership.ADMIN)
+        squadrons.join_by_invite_link(squadrons.enable_invite_link(self.squadron, self.admin), self.outsider)
+        admin_invitation.refresh_from_db()
+        self.assertEqual(admin_invitation.status, SquadronInvitation.PENDING)
+        self.assertFalse(squadrons.is_admin(self.squadron, self.outsider))
+        squadrons.accept_invitation(admin_invitation, self.outsider)
+        self.assertTrue(squadrons.is_admin(self.squadron, self.outsider))
+
+    def test_nobody_sends_more_than_the_daily_limit_across_squadrons_also_when_cancelled(self):
+        other_squadron = squadrons.create_squadron(self.admin, "Second")
+        with patch.object(squadrons, "MAX_INVITATIONS_PER_USER_PER_DAY", 3):
+            first = squadrons.invite(self.squadron, self.admin, "a@example.com")
+            squadrons.invite(other_squadron, self.admin, "b@example.com")
+            squadrons.revoke_invitation(first, self.admin)  # cancelling gives nothing back
+            squadrons.invite(self.squadron, self.admin, "c@example.com")
+            with self.assertRaises(ValidationError):
+                squadrons.invite(other_squadron, self.admin, "d@example.com")
+
+    def test_the_limit_is_per_person(self):
+        squadrons.invite(self.squadron, self.admin, "a@example.com")
+        with patch.object(squadrons, "MAX_INVITATIONS_PER_USER_PER_DAY", 1):
+            with self.assertRaises(ValidationError):
+                squadrons.invite(self.squadron, self.admin, "b@example.com")
+            other = make_user("other-admin@example.com")
+            other_squadron = squadrons.create_squadron(other, "Other")
+            squadrons.invite(other_squadron, other, "b@example.com")
+
+    def test_inviting_an_address_again_soon_after_cancelling_is_not_mailed_again(self):
+        with patch("display.tasks.send_squadron_invitation_email_task.delay") as delay:
+            with self.captureOnCommitCallbacks(execute=True):
+                first = squadrons.invite(self.squadron, self.admin, "new@example.com")
+            squadrons.revoke_invitation(first, self.admin)
+            with self.captureOnCommitCallbacks(execute=True):
+                second = squadrons.invite(self.squadron, self.admin, "new@example.com")
+        delay.assert_called_once_with(first.pk)
+        self.assertEqual(second.status, SquadronInvitation.PENDING, "the invitation is still made and shown in the app")
+
+
+class TestContestListFollowsSquadrons(SquadronApiTestBase):
+    """The contest list is cached per user: joining, leaving and sharing change what is in it."""
+
+    def names(self):
+        return {contest["name"] for contest in self.client.get("/api/v1/contests/").json()["results"]}
+
+    def test_the_list_follows_membership_and_sharing(self):
+        self.login(self.outsider)
+        self.assertNotIn("Private", self.names())  # fills the cache for this user
+
+        token = squadrons.enable_invite_link(self.squadron, self.admin)
+        squadrons.join_by_invite_link(token, self.outsider)
+        self.assertNotIn("Private", self.names(), "a member of a squadron without the contest")
+
+        for permission in ("view_contest", "change_contest"):
+            assign_perm(permission, self.admin, self.contest)
+        squadrons.share_contest(self.contest, self.squadron, self.admin)
+        self.assertIn("Private", self.names(), "shared with the squadron")
+
+        squadrons.unshare_contest(self.contest, self.squadron, self.admin)
+        self.assertNotIn("Private", self.names(), "stopped sharing")
+
+        squadrons.share_contest(self.contest, self.squadron, self.admin)
+        self.assertIn("Private", self.names())
+        squadrons.remove_member(self.squadron, self.outsider, squadrons.membership_of(self.squadron, self.outsider))
+        self.assertNotIn("Private", self.names(), "left the squadron")
+
+
+class TestUnshareAnswer(SquadronApiTestBase):
+    def test_only_the_contests_managers_are_told_what_else_it_is_shared_with(self):
+        second = squadrons.create_squadron(self.admin, "Second")
+        for permission in ("view_contest", "change_contest"):
+            assign_perm(permission, self.organiser, self.contest)
+        self.contest.shared_with_squadrons.through.objects.create(
+            squadron=self.squadron, contest=self.contest, shared_by=self.member
+        )
+        self.contest.shared_with_squadrons.through.objects.create(
+            squadron=second, contest=self.contest, shared_by=self.member
+        )
+
+        # The squadron's admin does not manage the contest: allowed to take it away, told nothing about the rest
+        self.login(self.admin)
+        answer = self.client.delete(f"/api/v1/contests/{self.contest.pk}/squadrons/{self.squadron.pk}/")
+        self.assertEqual(answer.status_code, 204, answer.content)
+        self.assertEqual(list(self.contest.shared_with_squadrons.all()), [second])
+
+        # The contest's manager gets the whole list
+        self.login(self.organiser)
+        answer = self.client.delete(f"/api/v1/contests/{self.contest.pk}/squadrons/{second.pk}/")
+        self.assertEqual(answer.status_code, 200, answer.content)
+        self.assertEqual(answer.json(), [])

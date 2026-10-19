@@ -33,6 +33,8 @@ from display.models import (
     Photo,
     Route,
     ScoreLogEntry,
+    SquadronContestShare,
+    SquadronMembership,
     Task,
     TaskSummary,
     TaskTest,
@@ -77,6 +79,11 @@ def invalidate_contest_list_cache(sender, **kwargs):
 @receiver(post_save, sender=ContestTokenAssignment)
 @receiver(post_delete, sender=ContestTokenAssignment)
 @receiver(post_save, sender=UserTokenGrant)
+# Who is in a squadron and which contests it has decides which private contests a user's list holds
+@receiver(post_save, sender=SquadronMembership)
+@receiver(post_delete, sender=SquadronMembership)
+@receiver(post_save, sender=SquadronContestShare)
+@receiver(post_delete, sender=SquadronContestShare)
 def invalid_cache_handler(sender, **kwargs):
     invalidate_contest_list_cache(sender, **kwargs)
 

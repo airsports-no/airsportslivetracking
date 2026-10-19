@@ -17,7 +17,7 @@ const visibilityOf = (task: NavigationTaskDetail): NavigationTaskVisibility => {
 
 const VISIBILITY_OPTIONS: { value: NavigationTaskVisibility; label: string; description: string }[] = [
   { value: 'private', label: 'Private', description: 'Only people you have given access can see this task.' },
-  { value: 'public', label: 'Public', description: 'Everybody can see it. Needed for pilots to find it and book their own start time without having access to the contest.' },
+  { value: 'public', label: 'Public', description: 'Everybody can see it, which also makes the contest public. Needed for pilots to find it and book their own start time without having access to the contest.' },
 ];
 
 const NavigationTaskDetailPage: React.FC = () => {

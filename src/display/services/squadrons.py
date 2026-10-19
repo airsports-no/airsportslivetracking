@@ -4,6 +4,7 @@ and who may share a contest with a squadron. Shared by the REST actions; the aud
 decided in display/services/contest_visibility.py.
 """
 
+import datetime
 import secrets
 
 from django.core.exceptions import ValidationError as DjangoValidationError
@@ -18,6 +19,8 @@ from display.models import Contest, MyUser, Squadron, SquadronContestShare, Squa
 
 # More open invitations than this is not a squadron being built up but an address list being used
 MAX_PENDING_INVITATIONS = 50
+# ... and a person cannot send out more than this a day across all their squadrons, whatever happens to the invitations
+MAX_INVITATIONS_PER_USER_PER_DAY = 100
 
 
 def create_squadron(user: MyUser, name: str, description: str = "") -> Squadron:
@@ -80,10 +83,21 @@ def invite(squadron: Squadron, acting_user: MyUser, identifier: str, role: str =
                 f"There are already {MAX_PENDING_INVITATIONS} invitations waiting for an answer. "
                 "Cancel some, or share the invite link instead."
             )
+        since = timezone.now() - datetime.timedelta(days=1)
+        sent_today = SquadronInvitation.objects.filter(invited_by=acting_user, created_at__gte=since).count()
+        if sent_today >= MAX_INVITATIONS_PER_USER_PER_DAY:
+            raise ValidationError(
+                "You have sent too many invitations today. Try again tomorrow, or share the invite link instead."
+            )
+        # Inviting the same address again soon after (a cancelled invitation, say) is not mailed again
+        mailed_lately = SquadronInvitation.objects.filter(
+            squadron=squadron, email=email, created_at__gte=since
+        ).exists()
         invitation = SquadronInvitation.objects.create(
             squadron=squadron, email=email, role=role, invited_by=acting_user
         )
-        transaction.on_commit(lambda: _queue_invitation_email(invitation.pk))
+        if not mailed_lately:
+            transaction.on_commit(lambda: _queue_invitation_email(invitation.pk))
         return invitation
 
 
@@ -196,9 +210,12 @@ def join_by_invite_link(token: str, user: MyUser) -> SquadronMembership:
         membership, _created = SquadronMembership.objects.get_or_create(
             squadron=squadron, user=user, defaults={"role": SquadronMembership.MEMBER}
         )
-        # An invitation to the same address is answered by joining
+        # An invitation to be a member is answered by joining. One to be an admin stays open: accepting it promotes
         SquadronInvitation.objects.filter(
-            squadron=squadron, email=user.email.strip().lower(), status=SquadronInvitation.PENDING
+            squadron=squadron,
+            email=user.email.strip().lower(),
+            status=SquadronInvitation.PENDING,
+            role=SquadronMembership.MEMBER,
         ).update(status=SquadronInvitation.ACCEPTED, responded_at=timezone.now())
     return membership
 
