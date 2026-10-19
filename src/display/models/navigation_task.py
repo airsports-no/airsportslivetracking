@@ -120,11 +120,11 @@ class NavigationTask(models.Model):
     )
     is_public = models.BooleanField(
         default=False,
-        help_text="The navigation test is only viewable by unauthenticated users or users without object permissions if this is True",
+        help_text="A public navigation task is visible to everybody (if its contest is public too). A private one is only visible to the people given access to the contest.",
     )
     is_featured = models.BooleanField(
         default=False,
-        help_text="A featured navigation is visible to all (if public). Otherwise a direct link is required to access it",
+        help_text="Always equal to is_public (kept for the apps that still read it).",
     )
 
     wind_speed = models.FloatField(
@@ -258,7 +258,7 @@ class NavigationTask(models.Model):
         """
         from display.services.contest_visibility import visible_navigation_tasks_q
 
-        return NavigationTask.objects.filter(visible_navigation_tasks_q(user, listed_only=True))
+        return NavigationTask.objects.filter(visible_navigation_tasks_q(user))
 
     def get_available_user_maps(self) -> set["UserUploadedMap"]:
         """
@@ -306,16 +306,19 @@ class NavigationTask(models.Model):
 
     @property
     def everything_public(self):
-        return self.is_public and self.contest.is_public and self.is_featured
+        return self.is_public and self.contest.is_public
 
     @property
     def share_string(self):
-        if self.is_public and self.is_featured:
-            return "Public"
-        elif self.is_public and not self.is_featured:
-            return "Unlisted"
-        else:
-            return "Private"
+        return "Public" if self.is_public else "Private"
+
+    def save(self, *args, **kwargs):
+        # is_featured only remains for the apps that still read it: it always equals is_public
+        self.is_featured = self.is_public
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "is_public" in update_fields:
+            kwargs["update_fields"] = {*update_fields, "is_featured"}
+        super().save(*args, **kwargs)
 
     @property
     def display_contestant_rank_summary(self):
@@ -454,17 +457,6 @@ class NavigationTask(models.Model):
         self.is_featured = True
         self.save()
         self.contest.make_public()
-
-    def make_unlisted(self):
-        """
-        Makes the navigation task unlisted. It is accessible by anyone with a direct link, but it is not listed
-        anywhere. Makes the contest at least unlisted as well.
-        """
-        self.is_public = True
-        self.is_featured = False
-        self.contest.is_public = True
-        self.save()
-        self.contest.save()
 
     def make_private(self):
         """

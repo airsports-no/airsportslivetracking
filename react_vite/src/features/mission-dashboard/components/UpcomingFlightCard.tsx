@@ -20,7 +20,7 @@ const UpcomingFlightCard: React.FC<UpcomingFlightCardProps> = ({ flight, contest
             <div className="card-body">
                 <h3 className="card-title flex items-center gap-2">
                     {navTask.name}
-                    <PublicityIcon isPublic={navTask.is_public} isFeatured={navTask.is_featured} />
+                    <PublicityIcon isPublic={navTask.is_public} />
                     <div className="tooltip inline-flex" data-tip="View Live Tracking Map">
                         <a href={navTask.tracking_link} target="_blank" rel="noopener noreferrer" className="ml-2">
                             <MapPin size={20} />

@@ -5,7 +5,7 @@ all, unlike every neighboring scorecard view (navigation_task_restore_original_s
 navigation_task_scorecard_override_view, navigation_task_gatescore_override_view) and unlike its
 own parent page (NavigationTaskDetailView, which links to it and already requires
 display.view_contest with no public-visibility bypass). Anyone, unauthenticated, could read the
-navigation task name, contest name, and full scoring configuration of a private/unlisted contest.
+navigation task name, contest name, and full scoring configuration of a private contest.
 """
 
 import datetime

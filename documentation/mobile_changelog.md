@@ -15,6 +15,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-19
 #### Backend
+- **Contests and tasks are public or private, no "unlisted".** A contest or task is visible to everybody (public) or only to the people given access (private); what was reachable by a link alone is private now (migration `0201`). The API field `is_featured` stays, always equal to `is_public`, so the current apps keep working; the share endpoints reject `unlisted`.
 - **Pilots given access to a private contest can register for it.** An organiser's "view & take part" grant (the old "view") now lets a pilot see a private contest and its private tasks and sign up, register a flight and cancel it, from the website and the apps; Register today (`open_registration_today`) lists those tasks too. Before, only the contest's managers could register in a private task. Organiser screens (flight orders, scorecard, contestant maps) now need manage access.
 
 #### App

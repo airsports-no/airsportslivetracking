@@ -27,7 +27,7 @@ const ContestCard: React.FC<ContestCardProps> = ({ contest, status, isRegistered
             <div className="card-body p-4 flex flex-col h-full">
                 <div className="flex-1 overflow-hidden">
                     <h2 className="card-title text-base flex items-center gap-2 line-clamp-2 leading-tight mb-1">
-                        <PublicityIcon isPublic={contest.is_public} isFeatured={contest.is_featured} />
+                        <PublicityIcon isPublic={contest.is_public} />
                         <span className="break-words">{contest.name}</span>
                         {contest.country_flag_url && (
                             <img src={contest.country_flag_url} alt={`${contest.country} flag`} className="ml-1 w-5 h-3 inline-block shrink-0" />

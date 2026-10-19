@@ -40,7 +40,7 @@ class ContestFilter(filters.FilterSet):
 
     def filter_public_only(self, queryset, name, value):
         if value:
-            return queryset.filter(is_public=True, is_featured=True)
+            return queryset.filter(is_public=True)
         return queryset
 
     def filter_shared_only(self, queryset, name, value):
@@ -51,10 +51,10 @@ class ContestFilter(filters.FilterSet):
             
             if user.is_superuser:
                 # For superusers, 'shared' means anything not public.
-                return queryset.exclude(is_public=True, is_featured=True)
+                return queryset.exclude(is_public=True)
                 
-            # For regular users, 'shared' means the unlisted and private contests whose audience they are in.
-            return queryset.filter(pk__in=audience_contests(user).values("pk")).exclude(is_public=True, is_featured=True)
+            # For regular users, 'shared' means the private contests whose audience they are in.
+            return queryset.filter(pk__in=audience_contests(user).values("pk")).exclude(is_public=True)
         return queryset
 
     class Meta:

@@ -513,17 +513,14 @@ class TestAccessNavigationTask(APITestCase):
         self.assertFalse(self.contest.is_public)
         self.assertFalse(self.contest.is_featured)
 
+        # There is no link-only level: a task is public or private
         result = self.client.put(
             reverse("navigationtasks-share", kwargs={"contest_pk": self.contest_id, "pk": self.navigation_task.id}),
             data={"visibility": "unlisted"},
         )
-        self.assertEqual(result.status_code, status.HTTP_200_OK)
+        self.assertEqual(result.status_code, status.HTTP_400_BAD_REQUEST)
         self.navigation_task.refresh_from_db()
-        self.contest.refresh_from_db()
-        self.assertTrue(self.navigation_task.is_public)
-        self.assertFalse(self.navigation_task.is_featured)
-        self.assertTrue(self.contest.is_public)
-        self.assertFalse(self.contest.is_featured)
+        self.assertFalse(self.navigation_task.is_public)
 
         result = self.client.put(
             reverse("navigationtasks-share", kwargs={"contest_pk": self.contest_id, "pk": self.navigation_task.id}),
@@ -579,13 +576,9 @@ class TestAccessNavigationTask(APITestCase):
         self.assertTrue(self.navigation_task.is_featured)
 
         result = self.client.put(f"/api/v1/contests/{self.contest_id}/share/", data={"visibility": "unlisted"})
-        self.assertEqual(result.status_code, status.HTTP_200_OK)
-        self.navigation_task.refresh_from_db()
+        self.assertEqual(result.status_code, status.HTTP_400_BAD_REQUEST)
         self.contest.refresh_from_db()
-        self.assertTrue(self.navigation_task.is_public)
-        self.assertFalse(self.navigation_task.is_featured)
         self.assertTrue(self.contest.is_public)
-        self.assertFalse(self.contest.is_featured)
 
         result = self.client.put(f"/api/v1/contests/{self.contest_id}/share/", data={"visibility": "private"})
         self.assertEqual(result.status_code, status.HTTP_200_OK)

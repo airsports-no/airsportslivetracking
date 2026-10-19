@@ -71,11 +71,9 @@ FILE_TYPES = (
 
 class ShareForm(forms.Form):
     PUBLIC = "public"
-    UNLISTED = "unlisted"
     PRIVATE = "private"
     PUBLICITY = (
         (PUBLIC, "Public, visible by all"),
-        (UNLISTED, "Unlisted, requires direct link"),
         (PRIVATE, "Private, visible to users with permission"),
     )
     publicity = forms.ChoiceField(widget=forms.RadioSelect, choices=PUBLICITY)

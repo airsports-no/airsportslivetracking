@@ -21,7 +21,6 @@ interface TaskCardProps {
     contestName?: string;
     canSchedule?: boolean;
     is_public: boolean;
-    is_featured: boolean;
     timeZone?: string;
     route: Route;
     flown_contestants_count: number;
@@ -32,7 +31,7 @@ interface TaskCardProps {
     taskSubtypeDefinition?: NavigationTask['task_subtype_definition'];
 }
 
-const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, is_featured, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management, canManage, contestIsPublic, taskSubtypeDefinition }) => {
+const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, start_time, finish_time, onScheduleClick, tracking_link, onViewScoresClick, contestName, canSchedule, is_public, timeZone, route, flown_contestants_count, isRegisteredButNotPilot, allow_self_management, canManage, contestIsPublic, taskSubtypeDefinition }) => {
     const getStatusBadge = () => {
         switch (status) {
             case 'Open':
@@ -66,7 +65,7 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                         <span className="flex-1">{name}</span>
                     )}
                     {getStatusBadge()}
-                    <PublicityIcon isPublic={is_public} isFeatured={is_featured} />
+                    <PublicityIcon isPublic={is_public} />
                     <a href={tracking_link} target="_blank" rel="noopener noreferrer" className="btn btn-xs btn-outline btn-info gap-1">
                         <MapPin size={14} />
                         Live Map
@@ -90,11 +89,11 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                 <p className="text-sm text-gray-500">{formatDateInterval(start_time, finish_time)}</p>
 
                 {contestName && <p>{contestName}</p>}
-                {canManage && allow_self_management && (!(is_public && is_featured) || contestIsPublic === false) && (
+                {canManage && allow_self_management && (!is_public || contestIsPublic === false) && (
                     <div role="alert" className="alert alert-warning text-sm">
                         <span>
                             Self-registration is on, but only pilots you have given access to the contest can see this task.
-                            {!(is_public && is_featured) && ' Set the task visibility to Public to open it for everybody.'}
+                            {!is_public && ' Set the task visibility to Public to open it for everybody.'}
                             {contestIsPublic === false && ' The contest itself is still private (see Contest settings).'}
                         </span>
                     </div>

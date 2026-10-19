@@ -67,7 +67,7 @@ simulators allowed, or simulator only.</div>
 (tick <em>allow self-management</em> on the task), or you add them with <strong>Add team</strong>, <strong>Quick Add</strong> or
 <strong>Scheduling</strong>. Flight orders with map and photos are generated for you.</div>
 
-<div {_STEP}><strong>5. Choose who can see it.</strong> In <em>Contest settings &rarr; Publicity</em> choose public, unlisted or
+<div {_STEP}><strong>5. Choose who can see it.</strong> In <em>Contest settings &rarr; Publicity</em> choose public or
 private. You can keep a task hidden until it goes live.</div>
 
 <div {_NOTE}><strong>Before the flight:</strong> every pilot must be registered with the e-mail they use in the app, and each

@@ -12,15 +12,12 @@ import { generatePath } from '../../urls';
 import { formatDateInterval } from '../../utils';
 
 const visibilityOf = (task: NavigationTaskDetail): NavigationTaskVisibility => {
-  if (task.is_public && task.is_featured) return 'public';
-  if (task.is_public && !task.is_featured) return 'unlisted';
-  return 'private';
+  return task.is_public ? 'public' : 'private';
 };
 
 const VISIBILITY_OPTIONS: { value: NavigationTaskVisibility; label: string; description: string }[] = [
   { value: 'private', label: 'Private', description: 'Only people you have given access can see this task.' },
-  { value: 'unlisted', label: 'Unlisted', description: 'Anyone with the link can watch, but pilots will not find it in the contest list.' },
-  { value: 'public', label: 'Public', description: 'Listed in the contest. Needed for pilots to find it and book their own start time.' },
+  { value: 'public', label: 'Public', description: 'Everybody can see it. Needed for pilots to find it and book their own start time without having access to the contest.' },
 ];
 
 const NavigationTaskDetailPage: React.FC = () => {

@@ -340,7 +340,7 @@ export const updateContestImages = async (
     return response.json();
 };
 
-export const shareContest = async (contestId: number, visibility: 'public' | 'private' | 'unlisted'): Promise<any> => {
+export const shareContest = async (contestId: number, visibility: 'public' | 'private'): Promise<any> => {
     const url = reverse('contests-share', contestId);
     const response = await fetch(url, {
         method: 'PUT',

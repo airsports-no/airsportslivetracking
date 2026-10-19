@@ -23,9 +23,8 @@ from display.services.contest_visibility import (
 class ContestVisibilityTestBase(TestCase):
     def setUp(self):
         now = datetime.datetime.now(datetime.timezone.utc)
-        self.public = self._contest("Public", is_public=True, is_featured=True)
-        self.unlisted = self._contest("Unlisted", is_public=True, is_featured=False)
-        self.private = self._contest("Private", is_public=False, is_featured=False)
+        self.public = self._contest("Public", is_public=True)
+        self.private = self._contest("Private", is_public=False)
         self.private_task = NavigationTask.create(
             name="Private task",
             original_scorecard=get_default_scorecard(),
@@ -40,10 +39,9 @@ class ContestVisibilityTestBase(TestCase):
         self.outsider = user_model.objects.create(email="outsider@example.com")
         self.viewer = user_model.objects.create(email="viewer@example.com")
         self.editor = user_model.objects.create(email="editor@example.com")
-        for contest in (self.unlisted, self.private):
-            assign_perm("view_contest", self.viewer, contest)
-            for permission in ("view_contest", "change_contest", "add_contest", "delete_contest"):
-                assign_perm(permission, self.editor, contest)
+        assign_perm("view_contest", self.viewer, self.private)
+        for permission in ("view_contest", "change_contest", "add_contest", "delete_contest"):
+            assign_perm(permission, self.editor, self.private)
 
     def _contest(self, name, **visibility):
         now = datetime.datetime.now(datetime.timezone.utc)
@@ -54,14 +52,14 @@ class ContestVisibilityTestBase(TestCase):
 
 class TestVisibilityHelpers(ContestVisibilityTestBase):
     def test_audience_is_the_view_grants(self):
-        self.assertEqual(set(audience_contests(self.viewer)), {self.unlisted, self.private})
+        self.assertEqual(set(audience_contests(self.viewer)), {self.private})
         self.assertEqual(set(audience_contests(self.outsider)), set())
         self.assertEqual(set(audience_contests(None)), set())
 
-    def test_unlisted_contest_opens_for_anybody_but_is_listed_only_for_its_audience(self):
-        self.assertEqual(set(visible_contests(None)), {self.public, self.unlisted})
-        self.assertEqual(set(visible_contests(None, listed_only=True)), {self.public})
-        self.assertEqual(set(visible_contests(self.viewer, listed_only=True)), {self.public, self.unlisted, self.private})
+    def test_public_contests_are_visible_to_all_and_private_ones_to_their_audience(self):
+        self.assertEqual(set(visible_contests(None)), {self.public})
+        self.assertEqual(set(visible_contests(self.outsider)), {self.public})
+        self.assertEqual(set(visible_contests(self.viewer)), {self.public, self.private})
 
     def test_private_contest_and_task_only_for_the_audience(self):
         self.assertFalse(can_view_contest(None, self.private))
@@ -81,10 +79,7 @@ class TestAudienceReads(ContestVisibilityTestBase):
         self.assertEqual(names, {"Public"})
         self.client.force_login(self.viewer)
         names = {contest["name"] for contest in self.client.get("/api/v1/contests/").json()["results"]}
-        self.assertEqual(names, {"Public", "Unlisted", "Private"})
-
-    def test_unlisted_contest_opens_by_its_link(self):
-        self.assertEqual(self.client.get(f"/api/v1/contests/{self.unlisted.pk}/").status_code, 200)
+        self.assertEqual(names, {"Public", "Private"})
 
     def test_private_contest_only_for_its_audience(self):
         self.assertEqual(self.client.get(f"/api/v1/contests/{self.private.pk}/").status_code, 404)

@@ -1,30 +1,20 @@
 import React from 'react';
-import { Globe, Link as LinkIcon, Lock } from 'lucide-react';
+import { Globe, Lock } from 'lucide-react';
 
-export type PublicityStatus = 'Public' | 'Unlisted' | 'Private';
+export type PublicityStatus = 'Public' | 'Private';
 
 interface PublicityIconProps {
     isPublic: boolean;
-    isFeatured: boolean;
     size?: number;
 }
 
-export const getPublicityStatus = (isPublic: boolean, isFeatured: boolean): PublicityStatus => {
-    if (isPublic && isFeatured) {
-        return 'Public';
-    }
-    if (isPublic && !isFeatured) {
-        return 'Unlisted';
-    }
-    return 'Private';
-}
+export const getPublicityStatus = (isPublic: boolean): PublicityStatus => (isPublic ? 'Public' : 'Private');
 
-const PublicityIcon: React.FC<PublicityIconProps> = ({ isPublic, isFeatured, size = 16 }) => {
-    const status = getPublicityStatus(isPublic, isFeatured);
+const PublicityIcon: React.FC<PublicityIconProps> = ({ isPublic, size = 16 }) => {
+    const status = getPublicityStatus(isPublic);
 
     const iconMap: Record<PublicityStatus, React.ReactNode> = {
         Public: <Globe size={size} />,
-        Unlisted: <LinkIcon size={size} />,
         Private: <Lock size={size} />,
     };
 

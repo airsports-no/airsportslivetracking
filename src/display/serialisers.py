@@ -1058,7 +1058,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         else:
             # Filter at the database level for non-viewable contests
             tasks_queryset = contest.navigationtask_set.filter(
-                is_public=True, contest__is_public=True, is_featured=True
+                is_public=True, contest__is_public=True
             )
 
         serialiser = NavigationTasksLightSerialiser(tasks_queryset, many=True, read_only=True)
@@ -1089,7 +1089,7 @@ class ContestParticipationSerialiser(ContestSerialiser):
         items = filter(
             lambda task: (
                 task.allow_self_management
-                and (viewable_contest or (task.is_public and contest.is_public and task.is_featured))
+                and (viewable_contest or (task.is_public and contest.is_public))
             ),
             contest.navigationtask_set.all(),
         )
@@ -1926,8 +1926,7 @@ class SharingSerialiser(serializers.Serializer):
 
     PUBLIC = "public"
     PRIVATE = "private"
-    UNLISTED = "unlisted"
-    VISIBILITIES = ((PUBLIC, "Public"), (PRIVATE, "Private"), (UNLISTED, "Unlisted"))
+    VISIBILITIES = ((PUBLIC, "Public"), (PRIVATE, "Private"))
     visibility = serializers.ChoiceField(choices=VISIBILITIES)
 
 

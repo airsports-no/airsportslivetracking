@@ -1068,7 +1068,7 @@ class ContestViewSet(ModelViewSet):
         response = super().retrieve(request, *args, **kwargs)
 
         response["ETag"] = etag
-        if instance.is_public and instance.is_featured and not request.user.is_authenticated:
+        if instance.is_public and not request.user.is_authenticated:
             # Public anonymous data can be cached by CDN but MUST be revalidated via ETag.
             # stale-while-revalidate=86400: Serve stale data while fetching fresh in background
             response["Cache-Control"] = "public, no-cache, stale-while-revalidate=86400"
@@ -1140,10 +1140,9 @@ class ContestViewSet(ModelViewSet):
         queryset = Contest.objects.all()
 
         # The actual filtering is now primarily handled by ContestFilter (in filters.py).
-        # This method defines the 'base' visibility for the user: the list holds the listed contests and those of the
-        # user's audiences, while an unlisted contest opens for anybody with its link.
+        # This method defines the 'base' visibility for the user: the public contests and those of the user's audiences.
         if not user.is_superuser:
-            queryset = visible_contests(user, listed_only=self.action == "list")
+            queryset = visible_contests(user)
 
         now = datetime.datetime.now(datetime.timezone.utc)
         queryset = queryset.annotate(
@@ -1200,7 +1199,7 @@ class ContestViewSet(ModelViewSet):
     @action(detail=True, methods=["put"])
     def share(self, request, *args, **kwargs):
         """
-        Change the visibility of the navigation task to one of the public, private, or unlisted
+        Change the visibility of the navigation task to public or private
         """
         contest = self.get_object()
         serialiser = self.get_serializer(data=request.data)  # type: SharingSerialiser
@@ -1209,8 +1208,6 @@ class ContestViewSet(ModelViewSet):
             contest.make_public()
         elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
             contest.make_private()
-        elif serialiser.validated_data["visibility"] == serialiser.UNLISTED:
-            contest.make_unlisted()
         return Response(serialiser.data, status=status.HTTP_200_OK)
 
     @action(detail=False, methods=["get"])
@@ -1446,7 +1443,7 @@ class ContestViewSet(ModelViewSet):
         serialiser = ContestResultsDetailsSerialiser(contest)
         response = Response(serialiser.data)
 
-        if contest.is_public and contest.is_featured:
+        if contest.is_public:
             # Results change whenever scoring updates.
             # s-maxage=60: CDN shields origin by caching for 1 minute.
             # max-age=0: Browser always checks CDN (no disk cache).
@@ -1487,7 +1484,7 @@ class ContestViewSet(ModelViewSet):
             content_type="text/csv",
             headers={"Content-Disposition": f'attachment; filename="{contest.name}_results.csv"'},
         )
-        if contest.is_public and contest.is_featured:
+        if contest.is_public:
             # Results change whenever scoring updates.
             # s-maxage=60: CDN shields origin by caching for 1 minute.
             # max-age=0: Browser always checks CDN (no disk cache).
@@ -1541,7 +1538,7 @@ class ContestViewSet(ModelViewSet):
         contest_teams = ContestTeam.objects.filter(contest=contest)
         response = Response(ContestTeamNestedSerialiser(contest_teams, many=True).data)
 
-        if contest.is_public and contest.is_featured and not request.user.is_authenticated:
+        if contest.is_public and not request.user.is_authenticated:
             # Team lists can change during signup/withdrawal.
             # s-maxage=60: CDN shields origin by caching for 1 minute.
             # max-age=0: intended to always force the BROWSER to revalidate (no disk cache) - but
@@ -1552,7 +1549,7 @@ class ContestViewSet(ModelViewSet):
             # spectator, but it broke read-your-writes for an authenticated organizer polling
             # this same URL right after editing a team (TeamRegistrationFlow's onSaved) - they'd
             # get served their own pre-edit response back from disk cache. Gating this on
-            # anonymity (same check retrieve() already uses for the same is_public/is_featured
+            # anonymity (same check retrieve() already uses for the same is_public
             # personalization concern) keeps the CDN-friendly caching for public spectators only;
             # every authenticated request now always gets a real network round-trip.
             response["Cache-Control"] = "public, max-age=0, s-maxage=60, stale-while-revalidate=600"
@@ -1814,7 +1811,7 @@ class ContestViewSet(ModelViewSet):
         source_contest_id = request.data.get("source_contest")
         if not source_contest_id:
             raise drf_exceptions.ValidationError("'source_contest' is required")
-        source_contest = get_object_or_404(visible_contests(request.user, listed_only=True), pk=source_contest_id)
+        source_contest = get_object_or_404(visible_contests(request.user), pk=source_contest_id)
 
         contest_teams = ContestTeam.objects.filter(contest=source_contest).select_related(
             "team__crew__member1", "team__crew__member2", "team__aeroplane", "team__club"
@@ -1896,7 +1893,7 @@ class TeamViewSet(ModelViewSet):
         if user.is_superuser:
             return queryset
         return queryset.filter(
-            Q(contestteam__contest__in=visible_contests(user, listed_only=True))
+            Q(contestteam__contest__in=visible_contests(user))
             | Q(crew__member1__email=user.email)
             | Q(crew__member2__email=user.email)
         ).distinct()
@@ -2108,7 +2105,7 @@ class NavigationTaskViewSet(ModelViewSet):
             TaskCompiler(instance).compile(force=False)
         response = super().retrieve(request, *args, **kwargs)
 
-        # if instance.is_public and instance.contest.is_public and instance.is_featured:
+        # if instance.is_public and instance.contest.is_public:
         #     response["Cache-Control"] = "public, max-age=0, s-maxage=31536000, stale-while-revalidate=86400"
         #     if "Vary" in response:
         #         del response["Vary"]
@@ -2485,7 +2482,7 @@ class NavigationTaskViewSet(ModelViewSet):
     @action(detail=True, methods=["put"])
     def share(self, request, *args, **kwargs):
         """
-        Change the visibility of the navigation task to one of the public, private, or unlisted
+        Change the visibility of the navigation task to public or private
         """
         navigation_task = self.get_object()
         serialiser = self.get_serializer(data=request.data)  # type: SharingSerialiser
@@ -2494,8 +2491,6 @@ class NavigationTaskViewSet(ModelViewSet):
             navigation_task.make_public()
         elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
             navigation_task.make_private()
-        elif serialiser.validated_data["visibility"] == serialiser.UNLISTED:
-            navigation_task.make_unlisted()
         return Response(serialiser.data, status=status.HTTP_200_OK)
 
     @action(detail=True, methods=["post"])

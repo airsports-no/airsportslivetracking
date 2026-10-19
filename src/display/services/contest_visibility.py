@@ -1,9 +1,8 @@
 """
 Who may see a contest and its navigation tasks, in one place.
 
-A contest is public (listed), unlisted (public, but only reachable by its link) or private. A private contest, and a
-private task in any contest, is only open to the contest's audience: the people with a view grant on the contest. Every
-manager has a view grant too. Being in the audience means seeing the contest as a spectator does and taking part in it,
+A contest is either public, open to anybody, or private. A private contest, and a private task in any contest, is only
+open to the contest's audience: the people with a view grant on the contest. Every manager has a view grant too. Being in the audience means seeing the contest as a spectator does and taking part in it,
 never managing it: screens only organisers need check change_contest instead.
 """
 
@@ -30,17 +29,13 @@ def is_contest_audience(user: MyUser | AnonymousUser | None, contest: Contest) -
 
 
 def can_view_contest(user: MyUser | AnonymousUser | None, contest: Contest) -> bool:
-    """A public or unlisted contest is open to anybody with the link; a private one only to its audience."""
+    """A public contest is open to anybody; a private one only to its audience."""
     return contest.is_public or is_contest_audience(user, contest)
 
 
-def visible_contests(user: MyUser | AnonymousUser | None, listed_only: bool = False) -> QuerySet[Contest]:
-    """
-    The contests [user] may open. With [listed_only] an unlisted contest only counts for its audience, which is what
-    lists and dashboards show: nobody else should find it without the link.
-    """
-    public = Q(is_public=True, is_featured=True) if listed_only else Q(is_public=True)
-    return Contest.objects.filter(public | Q(pk__in=audience_contests(user).values("pk")))
+def visible_contests(user: MyUser | AnonymousUser | None) -> QuerySet[Contest]:
+    """The contests [user] may open: the public ones and those of the audiences they are in."""
+    return Contest.objects.filter(Q(is_public=True) | Q(pk__in=audience_contests(user).values("pk")))
 
 
 def is_navigation_task_public(navigation_task: NavigationTask) -> bool:
@@ -48,16 +43,14 @@ def is_navigation_task_public(navigation_task: NavigationTask) -> bool:
 
 
 def can_view_navigation_task(user: MyUser | AnonymousUser | None, navigation_task: NavigationTask) -> bool:
-    """A task open to anybody when it and its contest are public or unlisted, otherwise only to the contest's audience."""
+    """A task open to anybody when it and its contest are public, otherwise only to the contest's audience."""
     return is_navigation_task_public(navigation_task) or is_contest_audience(user, navigation_task.contest)
 
 
-def visible_navigation_tasks_q(user: MyUser | AnonymousUser | None, prefix: str = "", listed_only: bool = False) -> Q:
+def visible_navigation_tasks_q(user: MyUser | AnonymousUser | None, prefix: str = "") -> Q:
     """
     The filter for the navigation tasks [user] may open, for a queryset of NavigationTask ([prefix] empty) or of a model
-    that refers to one ([prefix] the path to it, e.g. "navigation_task__"). [listed_only] as in visible_contests.
+    that refers to one ([prefix] the path to it, e.g. "navigation_task__").
     """
-    public = {f"{prefix}is_public": True, f"{prefix}contest__is_public": True}
-    if listed_only:
-        public[f"{prefix}is_featured"] = True
-    return Q(**public) | Q(**{f"{prefix}contest__in": audience_contests(user).values("pk")})
+    public = Q(**{f"{prefix}is_public": True, f"{prefix}contest__is_public": True})
+    return public | Q(**{f"{prefix}contest__in": audience_contests(user).values("pk")})
