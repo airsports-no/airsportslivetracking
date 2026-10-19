@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
 from django.templatetags.static import static
 from django_countries.fields import CountryField
-from guardian.shortcuts import assign_perm, get_objects_for_user, get_users_with_perms
+from guardian.shortcuts import assign_perm, get_users_with_perms
 from location_field.models.plain import PlainLocationField
 from timezone_field import TimeZoneField
 
@@ -275,9 +275,9 @@ class Contest(models.Model):
 
     @classmethod
     def visible_contests_for_user(cls, user: User):
-        return get_objects_for_user(
-            user, "display.view_contest", klass=Contest, accept_global_perms=False
-        ) | Contest.objects.filter(is_public=True)
+        from display.services.contest_visibility import visible_contests
+
+        return visible_contests(user)
 
     @property
     def contest_team_count(self):

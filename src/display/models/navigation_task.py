@@ -7,7 +7,6 @@ from django.contrib.auth.models import User
 from django.core.exceptions import ValidationError
 from django.core.validators import MaxValueValidator, MinValueValidator
 from django.db import IntegrityError, models
-from django.db.models import Q
 from django.urls import reverse
 from geopy import Nominatim
 from geopy.exc import GeopyError
@@ -257,12 +256,9 @@ class NavigationTask(models.Model):
         """
         Retrieve all navigation tasks that either are public or where the user has view permissions to the contest
         """
-        from display.models import Contest
+        from display.services.contest_visibility import visible_navigation_tasks_q
 
-        contests = get_objects_for_user(user, "display.view_contest", klass=Contest, accept_global_perms=False)
-        return NavigationTask.objects.filter(
-            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True, is_featured=True)
-        )
+        return NavigationTask.objects.filter(visible_navigation_tasks_q(user, listed_only=True))
 
     def get_available_user_maps(self) -> set["UserUploadedMap"]:
         """

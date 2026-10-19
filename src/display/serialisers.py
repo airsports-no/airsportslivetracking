@@ -79,6 +79,7 @@ from display.services.capacity_enforcement import (
     assert_can_register_team,
 )
 from display.services.contest_permissions import CONTEST_PERMISSION_LEVELS, resolve_permission_target_user
+from display.services.contest_visibility import is_contest_audience
 from display.services.contestant_persistence import (
     create_contestant_with_related_state,
     update_contestant_with_related_state,
@@ -1051,9 +1052,8 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             return []
 
         user = self.context["request"].user
-        viewable_contest = user.has_perm("display.view_contest", contest)
 
-        if viewable_contest:
+        if is_contest_audience(user, contest):
             tasks_queryset = contest.navigationtask_set.all()
         else:
             # Filter at the database level for non-viewable contests
@@ -1085,7 +1085,7 @@ class ContestParticipationSerialiser(ContestSerialiser):
     @extend_schema_field(NavigationTasksSummaryParticipationSerialiser(many=True))
     def get_visiblenavigationtasks(self, contest):
         user = self.context["request"].user
-        viewable_contest = user.has_perm("display.view_contest", contest)
+        viewable_contest = is_contest_audience(user, contest)
         items = filter(
             lambda task: (
                 task.allow_self_management
@@ -2375,7 +2375,7 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
         if task.contest_id not in cache:
             request = self.context.get("request")
             user = getattr(request, "user", None)
-            cache[task.contest_id] = bool(user is not None and user.is_authenticated and user.has_perm("view_contest", task.contest))
+            cache[task.contest_id] = is_contest_audience(user, task.contest)
         return cache[task.contest_id]
 
 

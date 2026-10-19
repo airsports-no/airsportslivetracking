@@ -91,6 +91,7 @@ from display.permissions import (
     EditableRoutePermission,
     IsSuperUser,
     NavigationTaskContestPermissions,
+    NavigationTaskManagerPermissions,
     NavigationTaskPublicPermissions,
     NavigationTaskPublicPutDeletePermissions,
     NavigationTaskSelfManagementPermissions,
@@ -192,6 +193,7 @@ from display.services.capacity_enforcement import (
     assert_can_self_register_contestant,
     scheduling_capacity_preview,
 )
+from display.services.contest_visibility import visible_contests, visible_navigation_tasks_q
 from display.services.contest_permissions import (
     list_contest_permission_grants,
     remove_contest_permission_grant,
@@ -1138,20 +1140,10 @@ class ContestViewSet(ModelViewSet):
         queryset = Contest.objects.all()
 
         # The actual filtering is now primarily handled by ContestFilter (in filters.py).
-        # This method defines the 'base' visibility for the user.
-        if user.is_superuser:
-            # Superusers can see every contest in the database base queryset.
-            # Filters will still apply on top of this.
-            pass
-        elif user.is_authenticated:
-            # Authenticated users can see public contests OR contests they have permissions for.
-            queryset = (
-                get_objects_for_user(user, "display.view_contest", klass=queryset, accept_global_perms=False)
-                | Contest.objects.filter(is_public=True, is_featured=True)
-            ).distinct()
-        else:
-            # Anonymous users only see public featured contests.
-            queryset = queryset.filter(is_public=True, is_featured=True)
+        # This method defines the 'base' visibility for the user: the list holds the listed contests and those of the
+        # user's audiences, while an unlisted contest opens for anybody with its link.
+        if not user.is_superuser:
+            queryset = visible_contests(user, listed_only=self.action == "list")
 
         now = datetime.datetime.now(datetime.timezone.utc)
         queryset = queryset.annotate(
@@ -1274,10 +1266,15 @@ class ContestViewSet(ModelViewSet):
 
         data = self.get_serializer_class()(visibly_live_tasks, many=True, context={"request": self.request}).data
         response = Response(data)
-        # This is a public-facing list of live tasks. No ETag available.
-        # s-maxage=120: CDN shields origin by caching for 2 minutes.
-        # max-age=0: Browser always checks CDN (no disk cache).
-        response["Cache-Control"] = "public, max-age=0, s-maxage=120"
+        if request.user.is_authenticated:
+            # A signed-in user's list includes the private tasks of their audiences, and the CDN does not key on the
+            # session: shared-caching it would show those tasks to everybody.
+            response["Cache-Control"] = "private, no-cache"
+        else:
+            # This is a public-facing list of live tasks. No ETag available.
+            # s-maxage=120: CDN shields origin by caching for 2 minutes.
+            # max-age=0: Browser always checks CDN (no disk cache).
+            response["Cache-Control"] = "public, max-age=0, s-maxage=120"
         return response
 
     @action(detail=False, methods=["get"])
@@ -1817,10 +1814,7 @@ class ContestViewSet(ModelViewSet):
         source_contest_id = request.data.get("source_contest")
         if not source_contest_id:
             raise drf_exceptions.ValidationError("'source_contest' is required")
-        visible_contests = get_objects_for_user(
-            request.user, "display.view_contest", klass=Contest, accept_global_perms=False
-        ) | Contest.objects.filter(is_public=True, is_featured=True)
-        source_contest = get_object_or_404(visible_contests, pk=source_contest_id)
+        source_contest = get_object_or_404(visible_contests(request.user, listed_only=True), pk=source_contest_id)
 
         contest_teams = ContestTeam.objects.filter(contest=source_contest).select_related(
             "team__crew__member1", "team__crew__member2", "team__aeroplane", "team__club"
@@ -1901,10 +1895,8 @@ class TeamViewSet(ModelViewSet):
         user = self.request.user
         if user.is_superuser:
             return queryset
-        visible_contests = get_objects_for_user(user, "display.view_contest", klass=Contest, accept_global_perms=False)
         return queryset.filter(
-            Q(contestteam__contest__in=visible_contests)
-            | Q(contestteam__contest__is_public=True, contestteam__contest__is_featured=True)
+            Q(contestteam__contest__in=visible_contests(user, listed_only=True))
             | Q(crew__member1__email=user.email)
             | Q(crew__member2__email=user.email)
         ).distinct()
@@ -2149,15 +2141,7 @@ class NavigationTaskViewSet(ModelViewSet):
 
     def get_queryset(self):
         contest_id = self.kwargs.get("contest_pk")
-        contests = get_objects_for_user(
-            self.request.user,
-            "display.view_contest",
-            klass=Contest,
-            accept_global_perms=False,
-        )
-        return NavigationTask.objects.filter(
-            Q(contest__in=contests) | Q(is_public=True, contest__is_public=True)
-        ).filter(contest_id=contest_id)
+        return NavigationTask.objects.filter(visible_navigation_tasks_q(self.request.user)).filter(contest_id=contest_id)
 
     def update(self, request, *args, **kwargs):
         raise drf_exceptions.PermissionDenied(
@@ -2190,7 +2174,7 @@ class NavigationTaskViewSet(ModelViewSet):
     @action(
         detail=True,
         methods=["get", "put"],
-        permission_classes=[permissions.IsAuthenticated & NavigationTaskContestPermissions],
+        permission_classes=[permissions.IsAuthenticated & NavigationTaskManagerPermissions],
     )
     def scorecard(self, request, *args, **kwargs):
         navigation_task = self.get_object()  # type: NavigationTask
@@ -2319,7 +2303,7 @@ class NavigationTaskViewSet(ModelViewSet):
         detail=True,
         methods=["get"],
         url_path="schedule_capacity_preview",
-        permission_classes=[permissions.IsAuthenticated & NavigationTaskContestPermissions],
+        permission_classes=[permissions.IsAuthenticated & NavigationTaskManagerPermissions],
     )
     def schedule_capacity_preview(self, request, pk=None, **kwargs):
         """Return projected pilot-capacity usage for a proposed schedule."""
@@ -2787,15 +2771,7 @@ class PhotoViewSet(ModelViewSet):
         user = self.request.user
         if user.is_superuser:
             return queryset
-        if user.is_authenticated:
-            visible_contests = get_objects_for_user(
-                user, "display.view_contest", klass=Contest, accept_global_perms=False
-            )
-            return queryset.filter(
-                Q(route__navigationtask__is_public=True, route__navigationtask__contest__is_public=True)
-                | Q(route__navigationtask__contest__in=visible_contests)
-            ).distinct()
-        return queryset.filter(route__navigationtask__is_public=True, route__navigationtask__contest__is_public=True)
+        return queryset.filter(visible_navigation_tasks_q(user, prefix="route__navigationtask__")).distinct()
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated & PhotoPermissions])
     def revert(self, request, pk=None):
@@ -3141,22 +3117,22 @@ class ContestantViewSet(ModelViewSet):
 
     def get_queryset(self):
         navigation_task_id = self.kwargs.get("navigationtask_pk")
-        permission_name = (
-            "display.view_contest" if self.request.method in permissions.SAFE_METHODS else "display.change_contest"
-        )
-        contests = get_objects_for_user(
-            self.request.user,
-            permission_name,
-            klass=Contest,
-            accept_global_perms=False,
-        )
-        qs = Contestant.objects.filter(
-            Q(navigation_task__contest__in=contests)
-            | Q(
-                navigation_task__is_public=True,
-                navigation_task__contest__is_public=True,
+        if self.request.method in permissions.SAFE_METHODS:
+            qs = Contestant.objects.filter(visible_navigation_tasks_q(self.request.user, prefix="navigation_task__"))
+        else:
+            contests = get_objects_for_user(
+                self.request.user,
+                "display.change_contest",
+                klass=Contest,
+                accept_global_perms=False,
             )
-        )
+            qs = Contestant.objects.filter(
+                Q(navigation_task__contest__in=contests)
+                | Q(
+                    navigation_task__is_public=True,
+                    navigation_task__contest__is_public=True,
+                )
+            )
         if navigation_task_id:
             qs = qs.filter(navigation_task_id=navigation_task_id)
         if self.request.method in permissions.SAFE_METHODS:
@@ -4191,7 +4167,7 @@ class ImportFCNavigationTask(ModelViewSet):
 
     queryset = NavigationTask.objects.all()
     serializer_class = ExternalNavigationTaskNestedTeamSerialiser
-    permission_classes = [permissions.IsAuthenticated & NavigationTaskContestPermissions]
+    permission_classes = [permissions.IsAuthenticated & NavigationTaskManagerPermissions]
 
     metadata_class = ShowChoicesMetadata
 
@@ -4240,7 +4216,8 @@ class TaskViewSet(ModelViewSet):
 
     def get_queryset(self):
         contest_id = self.kwargs.get("contest_pk")
-        return Task.objects.filter(contest_id=contest_id)
+        # list() never asks the object permissions, so the contest's visibility must narrow the queryset
+        return Task.objects.filter(contest_id=contest_id, contest__in=visible_contests(self.request.user))
 
     def perform_create(self, serializer):
         contest = get_object_or_404(Contest, pk=self.kwargs.get("contest_pk"))
@@ -4275,7 +4252,8 @@ class TaskTestViewSet(ModelViewSet):
 
     def get_queryset(self):
         contest_id = self.kwargs.get("contest_pk")
-        return TaskTest.objects.filter(task__contest_id=contest_id)
+        # As TaskViewSet.get_queryset
+        return TaskTest.objects.filter(task__contest_id=contest_id, task__contest__in=visible_contests(self.request.user))
 
     def perform_create(self, serializer):
         # task is client-writable input (which task within this contest), unlike

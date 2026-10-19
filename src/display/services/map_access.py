@@ -1,16 +1,15 @@
 """Who may open a navigation task's live tracking map; mirrors the API permission classes for tasks."""
 
 from display.models import Contestant, NavigationTask
+from display.services.contest_visibility import can_view_navigation_task
 
 
 def can_view_task_map(user, task: NavigationTask) -> bool:
     """
     Same rule as NavigationTaskPublicPermissions / NavigationTaskContestPermissions for GET: the task and its contest are
-    both public, or the user has been given view permission on the contest (organizers, club managers, ...).
+    both public, or the user is in the contest's audience.
     """
-    if task.is_public and task.contest.is_public:
-        return True
-    return bool(user is not None and user.is_authenticated and user.has_perm("view_contest", task.contest))
+    return can_view_navigation_task(user, task)
 
 
 def map_path_for(contestant: Contestant) -> str:

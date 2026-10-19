@@ -12,6 +12,7 @@ from rest_framework.exceptions import ValidationError
 
 from display.models import Contest, Contestant, ContestTeam, Person, SimulatorQuickstart, Team
 from display.services.capacity_enforcement import assert_can_register_team, assert_can_self_register_contestant
+from display.services.contest_visibility import can_view_navigation_task
 from display.services.self_registration import create_self_managed_contestant
 from display.utilities.coordinate_utilities import calculate_bearing, project_position_lat_lon
 from display.utilities.simulator_policy import FLIGHT_MODE_REAL, FLIGHT_MODE_SIMULATOR, policy_allows
@@ -27,12 +28,9 @@ REGISTRATION_LEAD = datetime.timedelta(hours=1)
 def may_register_for(user, navigation_task) -> bool:
     """
     Who may register themselves in the task, as on the website: anybody for a public task in a public contest,
-    otherwise somebody who may view the contest.
+    otherwise the contest's audience.
     """
-    contest = navigation_task.contest
-    if navigation_task.is_public and contest.is_public:
-        return True
-    return bool(user is not None and user.is_authenticated and user.has_perm("display.view_contest", contest))
+    return can_view_navigation_task(user, navigation_task)
 
 
 def current_quickstart(now: Optional[datetime.datetime] = None, user=None) -> Optional[SimulatorQuickstart]:

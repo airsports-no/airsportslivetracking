@@ -360,7 +360,7 @@ def import_route(request):
     return render(request, "display/import_route_form.html", {"form": form})
 
 
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_map(request, pk):
     """
     Triggers async generation of the navigation map for specific contestants.
@@ -492,7 +492,7 @@ def get_contestant_processing_statistics(request, pk):
     return response
 
 
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__contestant__pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__contestant__pk", "pk"))
 def get_contestant_default_map(request, pk):
     """
     Triggers async generation of the default navigation map for specific contestants.
@@ -543,7 +543,7 @@ def get_contestant_email_flight_orders_link(request, key):
     return response
 
 
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def generatenavigation_task_orders_template(request, pk):
     """
     Render the template where the user can control flight order generation for the contestants of a navigation task.
@@ -590,7 +590,7 @@ def _safe_zip_entry_name(text: str, extension: str) -> str:
     return f"{sanitized}.{extension}"
 
 
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def download_navigation_task_orders(request, pk):
     """
     Download the selected flight orders for the navigation task. If a single  contestant is selected the flight order
@@ -896,7 +896,7 @@ def _extract_values_from_form(form: ModelForm) -> List:
     return content
 
 
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def navigation_task_view_detailed_score(request, pk):
     """
     Render scorecard overview page that shows scorecard values and gate score values with options to modify them.

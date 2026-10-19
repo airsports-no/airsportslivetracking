@@ -5,6 +5,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import SAFE_METHODS
 
 from display.models import Contest
+from display.services.contest_visibility import can_view_navigation_task, is_contest_audience
 
 
 class IsSuperUser(permissions.BasePermission):
@@ -30,7 +31,7 @@ class ContestPermissionsWithoutObjects(permissions.BasePermission):
 class ContestPermissions(ContestPermissionsWithoutObjects):
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET"]:
-            return request.user.has_perm("display.view_contest", obj)
+            return is_contest_audience(request.user, obj)
         if request.method in ["POST"]:
             return request.user.has_perm("display.add_contest", obj)
         if request.method in ["PUT", "PATCH"]:
@@ -186,11 +187,13 @@ class TaskContestPermissions(permissions.BasePermission):
         if not pk:
             return True
         contest = get_object_or_404(Contest, pk=pk)
+        if request.method in SAFE_METHODS:
+            return is_contest_audience(request.user, contest)
         return request.user.has_perm("display.change_contest", contest)
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET"]:
-            return request.user.has_perm("display.view_contest", obj.contest)
+            return is_contest_audience(request.user, obj.contest)
         if request.method in ["POST"]:
             return request.user.has_perm("display.change_contest", obj.contest)
         if request.method in ["PUT", "PATCH"]:
@@ -206,11 +209,13 @@ class TaskTestContestPermissions(permissions.BasePermission):
         if not pk:
             return True
         contest = get_object_or_404(Contest, pk=pk)
+        if request.method in SAFE_METHODS:
+            return is_contest_audience(request.user, contest)
         return request.user.has_perm("display.change_contest", contest)
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET"]:
-            return request.user.has_perm("display.view_contest", obj.task.contest)
+            return is_contest_audience(request.user, obj.task.contest)
         if request.method in ["POST"]:
             return request.user.has_perm("display.change_contest", obj.task.contest)
         if request.method in ["PUT", "PATCH"]:
@@ -230,7 +235,8 @@ class ContestTeamContestPermissions(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET"]:
-            return request.user.has_perm("view_contest", obj.contest)
+            # The registrations' tracking set-up is for the organisers; the audience sees teams through the contest
+            return request.user.has_perm("change_contest", obj.contest)
         if request.method in ["POST"]:
             return request.user.has_perm("add_contest", obj.contest)
         if request.method in ["PUT", "PATCH"]:
@@ -246,11 +252,13 @@ class NavigationTaskContestPermissions(permissions.BasePermission):
         if not pk:
             return True
         contest = get_object_or_404(Contest, pk=pk)
+        if request.method in SAFE_METHODS:
+            return is_contest_audience(request.user, contest)
         return request.user.has_perm("display.change_contest", contest)
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET"]:
-            return request.user.has_perm("view_contest", obj.contest)
+            return is_contest_audience(request.user, obj.contest)
         if request.method in ["POST"]:
             return request.user.has_perm("change_contest", obj.contest)
         if request.method in ["PUT", "PATCH"]:
@@ -258,6 +266,22 @@ class NavigationTaskContestPermissions(permissions.BasePermission):
         if request.method in ["DELETE"]:
             return request.user.has_perm("delete_contest", obj.contest)
         return False
+
+
+class NavigationTaskManagerPermissions(permissions.BasePermission):
+    """Organiser screens of a navigation task: reading them needs change_contest as well, the audience is not enough."""
+
+    def has_permission(self, request, view):
+        pk = view.kwargs.get("contest_pk")
+        if not pk:
+            return True
+        contest = get_object_or_404(Contest, pk=pk)
+        return request.user.has_perm("display.change_contest", contest)
+
+    def has_object_permission(self, request, view, obj):
+        if request.method == "DELETE":
+            return request.user.has_perm("display.delete_contest", obj.contest)
+        return request.user.has_perm("display.change_contest", obj.contest)
 
 
 class NavigationTaskSelfManagementPermissions(permissions.BasePermission):
@@ -272,12 +296,12 @@ class ContestantNavigationTaskContestPermissions(permissions.BasePermission):
             return True
         contest = get_object_or_404(Contest, pk=pk)
         if request.method in SAFE_METHODS:
-            return request.user.has_perm("display.view_contest", contest)
+            return is_contest_audience(request.user, contest)
         return request.user.has_perm("display.change_contest", contest)
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET"]:
-            return request.user.has_perm("view_contest", obj.navigation_task.contest)
+            return is_contest_audience(request.user, obj.navigation_task.contest)
         if request.method in ["POST"]:
             return request.user.has_perm("change_contest", obj.navigation_task.contest)
         if request.method in ["PUT", "PATCH"]:
@@ -345,11 +369,7 @@ class PhotoPermissions(permissions.BasePermission):
             return False
 
         if request.method in SAFE_METHODS:
-            return (
-                nav_task.is_public
-                or request.user.has_perm("display.view_contest", contest)
-                or request.user.has_perm("view_contest", contest)
-            )
+            return can_view_navigation_task(request.user, nav_task)
 
         return request.user.has_perm("display.change_contest", contest) or request.user.has_perm(
             "change_contest", contest

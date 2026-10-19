@@ -10,6 +10,7 @@ from channels.generic.websocket import WebsocketConsumer
 from django.core.exceptions import ObjectDoesNotExist
 
 from display.models import NavigationTask, Contest
+from display.services.contest_visibility import can_view_contest, can_view_navigation_task
 from websocket_channels import WebsocketFacade
 
 logger = logging.getLogger(__name__)
@@ -95,15 +96,11 @@ class TrackingConsumer(ParallelDispatchMixin, WebsocketConsumer):
             self.close()
             return
         # Mirrors the REST equivalent (NavigationTaskPublicPutDeletePermissions /
-        # NavigationTaskContestPermissions): a private/unlisted task is only visible to someone
-        # with view_contest on the contest. Previously this consumer only checked the row
+        # NavigationTaskContestPermissions): a private task is only open to the contest's
+        # audience (see contest_visibility). Previously this consumer only checked the row
         # existed, so any anonymous client could subscribe to live positions, score-log entries,
         # gate scores and full contestant records for a private task by guessing its pk.
-        is_publicly_visible = self.navigation_task.is_public and self.navigation_task.contest.is_public
-        has_view_permission = bool(user) and user.is_authenticated and user.has_perm(
-            "display.view_contest", self.navigation_task.contest
-        )
-        if not is_publicly_visible and not has_view_permission:
+        if not can_view_navigation_task(user, self.navigation_task):
             logger.warning(
                 f"Rejected websocket connection to navigation task {self.navigation_task_pk}: "
                 f"not authorized for user {user}"
@@ -183,10 +180,7 @@ class ContestResultsConsumer(ParallelDispatchMixin, WebsocketConsumer):
         # this consumer only checked the contest row existed, so any anonymous client could
         # subscribe to a private contest's results and receive a full team/task/test dump on
         # connect.
-        has_view_permission = bool(self.user) and self.user.is_authenticated and self.user.has_perm(
-            "display.view_contest", contest
-        )
-        if not contest.is_public and not has_view_permission:
+        if not can_view_contest(self.user, contest):
             logger.warning(
                 f"Rejected websocket connection to contest results {self.contest_pk}: "
                 f"not authorized for user {self.user}"
