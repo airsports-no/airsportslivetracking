@@ -220,6 +220,28 @@ def join_by_invite_link(token: str, user: MyUser) -> SquadronMembership:
     return membership
 
 
+def prepare_account_deletion(user: MyUser) -> None:
+    """
+    What a squadron needs before a member's account goes: a squadron the user is the only admin of is handed to the member
+    who has been in it longest (so it still has somebody who can manage it), or deleted if nobody else is in it. The
+    invitations still waiting for an answer at the user's address are removed. The memberships themselves go with the user.
+    """
+    with transaction.atomic():
+        for membership in SquadronMembership.objects.filter(user=user, role=SquadronMembership.ADMIN).select_related(
+            "squadron"
+        ):
+            squadron = Squadron.objects.select_for_update().get(pk=membership.squadron_id)
+            if squadron.memberships.filter(role=SquadronMembership.ADMIN).exclude(user=user).exists():
+                continue
+            successor = squadron.memberships.exclude(user=user).order_by("joined_at", "pk").first()
+            if successor is None:
+                squadron.delete()
+            else:
+                successor.role = SquadronMembership.ADMIN
+                successor.save(update_fields=["role"])
+        SquadronInvitation.objects.filter(email=user.email.strip().lower(), status=SquadronInvitation.PENDING).delete()
+
+
 def delete_squadron(squadron: Squadron, acting_user: MyUser) -> None:
     require_admin(squadron, acting_user)
     squadron.delete()

@@ -32,6 +32,7 @@ from django.db.models import ProtectedError
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 
 from display.models import Contest, ContestTokenAssignment, MyUser, Person, UserTokenGrant, UserUploadedMap
+from display.services.squadrons import prepare_account_deletion
 from live_tracking_map.settings import SUPPORT_EMAIL
 
 logger = logging.getLogger(__name__)
@@ -206,6 +207,8 @@ def delete_account(email: str) -> AccountDeletionResult:
             contests = _managed_contests(my_user)
             orphaned = _contests_left_without_manager(my_user, contests, now)
             files = _uploaded_map_files(my_user)
+            # A squadron must not be left with members and nobody to manage it
+            prepare_account_deletion(my_user)
             if ContestTokenAssignment.objects.filter(token_grant__user=my_user).exists():
                 _retire_login(my_user)
                 user_anonymized = True
