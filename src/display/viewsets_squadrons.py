@@ -180,6 +180,9 @@ class SquadronViewSet(
     http_method_names = ["get", "post", "put", "patch", "delete"]
 
     def get_queryset(self):
+        if getattr(self, "swagger_fake_view", False):
+            # The schema generator has no user; it only needs the model to type the path parameters
+            return Squadron.objects.none()
         return Squadron.objects.filter(memberships__user=self.request.user)
 
     def get_serializer_class(self):
