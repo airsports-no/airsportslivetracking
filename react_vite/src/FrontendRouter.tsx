@@ -17,6 +17,8 @@ const ContestantDeclarationPage = lazy(() => import("./features/scheduling/Conte
 const PhotoManagementPage = lazy(() => import("./features/competition-map/PhotoManagementPage"));
 const ScheduleFlightPage = lazy(() => import("./features/mission-dashboard/ScheduleFlightPage"));
 const OpenTodayPage = lazy(() => import("./features/open-today/OpenTodayPage"));
+const SeriesListPage = lazy(() => import("./features/series/SeriesListPage"));
+const SeriesPage = lazy(() => import("./features/series/SeriesPage"));
 const SquadronsPage = lazy(() => import("./features/squadrons/SquadronsPage"));
 const SquadronDetailPage = lazy(() => import("./features/squadrons/SquadronDetailPage"));
 const SquadronJoinPage = lazy(() => import("./features/squadrons/SquadronJoinPage"));
@@ -52,6 +54,8 @@ const AppRoutes = () => {
             <Route path={routes.OPEN_TODAY} element={wrap(<OpenTodayPage />)} />
             <Route path={routes.CONTESTANT_SCHEDULING} element={wrap(<ContestantScheduling />)} />
             <Route path={routes.CONTESTANT_DECLARATION} element={wrap(<ContestantDeclarationPage />)} />
+            <Route path={routes.SERIES_LIST} element={wrap(<SeriesListPage />)} />
+            <Route path={routes.SERIES_DETAIL} element={wrap(<SeriesPage />)} />
             <Route path={routes.SQUADRONS} element={wrap(<SquadronsPage />)} />
             <Route path={routes.SQUADRON_JOIN} element={wrap(<SquadronJoinPage />)} />
             <Route path={routes.SQUADRON_DETAIL} element={wrap(<SquadronDetailPage />)} />
