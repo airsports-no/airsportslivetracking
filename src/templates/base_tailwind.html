@@ -118,6 +118,9 @@
                         {% endif %}
                         {% if user.is_authenticated %}
                             <li><a href="{% fe_url 'MISSION_DASHBOARD' %}?tab=upcoming">My flights</a></li>
+                            <li>
+                                <a href="{% fe_url 'SQUADRONS' %}">Squadrons <span id="squadron-invitations-badge" class="badge badge-primary badge-sm hidden" title="Invitations waiting for an answer"></span></a>
+                            </li>
                         {% endif %}
                         <li>
                             <details>
@@ -194,6 +197,20 @@
 </main>
 <script>
     document.addEventListener('DOMContentLoaded', function() {
+        // Squadron invitations waiting for an answer
+        const invitationsBadge = document.getElementById('squadron-invitations-badge');
+        if (invitationsBadge) {
+            fetch("{% url 'squadron-invitations-list' %}", {credentials: 'same-origin', headers: {'Accept': 'application/json'}})
+                .then(function(response) { return response.ok ? response.json() : []; })
+                .then(function(invitations) {
+                    if (invitations.length) {
+                        invitationsBadge.textContent = invitations.length;
+                        invitationsBadge.classList.remove('hidden');
+                    }
+                })
+                .catch(function() {});
+        }
+
         const menuToggle = document.getElementById('menu-toggle');
         const mainMenu = document.getElementById('main-menu');
 

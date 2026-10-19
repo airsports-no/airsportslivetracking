@@ -31,6 +31,7 @@ import ContestSetupChecklist from './components/ContestSetupChecklist';
 import { accessSourceLabel } from './accessLabels';
 import ConceptHint from '../../components/common/ConceptHint';
 import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
+import ContestSquadronsPanel from '../contest-management/components/ContestSquadronsPanel';
 import * as contestManagementApi from '../contest-management/api';
 import {
     assignContestToken,
@@ -431,6 +432,7 @@ const ContestDashboard = () => {
                                         refreshPermissions();
                                     }}
                                 />
+                                <ContestSquadronsPanel contestId={contest.id} />
                             </div>
                         </div>
                     </div>
