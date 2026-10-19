@@ -97,7 +97,7 @@ const ContestSetupChecklist: React.FC<ContestSetupChecklistProps> = ({ contest, 
             key: 'self-management',
             title: 'Let pilots find self-registration tasks',
             detail:
-                'Pilots only see tasks that are public and featured. Open the task and set its visibility to Public' +
+                'Only pilots you have given access to the contest see tasks that are not public. To open them for everybody, open the task and set its visibility to Public' +
                 (hiddenSelfManaged.length > 0
                     ? ` (${hiddenSelfManaged.map(t => t.name).join(', ')} not yet).`
                     : '.'),

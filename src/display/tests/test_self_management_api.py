@@ -141,6 +141,47 @@ class TestContestantGatesCalculation(APITestCase):
             datetime.datetime(2021, 5, 13, 10, 39, 52, tzinfo=datetime.timezone.utc), contestant.finished_by_time
         )
 
+    def _self_registration_data(self):
+        return {
+            "starting_point_time": "2021-05-13T09:00:00Z",
+            "contest_team": self.contest_team.pk,
+            "adaptive_start": False,
+            "wind_speed": 5,
+            "wind_direction": 170,
+            "flight_mode": "real",
+        }
+
+    def _self_registration_url(self):
+        return reverse(
+            "navigationtasks-contestant-self-registration",
+            kwargs={"contest_pk": self.contest.id, "pk": self.navigation_task.id},
+        )
+
+    def test_contest_audience_may_register_in_a_private_task(self, *args):
+        # The contest and the task are private; a view grant alone (the audience, no management rights) is enough
+        for permission in ("add_contest", "change_contest", "delete_contest"):
+            remove_perm(permission, self.user_owner, self.contest)
+        self.client.force_login(user=self.user_owner)
+        result = self.client.put(self._self_registration_url(), data=self._self_registration_data(), format="json")
+        self.assertEqual(result.status_code, status.HTTP_201_CREATED, result.content)
+        self.assertEqual(1, Contestant.objects.all().count())
+
+    def test_outsider_may_not_register_in_a_private_task(self, *args):
+        for permission in ("add_contest", "view_contest", "change_contest", "delete_contest"):
+            remove_perm(permission, self.user_owner, self.contest)
+        self.client.force_login(user=self.user_owner)
+        result = self.client.put(self._self_registration_url(), data=self._self_registration_data(), format="json")
+        self.assertIn(result.status_code, (status.HTTP_403_FORBIDDEN, status.HTTP_404_NOT_FOUND))
+        self.assertEqual(0, Contestant.objects.all().count())
+
+    def test_contest_audience_may_withdraw_from_a_private_contest(self, *args):
+        for permission in ("add_contest", "change_contest", "delete_contest"):
+            remove_perm(permission, self.user_owner, self.contest)
+        self.client.force_login(user=self.user_owner)
+        result = self.client.delete(reverse("contests-withdraw", kwargs={"pk": self.contest.id}))
+        self.assertEqual(result.status_code, status.HTTP_204_NO_CONTENT, result.content)
+        self.assertFalse(ContestTeam.objects.filter(pk=self.contest_team.pk).exists())
+
     def test_self_management_signup_not_available(self, *args):
         self.navigation_task.allow_self_management = False
         self.navigation_task.save()

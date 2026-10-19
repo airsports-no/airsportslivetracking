@@ -92,8 +92,8 @@ from display.permissions import (
     IsSuperUser,
     NavigationTaskContestPermissions,
     NavigationTaskManagerPermissions,
+    NavigationTaskParticipantPermissions,
     NavigationTaskPublicPermissions,
-    NavigationTaskPublicPutDeletePermissions,
     NavigationTaskSelfManagementPermissions,
     OrganiserPermission,
     PhotoPermissions,
@@ -2410,7 +2410,7 @@ class NavigationTaskViewSet(ModelViewSet):
         permission_classes=[
             permissions.IsAuthenticated
             & NavigationTaskSelfManagementPermissions
-            & (NavigationTaskPublicPutDeletePermissions | NavigationTaskContestPermissions)
+            & NavigationTaskParticipantPermissions
         ],
     )
     def contestant_self_registration(self, request, *args, **kwargs):
@@ -2457,14 +2457,13 @@ class NavigationTaskViewSet(ModelViewSet):
         permission_classes=[
             permissions.IsAuthenticated
             & NavigationTaskSelfManagementPermissions
-            & (NavigationTaskPublicPutDeletePermissions | NavigationTaskContestPermissions)
+            & NavigationTaskParticipantPermissions
         ],
     )
     def delete_self_managed_contestant(self, request, *args, **kwargs):
         navigation_task: NavigationTask = self.get_object()
         my_contestant = get_object_or_404(navigation_task.contestant_set, pk=kwargs["contestant_id"])
-        # Matches the DELETE branch of NavigationTaskContestPermissions, the non-public-task path
-        # that lets this action through in the first place.
+        # A manager may remove anybody's flight, the crew only their own.
         is_contest_manager = request.user.has_perm("display.delete_contest", navigation_task.contest)
         if not is_contest_manager and my_contestant.team.crew.member1.email != request.user.email:
             raise drf_exceptions.PermissionDenied("You cannot delete a contestant that is not your own")

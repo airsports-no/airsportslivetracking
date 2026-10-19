@@ -95,7 +95,7 @@ class TrackingConsumer(ParallelDispatchMixin, WebsocketConsumer):
             # client waits on a socket the server has no intention of using.
             self.close()
             return
-        # Mirrors the REST equivalent (NavigationTaskPublicPutDeletePermissions /
+        # Mirrors the REST equivalent (NavigationTaskPublicPermissions /
         # NavigationTaskContestPermissions): a private task is only open to the contest's
         # audience (see contest_visibility). Previously this consumer only checked the row
         # existed, so any anonymous client could subscribe to live positions, score-log entries,

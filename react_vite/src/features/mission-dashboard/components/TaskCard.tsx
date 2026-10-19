@@ -93,8 +93,8 @@ const TaskCard: React.FC<TaskCardProps> = ({ name, status, contestId, taskId, st
                 {canManage && allow_self_management && (!(is_public && is_featured) || contestIsPublic === false) && (
                     <div role="alert" className="alert alert-warning text-sm">
                         <span>
-                            Self-registration is on, but pilots cannot see this task yet.
-                            {!(is_public && is_featured) && ' Set the task visibility to Public.'}
+                            Self-registration is on, but only pilots you have given access to the contest can see this task.
+                            {!(is_public && is_featured) && ' Set the task visibility to Public to open it for everybody.'}
                             {contestIsPublic === false && ' The contest itself is still private (see Contest settings).'}
                         </span>
                     </div>

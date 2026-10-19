@@ -79,7 +79,7 @@ from display.services.capacity_enforcement import (
     assert_can_register_team,
 )
 from display.services.contest_permissions import CONTEST_PERMISSION_LEVELS, resolve_permission_target_user
-from display.services.contest_visibility import is_contest_audience
+from display.services.contest_visibility import can_view_navigation_task, is_contest_audience
 from display.services.contestant_persistence import (
     create_contestant_with_related_state,
     update_contestant_with_related_state,
@@ -2398,7 +2398,7 @@ def _crew_may_cancel(request, obj: Contestant) -> bool:
     if user is None or not user.is_authenticated or not task.allow_self_management:
         return False
     is_manager = user.has_perm("display.delete_contest", task.contest)
-    if not ((task.is_public and task.contest.is_public) or is_manager):
+    if not (can_view_navigation_task(user, task) or is_manager):
         return False
     return is_manager or obj.team.crew.member1.email == user.email
 

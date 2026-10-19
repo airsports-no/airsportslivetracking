@@ -14,6 +14,9 @@ that says what a pilot, an organiser or an admin gets.
 ## Changes after the initial development
 
 ### 2026-10-19
+#### Backend
+- **Pilots given access to a private contest can register for it.** An organiser's "view & take part" grant (the old "view") now lets a pilot see a private contest and its private tasks and sign up, register a flight and cancel it, from the website and the apps; Register today (`open_registration_today`) lists those tasks too. Before, only the contest's managers could register in a private task. Organiser screens (flight orders, scorecard, contestant maps) now need manage access.
+
 #### App
 - **Cancel flight and the flight's links show again on cards with many facts.** The flight cards on Home and My flights were sized in a way that cut off their bottom lines when the facts wrapped (an adaptive-start flight with wind, airspeed and contestant number): the Home card lost all its buttons and My flights lost **Cancel flight**. The cards now always take their full height. Both phones.
 

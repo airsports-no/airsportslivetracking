@@ -5,7 +5,7 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.permissions import SAFE_METHODS
 
 from display.models import Contest
-from display.services.contest_visibility import can_view_navigation_task, is_contest_audience
+from display.services.contest_visibility import can_view_contest, can_view_navigation_task, is_contest_audience
 
 
 class IsSuperUser(permissions.BasePermission):
@@ -85,7 +85,8 @@ class ContestPublicModificationPermissions(permissions.BasePermission):
         return True
 
     def has_object_permission(self, request, view, obj):
-        return obj.is_public or request.user.has_perm("display.change_contest", obj)
+        """Signing up and withdrawing: anybody may take part in a contest they may see."""
+        return can_view_contest(request.user, obj) or request.user.has_perm("display.change_contest", obj)
 
 
 class TaskTestContestPublicPermissions(permissions.BasePermission):
@@ -126,16 +127,6 @@ class NavigationTaskPublicPermissions(permissions.BasePermission):
 
     def has_object_permission(self, request, view, obj):
         if request.method in ["GET"]:
-            return obj.is_public and obj.contest.is_public
-        return False
-
-
-class NavigationTaskPublicPutDeletePermissions(permissions.BasePermission):
-    def has_permission(self, request, view):
-        return True
-
-    def has_object_permission(self, request, view, obj):
-        if request.method in ["GET", "PUT", "POST", "DELETE"]:
             return obj.is_public and obj.contest.is_public
         return False
 
@@ -282,6 +273,16 @@ class NavigationTaskManagerPermissions(permissions.BasePermission):
         if request.method == "DELETE":
             return request.user.has_perm("display.delete_contest", obj.contest)
         return request.user.has_perm("display.change_contest", obj.contest)
+
+
+class NavigationTaskParticipantPermissions(permissions.BasePermission):
+    """Registering and cancelling one's own flight: anybody who may see the task may take part in it."""
+
+    def has_permission(self, request, view):
+        return True
+
+    def has_object_permission(self, request, view, obj):
+        return can_view_navigation_task(request.user, obj) or request.user.has_perm("display.change_contest", obj.contest)
 
 
 class NavigationTaskSelfManagementPermissions(permissions.BasePermission):

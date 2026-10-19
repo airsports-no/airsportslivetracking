@@ -96,6 +96,7 @@ from display.forms import (
 )
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import assert_can_self_register_contestant, _assert_can_reserve_task_slot
+from display.services.contest_visibility import can_view_navigation_task
 from display.services.task_type_visibility import can_user_see_cima_task_types, get_visible_task_type_groups_for_user
 from display.flight_order_and_maps.generate_flight_orders import (
     embed_map_in_pdf,
@@ -1583,11 +1584,11 @@ def quick_register(request, pk):
     # (e.g. testing the flow), may reach it. Previously any authenticated user could self-enrol
     # in ANY poker task regardless of visibility, bypassing is_public/allow_self_management and
     # every capacity limit.
-    is_publicly_self_manageable = (
-        navigation_task.allow_self_management and navigation_task.is_public and contest.is_public
+    is_self_manageable_for_user = navigation_task.allow_self_management and can_view_navigation_task(
+        request.user, navigation_task
     )
     is_contest_manager = request.user.is_authenticated and request.user.has_perm("display.change_contest", contest)
-    if not is_publicly_self_manageable and not is_contest_manager:
+    if not is_self_manageable_for_user and not is_contest_manager:
         raise Http404("Quick registration is only available for Poker Run tasks.")
 
     if not request.user.is_authenticated:

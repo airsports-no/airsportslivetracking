@@ -708,14 +708,8 @@ const ContestDashboard = () => {
                         </div>
                     )}
                     <div className="space-y-4">
+                        {/* The server only sends the tasks this user may see (private ones only to the contest's audience) */}
                         {contest.navigationtask_set
-                            .filter(task => {
-                                if (canManageContest(contest)) {
-                                    return true; // Editor OR Superuser sees all tasks
-                                } else {
-                                    return task.is_featured && task.is_public; // Non-editor/non-superuser sees only public and featured tasks
-                                }
-                            })
                             .map(task => {
                                 return (
                                     <TaskCard
