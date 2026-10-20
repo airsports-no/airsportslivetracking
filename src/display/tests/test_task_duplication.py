@@ -193,6 +193,18 @@ class TestTaskDuplication(APITestCase):
         theirs = make_route(stranger, "Their route")
         self.assertEqual(self.duplicate(editable_route=theirs.pk).status_code, status.HTTP_403_FORBIDDEN)
 
+    def test_a_co_manager_may_reuse_the_route_of_the_original_without_edit_rights_on_it(self, *_):
+        co_manager = get_user_model().objects.create(email="co-manager@example.com")
+        manage(co_manager, self.contest)
+        self.client.force_login(co_manager)
+        result = self.duplicate(editable_route=self.source_route.pk)
+        self.assertEqual(result.status_code, status.HTTP_201_CREATED, result.content)
+        # Any other route of somebody else's is still refused
+        self.assertEqual(
+            self.duplicate(name="Precision round 3", editable_route=self.new_route.pk).status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+
     def test_the_finish_must_come_after_the_start(self, *_):
         result = self.duplicate(start_time=FINISH.isoformat(), finish_time=START.isoformat())
         self.assertEqual(result.status_code, status.HTTP_400_BAD_REQUEST)

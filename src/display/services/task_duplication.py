@@ -99,7 +99,11 @@ def duplicate_navigation_task(
         raise PermissionDenied("Only somebody who manages the contest can duplicate its tasks.")
     if not user.has_perm("display.change_contest", contest):
         raise PermissionDenied("You can only put the copy in a contest you manage.")
-    if not EditableRoute.get_for_user(user).filter(pk=editable_route.pk).exists():
+    # The original's own route is always offered: a co-manager of the contest may fly it again without having edit rights
+    if (
+        editable_route.pk != source.editable_route_id
+        and not EditableRoute.get_for_user(user).filter(pk=editable_route.pk).exists()
+    ):
         raise PermissionDenied("You can only use a route you can edit.")
     name = (name or "").strip()
     if not name:
