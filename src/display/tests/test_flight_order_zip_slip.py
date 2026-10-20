@@ -58,8 +58,9 @@ class TestFlightOrderZipSlip(TestCase):
         self.malicious_contestant = make_contestant(1, "../../../../etc/evil", "LN-ZS1")
         self.other_contestant = make_contestant(2, "Normal", "LN-ZS2")
 
+        # Downloading the orders is an organiser screen (change_contest), not something the contest's audience sees
         self.viewer = get_user_model().objects.create(email="zipslip-viewer@example.com")
-        assign_perm("view_contest", self.viewer, self.contest)
+        assign_perm("change_contest", self.viewer, self.contest)
         self.client.force_login(user=self.viewer)
 
     def test_zip_entries_contain_no_path_traversal(self):

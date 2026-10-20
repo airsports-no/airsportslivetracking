@@ -2,6 +2,7 @@ from django_filters import rest_framework as filters
 from guardian.shortcuts import get_objects_for_user  # Keep this import if used elsewhere, otherwise remove
 
 from display.models import Contest, NavigationTask
+from display.services.contest_visibility import audience_contests
 
 
 class NumberInFilter(filters.BaseInFilter, filters.NumberFilter):
@@ -39,7 +40,7 @@ class ContestFilter(filters.FilterSet):
 
     def filter_public_only(self, queryset, name, value):
         if value:
-            return queryset.filter(is_public=True, is_featured=True)
+            return queryset.filter(is_public=True)
         return queryset
 
     def filter_shared_only(self, queryset, name, value):
@@ -50,17 +51,10 @@ class ContestFilter(filters.FilterSet):
             
             if user.is_superuser:
                 # For superusers, 'shared' means anything not public.
-                return queryset.exclude(is_public=True, is_featured=True)
+                return queryset.exclude(is_public=True)
                 
-            # For regular users, 'shared' means explicitly assigned view perms on non-public contests.
-            viewable = get_objects_for_user(
-                user, 
-                "display.view_contest", 
-                klass=queryset, 
-                accept_global_perms=False, 
-                with_superuser=False
-            )
-            return viewable.exclude(is_public=True, is_featured=True)
+            # For regular users, 'shared' means the private contests whose audience they are in.
+            return queryset.filter(pk__in=audience_contests(user).values("pk")).exclude(is_public=True)
         return queryset
 
     class Meta:

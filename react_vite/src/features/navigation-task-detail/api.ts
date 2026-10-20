@@ -22,7 +22,7 @@ const getAuthHeaders = () => ({
   'X-CSRFToken': getCookie('csrftoken')!,
 });
 
-export type NavigationTaskVisibility = 'public' | 'private' | 'unlisted';
+export type NavigationTaskVisibility = 'public' | 'private';
 
 export async function fetchRunningCalculators(navigationTaskId: number): Promise<[number, boolean][]> {
   const url = reverse('navigationtask_getrunningcalculators', navigationTaskId);

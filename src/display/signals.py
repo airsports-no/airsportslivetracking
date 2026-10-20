@@ -6,12 +6,14 @@ from random import choice
 from string import ascii_lowercase, ascii_uppercase, digits
 
 from django.contrib.auth.models import Group, User
+from django.contrib.contenttypes.models import ContentType
 from django.core.cache import cache
 from django.core.exceptions import ObjectDoesNotExist, ValidationError
 from django.db import IntegrityError, transaction
 from django.db.models import Q
 from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete, pre_save
 from django.dispatch import receiver
+from guardian.models import GroupObjectPermission, UserObjectPermission
 
 from display.flight_order_and_maps.map_plotter_shared_utilities import country_code_to_map_source
 from display.models import (
@@ -33,6 +35,8 @@ from display.models import (
     Photo,
     Route,
     ScoreLogEntry,
+    SquadronContestShare,
+    SquadronMembership,
     Task,
     TaskSummary,
     TaskTest,
@@ -77,8 +81,23 @@ def invalidate_contest_list_cache(sender, **kwargs):
 @receiver(post_save, sender=ContestTokenAssignment)
 @receiver(post_delete, sender=ContestTokenAssignment)
 @receiver(post_save, sender=UserTokenGrant)
+# Who is in a squadron and which contests it has decides which private contests a user's list holds
+@receiver(post_save, sender=SquadronMembership)
+@receiver(post_delete, sender=SquadronMembership)
+@receiver(post_save, sender=SquadronContestShare)
+@receiver(post_delete, sender=SquadronContestShare)
 def invalid_cache_handler(sender, **kwargs):
     invalidate_contest_list_cache(sender, **kwargs)
+
+
+@receiver(post_save, sender=UserObjectPermission)
+@receiver(post_delete, sender=UserObjectPermission)
+@receiver(post_save, sender=GroupObjectPermission)
+@receiver(post_delete, sender=GroupObjectPermission)
+def invalidate_contest_list_on_permission_change(sender, instance, **kwargs):
+    """Who has a permission on a contest decides which contests a user's cached list holds (and whether they edit it)."""
+    if instance.content_type_id == ContentType.objects.get_for_model(Contest).pk:
+        invalidate_contest_list_cache(sender, **kwargs)
 
 
 def prevent_recursion(func):

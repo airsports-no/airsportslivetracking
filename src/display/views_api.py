@@ -65,7 +65,7 @@ def search_people(request):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def clear_flight_order_generation_cache(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     cache.delete(f"generate_failed_flight_orders_map_{navigation_task.pk}")
@@ -142,14 +142,14 @@ def broadcast_navigation_task_orders(request, pk):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def get_broadcast_navigation_task_orders_status(request, pk):
     return Response(get_navigation_task_orders_status_object(pk))
 
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def get_running_calculators(request, pk):
     """
     Returns a list of (contestant_id, boolean) tuples where the boolean indicates whether a calculator is currently
@@ -169,7 +169,7 @@ def get_running_calculators(request, pk):
 
 @extend_schema(responses={200: OpenApiTypes.ANY})
 @api_view(["GET"])
-@guardian_permission_required("display.view_contest", (Contest, "navigationtask__pk", "pk"))
+@guardian_permission_required("display.change_contest", (Contest, "navigationtask__pk", "pk"))
 def get_contestant_schedule(request, pk):
     navigation_task = get_object_or_404(NavigationTask, pk=pk)
     columns = [

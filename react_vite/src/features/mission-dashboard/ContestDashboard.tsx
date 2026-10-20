@@ -31,6 +31,7 @@ import ContestSetupChecklist from './components/ContestSetupChecklist';
 import { accessSourceLabel } from './accessLabels';
 import ConceptHint from '../../components/common/ConceptHint';
 import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
+import ContestSquadronsPanel from '../contest-management/components/ContestSquadronsPanel';
 import * as contestManagementApi from '../contest-management/api';
 import {
     assignContestToken,
@@ -431,6 +432,7 @@ const ContestDashboard = () => {
                                         refreshPermissions();
                                     }}
                                 />
+                                <ContestSquadronsPanel contestId={contest.id} />
                             </div>
                         </div>
                     </div>
@@ -511,7 +513,7 @@ const ContestDashboard = () => {
                         <div>
                             <h1 className="text-4xl font-bold flex items-center gap-2">
                                 {contest.name}
-                                <PublicityIcon isPublic={contest.is_public} isFeatured={contest.is_featured} size={24} />
+                                <PublicityIcon isPublic={contest.is_public} size={24} />
                             </h1>
                             <p className="text-lg text-gray-400">{formatDateInterval(contest.start_time, contest.finish_time)}</p>
                             <p className="flex items-center gap-2">
@@ -708,14 +710,8 @@ const ContestDashboard = () => {
                         </div>
                     )}
                     <div className="space-y-4">
+                        {/* The server only sends the tasks this user may see (private ones only to the contest's audience) */}
                         {contest.navigationtask_set
-                            .filter(task => {
-                                if (canManageContest(contest)) {
-                                    return true; // Editor OR Superuser sees all tasks
-                                } else {
-                                    return task.is_featured && task.is_public; // Non-editor/non-superuser sees only public and featured tasks
-                                }
-                            })
                             .map(task => {
                                 return (
                                     <TaskCard
@@ -733,7 +729,6 @@ const ContestDashboard = () => {
                                         allow_self_management={task.allow_self_management}
                                         isRegisteredButNotPilot={isRegisteredButNotPilot}
                                         is_public={task.is_public}
-                                        is_featured={task.is_featured}
                                         timeZone={contest.time_zone}
                                         route={task.route}
                                         flown_contestants_count={task.flown_contestants_count}

@@ -9,12 +9,9 @@ def render_publicity_icon(is_public, is_featured, size=20, class_name=""):
     icon_name = ""
     tooltip_text = ""
 
-    if is_public and is_featured:
+    if is_public:
         icon_name = "globe"
         tooltip_text = _("Public")
-    elif is_public and not is_featured:
-        icon_name = "link"
-        tooltip_text = _("Unlisted")
     else:
         icon_name = "lock"
         tooltip_text = _("Private")

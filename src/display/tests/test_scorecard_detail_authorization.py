@@ -5,7 +5,7 @@ all, unlike every neighboring scorecard view (navigation_task_restore_original_s
 navigation_task_scorecard_override_view, navigation_task_gatescore_override_view) and unlike its
 own parent page (NavigationTaskDetailView, which links to it and already requires
 display.view_contest with no public-visibility bypass). Anyone, unauthenticated, could read the
-navigation task name, contest name, and full scoring configuration of a private/unlisted contest.
+navigation task name, contest name, and full scoring configuration of a private contest.
 """
 
 import datetime
@@ -42,7 +42,10 @@ class TestScorecardDetailAuthorization(TestCase):
 
         self.outsider = get_user_model().objects.create(email="outsider@example.com")
         self.organizer = get_user_model().objects.create(email="organizer@example.com")
+        self.audience = get_user_model().objects.create(email="audience@example.com")
         assign_perm("view_contest", self.organizer, self.contest)
+        assign_perm("change_contest", self.organizer, self.contest)
+        assign_perm("view_contest", self.audience, self.contest)
 
     def test_anonymous_user_cannot_view_scorecard_details(self):
         response = self.client.get(self.url)
@@ -53,7 +56,13 @@ class TestScorecardDetailAuthorization(TestCase):
         response = self.client.get(self.url)
         self.assertNotEqual(response.status_code, 200)
 
-    def test_user_with_view_permission_can_view_scorecard_details(self):
+    def test_contest_audience_cannot_view_scorecard_details(self):
+        # A view grant makes the user part of the audience (a spectator and participant), not an organiser
+        self.client.force_login(user=self.audience)
+        response = self.client.get(self.url)
+        self.assertNotEqual(response.status_code, 200)
+
+    def test_organizer_can_view_scorecard_details(self):
         self.client.force_login(user=self.organizer)
         response = self.client.get(self.url)
         self.assertEqual(response.status_code, 200)

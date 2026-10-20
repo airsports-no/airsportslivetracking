@@ -8,7 +8,7 @@ from django.core.exceptions import ValidationError, ObjectDoesNotExist
 from django.db import models
 from django.templatetags.static import static
 from django_countries.fields import CountryField
-from guardian.shortcuts import assign_perm, get_objects_for_user, get_users_with_perms
+from guardian.shortcuts import assign_perm, get_users_with_perms
 from location_field.models.plain import PlainLocationField
 from timezone_field import TimeZoneField
 
@@ -134,11 +134,18 @@ class Contest(models.Model):
     contest_teams = models.ManyToManyField("Team", blank=True, through=ContestTeam)
     is_public = models.BooleanField(
         default=False,
-        help_text="A public contest is visible to people who are not logged and does not require special privileges",
+        help_text="A public contest is visible to everybody, also people who are not logged in. A private contest is only visible to the people given access to it.",
     )
     is_featured = models.BooleanField(
         default=False,
-        help_text="A featured contest is visible to all (if it is public). If it is not featured, a direct link is required to access it.",
+        help_text="Always equal to is_public (kept for the apps that still read it).",
+    )
+    shared_with_squadrons = models.ManyToManyField(
+        "Squadron",
+        blank=True,
+        through="SquadronContestShare",
+        related_name="contests",
+        help_text="The members of these squadrons can see the contest, also when it is private, and take part in it.",
     )
     contest_website = models.CharField(help_text="URL to contest website", blank=True, default="", max_length=300)
     header_image = models.ImageField(
@@ -182,12 +189,15 @@ class Contest(models.Model):
         """
         What are the access rules for the contest.
         """
-        if self.is_public and self.is_featured:
-            return "Public"
-        elif self.is_public and not self.is_featured:
-            return "Unlisted"
-        else:
-            return "Private"
+        return "Public" if self.is_public else "Private"
+
+    def save(self, *args, **kwargs):
+        # is_featured only remains for the apps that still read it: it always equals is_public
+        self.is_featured = self.is_public
+        update_fields = kwargs.get("update_fields")
+        if update_fields is not None and "is_public" in update_fields:
+            kwargs["update_fields"] = {*update_fields, "is_featured"}
+        super().save(*args, **kwargs)
 
     def __str__(self):
         return self.name
@@ -247,26 +257,16 @@ class Contest(models.Model):
 
     def make_public(self):
         """
-        Makes the contest publicly listed and visible in enlist views.
+        Makes the contest visible to everybody and listed in the public views.
         """
         self.is_public = True
         self.is_featured = True
         self.save()
 
-    def make_unlisted(self):
-        """
-        Makes the contest visible to people with the direct link, but it is not displayed in any lists or on the map.
-        Any public navigation tasks in the contest will be made unlisted.
-        """
-        self.is_public = True
-        self.is_featured = False
-        self.navigationtask_set.all().update(is_featured=False)
-        self.save()
-
     def make_private(self):
         """
-        Make the contest private so that it is visible only by the users with explicit access. Any public or unlisted
-        navigation tasks in the contest will also be made private.
+        Make the contest private so that it is visible only by the users with explicit access. Any public navigation
+        tasks in the contest will also be made private.
         """
         self.is_public = False
         self.is_featured = False
@@ -275,9 +275,9 @@ class Contest(models.Model):
 
     @classmethod
     def visible_contests_for_user(cls, user: User):
-        return get_objects_for_user(
-            user, "display.view_contest", klass=Contest, accept_global_perms=False
-        ) | Contest.objects.filter(is_public=True)
+        from display.services.contest_visibility import visible_contests
+
+        return visible_contests(user)
 
     @property
     def contest_team_count(self):

@@ -26,7 +26,7 @@ To navigate the Airsports system effectively, you must understand the specific t
 *   **Test (Results Service):** A specific, individually scored component within a Task (e.g., the "Observation" test within a Navigation Task, or the "Flaps" test within a Landing Task).
 *   **Scorecard:** The mathematical rule set attached to a Navigation Task that defines penalties, and grace periods for crossing gates.
 *   **Flight Order:** A generated document for a Contestant containing map segments, start times, and auto-generated turnpoint/observation photos.
-*   **Visibility System:** The three-tier access control for Contests and Tasks: *Private* (organizers only), *Unlisted* (accessible via direct link only), and *Public* (searchable on the main dashboard).
+*   **Visibility System:** The access control for Contests and Tasks: *Private* (only people given access, individually or through a [squadron](/docs/13_Squadrons)) and *Public* (visible to everybody and listed on the main dashboard). A private contest can be shared with a squadron so that a team or a national association sees it without making it public.
 *   **Flymaster:** The dedicated hardware GPS trackers and associated backend service utilized for high-fidelity live tracking.
 *   **Traccar:** The backend, open-source geospatial tracking engine used by Airsports to securely store and process all raw GPS data from the apps and other hardware trackers.
 *   **GPX / KML / MBTiles:** Standard geographic files. GPX is used for manual track uploads; KML for importing route paths; MBTiles for uploading custom, georeferenced background maps.

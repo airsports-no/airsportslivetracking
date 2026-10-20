@@ -39,7 +39,7 @@ const ContestSetupChecklist: React.FC<ContestSetupChecklistProps> = ({ contest, 
     const [dismissed, setDismissed] = useState(() => readDismissed(contest.id));
     const tasks = contest.navigationtask_set ?? [];
     const selfManagedTasks = tasks.filter(t => t.allow_self_management);
-    const hiddenSelfManaged = selfManagedTasks.filter(t => !(t.is_public && t.is_featured));
+    const hiddenSelfManaged = selfManagedTasks.filter(t => !t.is_public);
     const firstTask = tasks[0];
 
     const steps: Step[] = [
@@ -86,7 +86,7 @@ const ContestSetupChecklist: React.FC<ContestSetupChecklistProps> = ({ contest, 
         {
             key: 'visibility',
             title: 'Decide who can see the contest',
-            detail: 'New contests are private. Make it public (or unlisted) when you are ready to share it.',
+            detail: 'New contests are private. Make it public when you are ready to share it with everybody, or give people access to it.',
             done: contest.is_public,
             action: <button className="btn btn-xs btn-primary" onClick={onOpenSettings}>Contest settings</button>,
         },
@@ -97,7 +97,7 @@ const ContestSetupChecklist: React.FC<ContestSetupChecklistProps> = ({ contest, 
             key: 'self-management',
             title: 'Let pilots find self-registration tasks',
             detail:
-                'Pilots only see tasks that are public and featured. Open the task and set its visibility to Public' +
+                'Only pilots you have given access to the contest see tasks that are not public. To open them for everybody, open the task and set its visibility to Public (this makes the contest public too)' +
                 (hiddenSelfManaged.length > 0
                     ? ` (${hiddenSelfManaged.map(t => t.name).join(', ')} not yet).`
                     : '.'),

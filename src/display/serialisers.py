@@ -79,6 +79,11 @@ from display.services.capacity_enforcement import (
     assert_can_register_team,
 )
 from display.services.contest_permissions import CONTEST_PERMISSION_LEVELS, resolve_permission_target_user
+from display.services.contest_visibility import (
+    audience_contests,
+    can_view_navigation_task,
+    is_contest_audience,
+)
 from display.services.contestant_persistence import (
     create_contestant_with_related_state,
     update_contestant_with_related_state,
@@ -1039,26 +1044,35 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
 
     class Meta:
         model = Contest
-        fields = "__all__"
+        # Sharing with squadrons goes through the contest's squadrons action, which checks the membership
+        exclude = ("shared_with_squadrons",)
 
     def get_permissions_map(self, created):
         user = self.context["request"].user
         return {"change_contest": [user], "delete_contest": [user], "view_contest": [user]}
 
     @extend_schema_field(NavigationTasksLightSerialiser(many=True))
+    def _in_audience(self, contest) -> bool:
+        """
+        Whether the requesting user is in the contest's audience. A list asks this of every contest, so the contests the user
+        is in the audience of are looked up once for the whole request instead of once per contest.
+        """
+        ids = self.context.get("_audience_contest_ids")
+        if ids is None:
+            ids = set(audience_contests(self.context["request"].user).values_list("pk", flat=True))
+            self.context["_audience_contest_ids"] = ids
+        return contest.pk in ids
+
     def get_visiblenavigationtasks(self, contest):
         if self.context.get("exclude_tasks"):
             return []
 
-        user = self.context["request"].user
-        viewable_contest = user.has_perm("display.view_contest", contest)
-
-        if viewable_contest:
+        if self._in_audience(contest):
             tasks_queryset = contest.navigationtask_set.all()
         else:
             # Filter at the database level for non-viewable contests
             tasks_queryset = contest.navigationtask_set.filter(
-                is_public=True, contest__is_public=True, is_featured=True
+                is_public=True, contest__is_public=True
             )
 
         serialiser = NavigationTasksLightSerialiser(tasks_queryset, many=True, read_only=True)
@@ -1084,12 +1098,11 @@ class HighlightedContestSerialiser(serializers.ModelSerializer):
 class ContestParticipationSerialiser(ContestSerialiser):
     @extend_schema_field(NavigationTasksSummaryParticipationSerialiser(many=True))
     def get_visiblenavigationtasks(self, contest):
-        user = self.context["request"].user
-        viewable_contest = user.has_perm("display.view_contest", contest)
+        viewable_contest = self._in_audience(contest)
         items = filter(
             lambda task: (
                 task.allow_self_management
-                and (viewable_contest or (task.is_public and contest.is_public and task.is_featured))
+                and (viewable_contest or (task.is_public and contest.is_public))
             ),
             contest.navigationtask_set.all(),
         )
@@ -1926,8 +1939,7 @@ class SharingSerialiser(serializers.Serializer):
 
     PUBLIC = "public"
     PRIVATE = "private"
-    UNLISTED = "unlisted"
-    VISIBILITIES = ((PUBLIC, "Public"), (PRIVATE, "Private"), (UNLISTED, "Unlisted"))
+    VISIBILITIES = ((PUBLIC, "Public"), (PRIVATE, "Private"))
     visibility = serializers.ChoiceField(choices=VISIBILITIES)
 
 
@@ -2375,7 +2387,7 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
         if task.contest_id not in cache:
             request = self.context.get("request")
             user = getattr(request, "user", None)
-            cache[task.contest_id] = bool(user is not None and user.is_authenticated and user.has_perm("view_contest", task.contest))
+            cache[task.contest_id] = is_contest_audience(user, task.contest)
         return cache[task.contest_id]
 
 
@@ -2398,7 +2410,7 @@ def _crew_may_cancel(request, obj: Contestant) -> bool:
     if user is None or not user.is_authenticated or not task.allow_self_management:
         return False
     is_manager = user.has_perm("display.delete_contest", task.contest)
-    if not ((task.is_public and task.contest.is_public) or is_manager):
+    if not (can_view_navigation_task(user, task) or is_manager):
         return False
     return is_manager or obj.team.crew.member1.email == user.email
 
@@ -2813,7 +2825,7 @@ class ContestResultsDetailsSerialiser(CountryFieldMixin, serializers.ModelSerial
 
     class Meta:
         model = Contest
-        fields = "__all__"
+        exclude = ("shared_with_squadrons",)
 
 
 # Team summary entry

@@ -1,7 +1,7 @@
 """
 Regression tests for the critical finding (2026-08-28 security review): TrackingConsumer and
 ContestResultsConsumer only checked that the target row existed, not its visibility - so any
-anonymous websocket client could subscribe to a private/unlisted navigation task's live
+anonymous websocket client could subscribe to a private navigation task's live
 positions or a private contest's results by guessing its pk. Fixed to require the same
 visibility rule as the REST equivalents: public, or the connecting user holds view_contest.
 """

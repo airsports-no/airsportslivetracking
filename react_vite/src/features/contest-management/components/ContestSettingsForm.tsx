@@ -2,7 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import Select from 'react-select';
-import { Check, Globe, Link as LinkIcon, Lock } from 'lucide-react';
+import { Check, Globe, Lock } from 'lucide-react';
 import { selectStyles } from '../../../utils/selectStyles';
 import { useMissionDashboardStore } from '../../mission-dashboard/store';
 import { Contest } from '../../mission-dashboard/types';
@@ -114,7 +114,7 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
         }
     };
 
-    const handlePublicityChange = async (visibility: 'public' | 'private' | 'unlisted') => {
+    const handlePublicityChange = async (visibility: 'public' | 'private') => {
         setSharing(true);
         setError(null);
         try {
@@ -133,13 +133,12 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
 
             <div>
                 <div className="label"><span className="label-text">Publicity</span></div>
-                {/* Mirrors Contest.share_string: public+featured = public, public+unfeatured = unlisted, else private. */}
+                {/* Mirrors Contest.share_string: public or private. */}
                 {(() => {
-                    const currentVisibility = contest.is_public ? (contest.is_featured ? 'public' : 'unlisted') : 'private';
+                    const currentVisibility = contest.is_public ? 'public' : 'private';
                     const options = [
-                        { value: 'public' as const, icon: Globe, description: 'Visible in contest listings.' },
-                        { value: 'unlisted' as const, icon: LinkIcon, description: 'Visible only to anyone with the direct link - not listed or shown on the map.' },
-                        { value: 'private' as const, icon: Lock, description: 'Visible only to users with explicit access to this contest.' },
+                        { value: 'public' as const, icon: Globe, description: 'Visible to everybody, also people who are not logged in.' },
+                        { value: 'private' as const, icon: Lock, description: 'Visible only to users you give access to, one by one or as a group by sharing the contest with a squadron (see Contest access).' },
                     ];
                     const current = options.find(option => option.value === currentVisibility)!;
                     return (

@@ -51,7 +51,7 @@ Open the task's **Live Map**. To test scoring without flying, upload a GPX file 
 
 ## Ready for the real event?
 
-- **Visibility:** open *Contest settings → Publicity* and choose Public or Unlisted. If you want pilots to register themselves, also tick *Allow self-management* on the task and set the task visibility to **Public**. The task card warns you when pilots cannot see it yet.
+- **Visibility:** open *Contest settings → Publicity* and choose Public (everybody sees it) or Private (only people you give access to; share it with a [squadron](/docs/13_Squadrons) to give a whole group access at once). If you want pilots to register themselves, also tick *Allow self-management* on the task and set the task visibility to **Public**. The task card warns you when pilots cannot see it yet.
 - **Flight orders:** generate and send them from the task's **Manage** menu once start times are set.
 - **Pilots need the app,** logged in with the same email they are registered with.
 - Details: [Contest Manager Guide](/docs/03_Contest_Manager_Guide).
