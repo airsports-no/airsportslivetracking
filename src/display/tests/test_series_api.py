@@ -91,7 +91,9 @@ class TestSeriesManagement(SeriesApiTestBase):
     def test_only_a_manager_changes_the_series(self):
         series = Series.objects.create(name="Open cup", is_public=True)
         self.login(self.other)
-        self.assertEqual(self.client.patch(f"/api/v1/series/{series.pk}/", {"name": "Mine"}, format="json").status_code, 403)
+        self.assertEqual(
+            self.client.patch(f"/api/v1/series/{series.pk}/", {"name": "Mine"}, format="json").status_code, 403
+        )
         self.assertEqual(self.client.delete(f"/api/v1/series/{series.pk}/").status_code, 403)
 
     def test_a_manager_changes_the_scoring_and_deletes(self):
@@ -100,12 +102,19 @@ class TestSeriesManagement(SeriesApiTestBase):
         url = f"/api/v1/series/{series_id}/"
         changed = self.client.patch(
             url,
-            {"scoring_method": "points_table", "entrant_identity": "crew", "best_results_counted": 2, "points_table": [9, 5, 1]},
+            {
+                "scoring_method": "points_table",
+                "entrant_identity": "crew",
+                "best_results_counted": 2,
+                "points_table": [9, 5, 1],
+            },
             format="json",
         )
         self.assertEqual(changed.status_code, 200, changed.content)
         series = Series.objects.get(pk=series_id)
-        self.assertEqual((series.scoring_method, series.entrant_identity, series.best_results_counted), ("points_table", "crew", 2))
+        self.assertEqual(
+            (series.scoring_method, series.entrant_identity, series.best_results_counted), ("points_table", "crew", 2)
+        )
         self.assertEqual(series.points_table, [9, 5, 1])
         self.assertEqual(self.client.delete(url).status_code, 204)
 
@@ -134,7 +143,9 @@ class TestSeriesLegs(SeriesApiTestBase):
         self.assertEqual(self.add(self.private_contest).json()["leg_number"], 1)
         self.assertEqual(self.add(self.public_contest, weight=2).json()["leg_number"], 2)
         detail = self.client.get(f"/api/v1/series/{self.series_id}/").json()
-        self.assertEqual([(leg["name"], leg["weight"]) for leg in detail["legs"]], [("Private leg", 1.0), ("Public leg", 2.0)])
+        self.assertEqual(
+            [(leg["name"], leg["weight"]) for leg in detail["legs"]], [("Private leg", 1.0), ("Public leg", 2.0)]
+        )
 
     def test_a_contest_is_added_once(self):
         self.add(self.private_contest)
@@ -165,8 +176,8 @@ class TestSeriesLegs(SeriesApiTestBase):
         manage(self.other, self.private_contest)
         self.login(self.other)
         url = f"{self.url}{self.private_contest.pk}/"
-        # not a manager of the series, so the series is not even visible
-        self.assertEqual(self.client.patch(url, {"weight": 3}, format="json").status_code, 404)
+        # A manager of a leg sees the series, but changing its legs takes managing the series
+        self.assertEqual(self.client.patch(url, {"weight": 3}, format="json").status_code, 403)
 
     def test_addable_contests_are_those_the_user_manages_and_that_are_not_in_yet(self):
         self.add(self.private_contest)
@@ -181,7 +192,9 @@ class TestPublicSeriesOnlyHoldsPublicContests(SeriesApiTestBase):
 
     def test_a_private_contest_cannot_join_a_public_series(self):
         series_id = self.create(is_public=True).json()["id"]
-        result = self.client.post(f"/api/v1/series/{series_id}/contests/", {"contest": self.private_contest.pk}, format="json")
+        result = self.client.post(
+            f"/api/v1/series/{series_id}/contests/", {"contest": self.private_contest.pk}, format="json"
+        )
         self.assertEqual(result.status_code, 400)
         self.assertIn("public", str(result.json()).lower())
 
@@ -195,7 +208,9 @@ class TestPublicSeriesOnlyHoldsPublicContests(SeriesApiTestBase):
     def test_a_leg_of_a_public_series_cannot_be_made_private_by_sharing(self):
         series_id = self.create(is_public=True).json()["id"]
         self.client.post(f"/api/v1/series/{series_id}/contests/", {"contest": self.public_contest.pk}, format="json")
-        result = self.client.put(f"/api/v1/contests/{self.public_contest.pk}/share/", {"visibility": "private"}, format="json")
+        result = self.client.put(
+            f"/api/v1/contests/{self.public_contest.pk}/share/", {"visibility": "private"}, format="json"
+        )
         self.assertEqual(result.status_code, 400, result.content)
         self.public_contest.refresh_from_db()
         self.assertTrue(self.public_contest.is_public)
@@ -214,7 +229,9 @@ class TestPublicSeriesOnlyHoldsPublicContests(SeriesApiTestBase):
         series_id = self.create(is_public=True).json()["id"]
         self.client.post(f"/api/v1/series/{series_id}/contests/", {"contest": self.public_contest.pk}, format="json")
         self.client.delete(f"/api/v1/series/{series_id}/contests/{self.public_contest.pk}/")
-        result = self.client.put(f"/api/v1/contests/{self.public_contest.pk}/share/", {"visibility": "private"}, format="json")
+        result = self.client.put(
+            f"/api/v1/contests/{self.public_contest.pk}/share/", {"visibility": "private"}, format="json"
+        )
         self.assertEqual(result.status_code, 200, result.content)
 
 
@@ -242,7 +259,9 @@ class TestEnrolmentRequests(SeriesApiTestBase):
             assign_perm(permission, self.federation, self.series)
 
     def enrol(self, contest, **extra):
-        return self.client.post("/api/v1/series_requests/", {"series": self.series.pk, "contest": contest.pk, **extra}, format="json")
+        return self.client.post(
+            "/api/v1/series_requests/", {"series": self.series.pk, "contest": contest.pk, **extra}, format="json"
+        )
 
     def test_somebody_who_manages_both_adds_the_contest_at_once(self):
         manage(self.federation, self.club_contest)
@@ -352,7 +371,9 @@ class TestEnrolmentRequests(SeriesApiTestBase):
         private_series = Series.objects.create(name="Fed private")
         SeriesContest.objects.create(series=private_series, contest=self.club_contest)
         self.login(self.club)
-        self.assertEqual(self.client.get(f"/api/v1/series/{private_series.pk}/").status_code, 404, "not visible")
+        self.assertEqual(
+            self.client.get(f"/api/v1/series/{private_series.pk}/").status_code, 200, "a leg's managers see it"
+        )
         result = self.client.delete(f"/api/v1/series/{private_series.pk}/contests/{self.club_contest.pk}/")
         self.assertEqual(result.status_code, 204, result.content)
         self.assertFalse(SeriesContest.objects.exists())
@@ -465,9 +486,15 @@ class TestSeriesPermissions(SeriesApiTestBase):
         self.assertFalse(detail.json()["can_manage"])
         self.assertFalse(detail.json()["can_delete"])
         self.assertEqual(self.client.get(f"/api/v1/series/{self.series_id}/standings/").status_code, status.HTTP_200_OK)
-        self.assertEqual(self.client.patch(f"/api/v1/series/{self.series_id}/", {"name": "Mine"}, format="json").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            self.client.patch(f"/api/v1/series/{self.series_id}/", {"name": "Mine"}, format="json").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
         self.assertEqual(self.client.get(self.url).status_code, status.HTTP_403_FORBIDDEN)
-        self.assertEqual(self.client.put(f"/api/v1/series/{self.series_id}/", {"name": "Mine"}, format="json").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            self.client.put(f"/api/v1/series/{self.series_id}/", {"name": "Mine"}, format="json").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
         self.assertEqual(self.client.delete(f"/api/v1/series/{self.series_id}/").status_code, status.HTTP_403_FORBIDDEN)
 
     def test_somebody_without_a_grant_does_not_see_a_private_series(self):
@@ -478,7 +505,10 @@ class TestSeriesPermissions(SeriesApiTestBase):
     def test_change_runs_the_series_and_gives_others_access(self):
         self.grant(self.other, "change")
         self.login(self.other)
-        self.assertEqual(self.client.patch(f"/api/v1/series/{self.series_id}/", {"name": "Renamed"}, format="json").status_code, status.HTTP_200_OK)
+        self.assertEqual(
+            self.client.patch(f"/api/v1/series/{self.series_id}/", {"name": "Renamed"}, format="json").status_code,
+            status.HTTP_200_OK,
+        )
         self.assertEqual(self.grant(self.pilot, "view").status_code, status.HTTP_201_CREATED)
         levels = {grant["user_id"]: grant["level"] for grant in self.client.get(self.url).json()}
         self.assertEqual(levels[self.pilot.pk], "view")
@@ -498,7 +528,9 @@ class TestSeriesPermissions(SeriesApiTestBase):
         self.login(self.organiser)
         self.grant(self.other, "delete")
         self.login(self.other)
-        self.assertEqual(self.client.delete(f"/api/v1/series/{self.series_id}/").status_code, status.HTTP_204_NO_CONTENT)
+        self.assertEqual(
+            self.client.delete(f"/api/v1/series/{self.series_id}/").status_code, status.HTTP_204_NO_CONTENT
+        )
         self.assertFalse(Series.objects.filter(pk=self.series_id).exists())
 
     def test_a_manager_cannot_lock_themselves_out(self):
@@ -511,7 +543,9 @@ class TestSeriesPermissions(SeriesApiTestBase):
         self.grant(self.other, "change")
         manage(self.other, self.public_contest)
         self.login(self.other)
-        result = self.client.post(f"/api/v1/series/{self.series_id}/contests/", {"contest": self.public_contest.pk}, format="json")
+        result = self.client.post(
+            f"/api/v1/series/{self.series_id}/contests/", {"contest": self.public_contest.pk}, format="json"
+        )
         self.assertEqual(result.status_code, status.HTTP_201_CREATED, result.content)
         self.assertTrue(SeriesContest.objects.filter(series=self.series, contest=self.public_contest).exists())
 
@@ -557,3 +591,43 @@ class TestContestAdminKeepsPublicSeriesLegsPublic(SeriesApiTestBase):
 
     def test_the_admin_can_make_another_contest_private(self):
         self.assertNotIn("is_public", self.form(self.public_contest, False).errors)
+
+
+class TestContestManagersSeeTheirSeries(SeriesApiTestBase):
+    """Everybody who manages a contest of a series can see the series, without a grant, for as long as that is so."""
+
+    def setUp(self):
+        super().setUp()
+        self.series = Series.objects.create(name="Private cup")
+        SeriesContest.objects.create(series=self.series, contest=self.private_contest)
+        self.url = f"/api/v1/series/{self.series.pk}/"
+
+    def test_a_manager_of_a_leg_sees_the_series_and_its_standings_but_cannot_change_it(self):
+        self.login(self.organiser)
+        detail = self.client.get(self.url)
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        self.assertFalse(detail.json()["can_manage"])
+        self.assertEqual(self.client.get(f"{self.url}standings/").status_code, status.HTTP_200_OK)
+        self.assertIn("Private cup", [item["name"] for item in self.client.get("/api/v1/series/").json()])
+        self.assertEqual(
+            self.client.patch(self.url, {"name": "Mine"}, format="json").status_code, status.HTTP_403_FORBIDDEN
+        )
+
+    def test_a_new_manager_of_the_contest_sees_it_and_one_who_is_removed_does_not(self):
+        manage(self.other, self.private_contest)
+        self.login(self.other)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_200_OK)
+        from guardian.shortcuts import remove_perm
+
+        remove_perm("change_contest", self.other, self.private_contest)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_leaving_the_series_ends_it(self):
+        SeriesContest.objects.filter(series=self.series).delete()
+        self.login(self.organiser)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_somebody_who_only_views_the_contest_does_not_see_the_series(self):
+        assign_perm("view_contest", self.pilot, self.private_contest)
+        self.login(self.pilot)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_404_NOT_FOUND)

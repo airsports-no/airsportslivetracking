@@ -19,22 +19,30 @@ def can_manage(user: MyUser, series: Series) -> bool:
 
 
 def can_view(user: MyUser, series: Series) -> bool:
-    """A public series is for everybody, a private one for the people who have been given access to it."""
+    """
+    A public series is for everybody. A private one is for the people given access to it, and for everybody who manages
+    one of its contests: they see the series their contest counts towards without anybody having to give them access.
+    That access is worked out here, never stored, so it follows contests joining and leaving and managers coming and going.
+    """
     if series.is_public:
         return True
-    return bool(user and user.is_authenticated and user.has_perm("display.view_series", series))
+    if not (user and user.is_authenticated):
+        return False
+    return (
+        user.has_perm("display.view_series", series) or series_of_managed_contests(user).filter(pk=series.pk).exists()
+    )
 
 
 def visible_series(user: MyUser):
-    """The series [user] may see: the public ones and those they have been given access to."""
+    """The series [user] may see: the public ones, those they have been given access to and those of contests they manage."""
     if user is None or not user.is_authenticated:
         return Series.objects.filter(is_public=True)
-    managed = get_objects_for_user(user, "display.view_series", klass=Series, accept_global_perms=False)
-    return Series.objects.filter(is_public=True) | managed
+    granted = get_objects_for_user(user, "display.view_series", klass=Series, accept_global_perms=False)
+    return Series.objects.filter(is_public=True) | granted | series_of_managed_contests(user)
 
 
 def series_of_managed_contests(user: MyUser):
-    """The series that have a contest [user] manages as a leg, also private ones: so a leg can always leave."""
+    """The series that have a contest [user] manages as a leg, also private ones."""
     managed_contests = get_objects_for_user(
         user, "display.change_contest", klass=Contest, accept_global_perms=False, with_superuser=False
     )

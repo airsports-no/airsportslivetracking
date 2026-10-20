@@ -72,12 +72,12 @@ Access to a series works as for a contest. Open the series and use **Permissions
 | **Manage** | Everything in *View*, plus change the settings, add and remove contests, answer requests, and **give others access, change their level or remove them** (except people with *Manage & delete*). |
 | **Manage & delete** | Everything in *Manage*, plus delete the series and give or take away *Manage & delete* from others. |
 
-Only **organizers** (people who pressed *Become an Organizer*) can be given *Manage* or *Manage & delete*; anybody with an account can be given *View*. The person who creates a series has *Manage & delete*. You cannot remove yourself or lower your own level below *Manage*, so a series is never left without somebody who manages it. Contest managers can always take their own contest out of a series.
+Only **organizers** (people who pressed *Become an Organizer*) can be given *Manage* or *Manage & delete*; anybody with an account can be given *View*. The person who creates a series has *Manage & delete*. You cannot remove yourself or lower your own level below *Manage*, so a series is never left without somebody who manages it. Contest managers can always see a series their contest is in, and take their own contest out of it.
 
 ## Visibility
 
 - A **public** series is visible to everybody, and **every leg must be a public contest**. Make the contests public first; a contest that is in a public series cannot be made private until it leaves the series.
-- A **private** series is visible only to the people you give access to (see below). It can contain private and public contests; use it to keep track of a cup before you publish it.
+- A **private** series is visible only to the people you give access to (see below), and to everybody who manages one of its contests: they always see the series their contest counts towards, without being added. It can contain private and public contests; use it to keep track of a cup before you publish it.
 
 ## Good to know
 
