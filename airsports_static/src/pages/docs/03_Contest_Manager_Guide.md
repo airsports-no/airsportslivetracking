@@ -28,10 +28,9 @@ To host a contest, you need **Organizer** status. This is **automatically approv
 1.  Access the **Contest Management Dashboard** by selecting **"My contests"** from the Management menu.
 2.  Click **"Create New Contest"**.
 3.  **Name & Location:** Provide a descriptive name and geolocation.
-4.  **Sharing:**
-    *   **Private:** Only visible to the creator.
-    *   **Unlisted:** Accessible via a direct link.
-    *   **Public:** Publicly listed.
+4.  **Sharing:** a contest is either **Public** or **Private**.
+    *   **Public:** Visible to everybody, also people who are not logged in, and listed on the dashboard.
+    *   **Private:** Only visible to people you have given access. You can give access to single users in *Contest access*, or to a whole group at once by [sharing the contest with a squadron](/docs/13_Squadrons). Anybody with access can also take part in it (register a team, book a start time), but cannot change it.
 ---
 
 ## 2. Creating Navigation Tasks
@@ -130,5 +129,6 @@ ASLT utilizes a granular permission system to protect sensitive data.
     *   **Unprotected Maps:** These are available for any organizer to use in their tasks.
     *   **Protected Maps:** Access is restricted to users who have explicit `view_useruploadedmap` permissions. 
     *   **Automatic Access:** Contest managers can automatically access maps uploaded by other staff members associated with the same contest.
-*   **Public vs. Private:** Remember that setting a Navigation Task to `is_public=false` hides the tracks from public view, which is essential for maintaining the "quarantine" of pilots during a major event.
+*   **Public vs. Private:** Remember that setting a Navigation Task to `is_public=false` hides the tracks from public view, which is essential for maintaining the "quarantine" of pilots during a major event. Note that people who have access to a private contest (given individually or through a [squadron](/docs/13_Squadrons)) see all its tasks, also the private ones.
+*   **Squadrons:** *Contest access → Squadrons* shares the contest with a group of people, see [Squadrons](/docs/13_Squadrons).
 *   **Flight simulators:** Each navigation task has a "Flight simulators" setting. *Not allowed* (the default) ignores positions from flight simulators, so simulator pilots cannot disturb a real competition. *Allowed* accepts simulator flights under the normal rules and marks them with a SIM badge. *Simulator only* ignores real trackers and the app. A pilot booking a flight on the website has to say whether they will fly a real aircraft or a simulator; the MSFS client and the phone apps are recognised automatically. The setting takes effect within about a minute.

@@ -2,6 +2,7 @@ import React, { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { Mail, Plus, Trophy, Users } from 'lucide-react';
 import { generatePath } from '../../urls';
+import ConceptHint, { DOCS_BASE_URL } from '../../components/common/ConceptHint';
 import { Loading } from '../route-editor/components/basicComponents';
 import {
     ContestAccess,
@@ -87,6 +88,20 @@ const SquadronsPage: React.FC = () => {
                 </p>
             </div>
 
+            <ConceptHint id="squadrons-intro" title="What is a squadron for?" learnMoreUrl={`${DOCS_BASE_URL}/13_Squadrons`}>
+                <p>
+                    Use a squadron when a contest should <strong>not</strong> be open to everybody, but a whole group needs to see it and fly in it: a
+                    club, a national team, a training group or your friends. Make one, invite the people, and share your private contests
+                    with it. Everybody in the squadron then gets access, and new members get access to all of them at once.
+                </p>
+                <ol className="list-decimal ml-5 mt-2 space-y-0.5">
+                    <li>Start a squadron below and give it a name people will recognise.</li>
+                    <li>Open it and invite people by name or e-mail, or post an invite link in your group chat.</li>
+                    <li>Organisers share their contests with it: from the squadron here, or from the contest under <em>Contest access</em>.</li>
+                </ol>
+                <p className="mt-2">Members can see and take part in the contests, but not change them. A public contest needs no squadron.</p>
+            </ConceptHint>
+
             {error && <div role="alert" className="alert alert-error">{error}</div>}
 
             {invitations.length > 0 && (
@@ -118,7 +133,11 @@ const SquadronsPage: React.FC = () => {
             )}
 
             <div className="space-y-2">
-                {squadrons.length === 0 && <p className="opacity-70">You are not in any squadron yet.</p>}
+                {squadrons.length === 0 && (
+                    <p className="opacity-70">
+                        You are not in any squadron yet. Start one below, or ask the admin of a squadron for an invitation or an invite link.
+                    </p>
+                )}
                 {squadrons.map(squadron => (
                     <Link
                         key={squadron.id}
@@ -179,9 +198,12 @@ const SquadronsPage: React.FC = () => {
             <form onSubmit={create} className="card bg-base-200 border border-base-300">
                 <div className="card-body p-5 space-y-3">
                     <h2 className="card-title text-lg flex items-center gap-2"><Plus size={18} /> Start a squadron</h2>
+                    <p className="text-sm opacity-70">
+                        You become its admin. You can then invite people and share the contests you manage with it. Anybody who is logged in can start a squadron.
+                    </p>
                     <input
                         className="input input-bordered w-full"
-                        placeholder="Name"
+                        placeholder="Name, for example the club or team"
                         maxLength={100}
                         value={name}
                         onChange={e => setName(e.target.value)}
@@ -189,7 +211,7 @@ const SquadronsPage: React.FC = () => {
                     />
                     <textarea
                         className="textarea textarea-bordered w-full"
-                        placeholder="What is it for? (optional)"
+                        placeholder="Who is it for? Shown to the members and in invitations (optional)"
                         value={description}
                         onChange={e => setDescription(e.target.value)}
                     />

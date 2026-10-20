@@ -62,7 +62,9 @@ const ContestSquadronsPanel: React.FC<Props> = ({ contestId }) => {
             <div className="card-body p-5 space-y-2">
                 <h3 className="card-title text-lg">Squadrons</h3>
                 <p className="text-sm opacity-70">
-                    Everybody in a squadron you share the contest with can see it and take part in it. They cannot manage it.
+                    A squadron is a group of people, for example a club or a team. Share this contest with a squadron and everybody in it can
+                    see the contest, also its private tasks, and register and fly in it. They cannot change anything. Use it for a private
+                    contest that a whole group should have access to; a public contest is open to everybody anyway.
                 </p>
                 {error && <div className="alert alert-error text-sm py-2">{error}</div>}
                 {shared?.map(squadron => (
@@ -78,11 +80,11 @@ const ContestSquadronsPanel: React.FC<Props> = ({ contestId }) => {
                         )}
                     </div>
                 ))}
-                {shared?.length === 0 && <p className="text-sm opacity-70">Not shared with any squadron.</p>}
+                {shared?.length === 0 && <p className="text-sm opacity-70">Not shared with any squadron yet. Only the people you give access to individually can see this contest if it is private.</p>}
                 {available.length > 0 ? (
                     <div className="flex gap-2 pt-1">
                         <select className="select select-bordered select-sm flex-1" value={choice} onChange={e => setChoice(e.target.value)}>
-                            <option value="">Choose a squadron…</option>
+                            <option value="">Choose a squadron to share with…</option>
                             {available.map(squadron => (
                                 <option key={squadron.id} value={squadron.id}>{squadron.name}</option>
                             ))}
@@ -93,8 +95,8 @@ const ContestSquadronsPanel: React.FC<Props> = ({ contestId }) => {
                     </div>
                 ) : (
                     <p className="text-sm opacity-70">
-                        {mine.length === 0 ? 'You are not in a squadron yet. ' : ''}
-                        <Link className="link" to={generatePath('SQUADRONS', {})}>Manage your squadrons</Link>
+                        {mine.length === 0 ? 'You are not in a squadron yet: start one for your club or team, then come back and share this contest with it. ' : ''}
+                        <Link className="link" to={generatePath('SQUADRONS', {})}>{mine.length === 0 ? 'Start a squadron' : 'Manage your squadrons'}</Link>
                     </p>
                 )}
             </div>

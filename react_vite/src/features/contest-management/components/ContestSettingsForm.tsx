@@ -138,7 +138,7 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
                     const currentVisibility = contest.is_public ? 'public' : 'private';
                     const options = [
                         { value: 'public' as const, icon: Globe, description: 'Visible to everybody, also people who are not logged in.' },
-                        { value: 'private' as const, icon: Lock, description: 'Visible only to users with explicit access to this contest.' },
+                        { value: 'private' as const, icon: Lock, description: 'Visible only to users you give access to, one by one or as a group by sharing the contest with a squadron (see Contest access).' },
                     ];
                     const current = options.find(option => option.value === currentVisibility)!;
                     return (

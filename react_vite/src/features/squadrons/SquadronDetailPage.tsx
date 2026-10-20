@@ -114,6 +114,11 @@ const SquadronDetailPage: React.FC = () => {
             <div className="space-y-1">
                 <h1 className="text-2xl font-bold">{squadron.name}</h1>
                 {squadron.description && <p className="opacity-70">{squadron.description}</p>}
+                <p className="text-sm opacity-70">
+                    {isAdmin
+                        ? 'You are an admin: you invite and remove people, and you can take away any contest. Members can see and take part in the contests shared with the squadron, but not change them.'
+                        : 'You are a member: you can see and take part in the contests shared with this squadron. Only an admin invites people.'}
+                </p>
             </div>
 
             <div className="card bg-base-200 border border-base-300">
@@ -248,8 +253,9 @@ const SquadronDetailPage: React.FC = () => {
                 <div className="card-body p-5 space-y-2">
                     <h2 className="card-title text-lg">Contests</h2>
                     <p className="text-sm opacity-70">
-                        Everybody in the squadron can see these contests, also when they are private, and take part in them. You can take
-                        away the contests you added{isAdmin ? ', and as an admin any of them' : ''}.
+                        Everybody in the squadron can see these contests, also when they are private, and take part in them. They cannot
+                        change them. Add a contest you manage to give the whole squadron access to it; take it away again with Remove. You can
+                        remove the contests you added{isAdmin ? ', and as an admin any of them' : ''}.
                     </p>
                     {squadron.contests.length === 0 && <p className="text-sm opacity-70">No contest is shared with the squadron yet.</p>}
                     {squadron.contests.map(contest => (

@@ -9,7 +9,7 @@ New to Air Sports Live Tracking? This page explains the handful of ideas that ev
 
 ---
 
-## The five building blocks
+## The building blocks
 
 | Term | What it is | Example |
 | :--- | :--- | :--- |
@@ -18,6 +18,7 @@ New to Air Sports Live Tracking? This page explains the handful of ideas that ev
 | **Navigation Task** | One flown event inside a contest: a route plus a scoring ruleset (a *scorecard*). A contest usually has several tasks, one per flight. | "Saturday morning: Precision" |
 | **Team** | The people and aeroplane that take part: pilot, optional co-pilot, aircraft registration. A team registers once **per contest**. | "Anna + Ben in LN-ABC" |
 | **Contestant** | One team flying one navigation task, with a start time. This is "a flight". | "Anna + Ben, Saturday morning, start 09:42" |
+| **Squadron** | A group of people (a club, a national team, friends) that you can share private contests with, so you do not have to add them one by one. | "LN national team" |
 
 ## How they fit together
 
@@ -55,12 +56,14 @@ See the [Contestant Guide](/docs/02_Contestant_Guide) for details.
 5. **Add teams**, either yourself, by import, or by letting pilots register. Then **schedule** start times, or turn on *self-management* so pilots book their own.
 6. **Generate flight orders** and share the contest link.
 
+An optional tool you can ignore on your first contest: if your contest is private and a group of people should see it and fly in it, put them in a [squadron](/docs/13_Squadrons) and share the contest with it.
+
 A good first step is to make a private "Test Competition" with one route, one task and one test team, and walk through it before your real event. The [Contest Manager Guide](/docs/03_Contest_Manager_Guide) and [Route Creation guide](/docs/04_Route_Creation_and_Tasks) cover each step in detail.
 
 ## Common questions
 
 **Why can't I see my flight?** The website matches you to your flights by email address. If the organizer registered a different email than the one you log in with, ask them to correct it.
 
-**Why can't pilots see my task?** For self-registration, the contest must be visible, the task must be public and featured, and *Allow self-management* must be on.
+**Why can't pilots see my task?** For self-registration, the contest must be visible to the pilot (public, or shared with them directly or through a [squadron](/docs/13_Squadrons)), the task must be public, and *Allow self-management* must be on.
 
 **Can I change a route after creating a task?** A task keeps its own copy of the route, so editing the original does not change tasks that already exist. Use *Edit route* on the task to change that task's copy.
