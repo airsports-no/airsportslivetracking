@@ -126,7 +126,9 @@ ASLT utilizes a granular permission system to protect sensitive data.
 
 *   **Contest Permissions:** 
     *   `change_contest`: Allows a user to edit the contest, manage teams, and run the scheduler.
-    *   `view_contest`: Allows a user to see the contest details but not make changes.
+    *   `view_contest`: Allows a user to see a private contest and take part in it, but not make changes.
+    *   `delete_contest`: Allows a user to delete the contest, and to give or take away that right from others.
+    *   Under *Contest access → Permissions* anybody who can change the contest gives others access: **view & take part**, **manage** or **manage & delete**. Only organizers (people who pressed *Become an Organizer*) can be given manage or manage & delete; anybody can be given view.
 *   **Map Permissions:**
     *   **Unprotected Maps:** These are available for any organizer to use in their tasks.
     *   **Protected Maps:** Access is restricted to users who have explicit `view_useruploadedmap` permissions. 

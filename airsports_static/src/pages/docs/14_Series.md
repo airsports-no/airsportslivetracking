@@ -69,10 +69,10 @@ Access to a series works as for a contest. Open the series and use **Permissions
 | Level | Can do |
 | :--- | :--- |
 | **View** | See a private series and its standings. Nothing else. (Everybody can see a public series.) |
-| **Manage** | Everything in *View*, plus change the settings, add and remove contests, answer requests, and **give others access, change their level or remove them**, at any level. |
-| **Manage & delete** | Everything in *Manage*, plus delete the series. |
+| **Manage** | Everything in *View*, plus change the settings, add and remove contests, answer requests, and **give others access, change their level or remove them** (except people with *Manage & delete*). |
+| **Manage & delete** | Everything in *Manage*, plus delete the series and give or take away *Manage & delete* from others. |
 
-The person who creates a series has *Manage & delete*. You cannot remove yourself or lower your own level below *Manage*, so a series is never left without somebody who manages it. Contest managers can always take their own contest out of a series.
+Only **organizers** (people who pressed *Become an Organizer*) can be given *Manage* or *Manage & delete*; anybody with an account can be given *View*. The person who creates a series has *Manage & delete*. You cannot remove yourself or lower your own level below *Manage*, so a series is never left without somebody who manages it. Contest managers can always take their own contest out of a series.
 
 ## Visibility
 

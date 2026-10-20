@@ -455,9 +455,11 @@ class TestSeriesPermissions(SeriesApiTestBase):
         self.assertEqual(self.grant(self.pilot, "view").status_code, status.HTTP_201_CREATED)
         levels = {grant["user_id"]: grant["level"] for grant in self.client.get(self.url).json()}
         self.assertEqual(levels[self.pilot.pk], "view")
-        changed = self.client.put(f"{self.url}{self.pilot.pk}/", {"level": "change"}, format="json")
+        third = make_user("third@example.com", organiser=True)
+        self.grant(third, "view")
+        changed = self.client.put(f"{self.url}{third.pk}/", {"level": "change"}, format="json")
         self.assertEqual(changed.status_code, status.HTTP_200_OK)
-        self.assertTrue(self.pilot.has_perm("display.change_series", self.series))
+        self.assertTrue(get_user_model().objects.get(pk=third.pk).has_perm("display.change_series", self.series))
         self.assertEqual(self.client.delete(f"{self.url}{self.pilot.pk}/").status_code, status.HTTP_204_NO_CONTENT)
         self.assertFalse(get_user_model().objects.get(pk=self.pilot.pk).has_perm("display.view_series", self.series))
 
@@ -485,3 +487,25 @@ class TestSeriesPermissions(SeriesApiTestBase):
         result = self.client.post(f"/api/v1/series/{self.series_id}/contests/", {"contest": self.public_contest.pk}, format="json")
         self.assertEqual(result.status_code, status.HTTP_201_CREATED, result.content)
         self.assertTrue(SeriesContest.objects.filter(series=self.series, contest=self.public_contest).exists())
+
+    def test_only_an_organiser_can_get_more_than_view(self):
+        self.assertEqual(self.grant(self.pilot, "change").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.grant(self.pilot, "delete").status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertEqual(self.grant(self.pilot, "view").status_code, status.HTTP_201_CREATED)
+        changed = self.client.put(f"{self.url}{self.pilot.pk}/", {"level": "change"}, format="json")
+        self.assertEqual(changed.status_code, status.HTTP_400_BAD_REQUEST)
+
+    def test_delete_level_is_dealt_by_those_who_have_it(self):
+        self.grant(self.other, "change")
+        third = make_user("third@example.com", organiser=True)
+        self.login(self.other)
+        self.assertEqual(self.grant(third, "delete").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.delete(f"{self.url}{self.organiser.pk}/").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(
+            self.client.put(f"{self.url}{self.organiser.pk}/", {"level": "view"}, format="json").status_code,
+            status.HTTP_403_FORBIDDEN,
+        )
+        self.login(self.organiser)
+        self.assertEqual(self.grant(third, "delete").status_code, status.HTTP_201_CREATED)
+        self.login(third)
+        self.assertEqual(self.client.delete(f"{self.url}{self.organiser.pk}/").status_code, status.HTTP_204_NO_CONTENT)

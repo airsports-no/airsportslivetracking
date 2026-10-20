@@ -40,7 +40,8 @@ const SeriesPermissions: React.FC<{ seriesId: number }> = ({ seriesId }) => {
                     <>
                         Give others access to this series. <strong>View</strong> lets somebody see a private series and its standings.{' '}
                         <strong>Manage</strong> also lets them change the settings, add and remove contests, answer requests and give
-                        others access at any level. <strong>Manage &amp; delete</strong> may also delete the series. A public series
+                        others access. <strong>Manage &amp; delete</strong> may also delete the series, and can only be given or taken
+                        away by somebody who has it. Only organisers can be given manage; anybody can be given view. A public series
                         can be seen by everybody.
                     </>
                 }

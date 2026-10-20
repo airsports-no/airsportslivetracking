@@ -7,6 +7,7 @@ from guardian.shortcuts import assign_perm, get_user_perms, get_users_with_perms
 from rest_framework.exceptions import ValidationError
 
 from display.models import MyUser, Series
+from display.services.contest_permissions import require_grant_allowed
 from display.services.people_search import user_identities
 
 SERIES_PERMISSION_MAP = {
@@ -44,6 +45,13 @@ def list_series_permission_grants(series: Series) -> list[dict]:
 def set_series_permission_level(series: Series, user: MyUser, level: str, acting_user: MyUser) -> None:
     if user.pk == acting_user.pk and "change_series" not in SERIES_PERMISSION_MAP[level]:
         raise ValidationError("You cannot remove your own management permissions for this series.")
+    require_grant_allowed(
+        user,
+        get_series_permission_level(series, user),
+        level,
+        acting_user.has_perm("display.delete_series", series),
+        "series",
+    )
     for permission in SERIES_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, series)
     for permission in SERIES_PERMISSION_MAP[level]:
@@ -53,5 +61,12 @@ def set_series_permission_level(series: Series, user: MyUser, level: str, acting
 def remove_series_permission_grant(series: Series, user: MyUser, acting_user: MyUser) -> None:
     if user.pk == acting_user.pk:
         raise ValidationError("You cannot remove your own permissions for this series.")
+    require_grant_allowed(
+        user,
+        get_series_permission_level(series, user),
+        "nothing",
+        acting_user.has_perm("display.delete_series", series),
+        "series",
+    )
     for permission in SERIES_PERMISSION_MAP["delete"]:
         remove_perm(f"display.{permission}", user, series)

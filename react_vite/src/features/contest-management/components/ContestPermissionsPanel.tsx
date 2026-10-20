@@ -77,7 +77,7 @@ const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, loadi
             <div className="card-body p-5">
                 <h3 className="card-title text-lg">Permissions</h3>
                 <p className="text-sm opacity-70">
-                    {description ?? <>"View &amp; take part" lets a pilot see a private contest and its private tasks and register for them. Organisers need "manage".</>}
+                    {description ?? <>"View &amp; take part" lets a pilot see a private contest and its private tasks and register for them. Only organisers can be given "manage" or "manage &amp; delete". "Manage &amp; delete" can only be given or taken away by somebody who has it.</>}
                 </p>
                 {error && <div className="alert alert-error text-sm py-2">{error}</div>}
                 {loading ? (
