@@ -27,5 +27,15 @@
   .prose-custom ol { @apply list-decimal list-inside mb-8 space-y-3 text-slate-600 font-medium; }
   .prose-custom img { @apply rounded-[2rem] shadow-2xl my-12 border-4 border-white ring-1 ring-slate-200 mx-auto; }
   .prose-custom code { @apply bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg text-sm font-mono font-bold border border-blue-100; }
+  /* Tables: a header row, a line between rows and every other row shaded, so long rows are easy to follow.
+     display:block with overflow lets a wide table scroll sideways on a phone instead of widening the page. */
+  .prose-custom table { @apply block w-full overflow-x-auto mb-10 text-left text-sm md:text-base border border-slate-200 rounded-2xl border-separate border-spacing-0; }
+  .prose-custom thead th { @apply bg-slate-800 text-white font-bold px-4 py-3 align-bottom; }
+  .prose-custom thead th:first-child { @apply rounded-tl-2xl; }
+  .prose-custom thead th:last-child { @apply rounded-tr-2xl; }
+  .prose-custom tbody td { @apply px-4 py-3 align-top text-slate-600 border-t border-slate-200; }
+  .prose-custom tbody tr:nth-child(even) td { @apply bg-slate-50; }
+  .prose-custom tbody tr:hover td { @apply bg-blue-50/60; }
+  .prose-custom tbody td:first-child { @apply text-slate-800; }
   .prose-custom blockquote { @apply border-l-4 border-blue-600 bg-blue-50/50 p-8 rounded-r-3xl italic text-slate-700 my-10 font-medium text-lg shadow-sm; }
 }
