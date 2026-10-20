@@ -227,16 +227,25 @@ def prepare_account_deletion(user: MyUser) -> None:
     invitations still waiting for an answer at the user's address are removed. The memberships themselves go with the user.
     """
     with transaction.atomic():
-        for membership in SquadronMembership.objects.filter(user=user, role=SquadronMembership.ADMIN).select_related(
-            "squadron"
-        ):
-            squadron = Squadron.objects.select_for_update().get(pk=membership.squadron_id)
-            if squadron.memberships.filter(role=SquadronMembership.ADMIN).exclude(user=user).exists():
+        # Every squadron the user is in is locked, not only those they are an admin of: two members deleting their accounts
+        # at the same time could otherwise promote one of them while the other goes, leaving the squadron without an admin.
+        # The caller must delete the user inside the same transaction, so the locks are held until the memberships are gone.
+        # Locked in one order, so two deletions cannot deadlock; the roles are read again under the locks.
+        squadron_ids = list(
+            SquadronMembership.objects.filter(user=user).order_by("squadron_id").values_list("squadron_id", flat=True)
+        )
+        for squadron in Squadron.objects.select_for_update().filter(pk__in=squadron_ids).order_by("pk"):
+            memberships = list(squadron.memberships.select_for_update().order_by("joined_at", "pk"))
+            mine = next((m for m in memberships if m.user_id == user.pk), None)
+            if mine is None or mine.role != SquadronMembership.ADMIN:
                 continue
-            successor = squadron.memberships.exclude(user=user).order_by("joined_at", "pk").first()
-            if successor is None:
+            others = [m for m in memberships if m.user_id != user.pk]
+            if any(m.role == SquadronMembership.ADMIN for m in others):
+                continue
+            if not others:
                 squadron.delete()
             else:
+                successor = others[0]
                 successor.role = SquadronMembership.ADMIN
                 successor.save(update_fields=["role"])
         SquadronInvitation.objects.filter(email=user.email.strip().lower(), status=SquadronInvitation.PENDING).delete()

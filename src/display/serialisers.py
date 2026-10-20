@@ -1051,7 +1051,6 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         user = self.context["request"].user
         return {"change_contest": [user], "delete_contest": [user], "view_contest": [user]}
 
-    @extend_schema_field(NavigationTasksLightSerialiser(many=True))
     def _in_audience(self, contest) -> bool:
         """
         Whether the requesting user is in the contest's audience. A list asks this of every contest, so the contests the user
@@ -1063,6 +1062,7 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             self.context["_audience_contest_ids"] = ids
         return contest.pk in ids
 
+    @extend_schema_field(NavigationTasksLightSerialiser(many=True))
     def get_visiblenavigationtasks(self, contest):
         if self.context.get("exclude_tasks"):
             return []
