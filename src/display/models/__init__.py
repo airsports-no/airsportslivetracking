@@ -18,6 +18,7 @@ from .scoring_table_models import *
 from .team_structure import Team, Aeroplane, Crew, Person, Club
 from .access_control import *
 from .squadron import *
+from .series import *
 from .usage_accounting import *
 from .user_uploaded_map import *
 from .flymaster_data import *

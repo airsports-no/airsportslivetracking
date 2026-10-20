@@ -88,7 +88,27 @@ class ContestTokenAssignmentInline(admin.TabularInline):
     extra = 0
 
 
+class ContestAdminForm(forms.ModelForm):
+    class Meta:
+        model = Contest
+        fields = "__all__"
+
+    def clean_is_public(self):
+        is_public = self.cleaned_data.get("is_public")
+        if self.instance.pk and self.instance.is_public and not is_public:
+            from rest_framework.exceptions import ValidationError as DrfValidationError
+
+            from display.services.series import assert_contest_can_be_private
+
+            try:
+                assert_contest_can_be_private(self.instance)
+            except DrfValidationError as exc:
+                raise forms.ValidationError(exc.detail)
+        return is_public
+
+
 class ContestAdmin(GuardedModelAdmin):
+    form = ContestAdminForm
     list_display = (
         "name",
         "organizing_club",

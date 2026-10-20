@@ -84,6 +84,7 @@ from display.services.contest_visibility import (
     can_view_navigation_task,
     is_contest_audience,
 )
+from display.services.series import assert_contest_can_be_private
 from display.services.contestant_persistence import (
     create_contestant_with_related_state,
     update_contestant_with_related_state,
@@ -1046,6 +1047,11 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
         model = Contest
         # Sharing with squadrons goes through the contest's squadrons action, which checks the membership
         exclude = ("shared_with_squadrons",)
+
+    def validate_is_public(self, value):
+        if not value and self.instance is not None:
+            assert_contest_can_be_private(self.instance)
+        return value
 
     def get_permissions_map(self, created):
         user = self.context["request"].user

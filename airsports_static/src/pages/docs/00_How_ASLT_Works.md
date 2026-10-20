@@ -18,6 +18,7 @@ New to Air Sports Live Tracking? This page explains the handful of ideas that ev
 | **Navigation Task** | One flown event inside a contest: a route plus a scoring ruleset (a *scorecard*). A contest usually has several tasks, one per flight. | "Saturday morning: Precision" |
 | **Team** | The people and aeroplane that take part: pilot, optional co-pilot, aircraft registration. A team registers once **per contest**. | "Anna + Ben in LN-ABC" |
 | **Contestant** | One team flying one navigation task, with a start time. This is "a flight". | "Anna + Ben, Saturday morning, start 09:42" |
+| **Series** | A cup or championship: several contests ranked together, where a team's places in the contests are added up. | "Norwegian Cup 2026" |
 | **Squadron** | A group of people (a club, a national team, friends) that you can share private contests with, so you do not have to add them one by one. | "LN national team" |
 
 ## How they fit together
@@ -56,7 +57,10 @@ See the [Contestant Guide](/docs/02_Contestant_Guide) for details.
 5. **Add teams**, either yourself, by import, or by letting pilots register. Then **schedule** start times, or turn on *self-management* so pilots book their own.
 6. **Generate flight orders** and share the contest link.
 
-An optional tool you can ignore on your first contest: if your contest is private and a group of people should see it and fly in it, put them in a [squadron](/docs/13_Squadrons) and share the contest with it.
+Two optional tools you can ignore on your first contest:
+
+- **Squadron:** if your contest is private and a group of people should see it and fly in it, put them in a [squadron](/docs/13_Squadrons) and share the contest with it.
+- **Series:** if several contests together make a cup or championship, rank them in a [series](/docs/14_Series). A single event with several tasks is one contest, not a series.
 
 A good first step is to make a private "Test Competition" with one route, one task and one test team, and walk through it before your real event. The [Contest Manager Guide](/docs/03_Contest_Manager_Guide) and [Route Creation guide](/docs/04_Route_Creation_and_Tasks) cover each step in detail.
 

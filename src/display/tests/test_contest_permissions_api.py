@@ -9,6 +9,7 @@ on: self-removal guard, permission-level mapping, add-by-email and add-by-id.
 import datetime
 
 from django.contrib.auth import get_user_model
+from django.contrib.auth.models import Permission
 from django.test import TestCase
 from rest_framework import status
 from rest_framework.test import APIClient
@@ -28,9 +29,15 @@ def _make_contest(owner, name="Permissions API contest"):
     return contest
 
 
+def _make_organiser(user):
+    """What the ContestCreator group gives: the right to create contests."""
+    user.user_permissions.add(Permission.objects.get(codename="add_contest"))
+    return get_user_model().objects.get(pk=user.pk)
+
+
 class TestContestPermissionsApi(TestCase):
     def setUp(self):
-        self.owner = get_user_model().objects.create_user(email="perm-owner@example.com", password="secret")
+        self.owner = _make_organiser(get_user_model().objects.create_user(email="perm-owner@example.com", password="secret"))
         self.contest = _make_contest(self.owner)
         self.other_user = get_user_model().objects.create_user(email="perm-other@example.com", password="secret")
         self.client = APIClient()
@@ -70,6 +77,7 @@ class TestContestPermissionsApi(TestCase):
         self.assertIn((self.other_user.pk, "view"), ids_and_levels)
 
     def test_add_by_id(self):
+        _make_organiser(self.other_user)
         response = self.client.post(self.list_url, {"identifier": str(self.other_user.pk), "level": "change"}, format="json")
 
         self.assertEqual(response.status_code, status.HTTP_201_CREATED, response.content)
@@ -82,6 +90,7 @@ class TestContestPermissionsApi(TestCase):
         self.assertEqual(response.status_code, status.HTTP_400_BAD_REQUEST)
 
     def test_change_level(self):
+        _make_organiser(self.other_user)
         self.client.post(self.list_url, {"identifier": self.other_user.email, "level": "view"}, format="json")
 
         response = self.client.put(self._detail_url(self.other_user.pk), {"level": "delete"}, format="json")
@@ -144,3 +153,50 @@ class TestContestPermissionsApi(TestCase):
         response = self.client.get(self._detail_url(self.other_user.pk))
 
         self.assertEqual(response.status_code, status.HTTP_405_METHOD_NOT_ALLOWED)
+
+
+class TestContestPermissionRules(TestCase):
+    """Only organisers get more than view, and only somebody who may delete deals in the delete level."""
+
+    def setUp(self):
+        User = get_user_model()
+        self.owner = _make_organiser(User.objects.create_user(email="rules-owner@example.com", password="secret"))
+        self.contest = _make_contest(self.owner, "Rules contest")
+        self.manager = _make_organiser(User.objects.create_user(email="rules-manager@example.com", password="secret"))
+        self.pilot = User.objects.create_user(email="rules-pilot@example.com", password="secret")
+        self.client = APIClient()
+        self.client.force_authenticate(self.owner)
+        self.url = f"/api/v1/contests/{self.contest.pk}/permissions/"
+
+    def grant(self, user, level):
+        return self.client.post(self.url, {"identifier": str(user.pk), "level": level}, format="json")
+
+    def test_somebody_who_is_not_an_organiser_can_only_get_view(self):
+        self.assertEqual(self.grant(self.pilot, "view").status_code, status.HTTP_201_CREATED)
+        for level in ("change", "delete"):
+            result = self.grant(self.pilot, level)
+            self.assertEqual(result.status_code, status.HTTP_400_BAD_REQUEST, level)
+        changed = self.client.put(f"{self.url}{self.pilot.pk}/", {"level": "change"}, format="json")
+        self.assertEqual(changed.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertFalse(get_user_model().objects.get(pk=self.pilot.pk).has_perm("display.change_contest", self.contest))
+
+    def test_change_cannot_give_delete(self):
+        self.grant(self.manager, "change")
+        self.client.force_authenticate(self.manager)
+        third = _make_organiser(get_user_model().objects.create_user(email="rules-third@example.com", password="secret"))
+        self.assertEqual(self.grant(third, "delete").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.grant(third, "change").status_code, status.HTTP_201_CREATED)
+
+    def test_change_cannot_touch_somebody_who_has_delete(self):
+        self.grant(self.manager, "change")
+        self.client.force_authenticate(self.manager)
+        lowered = self.client.put(f"{self.url}{self.owner.pk}/", {"level": "view"}, format="json")
+        self.assertEqual(lowered.status_code, status.HTTP_403_FORBIDDEN)
+        removed = self.client.delete(f"{self.url}{self.owner.pk}/")
+        self.assertEqual(removed.status_code, status.HTTP_403_FORBIDDEN)
+        self.assertTrue(self.owner.has_perm("display.delete_contest", self.contest))
+
+    def test_delete_can_give_and_take_delete(self):
+        self.assertEqual(self.grant(self.manager, "delete").status_code, status.HTTP_201_CREATED)
+        self.client.force_authenticate(self.manager)
+        self.assertEqual(self.client.delete(f"{self.url}{self.owner.pk}/").status_code, status.HTTP_204_NO_CONTENT)

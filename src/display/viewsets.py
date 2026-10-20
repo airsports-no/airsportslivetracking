@@ -195,6 +195,7 @@ from display.services.capacity_enforcement import (
 )
 from display.services.contest_visibility import visible_contests, visible_navigation_tasks_q
 from display.viewsets_squadrons import ContestSquadronsMixin
+from display.services.series import assert_contest_can_be_private
 from display.services.contest_permissions import (
     list_contest_permission_grants,
     remove_contest_permission_grant,
@@ -1208,6 +1209,7 @@ class ContestViewSet(ContestSquadronsMixin, ModelViewSet):
         if serialiser.validated_data["visibility"] == serialiser.PUBLIC:
             contest.make_public()
         elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
+            assert_contest_can_be_private(contest)
             contest.make_private()
         return Response(serialiser.data, status=status.HTTP_200_OK)
 

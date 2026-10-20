@@ -17,6 +17,7 @@ class ContestFilter(filters.FilterSet):
     finish_time__gte = filters.DateTimeFilter(field_name="finish_time", lookup_expr="gte")
 
     is_featured = filters.BooleanFilter(field_name="is_featured")
+    search = filters.CharFilter(field_name="name", lookup_expr="icontains")
     is_editor = filters.BooleanFilter(method="filter_is_editor")
     public_only = filters.BooleanFilter(method="filter_public_only")
     shared_only = filters.BooleanFilter(method="filter_shared_only")
@@ -66,6 +67,7 @@ class ContestFilter(filters.FilterSet):
             "start_time__lte", 
             "finish_time__gte", 
             "is_featured",
+            "search",
             "is_editor",
             "public_only",
             "shared_only"
