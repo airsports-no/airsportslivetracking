@@ -18,9 +18,8 @@ To host a contest, you need **Organizer** status. This is **automatically approv
 2.  Click **"Create New Contest"**.
 3.  **Name & Location:** Provide a descriptive name and geolocation.
 4.  **Sharing:**
-    *   **Private:** Only visible to the creator.
-    *   **Unlisted:** Accessible via a direct link.
-    *   **Public:** Publicly listed.
+    *   **Private:** Only visible to people you give access, one by one or as a group through a squadron.
+    *   **Public:** Visible to everybody and listed.
 ---
 
 ## 2. Creating Navigation Tasks

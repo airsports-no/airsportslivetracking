@@ -71,7 +71,11 @@ const ContestSeriesPanel: React.FC<Props> = ({ contestId }) => {
             <div className="card bg-base-200 shadow-sm border border-base-300">
                 <div className="card-body p-5 space-y-2">
                     <h3 className="card-title text-lg">Series</h3>
-                    <p className="text-sm opacity-70">A series ranks the teams of several contests together. This contest can be one of its legs.</p>
+                    <p className="text-sm opacity-70">
+                        A series is a cup or championship held as several separate contests. It adds up how each team did in all of them and shows
+                        one table. Make this contest a leg of a series if it is one event of such a cup; it stays a contest of its own. If you
+                        manage the series the contest joins at once, otherwise the managers of the series get a request and decide.
+                    </p>
                     {error && <div className="alert alert-error text-sm py-2">{error}</div>}
                     {memberOf?.map(series => (
                         <div key={series.id} className="flex items-center justify-between gap-2 bg-base-100 rounded-lg p-3 text-sm">
@@ -81,11 +85,11 @@ const ContestSeriesPanel: React.FC<Props> = ({ contestId }) => {
                             </button>
                         </div>
                     ))}
-                    {memberOf?.length === 0 && <p className="text-sm opacity-70">Not part of any series.</p>}
+                    {memberOf?.length === 0 && <p className="text-sm opacity-70">Not part of any series. A single event does not need one.</p>}
                     {available.length > 0 && (
                         <div className="flex gap-2 pt-1">
                             <select className="select select-bordered select-sm flex-1" value={choice} onChange={e => setChoice(e.target.value)}>
-                                <option value="">Ask to join a series…</option>
+                                <option value="">Choose a series to join…</option>
                                 {available.map(series => (
                                     <option key={series.id} value={series.id}>{series.name}</option>
                                 ))}

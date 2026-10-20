@@ -166,8 +166,9 @@ const SeriesPage: React.FC = () => {
                         <div className="card-body p-5 space-y-2">
                             <h2 className="card-title text-lg">Legs</h2>
                             <p className="text-sm opacity-70">
-                                Each leg is a contest you manage. {series.is_public ? 'A public series can only contain public contests.' : ''} Legs are shown in the order of their number;
-                                the weight multiplies the points of the leg.
+                                Each leg is one event of the cup, a contest of its own. {series.is_public ? 'A public series can only contain public contests. ' : ''}
+                                Legs are shown in the order of their number. The weight says how much a leg counts: 2 makes the places in that leg count double.
+                                Taking a contest out of the series does not change the contest.
                             </p>
                             {series.legs.length === 0 && <p className="text-sm opacity-70">No contest is a leg of the series yet.</p>}
                             {series.legs.map(leg => (
@@ -202,7 +203,7 @@ const SeriesPage: React.FC = () => {
                             {addable.length > 0 ? (
                                 <div className="flex gap-2 pt-1">
                                     <select className="select select-bordered select-sm flex-1" value={contestChoice} onChange={e => setContestChoice(e.target.value)}>
-                                        <option value="">Add a contest you manage…</option>
+                                        <option value="">Add one of your contests as a leg…</option>
                                         {addable.map(contest => (
                                             <option key={contest.id} value={contest.id}>{contest.name}</option>
                                         ))}
@@ -222,8 +223,11 @@ const SeriesPage: React.FC = () => {
                                 <p className="text-xs opacity-60">{series.is_public ? 'Only public contests you manage can be added.' : 'Only contests you manage can be added.'}</p>
                             )}
                             <div className="pt-2 space-y-1">
-                                <div className="text-sm font-semibold">Invite somebody else's contest</div>
-                                <p className="text-xs opacity-70">The people who manage the contest get a request and decide whether it becomes a leg.</p>
+                                <div className="text-sm font-semibold">Invite a contest run by somebody else</div>
+                                <p className="text-xs opacity-70">
+                                    Search for the contest by name. The people who manage it get a request and decide whether it becomes a leg; you can
+                                    cancel the request until they answer.
+                                </p>
                                 <ContestSearch
                                     disabled={busy}
                                     onPick={contest =>
@@ -247,31 +251,31 @@ const SeriesPage: React.FC = () => {
                                 <label className="form-control">
                                     <span className="label-text">Scoring</span>
                                     <select className="select select-bordered select-sm" value={scoring} onChange={e => setScoring(e.target.value as ScoringMethod)}>
-                                        <option value="placements">Add up the places, lowest wins</option>
-                                        <option value="points_table">Points for each place, highest wins</option>
+                                        <option value="placements">Add up the places, lowest total wins</option>
+                                        <option value="points_table">Points for each place, highest total wins</option>
                                     </select>
                                 </label>
                                 <label className="form-control">
-                                    <span className="label-text">Who is ranked</span>
+                                    <span className="label-text">Who is ranked (the same pilot, or the same crew, in every leg)</span>
                                     <select className="select select-bordered select-sm" value={identity} onChange={e => setIdentity(e.target.value as EntrantIdentity)}>
                                         <option value="pilot">The pilot</option>
                                         <option value="crew">The crew (same pilot and navigator)</option>
                                     </select>
                                 </label>
                                 <label className="form-control">
-                                    <span className="label-text">Only the best … legs count (empty: all)</span>
+                                    <span className="label-text">Only the best … legs count (empty: all legs count). Use it for a season where a bad day may be dropped.</span>
                                     <input className="input input-bordered input-sm" type="number" min={1} value={bestCounted} onChange={e => setBestCounted(e.target.value)} />
                                 </label>
                                 {scoring === 'points_table' && (
                                     <label className="form-control">
-                                        <span className="label-text">Points for first, second, third… place</span>
+                                        <span className="label-text">Points for first, second, third… place, separated by commas (nothing is given beyond the end of the list)</span>
                                         <input className="input input-bordered input-sm" value={table} onChange={e => setTable(e.target.value)} />
                                     </label>
                                 )}
                             </div>
                             <label className="label cursor-pointer justify-start gap-3">
                                 <input type="checkbox" className="checkbox checkbox-sm" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />
-                                <span className="label-text">Public: visible to everybody, and every leg must be a public contest</span>
+                                <span className="label-text">Public: listed for everybody. Every leg must then be a public contest, and a leg cannot be made private. Private: only you can see the series.</span>
                             </label>
                             <div className="card-actions justify-between">
                                 <button
