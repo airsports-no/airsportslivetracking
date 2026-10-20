@@ -627,6 +627,12 @@ class TestContestManagersSeeTheirSeries(SeriesApiTestBase):
         self.login(self.organiser)
         self.assertEqual(self.client.get(self.url).status_code, status.HTTP_404_NOT_FOUND)
 
+    def test_a_series_is_listed_once_however_many_of_its_contests_the_user_manages(self):
+        from display.services.series import visible_series
+
+        SeriesContest.objects.create(series=self.series, contest=self.public_contest)
+        self.assertEqual(list(visible_series(self.organiser).filter(pk=self.series.pk)), [self.series])
+
     def test_somebody_who_only_views_the_contest_does_not_see_the_series(self):
         assign_perm("view_contest", self.pilot, self.private_contest)
         self.login(self.pilot)

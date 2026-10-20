@@ -38,7 +38,8 @@ def visible_series(user: MyUser):
     if user is None or not user.is_authenticated:
         return Series.objects.filter(is_public=True)
     granted = get_objects_for_user(user, "display.view_series", klass=Series, accept_global_perms=False)
-    return Series.objects.filter(is_public=True) | granted | series_of_managed_contests(user)
+    # A user who manages several contests of a series would otherwise get it once for each
+    return (Series.objects.filter(is_public=True) | granted | series_of_managed_contests(user)).distinct()
 
 
 def series_of_managed_contests(user: MyUser):
