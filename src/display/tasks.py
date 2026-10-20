@@ -355,6 +355,25 @@ def send_squadron_invitation_email_task(invitation_pk: int):
 
 
 @app.task
+def send_manager_notification_task(contestant_pk: int, kind: str):
+    from display.services.manager_notifications import send_manager_notification
+
+    contestant = (
+        Contestant.objects.select_related(
+            "navigation_task__contest", "team__crew__member1", "team__crew__member2", "team__aeroplane", "contestanttrack"
+        )
+        .filter(pk=contestant_pk)
+        .first()
+    )
+    if contestant is None:
+        return
+    try:
+        send_manager_notification(contestant, kind)
+    except Exception:
+        logger.exception(f"Failed sending the {kind} notification to the managers for contestant {contestant_pk}")
+
+
+@app.task
 def delete_old_flight_orders():
     EmailMapLink.objects.filter(
         contestant__finished_by_time__lt=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(days=5)

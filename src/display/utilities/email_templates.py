@@ -118,6 +118,41 @@ on the Squadrons page, where you can accept or decline it. You are not in the sq
 {{{{ inviter }}}} or do not want this, just ignore the e-mail.</p>
 """
 
+CONTESTANT_STARTED_EMAIL = f"""
+<h1 style="margin:0 0 12px;font-size:22px;color:#2b2f77;">{{{{ contestant }}}} has started {{{{ task }}}}</h1>
+
+<p><strong>{{{{ contestant }}}}</strong>{{% if aircraft %}} in {{{{ aircraft }}}}{{% endif %}} has started <strong>{{{{ task }}}}</strong> in
+<strong>{{{{ contest }}}}</strong>. Their flight is being tracked and scored now.</p>
+
+<div {_STEP}>Starting point time: <strong>{{{{ start_time }}}}</strong><br>
+Tracking window ends: <strong>{{{{ finish_time }}}}</strong></div>
+
+<p style="margin:22px 0;"><a href="{{{{ url }}}}" style="padding:10px 18px;background:#4f55c7;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;">Follow the flight</a></p>
+
+<div {_NOTE}>You get this e-mail because you manage the contest and the task is set to notify its managers when a contestant
+starts. Turn it off under <em>Update task details</em> on the task.</div>
+"""
+
+CONTESTANT_FINISHED_EMAIL = f"""
+<h1 style="margin:0 0 12px;font-size:22px;color:#2b2f77;">{{{{ contestant }}}} has finished {{{{ task }}}}</h1>
+
+<p><strong>{{{{ contestant }}}}</strong>{{% if aircraft %}} in {{{{ aircraft }}}}{{% endif %}} has finished <strong>{{{{ task }}}}</strong> in
+<strong>{{{{ contest }}}}</strong>.
+{{% if crossed_finish %}}They crossed the finish line.{{% else %}}Their tracking ended without a finish line crossing: the tracking
+window ran out or the flight was stopped.{{% endif %}}</p>
+
+<div {_STEP}>Score: <strong>{{{{ score }}}}</strong><br>
+State: {{{{ state }}}}</div>
+
+<p>The score is the one calculated from the track. Scores added by hand in the results service, or a recalculation, can still
+change it.</p>
+
+<p style="margin:22px 0;"><a href="{{{{ url }}}}" style="padding:10px 18px;background:#4f55c7;color:#ffffff;border-radius:6px;text-decoration:none;font-weight:bold;">See the task</a></p>
+
+<div {_NOTE}>You get this e-mail because you manage the contest and the task is set to notify its managers when a contestant
+finishes. Turn it off under <em>Update task details</em> on the task.</div>
+"""
+
 FLIGHT_ORDER_EMAIL = f"""
 <h1 style="margin:0 0 12px;font-size:22px;color:#2b2f77;">Your flight orders for {{{{ task }}}}</h1>
 

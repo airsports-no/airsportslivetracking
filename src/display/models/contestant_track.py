@@ -165,6 +165,7 @@ class ContestantTrack(models.Model):
         self.calculator_finished = True
         self.current_state = "Finished"
         self.__push_change()
+        self.__notify_managers("finished")
 
     def set_calculator_started(self):
         from django.db import transaction
@@ -217,6 +218,13 @@ class ContestantTrack(models.Model):
                     },
                 )
         self.__push_change()
+        self.__notify_managers("started")
+
+    def __notify_managers(self, kind: str):
+        """The e-mail to the contest managers a task can ask for (display/services/manager_notifications.py)."""
+        from display.services.manager_notifications import queue_manager_notification
+
+        queue_manager_notification(self.contestant, kind)
 
     def set_passed_starting_gate(self):
         if not self.passed_starting_gate:

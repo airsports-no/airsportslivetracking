@@ -162,6 +162,16 @@ class NavigationTask(models.Model):
         default=False,
         help_text="If checked, authenticated users will be allowed to set up themselves as a contestant after having registered for the contest.",
     )
+    notify_managers_on_start = models.BooleanField(
+        default=False,
+        help_text="If checked, everybody who manages the contest gets an e-mail when a contestant starts the task (when scoring of "
+        "their flight starts). Useful for a cup where contestants fly the task on their own at different times.",
+    )
+    notify_managers_on_finish = models.BooleanField(
+        default=False,
+        help_text="If checked, everybody who manages the contest gets an e-mail with the score when a contestant has finished the "
+        "task: crossed the finish line, or their tracking window ended.",
+    )
     simulator_policy = models.CharField(
         max_length=20,
         choices=SIMULATOR_POLICY_CHOICES,
