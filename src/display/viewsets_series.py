@@ -11,8 +11,15 @@ from rest_framework.decorators import action
 from rest_framework.response import Response
 from rest_framework.viewsets import GenericViewSet
 
-from display.models import Contest, Series, SeriesContest, SeriesContestRequest
+from display.models import Contest, MyUser, Series, SeriesContest, SeriesContestRequest
+from display.serialisers import ContestPermissionGrantCreateSerialiser
 from display.services import series as series_rules
+from display.services.people_search import user_identities
+from display.services.series_permissions import (
+    list_series_permission_grants,
+    remove_series_permission_grant,
+    set_series_permission_level,
+)
 from display.services.series_standings import series_standings
 
 
@@ -32,6 +39,7 @@ class SeriesLegSerialiser(serializers.Serializer):
 
 class SeriesSerialiser(serializers.ModelSerializer):
     can_manage = serializers.SerializerMethodField()
+    can_delete = serializers.SerializerMethodField()
     leg_count = serializers.SerializerMethodField()
 
     class Meta:
@@ -47,12 +55,17 @@ class SeriesSerialiser(serializers.ModelSerializer):
             "points_table",
             "created_at",
             "can_manage",
+            "can_delete",
             "leg_count",
         )
-        read_only_fields = ("id", "created_at", "can_manage", "leg_count")
+        read_only_fields = ("id", "created_at", "can_manage", "can_delete", "leg_count")
 
     def get_can_manage(self, series) -> bool:
         return series_rules.can_manage(self.context["request"].user, series)
+
+    def get_can_delete(self, series) -> bool:
+        user = self.context["request"].user
+        return bool(user and user.is_authenticated and user.has_perm("display.delete_series", series))
 
     def get_leg_count(self, series) -> int:
         return series.seriescontest_set.count()
@@ -143,7 +156,7 @@ class SeriesViewSet(
     """The series the user can see: the public ones, and the ones they manage."""
 
     serializer_class = SeriesSerialiser
-    http_method_names = ["get", "post", "patch", "delete"]
+    http_method_names = ["get", "post", "put", "patch", "delete"]
     pagination_class = None
 
     def get_permissions(self):
@@ -186,6 +199,10 @@ class SeriesViewSet(
         series = series_rules.update_series(series, request.user, **serialiser.validated_data)
         return Response(SeriesSerialiser(series, context={"request": request}).data)
 
+    def update(self, request, *args, **kwargs):
+        # PUT is only allowed for the permissions routes; the series itself is changed with PATCH, through the rules
+        return self.partial_update(request, *args, **kwargs)
+
     def perform_destroy(self, instance):
         series_rules.delete_series(instance, self.request.user)
 
@@ -198,6 +215,39 @@ class SeriesViewSet(
         else:
             response["Cache-Control"] = "private, no-cache"
         return response
+
+    def _grant(self, user: MyUser, level: str) -> dict:
+        return {"user_id": user.pk, **user_identities([user])[user.pk], "level": level}
+
+    @extend_schema(request=ContestPermissionGrantCreateSerialiser, responses={200: None, 201: None})
+    @action(detail=True, methods=["get", "post"], url_path="permissions")
+    def permission_grants(self, request, *args, **kwargs):
+        """Who may see (view), run (change) or delete (delete) the series; those who run it can change that."""
+        series = self.get_object()
+        series_rules.require_manager(request.user, series)
+        if request.method == "GET":
+            return Response(list_series_permission_grants(series))
+        serialiser = ContestPermissionGrantCreateSerialiser(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        target_user = serialiser.context["target_user"]
+        level = serialiser.validated_data["level"]
+        set_series_permission_level(series, target_user, level, request.user)
+        return Response(self._grant(target_user, level), status=status.HTTP_201_CREATED)
+
+    @extend_schema(request=ContestPermissionGrantCreateSerialiser, responses={200: None, 204: None})
+    @action(detail=True, methods=["put", "delete"], url_path=r"permissions/(?P<user_pk>\d+)")
+    def permission_detail(self, request, user_pk=None, *args, **kwargs):
+        series = self.get_object()
+        series_rules.require_manager(request.user, series)
+        target_user = get_object_or_404(MyUser, pk=user_pk)
+        if request.method == "DELETE":
+            remove_series_permission_grant(series, target_user, request.user)
+            return Response(status=status.HTTP_204_NO_CONTENT)
+        serialiser = ContestPermissionGrantCreateSerialiser(data={**request.data, "identifier": str(user_pk)})
+        serialiser.is_valid(raise_exception=True)
+        level = serialiser.validated_data["level"]
+        set_series_permission_level(series, target_user, level, request.user)
+        return Response(self._grant(target_user, level))
 
     @extend_schema(responses={200: None})
     @action(detail=True, methods=["get"])

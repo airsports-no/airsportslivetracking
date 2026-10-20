@@ -43,7 +43,7 @@ People are recognized by their ASLT profile, so a pilot who is registered with t
 ### 1. Create the series
 
 1. Log in as an organizer and open **Series** in the navigation bar.
-2. Under *Start a series* enter the name and press **Create**. You manage the series.
+2. Under *Start a series* enter the name and press **Create**. You manage the series. Add co-organizers under **Permissions** on the series page.
 3. Open it and choose the settings: how to score, who is ranked, whether only the best legs count, and whether the series is **public**.
 
 ### 2. Add the contests
@@ -62,10 +62,22 @@ The **leg number** sets the order of the legs in the table, and the **weight** h
 
 The standings are worked out from the results of the contests whenever somebody opens the series, so they are always up to date; there is nothing to publish. A team appears when it is registered in at least one leg. The table can be downloaded as CSV.
 
+## Who can do what
+
+Access to a series works as for a contest. Open the series and use **Permissions** (shown to those who can manage it) to add people and choose a level for each:
+
+| Level | Can do |
+| :--- | :--- |
+| **View** | See a private series and its standings. Nothing else. (Everybody can see a public series.) |
+| **Manage** | Everything in *View*, plus change the settings, add and remove contests, answer requests, and **give others access, change their level or remove them**, at any level. |
+| **Manage & delete** | Everything in *Manage*, plus delete the series. |
+
+The person who creates a series has *Manage & delete*. You cannot remove yourself or lower your own level below *Manage*, so a series is never left without somebody who manages it. Contest managers can always take their own contest out of a series.
+
 ## Visibility
 
 - A **public** series is visible to everybody, and **every leg must be a public contest**. Make the contests public first; a contest that is in a public series cannot be made private until it leaves the series.
-- A **private** series is visible only to the person who manages it. It can contain private and public contests; use it to keep track of a cup before you publish it.
+- A **private** series is visible only to the people you give access to (see below). It can contain private and public contests; use it to keep track of a cup before you publish it.
 
 ## Good to know
 
@@ -80,4 +92,4 @@ The standings are worked out from the results of the contests whenever somebody 
 
 **The ranking does not match my own sums.** Check the settings for scoring method, weights and *best N legs counted*; they are listed under the title of the series. Countback (more firsts) separates equal totals.
 
-**Who can change the series?** The person who created it. Contest managers can always take their own contest out of a series.
+**Who can change the series?** Whoever has *Manage* or *Manage & delete* in the series permissions; the creator to begin with.

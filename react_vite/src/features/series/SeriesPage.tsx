@@ -5,6 +5,7 @@ import { generatePath, reverse } from '../../urls';
 import { Loading } from '../route-editor/components/basicComponents';
 import ContestSearch from './ContestSearch';
 import SeriesRequests from './SeriesRequests';
+import SeriesPermissions from './SeriesPermissions';
 import StandingsTable from './StandingsTable';
 import {
     AddableContest,
@@ -278,7 +279,7 @@ const SeriesPage: React.FC = () => {
                                 <span className="label-text">Public: listed for everybody. Every leg must then be a public contest, and a leg cannot be made private. Private: only you can see the series.</span>
                             </label>
                             <div className="card-actions justify-between">
-                                <button
+                                {series.can_delete ? <button
                                     type="button"
                                     className="btn btn-outline btn-error btn-sm gap-1"
                                     disabled={busy}
@@ -295,11 +296,12 @@ const SeriesPage: React.FC = () => {
                                     }}
                                 >
                                     <Trash2 size={14} /> Delete series
-                                </button>
+                                </button> : <span />}
                                 <button className="btn btn-primary btn-sm" type="submit" disabled={busy || !name.trim()}>Save</button>
                             </div>
                         </div>
                     </form>
+                    <SeriesPermissions seriesId={id} />
                 </>
             )}
         </div>

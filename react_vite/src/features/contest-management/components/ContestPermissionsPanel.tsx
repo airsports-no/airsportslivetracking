@@ -10,6 +10,9 @@ interface Props {
     onAdd: (identifier: string, level: string) => Promise<void>;
     onChange: (userId: number, level: string) => Promise<void>;
     onRemove: (userId: number) => Promise<void>;
+    /** Wording for something other than a contest, such as a series */
+    description?: React.ReactNode;
+    levelLabels?: Partial<Record<(typeof LEVELS)[number], string>>;
 }
 
 const LEVELS = ['nothing', 'view', 'change', 'delete'] as const;
@@ -23,7 +26,8 @@ const LEVEL_LABELS: Record<(typeof LEVELS)[number], string> = {
 };
 
 // Modeled on ManagedClubPanel.tsx - the closest existing analogue for "who can manage this thing".
-const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, loading, onAdd, onChange, onRemove }) => {
+const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, loading, onAdd, onChange, onRemove, description, levelLabels }) => {
+    const labels = { ...LEVEL_LABELS, ...levelLabels };
     const [person, setPerson] = React.useState<PersonOption | null>(null);
     const [level, setLevel] = React.useState<string>('view');
     const [busy, setBusy] = React.useState(false);
@@ -73,7 +77,7 @@ const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, loadi
             <div className="card-body p-5">
                 <h3 className="card-title text-lg">Permissions</h3>
                 <p className="text-sm opacity-70">
-                    "View &amp; take part" lets a pilot see a private contest and its private tasks and register for them. Organisers need "manage".
+                    {description ?? <>"View &amp; take part" lets a pilot see a private contest and its private tasks and register for them. Organisers need "manage".</>}
                 </p>
                 {error && <div className="alert alert-error text-sm py-2">{error}</div>}
                 {loading ? (
@@ -97,7 +101,7 @@ const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, loadi
                                         onChange={e => change(grant.user_id, e.target.value)}
                                     >
                                         {LEVELS.map(l => (
-                                            <option key={l} value={l}>{LEVEL_LABELS[l]}</option>
+                                            <option key={l} value={l}>{labels[l]}</option>
                                         ))}
                                     </select>
                                     <button
@@ -124,7 +128,7 @@ const ContestPermissionsPanel: React.FC<Props> = ({ grants, currentUserId, loadi
                     </div>
                     <select className="select select-bordered select-sm" value={level} onChange={e => setLevel(e.target.value)}>
                         {LEVELS.filter(l => l !== 'nothing').map(l => (
-                            <option key={l} value={l}>{LEVEL_LABELS[l]}</option>
+                            <option key={l} value={l}>{labels[l]}</option>
                         ))}
                     </select>
                     <button className="btn btn-primary btn-sm" disabled={busy || !person} onClick={add}>

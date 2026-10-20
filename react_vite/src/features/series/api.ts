@@ -15,6 +15,7 @@ export interface Series {
     points_table: number[];
     created_at: string;
     can_manage: boolean;
+    can_delete: boolean;
     leg_count: number;
 }
 
@@ -190,3 +191,24 @@ export const updateLeg = (seriesId: number, contestId: number, change: { leg_num
 
 export const removeContestFromSeries = (seriesId: number, contestId: number) =>
     request<void>(reverse('series-contest', seriesId, contestId), send('DELETE'));
+
+export interface SeriesPermissionGrant {
+    user_id: number;
+    name: string;
+    /** Heavily masked e-mail address; the real one is never sent */
+    email_hint: string;
+    level: 'nothing' | 'view' | 'change' | 'delete';
+}
+
+const permissionsUrl = (seriesId: number) => reverse('series-permission-grants', seriesId);
+
+export const fetchSeriesPermissions = (seriesId: number) => request<SeriesPermissionGrant[]>(permissionsUrl(seriesId));
+
+export const addSeriesPermission = (seriesId: number, identifier: string, level: string) =>
+    request<SeriesPermissionGrant>(permissionsUrl(seriesId), send('POST', { identifier, level }));
+
+export const changeSeriesPermission = (seriesId: number, userId: number, level: string) =>
+    request<SeriesPermissionGrant>(`${permissionsUrl(seriesId)}${userId}/`, send('PUT', { level }));
+
+export const removeSeriesPermission = (seriesId: number, userId: number) =>
+    request<void>(`${permissionsUrl(seriesId)}${userId}/`, send('DELETE'));

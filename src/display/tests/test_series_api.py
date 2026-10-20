@@ -410,3 +410,78 @@ class TestStandingsCachingAndCsv(SeriesApiTestBase):
     def test_the_csv_of_a_private_series_is_not_for_everybody(self):
         private = Series.objects.create(name="Private cup")
         self.assertEqual(self.client.get(f"/api/v1/series/{private.pk}/standings-csv/").status_code, 404)
+
+
+class TestSeriesPermissions(SeriesApiTestBase):
+    """View, change and delete work as for a contest: those who may change the series decide who else may."""
+
+    def setUp(self):
+        super().setUp()
+        self.login(self.organiser)
+        self.series_id = self.create().json()["id"]
+        self.series = Series.objects.get(pk=self.series_id)
+        self.url = f"/api/v1/series/{self.series_id}/permissions/"
+
+    def grant(self, user, level):
+        return self.client.post(self.url, {"identifier": str(user.pk), "level": level}, format="json")
+
+    def test_the_creator_has_delete_level(self):
+        grants = self.client.get(self.url).json()
+        self.assertEqual([(grant["user_id"], grant["level"]) for grant in grants], [(self.organiser.pk, "delete")])
+        self.assertTrue(self.client.get(f"/api/v1/series/{self.series_id}/").json()["can_delete"])
+
+    def test_view_lets_somebody_see_a_private_series_and_nothing_more(self):
+        self.assertEqual(self.grant(self.pilot, "view").status_code, status.HTTP_201_CREATED)
+        self.login(self.pilot)
+        detail = self.client.get(f"/api/v1/series/{self.series_id}/")
+        self.assertEqual(detail.status_code, status.HTTP_200_OK)
+        self.assertFalse(detail.json()["can_manage"])
+        self.assertFalse(detail.json()["can_delete"])
+        self.assertEqual(self.client.get(f"/api/v1/series/{self.series_id}/standings/").status_code, status.HTTP_200_OK)
+        self.assertEqual(self.client.patch(f"/api/v1/series/{self.series_id}/", {"name": "Mine"}, format="json").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.put(f"/api/v1/series/{self.series_id}/", {"name": "Mine"}, format="json").status_code, status.HTTP_403_FORBIDDEN)
+        self.assertEqual(self.client.delete(f"/api/v1/series/{self.series_id}/").status_code, status.HTTP_403_FORBIDDEN)
+
+    def test_somebody_without_a_grant_does_not_see_a_private_series(self):
+        self.login(self.pilot)
+        self.assertEqual(self.client.get(f"/api/v1/series/{self.series_id}/").status_code, status.HTTP_404_NOT_FOUND)
+        self.assertEqual(self.client.get(self.url).status_code, status.HTTP_404_NOT_FOUND)
+
+    def test_change_runs_the_series_and_gives_others_access(self):
+        self.grant(self.other, "change")
+        self.login(self.other)
+        self.assertEqual(self.client.patch(f"/api/v1/series/{self.series_id}/", {"name": "Renamed"}, format="json").status_code, status.HTTP_200_OK)
+        self.assertEqual(self.grant(self.pilot, "view").status_code, status.HTTP_201_CREATED)
+        levels = {grant["user_id"]: grant["level"] for grant in self.client.get(self.url).json()}
+        self.assertEqual(levels[self.pilot.pk], "view")
+        changed = self.client.put(f"{self.url}{self.pilot.pk}/", {"level": "change"}, format="json")
+        self.assertEqual(changed.status_code, status.HTTP_200_OK)
+        self.assertTrue(self.pilot.has_perm("display.change_series", self.series))
+        self.assertEqual(self.client.delete(f"{self.url}{self.pilot.pk}/").status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(get_user_model().objects.get(pk=self.pilot.pk).has_perm("display.view_series", self.series))
+
+    def test_change_cannot_delete_the_series_but_delete_can(self):
+        self.grant(self.other, "change")
+        self.login(self.other)
+        self.assertFalse(self.client.get(f"/api/v1/series/{self.series_id}/").json()["can_delete"])
+        self.assertEqual(self.client.delete(f"/api/v1/series/{self.series_id}/").status_code, status.HTTP_403_FORBIDDEN)
+        self.login(self.organiser)
+        self.grant(self.other, "delete")
+        self.login(self.other)
+        self.assertEqual(self.client.delete(f"/api/v1/series/{self.series_id}/").status_code, status.HTTP_204_NO_CONTENT)
+        self.assertFalse(Series.objects.filter(pk=self.series_id).exists())
+
+    def test_a_manager_cannot_lock_themselves_out(self):
+        self.assertEqual(self.client.delete(f"{self.url}{self.organiser.pk}/").status_code, status.HTTP_400_BAD_REQUEST)
+        lowered = self.client.put(f"{self.url}{self.organiser.pk}/", {"level": "view"}, format="json")
+        self.assertEqual(lowered.status_code, status.HTTP_400_BAD_REQUEST)
+        self.assertTrue(self.organiser.has_perm("display.change_series", self.series))
+
+    def test_a_co_manager_can_add_a_leg_and_answer_requests(self):
+        self.grant(self.other, "change")
+        manage(self.other, self.public_contest)
+        self.login(self.other)
+        result = self.client.post(f"/api/v1/series/{self.series_id}/contests/", {"contest": self.public_contest.pk}, format="json")
+        self.assertEqual(result.status_code, status.HTTP_201_CREATED, result.content)
+        self.assertTrue(SeriesContest.objects.filter(series=self.series, contest=self.public_contest).exists())

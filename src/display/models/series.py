@@ -32,7 +32,7 @@ class Series(models.Model):
     description = models.TextField(blank=True, default="")
     is_public = models.BooleanField(
         default=False,
-        help_text="A public series is visible to everybody and can only contain public contests. A private series is only visible to the people who manage it.",
+        help_text="A public series is visible to everybody and can only contain public contests. A private series is only visible to the people who have been given access to it.",
     )
     scoring_method = models.CharField(max_length=20, choices=SCORING_METHODS, default=PLACEMENTS)
     entrant_identity = models.CharField(
