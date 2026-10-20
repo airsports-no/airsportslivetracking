@@ -60,7 +60,7 @@ The **leg number** sets the order of the legs in the table, and the **weight** h
 
 ### 3. Follow the standings
 
-The standings are worked out from the results of the contests whenever somebody opens the series, so they are always up to date; there is nothing to publish. A team appears when it is registered in at least one leg. The table can be downloaded as CSV.
+The standings are worked out from the results of the contests when somebody opens the series, so there is nothing to publish. A public series can take up to a minute or so to show a new result, because its standings are cached for everybody; a private series is up to date at once. A team appears when it is registered in at least one leg. The table can be downloaded as CSV.
 
 ## Who can do what
 

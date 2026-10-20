@@ -169,10 +169,14 @@ class SeriesViewSet(
         if self.action == "contest" and self.request.method == "DELETE" and self.request.user.is_authenticated:
             # The managers of a leg can always take it out, also of a private series they cannot otherwise see
             queryset = queryset | series_rules.series_of_managed_contests(self.request.user)
-        queryset = queryset.distinct()
         contest = self.request.query_params.get("contest")
         if contest and contest.isdigit():
+            managed = Contest.objects.filter(pk=int(contest)).first()
+            if managed is not None and series_rules.can_manage_contest(self.request.user, managed):
+                # The managers of a contest see every series it is a leg of, also private ones, so they can always leave
+                queryset = queryset | Series.objects.filter(contests=managed)
             queryset = queryset.filter(contests=int(contest))
+        queryset = queryset.distinct()
         if self.request.query_params.get("managed", "").lower() == "true" and self.request.user.is_authenticated:
             queryset = queryset.filter(pk__in=[s.pk for s in queryset if series_rules.can_manage(self.request.user, s)])
         return queryset

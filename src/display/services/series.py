@@ -184,9 +184,7 @@ def _close(request: SeriesContestRequest, status: str, user: MyUser) -> None:
 def accept_request(request: SeriesContestRequest, user: MyUser) -> SeriesContest:
     """The managers of the other side say yes: the contest becomes a leg."""
     with transaction.atomic():
-        request = (
-            SeriesContestRequest.objects.select_for_update().select_related("series", "contest").get(pk=request.pk)
-        )
+        request = _locked(request)
         if not can_answer(request, user):
             raise PermissionDenied("This request is not open for you to answer.")
         _check_can_join(request.series, request.contest)
@@ -201,16 +199,25 @@ def accept_request(request: SeriesContestRequest, user: MyUser) -> SeriesContest
     return link
 
 
+def _locked(request: SeriesContestRequest) -> SeriesContestRequest:
+    """The request as it is now, locked: a request accepted at the same moment must not be declined or cancelled after."""
+    return SeriesContestRequest.objects.select_for_update().select_related("series", "contest").get(pk=request.pk)
+
+
 def decline_request(request: SeriesContestRequest, user: MyUser) -> None:
-    if not can_answer(request, user):
-        raise PermissionDenied("This request is not open for you to answer.")
-    _close(request, SeriesContestRequest.DECLINED, user)
+    with transaction.atomic():
+        request = _locked(request)
+        if not can_answer(request, user):
+            raise PermissionDenied("This request is not open for you to answer.")
+        _close(request, SeriesContestRequest.DECLINED, user)
 
 
 def cancel_request(request: SeriesContestRequest, user: MyUser) -> None:
-    if not can_cancel(request, user):
-        raise PermissionDenied("Only the side that asked can take the request back.")
-    _close(request, SeriesContestRequest.CANCELLED, user)
+    with transaction.atomic():
+        request = _locked(request)
+        if not can_cancel(request, user):
+            raise PermissionDenied("Only the side that asked can take the request back.")
+        _close(request, SeriesContestRequest.CANCELLED, user)
 
 
 def requests_for(user: MyUser):

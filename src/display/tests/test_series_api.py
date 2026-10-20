@@ -357,6 +357,33 @@ class TestEnrolmentRequests(SeriesApiTestBase):
         self.assertEqual(result.status_code, 204, result.content)
         self.assertFalse(SeriesContest.objects.exists())
 
+    def test_the_contest_panel_lists_a_private_series_the_contest_is_in_so_it_can_leave(self):
+        private_series = Series.objects.create(name="Fed private")
+        SeriesContest.objects.create(series=private_series, contest=self.club_contest)
+        self.login(self.club)
+        found = self.client.get(f"/api/v1/series/?contest={self.club_contest.pk}").json()
+        self.assertEqual([(item["name"], item["can_manage"]) for item in found], [("Fed private", False)])
+        self.login(self.other)
+        self.assertEqual(
+            self.client.get(f"/api/v1/series/?contest={self.club_contest.pk}").json(), [], "not for somebody else"
+        )
+
+    def test_a_request_accepted_at_the_same_time_cannot_be_declined_or_cancelled_after(self):
+        from display.models import SeriesContestRequest
+        from display.services import series as series_rules
+
+        self.login(self.club)
+        request_id = self.enrol(self.club_contest).json()["id"]
+        stale = SeriesContestRequest.objects.get(pk=request_id)
+        series_rules.accept_request(SeriesContestRequest.objects.get(pk=request_id), self.federation)
+        from rest_framework.exceptions import PermissionDenied
+
+        with self.assertRaises(PermissionDenied):
+            series_rules.decline_request(stale, self.federation)
+        with self.assertRaises(PermissionDenied):
+            series_rules.cancel_request(stale, self.club)
+        self.assertEqual(SeriesContestRequest.objects.get(pk=request_id).status, SeriesContestRequest.ACCEPTED)
+
     def test_a_series_is_found_by_its_contest(self):
         SeriesContest.objects.create(series=self.series, contest=self.club_contest)
         Series.objects.create(name="Other cup", is_public=True)
@@ -509,3 +536,24 @@ class TestSeriesPermissions(SeriesApiTestBase):
         self.assertEqual(self.grant(third, "delete").status_code, status.HTTP_201_CREATED)
         self.login(third)
         self.assertEqual(self.client.delete(f"{self.url}{self.organiser.pk}/").status_code, status.HTTP_204_NO_CONTENT)
+
+
+class TestContestAdminKeepsPublicSeriesLegsPublic(SeriesApiTestBase):
+    def form(self, contest, is_public):
+        from django.forms.models import model_to_dict
+
+        from display.admin import ContestAdminForm
+
+        data = {key: value for key, value in model_to_dict(contest).items() if value is not None}
+        data["is_public"] = is_public
+        form = ContestAdminForm(data=data, instance=contest)
+        form.is_valid()
+        return form
+
+    def test_the_admin_cannot_make_a_leg_of_a_public_series_private(self):
+        series = Series.objects.create(name="Open", is_public=True)
+        SeriesContest.objects.create(series=series, contest=self.public_contest)
+        self.assertIn("is_public", self.form(self.public_contest, False).errors)
+
+    def test_the_admin_can_make_another_contest_private(self):
+        self.assertNotIn("is_public", self.form(self.public_contest, False).errors)

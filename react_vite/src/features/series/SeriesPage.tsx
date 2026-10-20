@@ -276,7 +276,7 @@ const SeriesPage: React.FC = () => {
                             </div>
                             <label className="label cursor-pointer justify-start gap-3">
                                 <input type="checkbox" className="checkbox checkbox-sm" checked={isPublic} onChange={e => setIsPublic(e.target.checked)} />
-                                <span className="label-text">Public: listed for everybody. Every leg must then be a public contest, and a leg cannot be made private. Private: only you can see the series.</span>
+                                <span className="label-text">Public: listed for everybody. Every leg must then be a public contest, and a leg cannot be made private. Private: only the people given access under Permissions below can see the series.</span>
                             </label>
                             <div className="card-actions justify-between">
                                 {series.can_delete ? <button
