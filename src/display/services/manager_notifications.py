@@ -18,7 +18,7 @@ from django.db import transaction
 from django.template import Context, Template
 from guardian.shortcuts import get_users_with_perms
 
-from display.models import Contestant
+from display.models import Contestant, NavigationTask
 from display.templatetags.frontend_urls import fe_url
 from display.utilities.email_templates import CONTESTANT_FINISHED_EMAIL, CONTESTANT_STARTED_EMAIL, EMAIL_SIGNATURE
 from display.utilities.welcome_emails import FOOTER, HEADER
@@ -43,8 +43,10 @@ def _now() -> datetime.datetime:
 
 
 def _wanted(contestant: Contestant, kind: str) -> bool:
-    task = contestant.navigation_task
-    return task.notify_managers_on_start if kind == STARTED else task.notify_managers_on_finish
+    # Read from the database: the calculator holds the task as it was when the flight started, and an organiser who
+    # switches a notification on during the day expects it for the flights already under way
+    field = "notify_managers_on_start" if kind == STARTED else "notify_managers_on_finish"
+    return bool(NavigationTask.objects.filter(pk=contestant.navigation_task_id).values_list(field, flat=True).first())
 
 
 def _is_live(contestant: Contestant, kind: str) -> bool:
@@ -102,6 +104,11 @@ def _crew_name(contestant: Contestant) -> str:
     return " and ".join(name for name in names if name) or str(contestant.team)
 
 
+def _format_score(score: float) -> str:
+    """Whole points as they are, decimals (some scorecards have them) to at most two places."""
+    return f"{score:.2f}".rstrip("0").rstrip(".")
+
+
 def _format_time(contestant: Contestant, moment) -> str:
     if moment is None:
         return ""
@@ -125,7 +132,7 @@ def send_manager_notification(contestant: Contestant, kind: str) -> int:
         "start_time": _format_time(contestant, contestant.starting_point_time),
         "finish_time": _format_time(contestant, contestant.finished_by_time),
         "crossed_finish": bool(track and track.passed_finish_gate),
-        "score": f"{track.score:.0f}" if track else "",
+        "score": _format_score(track.score) if track else "",
         "state": track.current_state if track else "",
     }
     if kind == STARTED:
@@ -140,7 +147,12 @@ def send_manager_notification(contestant: Contestant, kind: str) -> int:
     converter = html2text.HTML2Text()
     converter.ignore_images = True
     text = converter.handle(html)
-    # One e-mail per manager, so nobody sees the others' addresses
+    # One e-mail per manager, so nobody sees the others' addresses; one address that fails does not stop the others
+    sent = 0
     for address in addresses:
-        send_mail(subject, text, None, recipient_list=[address], html_message=html)
-    return len(addresses)
+        try:
+            send_mail(subject, text, None, recipient_list=[address], html_message=html)
+            sent += 1
+        except Exception:
+            logger.exception("Failed sending the %s notification for contestant %s to one manager", kind, contestant.pk)
+    return sent

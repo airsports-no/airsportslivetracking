@@ -118,6 +118,14 @@ class TestQueueing(Base):
         self.assertFalse(self.queue(STARTED)[0], "a start after the window is not live")
         self.assertTrue(self.queue(FINISHED)[0])
 
+    def test_switching_it_on_during_the_day_counts_for_flights_already_under_way(self):
+        stale = Contestant.objects.select_related("navigation_task").get(pk=self.contestant.pk)
+        stale.navigation_task  # the calculator holds the task as it was when the flight started
+        self.turn_on(start=False, finish=True)
+        with patch(TASK) as task, self.captureOnCommitCallbacks(execute=True):
+            self.assertTrue(queue_manager_notification(stale, FINISHED))
+        task.assert_called_once()
+
     def test_a_failure_never_reaches_the_calculator(self):
         self.turn_on()
         with patch("display.services.manager_notifications.cache.add", side_effect=RuntimeError("redis down")):
@@ -164,6 +172,26 @@ class TestRecipientsAndMail(Base):
         self.assertEqual(len(mail.outbox), 1)
         self.assertIn("Pi Lot has started Round 1", mail.outbox[0].subject)
         self.assertIn("Follow the flight", mail.outbox[0].alternatives[0][0])
+
+    def test_a_score_with_decimals_keeps_them(self):
+        ContestantTrack.objects.filter(contestant=self.contestant).update(score=87.25)
+        self.contestant.refresh_from_db()
+        manager_notifications.send_manager_notification(self.contestant, FINISHED)
+        self.assertIn(": 87.25", mail.outbox[0].subject)
+
+    def test_one_address_that_fails_does_not_stop_the_others(self):
+        self.make_manager("second@example.com")
+        real_send = manager_notifications.send_mail
+
+        def send(subject, text, sender, recipient_list, html_message):
+            if recipient_list == ["manager@example.com"]:
+                raise OSError("mailbox unavailable")
+            return real_send(subject, text, sender, recipient_list=recipient_list, html_message=html_message)
+
+        with patch("display.services.manager_notifications.send_mail", side_effect=send):
+            sent = manager_notifications.send_manager_notification(self.contestant, STARTED)
+        self.assertEqual(sent, 1)
+        self.assertEqual([message.to for message in mail.outbox], [["second@example.com"]])
 
     def test_nobody_to_tell_sends_nothing(self):
         self.manager.delete()
