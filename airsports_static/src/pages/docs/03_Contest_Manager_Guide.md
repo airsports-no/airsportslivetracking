@@ -22,10 +22,10 @@ To host a contest, you need **Organizer** status. This is **automatically approv
 ### Step 1: Activate Organizer Status
 1.  Log in to your account at `https://app.airsports.no/`.
 2.  In the navigation bar, click the button labeled **"Become an Organizer"**.
-3.  Approval is instantaneous. A new **"Management"** menu will now be visible in your navigation bar.
+3.  Approval is instantaneous. **My contests** and **Route editor** now appear in your navigation bar, and **My maps** in your user menu (your picture or initial at the right).
 
 ### Step 2: Create the Contest
-1.  Access the **Contest Management Dashboard** by selecting **"My contests"** from the Management menu.
+1.  Access the **Contest Management Dashboard** by selecting **"My contests"** in the navigation bar.
 2.  Click **"Create New Contest"**.
 3.  **Name & Location:** Provide a descriptive name and geolocation.
 4.  **Sharing:** a contest is either **Public** or **Private**.

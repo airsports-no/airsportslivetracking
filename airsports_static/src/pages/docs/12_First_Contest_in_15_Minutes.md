@@ -17,7 +17,7 @@ Create an account at **app.airsports.no** and click **Become an Organizer** in t
 
 ## 2. Create the contest (2 minutes)
 
-1. **Management → My contests → Create New Contest.**
+1. **My contests → Create New Contest.**
 2. Fill in a name, the time zone, the start and finish dates and the location (click the map).
 3. Leave the *Advanced* section alone for now and press **Submit**.
 
@@ -25,7 +25,7 @@ You land on the contest page. A **setup checklist** at the top tracks what is le
 
 ## 3. Draw a route (5 minutes)
 
-1. **Management → Route editor → Create new route**, or **Import route** if you already have a file (KML, KMZ, GPX or CSV).
+1. **Route editor → Create new route**, or **Import route** if you already have a file (KML, KMZ, GPX or CSV).
 2. Add the start point, the turning points and the finish. The editor's help button explains each element.
 3. **Save.** A message offers **Create navigation task**. Use it, or skip ahead to step 4.
 

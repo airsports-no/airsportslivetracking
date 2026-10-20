@@ -53,10 +53,10 @@ sees it before you are ready.</p>
 
 <h2 style="margin:22px 0 6px;font-size:16px;color:#2b2f77;">Five steps to your first event</h2>
 
-<div {_STEP}><strong>1. Create the contest.</strong> <em>Management &rarr; My contests &rarr; Create New Contest</em>: name,
+<div {_STEP}><strong>1. Create the contest.</strong> <em>My contests &rarr; Create New Contest</em>: name,
 dates, time zone and location. A <strong>setup checklist</strong> on the contest page then shows what is left.</div>
 
-<div {_STEP}><strong>2. Draw a route.</strong> <em>Management &rarr; Route editor &rarr; Create new route</em>, or
+<div {_STEP}><strong>2. Draw a route.</strong> <em>Route editor &rarr; Create new route</em>, or
 <strong>Import route</strong> from KML, KMZ, GPX or CSV. A route can be reused in many contests.</div>
 
 <div {_STEP}><strong>3. Add a navigation task.</strong> On the contest page press <strong>Add navigation task</strong>, choose the

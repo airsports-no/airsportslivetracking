@@ -52,7 +52,7 @@ If you are competing using Microsoft Flight Simulator 2020 or 2024, our dedicate
 *   *Refer to: [MSFS Integration](/docs/08_MSFS_Integration)*
 
 ## How to Become an Organizer
-To host a contest, you need **Organizer** status. This is **automatically approved** for all registered users. Simply log in to the platform and click the **"Become an Organizer"** button in the navigation bar. Once activated, the **"Management"** menu will appear, providing access to your contests and tools.
+To host a contest, you need **Organizer** status. This is **automatically approved** for all registered users. Simply log in to the platform and click the **"Become an Organizer"** button in the navigation bar. Once activated, **My contests** and **Route editor** appear in the navigation bar, and **My maps** in your user menu.
 
 ## Technical Context
 ASLT is a high-performance ecosystem utilizing:

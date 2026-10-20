@@ -78,12 +78,13 @@
 <header class="flex-none relative" style="z-index: 5000;">
     {% if not skip_nav %}
         <div class="navbar bg-neutral text-neutral-content min-h-[32px] sm:min-h-[32px] relative z-[5000] py-0 px-2">
-            <div class="navbar-start">
+            {# navbar-start and navbar-end are half the bar each by default; the menu side takes all the room the logo leaves #}
+            <div class="navbar-start w-auto flex-none">
                 <a class="btn btn-ghost text-xl h-8 min-h-0 py-0 px-2" href="https://airsports.no/">
                     <img class="h-4 sm:h-8" src="{% static 'img/airsports_live_tracking_white.png' %}" alt="AirSports">
                 </a>
             </div>
-            <div class="navbar-end">
+            <div class="navbar-end w-auto flex-1">
                 <a class="bg-[#2563EB] text-white px-2 py-1 sm:px-3 sm:py-1 rounded-md sm:rounded-lg font-bold hover:bg-blue-700 transition-all shadow-lg shadow-blue-900/20 text-[9px] sm:text-[10px] active:scale-95 uppercase tracking-wider whitespace-nowrap mr-2" href="/">
                     Dashboard
                 </a>
@@ -94,30 +95,23 @@
                 </div>
 
                 <div id="main-menu" class="hidden lg:flex lg:items-center lg:w-auto">
-                    <ul class="menu menu-horizontal px-1">
-                        {% if perms.display.add_contest %}
-                            <li>
-                                <details>
-                                    <summary>Management</summary>
-                                    <ul class="p-2 bg-neutral rounded-t-none z-[5001]">
-                                        <li><a href="{% fe_url 'MISSION_DASHBOARD' %}?tab=editorContests">My contests</a></li>
-                                        <li><a href="{% url 'useruploadedmap_list' %}">My maps</a></li>
-                                        <li><a href="{% fe_url 'ROUTE_EDITOR_LIST' %}">Route editor</a></li>
-                                        {% if user.is_superuser and user.is_staff %}
-                                            <li><a href="{% fe_url 'ADMIN_FLIGHT_ACTIVITY' %}">Statistics</a></li>
-                                            <li><a href="{% url 'user_emails' %}">User emails</a></li>
-                                            <li><a href="{% url 'welcome_example' %}">Welcome email</a></li>
-                                            <li><a href="{% url 'contestcreation_example' %}">Contest creation email</a></li>
-                                        {% endif %}
-                                    </ul>
-                                </details>
-                            </li>
-                        {% endif %}
+                    <ul class="menu menu-horizontal flex-nowrap whitespace-nowrap px-1">
+                        {% comment %}
+                            What people use every day is one click away: their flights, and for organisers their contests and
+                            the route editor. Less frequent personal things (maps, password, API token) are in the user menu,
+                            and everything for platform administrators is under Admin.
+                        {% endcomment %}
                         {% if user.is_authenticated and not perms.display.add_contest %}
                             <li><a href="{% fe_url 'UPGRADE_ORGANIZER' %}" class="text-primary font-bold">Become an Organizer</a></li>
                         {% endif %}
                         {% if user.is_authenticated %}
                             <li><a href="{% fe_url 'MISSION_DASHBOARD' %}?tab=upcoming">My flights</a></li>
+                        {% endif %}
+                        {% if perms.display.add_contest %}
+                            <li><a href="{% fe_url 'MISSION_DASHBOARD' %}?tab=editorContests">My contests</a></li>
+                            <li><a href="{% fe_url 'ROUTE_EDITOR_LIST' %}">Route editor</a></li>
+                        {% endif %}
+                        {% if user.is_authenticated %}
                             <li>
                                 <a href="{% fe_url 'SQUADRONS' %}">Squadrons <span id="squadron-invitations-badge" class="badge badge-primary badge-sm hidden" title="Invitations waiting for an answer"></span></a>
                             </li>
@@ -139,7 +133,18 @@
                             </details>
                         </li>
                         {% if user.is_superuser and user.is_staff %}
-                            <li><a href="/admin/">Admin</a></li>
+                            <li>
+                                <details>
+                                    <summary>Admin</summary>
+                                    <ul class="p-2 bg-neutral rounded-t-none z-[5001] w-56 right-0">
+                                        <li><a href="{% fe_url 'ADMIN_FLIGHT_ACTIVITY' %}">Statistics</a></li>
+                                        <li><a href="{% url 'user_emails' %}">User emails</a></li>
+                                        <li><a href="{% url 'welcome_example' %}">Welcome email</a></li>
+                                        <li><a href="{% url 'contestcreation_example' %}">Contest creation email</a></li>
+                                        <li><a href="/admin/">Django admin</a></li>
+                                    </ul>
+                                </details>
+                            </li>
                         {% endif %}
                         {% if not user.is_authenticated %}
                             <li><a href="{% url 'login' %}">Log in</a></li>
@@ -162,7 +167,10 @@
                                         {% endif %}
                                     </summary>
                                     <ul class="p-2 bg-neutral rounded-t-none z-[5001] right-0">
-                                        <li>{{ user.email }}</li>
+                                        <li class="menu-title text-neutral-content/70">{{ user.email }}</li>
+                                        {% if perms.display.add_contest %}
+                                            <li><a href="{% url 'useruploadedmap_list' %}">My maps</a></li>
+                                        {% endif %}
                                         <li><a href="{% url 'password_change' %}?next=/">Change password</a></li>
                                         {% if perms.display.change_contest %}
                                             <li><a href="{% url 'token' %}">API token</a></li>
@@ -238,7 +246,7 @@
 
             } else {
                 mainMenu.classList.add('hidden');
-                mainMenu.classList.remove('block', 'absolute', 'top-16', 'left-0', 'w-full', 'bg-neutral', 'shadow-lg', 'py-2');
+                mainMenu.classList.remove('block', 'absolute', 'top-8', 'left-0', 'w-full', 'bg-neutral', 'shadow-lg', 'py-2');
                 mainMenu.querySelector('ul').classList.remove('menu-vertical');
                 mainMenu.querySelector('ul').classList.add('menu-horizontal');
 

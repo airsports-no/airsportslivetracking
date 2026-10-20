@@ -52,7 +52,7 @@ See the [Contestant Guide](/docs/02_Contestant_Guide) for details.
 
 1. Click **Become an Organizer** on the platform (it is instant).
 2. **Create a contest.** Contests are private until you change the visibility in the contest settings.
-3. **Draw or import a route** in the route editor (Management → Route editor). Save it.
+3. **Draw or import a route** in the route editor (**Route editor** in the navigation bar). Save it.
 4. **Create a navigation task** inside the contest: pick a task type, pick the route, check the details.
 5. **Add teams**, either yourself, by import, or by letting pilots register. Then **schedule** start times, or turn on *self-management* so pilots book their own.
 6. **Generate flight orders** and share the contest link.
