@@ -294,6 +294,8 @@ export interface NavigationTaskDetailsUpdate {
   simulator_policy?: 'not_allowed' | 'allowed' | 'simulator_only';
   show_live_score_in_app?: boolean;
   calculation_delay_minutes?: number;
+  notify_managers_on_start?: boolean;
+  notify_managers_on_finish?: boolean;
 }
 
 export async function updateNavigationTaskDetails(

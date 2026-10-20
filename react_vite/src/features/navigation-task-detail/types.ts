@@ -79,6 +79,8 @@ export interface NavigationTaskDetail {
   allow_observation_registration: boolean;
   simulator_policy: 'not_allowed' | 'allowed' | 'simulator_only';
   show_live_score_in_app: boolean;
+  notify_managers_on_start: boolean;
+  notify_managers_on_finish: boolean;
   calculation_delay_minutes: number;
   guest_capacity_status: GuestCapacityStatus;
   is_poker_run: boolean;

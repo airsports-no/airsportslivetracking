@@ -28,6 +28,8 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
     const [allowObservationRegistration, setAllowObservationRegistration] = useState(task.allow_observation_registration);
     const [simulatorPolicy, setSimulatorPolicy] = useState<SimulatorPolicy>(task.simulator_policy ?? 'not_allowed');
   const [showLiveScoreInApp, setShowLiveScoreInApp] = useState(task.show_live_score_in_app);
+    const [notifyOnStart, setNotifyOnStart] = useState(task.notify_managers_on_start ?? false);
+    const [notifyOnFinish, setNotifyOnFinish] = useState(task.notify_managers_on_finish ?? false);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -43,6 +45,8 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
       setAllowObservationRegistration(task.allow_observation_registration);
       setSimulatorPolicy(task.simulator_policy ?? 'not_allowed');
       setShowLiveScoreInApp(task.show_live_score_in_app);
+      setNotifyOnStart(task.notify_managers_on_start ?? false);
+      setNotifyOnFinish(task.notify_managers_on_finish ?? false);
     }, [task]);
 
     const handleSubmit = async (event: React.FormEvent) => {
@@ -60,6 +64,8 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
           allow_observation_registration: allowObservationRegistration,
           simulator_policy: simulatorPolicy,
           show_live_score_in_app: showLiveScoreInApp,
+          notify_managers_on_start: notifyOnStart,
+          notify_managers_on_finish: notifyOnFinish,
         });
         (ref as React.RefObject<HTMLDialogElement>).current?.close();
         onUpdated();
@@ -163,6 +169,21 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
               />
               <span className="label-text">Show live feedback to pilots in the app (running score, training mode)</span>
             </label>
+            <fieldset className="border border-base-300 rounded-lg p-3">
+              <legend className="text-xs px-1">E-mail the contest managers</legend>
+              <p className="text-xs opacity-70 mb-1">
+                For tasks flown by each contestant on their own, for example in a cup: everybody who can manage the contest gets an
+                e-mail, except when they are flying themselves.
+              </p>
+              <label className="label cursor-pointer justify-start gap-2">
+                <input type="checkbox" className="checkbox checkbox-sm" checked={notifyOnStart} onChange={(e) => setNotifyOnStart(e.target.checked)} />
+                <span className="label-text">When a contestant starts the task</span>
+              </label>
+              <label className="label cursor-pointer justify-start gap-2">
+                <input type="checkbox" className="checkbox checkbox-sm" checked={notifyOnFinish} onChange={(e) => setNotifyOnFinish(e.target.checked)} />
+                <span className="label-text">When a contestant has finished, with their score</span>
+              </label>
+            </fieldset>
             {error && <p className="text-error text-sm">{error}</p>}
             <div className="modal-action">
               <button type="submit" className="btn btn-primary btn-sm" disabled={busy}>

@@ -96,6 +96,13 @@ To prevent "Live Cheating" (where a crew on the ground could watch a rival's tra
 *   A 30-minute delay means the public map and leaderboard only show data that is 30 minutes old.
 *   The system still records in real-time but buffers the *display* of the results.
 
+### E-mail when contestants start or finish
+For a task that contestants fly on their own at different times, for example one round of a season-long cup, you do not have to watch the map to know when results come in. Open the task, **Update task details**, and under *E-mail the contest managers* tick:
+*   **When a contestant starts the task:** an e-mail with a link to the live map as soon as scoring of their flight starts.
+*   **When a contestant has finished, with their score:** an e-mail about a minute after the flight ends, saying whether they crossed the finish line or their tracking window ran out, with the score calculated from the track.
+
+Everybody who can manage the contest gets the e-mails, except a manager who is flying the task themselves. Each contestant triggers each e-mail once: recalculating a track later does not send it again. Both are off by default.
+
 ---
 
 ## 6. Flight Order Configuration

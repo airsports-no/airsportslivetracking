@@ -1803,6 +1803,8 @@ class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
             "allow_observation_registration",
             "show_live_score_in_app",
             "calculation_delay_minutes",
+            "notify_managers_on_start",
+            "notify_managers_on_finish",
         )
         extra_kwargs = {field: {"required": False} for field in fields}
 
