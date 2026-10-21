@@ -1777,6 +1777,16 @@ class QuickAddContestantSerialiser(serializers.Serializer):
     adaptive_start = serializers.BooleanField(write_only=True, required=False, default=False)
 
 
+class DuplicateNavigationTaskSerialiser(serializers.Serializer):
+    """What the copy of a navigation task gets that the original does not decide: where it goes, its name, route and times."""
+
+    contest = serializers.IntegerField()
+    name = serializers.CharField(max_length=200)
+    editable_route = serializers.IntegerField()
+    start_time = serializers.DateTimeField(required=False)
+    finish_time = serializers.DateTimeField(required=False)
+
+
 class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
     """
     Mirrors NavigationTaskForm's editable field set (views.py's NavigationTaskUpdateView),

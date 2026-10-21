@@ -623,3 +623,45 @@ export async function updateContestant(
   }
   return response.json();
 }
+
+export interface DuplicateTaskOptions {
+  name: string;
+  start_time: string;
+  finish_time: string;
+  contest: number;
+  editable_route: number | null;
+  contests: { id: number; name: string; start_time: string }[];
+  routes: { id: number; name: string; compatible: boolean; reasons: string[] }[];
+}
+
+export interface DuplicateTaskRequest {
+  contest: number;
+  name: string;
+  editable_route: number;
+  start_time: string;
+  finish_time: string;
+}
+
+export async function fetchDuplicateTaskOptions(contestId: number, navigationTaskId: number): Promise<DuplicateTaskOptions> {
+  const url = reverse('navigationtasks-duplicate-options', contestId, navigationTaskId);
+  const response = await fetch(url, { headers: getAuthHeaders() });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to load the duplicate options: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+export async function duplicateNavigationTask(
+  contestId: number,
+  navigationTaskId: number,
+  payload: DuplicateTaskRequest
+): Promise<{ id: number; contest: number; name: string; warnings: string[] }> {
+  const url = reverse('navigationtasks-duplicate', contestId, navigationTaskId);
+  const response = await fetch(url, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to duplicate the task: ${errorMessages}`);
+  }
+  return response.json();
+}

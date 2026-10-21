@@ -43,6 +43,14 @@ Building a Navigation Task requires:
 1.  **A Route:** The physical path and gates.
 2.  **A Scorecard:** The specific competition rules and penalties.
 
+### Duplicating a task
+Running the same kind of task again, for the next round of a cup or on another day, does not mean setting it all up again. Open the task, **Manage → Duplicate…**, and choose:
+*   **Contest:** this one, or another contest you manage. You need to be able to change both.
+*   **Name** and **route:** only your routes that fit the task type can be picked.
+*   **Start and finish time:** filled in from the original, change them for the new occurrence.
+
+The copy gets the same task type and settings (wind, timing, self-management, simulator policy, notifications and so on), the **scorecard including any changes you made to it**, and the **flight order configuration**. It starts **private** and without contestants, like a new task.
+
 For detailed, step-by-step instructions on designing routes and configuring task parameters, please refer to:
 *   [**Guide 04: Route Creation and Task Configuration**](/docs/04_Route_Creation_and_Tasks)
 
