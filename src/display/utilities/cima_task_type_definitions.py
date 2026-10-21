@@ -1,13 +1,18 @@
+import logging
 from dataclasses import dataclass
+from typing import Optional
 
 from display.utilities.navigation_task_type_definitions import (
     AIRSPORT_CHALLENGE,
     AIRSPORTS,
     ANR_CORRIDOR,
     LANDING,
+    NAVIGATION_TASK_TYPES,
     POKER,
     PRECISION,
 )
+
+logger = logging.getLogger(__name__)
 
 CURVE_NAVIGATION_TIME_ESTIMATION = "curve_navigation_time_estimation"
 PRECISION_NAVIGATION = "precision_navigation"
@@ -242,11 +247,38 @@ LEGACY_DEFAULT_SUBTYPE_BY_FAMILY: dict[str, str] = {
 }
 
 
+_TASK_TYPE_LABELS = dict(NAVIGATION_TASK_TYPES)
+
+
 def get_task_subtype_definition(key: str) -> TaskSubtypeDefinition:
     try:
         return TASK_SUBTYPE_DEFINITIONS[key]
     except KeyError as exc:
         raise ValueError(f"Unknown task subtype '{key}'") from exc
+
+
+def describe_task_subtype(navigation_task) -> Optional[dict]:
+    """
+    The task's coarse family (e.g. "precision"/"Precision") and its specific subtype (e.g. "2.A1 Curve navigation with
+    time estimation") for display, e.g. on TaskCard.tsx and in the apps' Register today list. None when the task has no
+    subtype, or one that is not (or no longer) defined, so that one odd task cannot break a whole list.
+    """
+    try:
+        definition = navigation_task.subtype_definition
+    except ValueError:
+        logger.warning(
+            "Navigation task %s has an unknown task subtype %r", navigation_task.pk, navigation_task.task_subtype
+        )
+        return None
+    if definition is None:
+        return None
+    return {
+        "key": definition.key,
+        "display_name": definition.display_name,
+        "coarse_family": definition.coarse_family,
+        "coarse_family_label": _TASK_TYPE_LABELS.get(definition.coarse_family, definition.coarse_family),
+        "requires_contestant_configuration": definition.requires_contestant_configuration,
+    }
 
 
 def is_valid_task_subtype(key: str | None) -> bool:

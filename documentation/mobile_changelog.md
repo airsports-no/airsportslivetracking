@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-21
+#### Backend
+- **Register today says what kind of task it is.** Each task in `open_registration_today` has a `task_type` (`key`, `display_name` such as "2.A1 Curve navigation with time estimation", `coarse_family`, `coarse_family_label` such as "Precision"), or null when the task has no known subtype; one task with an odd subtype no longer can break the list.
+
 ### 2026-10-19
 #### Backend
 - **Squadrons: groups whose members get access to private contests.** Anyone can start a squadron, invite people by name or e-mail (they join when they accept) and make others admins. An organiser, or any squadron member who manages a contest, shares the contest with a squadron; every member can then see it and its private tasks and register for it, but not manage it. A member can take away only the contests they added themselves, an admin any; whoever manages a contest can always take it back. API: `/api/v1/squadrons/` (my squadrons, members, invitations, `contest-access` = my contests per squadron), `/api/v1/squadron_invitations/` (+ `accept`, `decline`), `/api/v1/contests/<id>/squadrons/`. Invitations are also e-mailed (to the invited address, with a link to the website's Squadrons page), and an admin can switch on an invite link (`/squadrons/join/<token>`, opens on the website: log in, press Join, become a member; API `/api/v1/squadron_join/<token>/`). Migrations `0202` and `0203`. The apps do not show squadrons yet, but squadron contests already appear in their contest lists and Register today.

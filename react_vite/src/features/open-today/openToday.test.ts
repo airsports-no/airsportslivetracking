@@ -13,6 +13,7 @@ const task = (over: Partial<OpenRegistrationTask>): OpenRegistrationTask => ({
     start_time: '2026-10-10T08:00:00Z',
     finish_time: '2026-10-10T12:30:00Z',
     is_open_now: false,
+    task_type: null,
     ...over,
 });
 
