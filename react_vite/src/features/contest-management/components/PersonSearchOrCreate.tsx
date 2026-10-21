@@ -74,7 +74,7 @@ const PersonSearchOrCreate: React.FC<PersonSearchOrCreateProps> = ({ field, labe
         <div className="border border-base-300 rounded-lg p-4">
             <div className="flex items-center justify-between mb-2">
                 <span className="font-semibold">{label}</span>
-                <div role="tablist" className="tabs tabs-boxed tabs-xs">
+                <div role="tablist" className="tabs tabs-box tabs-xs">
                     <button type="button" role="tab" className={`tab ${mode === 'existing' ? 'tab-active' : ''}`} onClick={() => setMode('existing')}>
                         Existing
                     </button>

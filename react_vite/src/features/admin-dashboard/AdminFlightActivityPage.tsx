@@ -381,7 +381,7 @@ export default function AdminFlightActivityPage() {
         <div className="container mx-auto p-4 md:p-8 flex flex-col gap-6">
             <h1 className="text-2xl font-bold">Statistics</h1>
 
-            <div role="tablist" className="tabs tabs-boxed w-fit">
+            <div role="tablist" className="tabs tabs-box w-fit">
                 {TABS.map((option) => (
                     <a
                         key={option.value}

@@ -507,16 +507,30 @@ const MissionDashboard = () => {
             )}
 
             {document.configuration.isAuthenticated && (
-                <div className="tabs tabs-boxed mb-4">
-                    <a className={`tab ${activeTab === 'allContests' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'allContests' })}>All Contests</a> 
-                    <>
-                        <a className={`tab ${activeTab === 'openRegistration' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'openRegistration' })}>Open for Registration</a>
-                        <a className={`tab ${activeTab === 'upcoming' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'upcoming' })}>My Upcoming Flights</a>
-                        <a className={`tab ${activeTab === 'past' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'past' })}>My Past Flights</a>
-                        {document.configuration.isOrganizer && (
-                            <a className={`tab ${activeTab === 'editorContests' ? 'tab-active' : ''}`} onClick={() => updateURL({ tab: 'editorContests' })}>My Contests</a>
-                        )}
-                    </>
+                // One row on every screen: short labels on phones, and the row scrolls sideways rather than wrapping
+                <div className="overflow-x-auto mb-4">
+                    <div role="tablist" className="tabs tabs-box flex-nowrap w-max">
+                        {[
+                            { tab: 'allContests', short: 'All', label: 'All Contests' },
+                            { tab: 'openRegistration', short: 'Open today', label: 'Open for Registration' },
+                            { tab: 'upcoming', short: 'Upcoming', label: 'My Upcoming Flights' },
+                            { tab: 'past', short: 'Past', label: 'My Past Flights' },
+                            ...(document.configuration.isOrganizer
+                                ? [{ tab: 'editorContests', short: 'Mine', label: 'My Contests' }]
+                                : []),
+                        ].map(({ tab, short, label }) => (
+                            <a
+                                key={tab}
+                                role="tab"
+                                aria-selected={activeTab === tab}
+                                className={`tab whitespace-nowrap ${activeTab === tab ? 'tab-active' : ''}`}
+                                onClick={() => updateURL({ tab })}
+                            >
+                                <span className="sm:hidden">{short}</span>
+                                <span className="hidden sm:inline">{label}</span>
+                            </a>
+                        ))}
+                    </div>
                 </div>
             )}
 

@@ -57,7 +57,7 @@ export default function MobileAppsPanel() {
             <div className="card-body gap-4">
                 <div className="flex flex-wrap items-center justify-between gap-3">
                     <h2 className="card-title">Mobile apps</h2>
-                    <div role="tablist" className="tabs tabs-boxed">
+                    <div role="tablist" className="tabs tabs-box">
                         {WINDOWS.map((option) => (
                             <a
                                 key={option.minutes}

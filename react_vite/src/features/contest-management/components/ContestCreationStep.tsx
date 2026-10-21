@@ -54,7 +54,7 @@ const ContestCreationStep: React.FC<ContestCreationStepProps> = ({ onExistingCon
 
     return (
         <div>
-            <div role="tablist" className="tabs tabs-boxed mb-4">
+            <div role="tablist" className="tabs tabs-box mb-4">
                 <button
                     type="button"
                     role="tab"
