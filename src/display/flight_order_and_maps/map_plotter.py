@@ -1112,17 +1112,33 @@ def plot_unknown_legs_point_name(
     )
 
 
+def lowest_fallback_zoom_level(map_source: str = "osm", user_map_source: Optional[UserUploadedMap] = None, **_kwargs) -> int:
+    """
+    MINIMUM_FALLBACK_ZOOM_LEVEL, or the lowest zoom level of the map source if that is higher: below it an uploaded map has
+    no tiles, so the map would come out blank.
+    """
+    if user_map_source is None and map_source in BUILTIN_NON_MBTILES_SOURCES:
+        return MINIMUM_FALLBACK_ZOOM_LEVEL
+    try:
+        source_minimum = resolve_map_source_definition(map_source, user_map_source)["min_zoom"] or 0
+    except Exception:
+        # plot_route falls back to OSM for a source it cannot resolve
+        return MINIMUM_FALLBACK_ZOOM_LEVEL
+    return max(MINIMUM_FALLBACK_ZOOM_LEVEL, source_minimum)
+
+
 def plot_route_within_memory_limit(task: NavigationTask, map_size: str, zoom_level: int, **kwargs) -> tuple[BytesIO, int]:
     """
-    plot_route, lowering the zoom level one step at a time (not below MINIMUM_FALLBACK_ZOOM_LEVEL) while the map would
+    plot_route, lowering the zoom level one step at a time (not below lowest_fallback_zoom_level) while the map would
     need more memory than MEMORY_THRESHOLD_MB, rather than not making the map at all. Returns the image and the zoom level
     it was made with.
     """
+    lowest_zoom_level = lowest_fallback_zoom_level(**kwargs)
     while True:
         try:
             return plot_route(task, map_size, zoom_level=zoom_level, **kwargs), zoom_level
         except MemoryEstimationExceededError:
-            if zoom_level <= MINIMUM_FALLBACK_ZOOM_LEVEL:
+            if zoom_level <= lowest_zoom_level:
                 raise
             logger.warning(f"Map for task {task.pk} at zoom level {zoom_level} needs too much memory, trying {zoom_level - 1}")
             zoom_level -= 1
@@ -1130,10 +1146,10 @@ def plot_route_within_memory_limit(task: NavigationTask, map_size: str, zoom_lev
 
 def highest_zoom_level_within_memory_limit(task: NavigationTask, map_size: str, zoom_level: int, **kwargs) -> Optional[int]:
     """
-    The highest zoom level, at most [zoom_level] and not below MINIMUM_FALLBACK_ZOOM_LEVEL, at which the map fits within
+    The highest zoom level, at most [zoom_level] and not below lowest_fallback_zoom_level, at which the map fits within
     MEMORY_THRESHOLD_MB, or None if it fits at none of them. Only estimates: no map tiles are fetched.
     """
-    for candidate in range(zoom_level, MINIMUM_FALLBACK_ZOOM_LEVEL - 1, -1):
+    for candidate in range(zoom_level, lowest_fallback_zoom_level(**kwargs) - 1, -1):
         if plot_route(task, map_size, zoom_level=candidate, estimate_only=True, **kwargs) <= MEMORY_THRESHOLD_MB:
             return candidate
     return None

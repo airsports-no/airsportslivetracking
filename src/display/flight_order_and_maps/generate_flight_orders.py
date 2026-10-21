@@ -27,9 +27,9 @@ from display.flight_order_and_maps.effective_route_rendering import get_effectiv
 from display.flight_order_and_maps.map_constants import A3, LANDSCAPE, SCALE_TO_FIT
 from display.flight_order_and_maps.map_plotter import (
     MEMORY_THRESHOLD_MB,
-    MINIMUM_FALLBACK_ZOOM_LEVEL,
     PSEUDO_MERCATOR_SPHERE,
     highest_zoom_level_within_memory_limit,
+    lowest_fallback_zoom_level,
     plot_route,
     plot_route_within_memory_limit,
 )
@@ -116,11 +116,8 @@ def flight_order_map_memory_error(navigation_task, flight_order_configuration: F
         estimated_mb = plot_route(navigation_task, size, zoom_level=zoom_level, estimate_only=True, **map_plot_kwargs)
         if estimated_mb <= MEMORY_THRESHOLD_MB:
             return None
-        highest_zoom_level = (
-            highest_zoom_level_within_memory_limit(navigation_task, size, zoom_level - 1, **map_plot_kwargs)
-            if zoom_level > MINIMUM_FALLBACK_ZOOM_LEVEL
-            else None
-        )
+        highest_zoom_level = highest_zoom_level_within_memory_limit(navigation_task, size, zoom_level - 1, **map_plot_kwargs)
+        lowest_zoom_level = lowest_fallback_zoom_level(**map_plot_kwargs)
     except Exception:
         # A task whose route cannot be drawn yet has nothing to check against
         logger.warning(f"Could not estimate the flight order map memory for task {navigation_task.pk}", exc_info=True)
@@ -131,7 +128,7 @@ def flight_order_map_memory_error(navigation_task, flight_order_configuration: F
     )
     if highest_zoom_level is not None:
         return f"{message} The highest zoom level that fits is {highest_zoom_level}."
-    return f"{message} It does not fit at zoom level {MINIMUM_FALLBACK_ZOOM_LEVEL} either: choose a smaller scale or page size."
+    return f"{message} It does not fit at zoom level {lowest_zoom_level} either: choose a smaller scale or page size."
 
 
 def get_flight_order_visual_waypoints(contestant: Contestant, include_contestant_declarations: bool) -> list[Waypoint]:

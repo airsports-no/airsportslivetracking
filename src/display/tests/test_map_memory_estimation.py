@@ -39,6 +39,7 @@ from display.flight_order_and_maps.map_plotter import (
     MemoryEstimationExceededError,
     plot_route_within_memory_limit,
     estimate_memory_usage,
+    highest_zoom_level_within_memory_limit,
     estimate_tile_memory_mb,
     memory_estimation_exceeded_message,
     total_tile_count,
@@ -163,6 +164,20 @@ class TestPlotRouteWithinMemoryLimit:
         with patch("display.flight_order_and_maps.map_plotter.plot_route", side_effect=_plot_route_needing(too_much)):
             with pytest.raises(MemoryEstimationExceededError):
                 plot_route_within_memory_limit(task, "A4", 14)
+
+    def test_does_not_go_below_the_lowest_zoom_level_of_an_uploaded_map(self):
+        # Below its lowest zoom level an uploaded map has no tiles: the map would come out blank
+        task = SimpleNamespace(pk=1)
+        uploaded_map = SimpleNamespace(pk=1)
+        with patch(
+            "display.flight_order_and_maps.map_plotter.resolve_map_source_definition", return_value={"min_zoom": 12}
+        ), patch(
+            "display.flight_order_and_maps.map_plotter.plot_route",
+            side_effect=_plot_route_needing({14: 2140, 13: 1600, 12: 1550, 11: 600}),
+        ):
+            with pytest.raises(MemoryEstimationExceededError):
+                plot_route_within_memory_limit(task, "A4", 14, user_map_source=uploaded_map)
+            assert highest_zoom_level_within_memory_limit(task, "A4", 14, user_map_source=uploaded_map) is None
 
 
 class TestFlightOrderMapMemoryError:
