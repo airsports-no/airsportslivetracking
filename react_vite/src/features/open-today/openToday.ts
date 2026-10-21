@@ -12,6 +12,13 @@ export interface OpenRegistrationTask {
     finish_time: string;
     is_open_now: boolean;
     simulator_policy?: 'not_allowed' | 'allowed' | 'simulator_only';
+    /** What kind of flying it is; null when the task has no (known) subtype. */
+    task_type: {
+        key: string;
+        display_name: string;
+        coarse_family: string;
+        coarse_family_label: string;
+    } | null;
 }
 
 export interface ContestGroup {

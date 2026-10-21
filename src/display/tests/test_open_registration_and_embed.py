@@ -93,8 +93,27 @@ class TestOpenRegistrationToday(TestCase):
         self.assertTrue(item["is_open_now"])
         self.assertEqual(item["time_zone"], "Europe/Oslo")
         self.assertEqual(item["task_type"], {
-            "display_name": task.subtype_definition.display_name, "coarse_family_label": "Precision",
+            "key": "legacy_precision", "display_name": "Legacy precision navigation",
+            "coarse_family": "precision", "coarse_family_label": "Precision",
         })
+
+    def test_a_task_with_an_unknown_subtype_has_no_task_type_and_does_not_break_the_list(self):
+        task = make_task(self.contest, "Odd", 1, 3)
+        make_task(self.contest, "Normal", 1, 3)
+        NavigationTask.objects.filter(pk=task.pk).update(task_subtype="renamed_long_ago")
+        from display.services.open_registration import describe
+
+        items = {i["navigation_task_name"]: i for i in (describe(t, NOW) for t in open_registration_tasks_today("UTC", NOW))}
+        self.assertIsNone(items["Odd"]["task_type"])
+        self.assertEqual(items["Normal"]["task_type"]["key"], "legacy_precision")
+
+    def test_the_task_type_costs_no_query_per_task(self):
+        for i in range(3):
+            make_task(self.contest, f"T{i}", 1, 3)
+        from display.services.open_registration import describe
+
+        with self.assertNumQueries(1):
+            [describe(t, NOW) for t in open_registration_tasks_today("UTC", NOW)]
 
     def test_unknown_timezone_is_rejected(self):
         self.assertEqual(self.client.get(URL, {"timezone": "Mars/Base"}).status_code, 400)

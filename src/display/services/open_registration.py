@@ -11,6 +11,7 @@ from django.utils import timezone
 
 from display.models import NavigationTask
 from display.services.contest_visibility import visible_navigation_tasks_q
+from display.utilities.cima_task_type_definitions import describe_task_subtype
 
 
 def _day_bounds(now: datetime.datetime, timezone_name: Optional[str]):
@@ -41,7 +42,8 @@ def open_registration_tasks_today(
             start_time__lt=end_of_day,
             finish_time__gte=now,
         )
-        .select_related("contest")
+        # The scorecards give the task type of a task without an explicit subtype (see _task_type)
+        .select_related("contest", "scorecard", "original_scorecard")
         .order_by("contest__name", "start_time")
     )
 
@@ -68,9 +70,7 @@ def describe(task: NavigationTask, now: datetime.datetime) -> dict:
 
 
 def _task_type(task: NavigationTask) -> Optional[dict]:
-    from display.serialisers import _serialize_task_subtype_definition
-
-    definition = _serialize_task_subtype_definition(task)
+    definition = describe_task_subtype(task)
     if definition is None:
         return None
-    return {key: definition[key] for key in ("display_name", "coarse_family_label")}
+    return {key: definition[key] for key in ("key", "display_name", "coarse_family", "coarse_family_label")}
