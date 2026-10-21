@@ -2154,6 +2154,9 @@ class ContestantSerialiser(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         gate_times = validated_data.pop("gate_times", {})
         declaration_input = validated_data.pop("declaration_payload", None)
+        from display.services.self_registration import send_flight_order_after_declaration, stored_declaration
+
+        previous_declaration = stored_declaration(instance) if declaration_input is not None else None
         contestant = update_contestant_with_related_state(
             instance,
             validated_data,
@@ -2162,9 +2165,7 @@ class ContestantSerialiser(serializers.ModelSerializer):
             partial=self.partial,
         )
         if declaration_input is not None:
-            from display.services.self_registration import send_flight_order_after_declaration
-
-            send_flight_order_after_declaration(contestant)
+            send_flight_order_after_declaration(contestant, previous_declaration)
         return contestant
 
 

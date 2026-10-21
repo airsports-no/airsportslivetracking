@@ -107,10 +107,19 @@ def send_self_registration_flight_order(contestant: Contestant, email: str, firs
     generate_and_maybe_notify_flight_order.apply_async((contestant.pk, email, first_name, True))
 
 
-def send_flight_order_after_declaration(contestant: Contestant) -> None:
+def stored_declaration(contestant: Contestant) -> Optional[dict]:
+    """The contestant's saved declaration if it is valid, else None. Read from the database, not a cached relation."""
+    from display.models import ContestantTaskConfiguration
+
+    configuration = ContestantTaskConfiguration.objects.filter(contestant=contestant, is_valid=True).first()
+    return configuration.declaration_payload if configuration else None
+
+
+def send_flight_order_after_declaration(contestant: Contestant, previous_declaration: Optional[dict]) -> None:
     """
-    Called when a declaration has been saved. For a flight the pilot booked themselves, in a task requiring a declaration,
-    the flight order is generated and e-mailed to the pilot once the declaration is valid, also again after it is changed.
+    Called when a declaration has been saved; [previous_declaration] is stored_declaration from before. For a flight the
+    pilot booked themselves, in a task requiring a declaration, the flight order is generated and e-mailed to the pilot
+    once the declaration is valid, and again whenever it is changed, but not when it is saved again unchanged.
     Flights added by a contest manager are left alone: the manager generates and sends their flight orders.
     """
     if not contestant.self_registered:
@@ -118,6 +127,8 @@ def send_flight_order_after_declaration(contestant: Contestant) -> None:
     if contestant.navigation_task.task_subtype not in DECLARATION_REQUIRED_SUBTYPES:
         return
     if contestant.awaits_required_declaration:
+        return
+    if contestant.contestanttaskconfiguration.declaration_payload == previous_declaration:
         return
     pilot = contestant.team.crew.member1
     if not pilot.email:

@@ -145,15 +145,21 @@ export default function RouteEditor() {
   const markDirty = useCallback(() => setIsDirty(true), []);
 
   // 2.A5: the generated map labels every shown point, so the points are numbered in the order the map shows them
-  // (dummy legs included) instead of carrying generic names. Also renames an older route when it is opened.
-  useEffect(() => {
-    if (selectedTaskTemplateId !== 'cima_a5') return;
+  // (dummy legs included) instead of carrying generic names. Also renames an older route when it is opened. Done while
+  // rendering, once per change of the points (https://react.dev/learn/you-might-not-need-an-effect), not in an effect.
+  const [namedPoints, setNamedPoints] = useState<{ routePoints: RoutePoint[]; standalonePoints: RoutePoint[] } | null>(null);
+  if (
+    selectedTaskTemplateId === 'cima_a5'
+    && (namedPoints?.routePoints !== routePoints || namedPoints?.standalonePoints !== standalonePoints)
+  ) {
     const named = nameUnknownLegsRoutePoints(routePoints, standalonePoints);
-    if (named.routePoints === routePoints && named.standalonePoints === standalonePoints) return;
-    setRoutePoints(named.routePoints);
-    setStandalonePoints(named.standalonePoints);
-    markDirty();
-  }, [selectedTaskTemplateId, routePoints, standalonePoints, markDirty]);
+    setNamedPoints(named);
+    if (named.routePoints !== routePoints || named.standalonePoints !== standalonePoints) {
+      setRoutePoints(named.routePoints);
+      setStandalonePoints(named.standalonePoints);
+      setIsDirty(true);
+    }
+  }
 
   useEffect(() => {
     modeRef.current = mode;

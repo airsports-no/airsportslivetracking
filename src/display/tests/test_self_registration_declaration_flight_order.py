@@ -158,6 +158,13 @@ class TestSelfRegistrationDeclarationFlightOrder(TestCase):
         self._save_declaration(contestant, DECLARATION)
         flight_order.assert_called_once_with((contestant.pk, self.user.email, "Declaring", True))
 
+        # A changed declaration changes the flight order, saving it again unchanged does not
+        self._save_declaration(contestant, {**DECLARATION, "declared_t_seconds": 90})
+        self.assertEqual(2, flight_order.call_count)
+        flight_order.assert_called_with((contestant.pk, self.user.email, "Declaring", True))
+        self._save_declaration(contestant, {**DECLARATION, "declared_t_seconds": 90})
+        self.assertEqual(2, flight_order.call_count)
+
     def test_invalid_declaration_sends_no_flight_order(self, flight_order, *_args):
         contestant = self._self_register()
         self._save_declaration(contestant, {})
