@@ -8,6 +8,7 @@ import { useMissionDashboardStore } from '../../mission-dashboard/store';
 import { NavigationTaskDetail } from '../types';
 import BatchUpdateContestantsModal from './BatchUpdateContestantsModal';
 import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
+import DuplicateTaskModal, { DuplicateTaskModalHandle } from './DuplicateTaskModal';
 import FlightOrderConfigurationModal, { FlightOrderConfigurationModalHandle } from './FlightOrderConfigurationModal';
 import GenerateNavigationMapModal, { GenerateNavigationMapModalHandle } from './GenerateNavigationMapModal';
 import UpdateTaskDetailsModal from './UpdateTaskDetailsModal';
@@ -30,6 +31,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
   const generateMapModalRef = useRef<GenerateNavigationMapModalHandle>(null);
   const addContestantModalRef = useRef<ContestantFormModalHandle>(null);
   const batchUpdateModalRef = useRef<HTMLDialogElement>(null);
+  const duplicateModalRef = useRef<DuplicateTaskModalHandle>(null);
 
   const nextContestantNumber =
     task.contestant_set.length > 0 ? Math.max(...task.contestant_set.map((c) => c.contestant_number)) + 1 : 1;
@@ -158,6 +160,11 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
           </button>
         </li>
         <li>
+          <button type="button" onClick={() => duplicateModalRef.current?.open()} className="w-full text-left">
+            Duplicate…
+          </button>
+        </li>
+        <li>
           <button type="button" disabled={deleting} onClick={handleDelete} className="w-full text-left text-error">
             Delete
           </button>
@@ -167,6 +174,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
       <FlightOrderConfigurationModal ref={flightOrderConfigModalRef} contestId={contestId} navigationTaskId={navigationTaskId} onSaved={() => showToast('Flight order configuration saved.', 'success', 5000)} />
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       <GenerateNavigationMapModal ref={generateMapModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
+      <DuplicateTaskModal ref={duplicateModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
       <ContestantFormModal
         ref={addContestantModalRef}
         contestId={contestId}

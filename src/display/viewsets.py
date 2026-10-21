@@ -138,6 +138,7 @@ from display.serialisers import (
     GenerateNavigationTaskMapSerialiser,
     GpxTrackSerialiser,
     HighlightedContestSerialiser,
+    DuplicateNavigationTaskSerialiser,
     NavigationTaskDetailsUpdateSerialiser,
     NavigationTaskEditableRoutReferenceSerialiser,
     NavigationTaskNestedTeamRouteSerialiser,
@@ -2495,6 +2496,66 @@ class NavigationTaskViewSet(ModelViewSet):
         elif serialiser.validated_data["visibility"] == serialiser.PRIVATE:
             navigation_task.make_private()
         return Response(serialiser.data, status=status.HTTP_200_OK)
+
+    @extend_schema(responses={200: None})
+    @action(
+        detail=True,
+        methods=["get"],
+        url_path="duplicate_options",
+        permission_classes=[permissions.IsAuthenticated & NavigationTaskManagerPermissions],
+    )
+    def duplicate_options(self, request, *args, **kwargs):
+        """What the duplicate dialog offers: the contests the user manages and their routes, marked by whether they fit."""
+        from display.services.task_duplication import contests_to_duplicate_into, route_choices
+
+        navigation_task = self.get_object()
+        return Response(
+            {
+                "name": f"{navigation_task.name} (copy)",
+                "start_time": navigation_task.start_time,
+                "finish_time": navigation_task.finish_time,
+                "contest": navigation_task.contest_id,
+                "editable_route": navigation_task.editable_route_id,
+                "contests": [
+                    {"id": contest.pk, "name": contest.name, "start_time": contest.start_time}
+                    for contest in contests_to_duplicate_into(request.user, navigation_task)
+                ],
+                "routes": route_choices(navigation_task, request.user),
+            }
+        )
+
+    @extend_schema(request=DuplicateNavigationTaskSerialiser, responses={201: None})
+    @action(
+        detail=True,
+        methods=["post"],
+        permission_classes=[permissions.IsAuthenticated & NavigationTaskManagerPermissions],
+    )
+    def duplicate(self, request, *args, **kwargs):
+        """
+        A new task like this one in the same or another contest the user manages, with a new name, route and time window:
+        the task type and settings, the scorecard with its changes and the flight order configuration are copied.
+        """
+        from display.services.task_duplication import duplicate_navigation_task
+
+        navigation_task = self.get_object()
+        serialiser = DuplicateNavigationTaskSerialiser(data=request.data)
+        serialiser.is_valid(raise_exception=True)
+        data = serialiser.validated_data
+        contest = get_object_or_404(Contest, pk=data["contest"])
+        editable_route = get_object_or_404(EditableRoute, pk=data["editable_route"])
+        task = duplicate_navigation_task(
+            navigation_task,
+            request.user,
+            contest=contest,
+            name=data["name"],
+            editable_route=editable_route,
+            start_time=data.get("start_time"),
+            finish_time=data.get("finish_time"),
+        )
+        return Response(
+            {"id": task.pk, "contest": task.contest_id, "name": task.name, "warnings": task._creation_warnings},
+            status=status.HTTP_201_CREATED,
+        )
 
     @action(detail=True, methods=["post"])
     def refresh_editable_route(self, request, *args, **kwargs):
