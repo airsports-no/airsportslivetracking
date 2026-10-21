@@ -70,8 +70,10 @@ export default function RouteEditor() {
   const [standalonePoints, setStandalonePoints] = useState<RoutePoint[]>([]);
   const [selectedId, setSelectedId] = useState<string | null>(null);
   const [selectionType, setSelectionType] = useState<SelectionType | null>(null);
-  const [routeId, setRouteId] = useState<string | null>(null);
   const { routeId: paramRouteId } = useParams<{ routeId: string }>();
+  // A new route has no id in the URL until its first save navigates to it
+  const [createdRouteId, setCreatedRouteId] = useState<string | null>(null);
+  const routeId = paramRouteId ?? createdRouteId;
   const navigate = useNavigate();
   const { showToast, ToastContainer, toasts, removeToast } = useToast();
   // Id of the route just saved, to offer creating a navigation task from it
@@ -229,7 +231,6 @@ export default function RouteEditor() {
 
   useEffect(() => {
     if (paramRouteId) {
-      setRouteId(paramRouteId);
       fetchRoute(parseInt(paramRouteId))
         .then(data => {
           if (data.settings) {
@@ -665,12 +666,11 @@ export default function RouteEditor() {
     setWizardPrompt(null);
   }, [beginDummyBranchStep, markDirty, selectedId]);
 
-  useEffect(() => {
-    if (!pendingPointTypeSelection || selectionType !== 'point' || !selectedId) {
-      return;
-    }
+  // A wizard step waiting for a backbone point to convert does so as soon as one is selected. Done while rendering
+  // rather than in an effect; the conversion clears the pending selection, so it runs once.
+  if (pendingPointTypeSelection && selectionType === 'point' && selectedId) {
     convertSelectedBackbonePointToType(pendingPointTypeSelection, pendingPointFeatureTypeSelection);
-  }, [convertSelectedBackbonePointToType, pendingPointFeatureTypeSelection, pendingPointTypeSelection, selectedId, selectionType]);
+  }
 
   const startWizardStep = useCallback((stepKey: string) => {
     if (stepKey === 'dummy') {
@@ -731,21 +731,14 @@ export default function RouteEditor() {
     setMode('add_point');
   }, [selectedId, selectionType, wizardRouteInsertFeatureType]);
 
-  useEffect(() => {
-    if (!dummyBranchTriggerId) {
-      return;
-    }
-
-    const triggerPoint = routePoints.find((point) => point.id === dummyBranchTriggerId) ?? null;
-    if (isUnknownLegTrigger(triggerPoint)) {
-      return;
-    }
-
+  // The trigger being given dummy waypoints stopped being an unknown-leg trigger (deleted or converted): stop placing
+  // them. Done while rendering rather than in an effect; clearing the trigger makes it run once.
+  if (dummyBranchTriggerId && !isUnknownLegTrigger(routePoints.find((point) => point.id === dummyBranchTriggerId) ?? null)) {
     setDummyBranchTriggerId(null);
     if (wizardRouteInsertFeatureType === 'dummy_branch_waypoint') {
       setMode('view');
     }
-  }, [dummyBranchTriggerId, routePoints, wizardRouteInsertFeatureType]);
+  }
 
   const validationErrors = useMemo(() => validateRouteEditorState(
     routePoints,
@@ -811,7 +804,7 @@ export default function RouteEditor() {
       const savedRouteId = result.id ?? (routeId ? parseInt(routeId, 10) : null);
       if (savedRouteId) setCreateTaskPromptRouteId(savedRouteId);
       if (!routeId && result.id) {
-        setRouteId(result.id.toString());
+        setCreatedRouteId(result.id.toString());
         navigate(generatePath('ROUTE_EDITOR_EDIT', { routeId: result.id }), { replace: true });
       }
     } catch (e) {
