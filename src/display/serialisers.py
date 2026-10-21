@@ -2026,29 +2026,12 @@ class ContestantSerialiser(serializers.ModelSerializer):
         Lets the frontend highlight contestants missing a required declaration - e.g. a regular
         ANR task never requires one, but turnpoint hunt/contract navigation/curve/precision
         navigation (CIMA task types) do, and ContestantTaskCompilerStrategy.validate_declaration
-        is a no-op for every other subtype. Mirrors ContestantTaskCompiler._get_strategy's own
-        subtype dispatch so this list can't silently drift from what's actually validated.
-
-        Limited fuel turnpoint hunt is deliberately excluded even though it uses the same
-        TurnpointHuntStrategy as plain turnpoint hunt - its declaration is entirely optional (the
-        contestant may have fuel for fewer than the usual three compulsory points, or none), and
-        TurnpointHuntStrategy.validate_declaration never errors on an empty declaration for this
-        subtype (minimum_required=0), so "required" here would never be backed by real enforcement.
+        is a no-op for every other subtype. See DECLARATION_REQUIRED_SUBTYPES for
+        which subtypes require one.
         """
-        from display.utilities.cima_task_type_definitions import (
-            CONTRACT_NAVIGATION_TIME_CONTROLS,
-            CURVE_NAVIGATION_TIME_ESTIMATION,
-            PRECISION_NAVIGATION,
-            TURNPOINT_HUNT,
-        )
+        from display.utilities.cima_task_type_definitions import DECLARATION_REQUIRED_SUBTYPES
 
-        declaration_required_subtypes = {
-            CURVE_NAVIGATION_TIME_ESTIMATION,
-            PRECISION_NAVIGATION,
-            CONTRACT_NAVIGATION_TIME_CONTROLS,
-            TURNPOINT_HUNT,
-        }
-        required = contestant.navigation_task.task_subtype in declaration_required_subtypes
+        required = contestant.navigation_task.task_subtype in DECLARATION_REQUIRED_SUBTYPES
         config = getattr(contestant, "contestanttaskconfiguration", None)
         complete = bool(config and config.is_valid)
         # Without this, a contestant who saved a declaration that's still invalid for a reason
@@ -2163,13 +2146,18 @@ class ContestantSerialiser(serializers.ModelSerializer):
     def update(self, instance, validated_data):
         gate_times = validated_data.pop("gate_times", {})
         declaration_input = validated_data.pop("declaration_payload", None)
-        return update_contestant_with_related_state(
+        contestant = update_contestant_with_related_state(
             instance,
             validated_data,
             gate_times=gate_times,
             declaration_input=declaration_input,
             partial=self.partial,
         )
+        if declaration_input is not None:
+            from display.services.self_registration import send_flight_order_after_declaration
+
+            send_flight_order_after_declaration(contestant)
+        return contestant
 
 
 class OngoingNavigationSerialiser(serializers.ModelSerializer):

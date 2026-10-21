@@ -53,6 +53,19 @@ ABSOLUTE_TIME_DECLARATION_SUBTYPES = {
     KNOWN_CIRCUIT: "turnpoint_time_overrides",
 }
 
+# Task subtypes where the contestant must declare (a sequence, predicted times, ...) before
+# flying: ContestantTaskConfiguration.is_valid stays False until they have. Limited fuel turnpoint
+# hunt is deliberately absent although it shares TurnpointHuntStrategy with plain turnpoint hunt:
+# its declaration is entirely optional (minimum_required=0), so it never fails validation.
+DECLARATION_REQUIRED_SUBTYPES = frozenset(
+    {
+        CURVE_NAVIGATION_TIME_ESTIMATION,
+        PRECISION_NAVIGATION,
+        CONTRACT_NAVIGATION_TIME_CONTROLS,
+        TURNPOINT_HUNT,
+    }
+)
+
 LEGACY_PRECISION = "legacy_precision"
 LEGACY_ANR_CORRIDOR = "legacy_anr_corridor"
 LEGACY_AIRSPORTS = "legacy_airsports"
