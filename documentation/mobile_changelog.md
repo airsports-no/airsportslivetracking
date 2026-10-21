@@ -15,6 +15,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-21
 #### Backend
+- **Flight order waits for the declaration in tasks that require one.** A pilot booking a flight in a curve navigation, precision navigation, contract navigation or turnpoint hunt task no longer gets a flight order without the declared route; it is generated and e-mailed when a valid declaration is saved (again if it is changed). Flights added by a contest manager are not e-mailed automatically. New `Contestant.self_registered` (migration `0208`).
 - **Register today says what kind of task it is.** Each task in `open_registration_today` has a `task_type` (`key`, `display_name` such as "2.A1 Curve navigation with time estimation", `coarse_family`, `coarse_family_label` such as "Precision"), or null when the task has no known subtype; one task with an odd subtype no longer can break the list.
 
 ### 2026-10-19

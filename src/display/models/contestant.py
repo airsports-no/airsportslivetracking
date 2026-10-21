@@ -23,7 +23,10 @@ from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
-from display.utilities.cima_task_type_definitions import ABSOLUTE_TIME_DECLARATION_SUBTYPES
+from display.utilities.cima_task_type_definitions import (
+    ABSOLUTE_TIME_DECLARATION_SUBTYPES,
+    DECLARATION_REQUIRED_SUBTYPES,
+)
 from display.utilities.gate_definitions import STARTINGPOINT
 from display.utilities.navigation_task_type_definitions import (
     POKER,
@@ -206,6 +209,12 @@ class Contestant(models.Model):
         blank=True,
         help_text="What the pilot declared when registering: a real aircraft or a flight simulator. Positions of the other kind are "
         "ignored. Empty for flights registered before this existed: then only the task's simulator policy decides.",
+    )
+    self_registered = models.BooleanField(
+        default=False,
+        editable=False,
+        help_text="Is true if the pilot booked this flight themselves (self management) rather than a contest manager adding it. "
+        "The pilot's flight order is then e-mailed automatically, for tasks requiring a declaration once it has been saved.",
     )
     blocked_positions_at = models.DateTimeField(
         null=True,
@@ -702,6 +711,14 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         if overlapping.exists():
             logger.info(f"Terminating concurrent contestants for {self} (IDs: {tracker_ids}): {overlapping}")
             overlapping.update(finished_by_time=termination_time)
+
+    @property
+    def awaits_required_declaration(self) -> bool:
+        """True if the task requires a declaration (DECLARATION_REQUIRED_SUBTYPES) and there is no valid one yet."""
+        if self.navigation_task.task_subtype not in DECLARATION_REQUIRED_SUBTYPES:
+            return False
+        config = getattr(self, "contestanttaskconfiguration", None)
+        return not (config and config.is_valid)
 
     def get_declared_absolute_times(self) -> list[datetime.datetime]:
         """

@@ -7,10 +7,12 @@ import datetime
 import logging
 from typing import Optional
 
+from django.db import transaction
 from rest_framework.exceptions import ValidationError
 
 from display.models import Contestant, ContestTeam, NavigationTask
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.utilities.cima_task_type_definitions import DECLARATION_REQUIRED_SUBTYPES
 from display.utilities.simulator_policy import (
     FLIGHT_MODE_SIMULATOR,
     SIMULATOR_NOT_ALLOWED,
@@ -34,7 +36,7 @@ def create_self_managed_contestant(
 ) -> Contestant:
     """
     Creates and compiles the contestant. The caller checks that the pilot may register (team, contest and capacity) and
-    queues the flight order (generate_and_maybe_notify_flight_order). The flight is planned at the team's speed in the
+    queues the flight order (send_self_registration_flight_order). The flight is planned at the team's speed in the
     contest unless [air_speed] is given (the MSFS practice flight); the team's registration is not changed.
     """
     takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
@@ -61,6 +63,7 @@ def create_self_managed_contestant(
         wind_speed=wind_speed,
         wind_direction=wind_direction,
         flight_mode=flight_mode,
+        self_registered=True,
     )
     logger.debug("Created contestant")
     # None for a route without any timed gates (e.g. only dummy waypoints)
@@ -81,9 +84,49 @@ def create_self_managed_contestant(
 
     contestant.save()
     declaration_payload = ContestantTaskCompiler(contestant).build_declaration_payload_from_input(declaration_input)
-    ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=True)
+    # Replaces the configuration the post_save signal may have cached on [contestant] before it was compiled (see
+    # _compile_contestant_configuration in contestant_persistence.py), which awaits_required_declaration reads.
+    contestant.contestanttaskconfiguration = ContestantTaskCompiler(contestant).compile(
+        declaration_payload=declaration_payload, force=True
+    )
     logger.debug("Updated contestant")
     return contestant
+
+
+def send_self_registration_flight_order(contestant: Contestant, email: str, first_name: str) -> None:
+    """
+    Generates the self-registered flight's flight order and e-mails it to the pilot, unless the task requires a declaration
+    that has not been made yet: the flight order then shows the declared route, so it is sent once the declaration is saved
+    (send_flight_order_after_declaration).
+    """
+    if contestant.awaits_required_declaration:
+        logger.info(f"Flight order for {contestant} waits for the declaration")
+        return
+    from display.tasks import generate_and_maybe_notify_flight_order
+
+    generate_and_maybe_notify_flight_order.apply_async((contestant.pk, email, first_name, True))
+
+
+def send_flight_order_after_declaration(contestant: Contestant) -> None:
+    """
+    Called when a declaration has been saved. For a flight the pilot booked themselves, in a task requiring a declaration,
+    the flight order is generated and e-mailed to the pilot once the declaration is valid, also again after it is changed.
+    Flights added by a contest manager are left alone: the manager generates and sends their flight orders.
+    """
+    if not contestant.self_registered:
+        return
+    if contestant.navigation_task.task_subtype not in DECLARATION_REQUIRED_SUBTYPES:
+        return
+    if contestant.awaits_required_declaration:
+        return
+    pilot = contestant.team.crew.member1
+    if not pilot.email:
+        return
+    from display.tasks import generate_and_maybe_notify_flight_order
+
+    transaction.on_commit(
+        lambda: generate_and_maybe_notify_flight_order.apply_async((contestant.pk, pilot.email, pilot.first_name, True))
+    )
 
 
 def implied_flight_mode(request) -> Optional[str]:
