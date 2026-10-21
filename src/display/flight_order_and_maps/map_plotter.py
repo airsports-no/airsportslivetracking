@@ -53,6 +53,18 @@ def estimate_memory_usage(figure_width_cm, figure_height_cm, dpi):
 # shared pod.
 TILE_MEMORY_OVERHEAD_MULTIPLIER = 5.5
 
+# Raised from 750 after a production investigation (Sentry: one user hit the old threshold 38
+# times in 26h, always at zoom_level=14 - the form's max - across routes whose tiles_mb alone
+# ranged ~770-1134MB, regardless of DPI/page size). 1500 comfortably covers that range plus the
+# 792-tile/A3/300dpi config this module's calibration was originally profiled against (~1092MB
+# measured post-fix peak, see test_map_memory_estimation.py) while leaving ~1.5GB of headroom
+# under tracker-celery's 3Gi pod memory limit (--concurrency 1, so no concurrent task shares
+# that headroom while a map renders).
+MEMORY_THRESHOLD_MB = 1500
+# plot_route_within_memory_limit never goes below this zoom level: the map would be too coarse to
+# navigate by, so the configuration has to change (smaller scale or page) instead.
+MINIMUM_FALLBACK_ZOOM_LEVEL = 9
+
 
 def estimate_tile_memory_mb(total_tiles: int) -> float:
     """Estimates peak memory usage in MB for cartopy fetching/compositing `total_tiles` tiles."""
@@ -1100,6 +1112,33 @@ def plot_unknown_legs_point_name(
     )
 
 
+def plot_route_within_memory_limit(task: NavigationTask, map_size: str, zoom_level: int, **kwargs) -> tuple[BytesIO, int]:
+    """
+    plot_route, lowering the zoom level one step at a time (not below MINIMUM_FALLBACK_ZOOM_LEVEL) while the map would
+    need more memory than MEMORY_THRESHOLD_MB, rather than not making the map at all. Returns the image and the zoom level
+    it was made with.
+    """
+    while True:
+        try:
+            return plot_route(task, map_size, zoom_level=zoom_level, **kwargs), zoom_level
+        except MemoryEstimationExceededError:
+            if zoom_level <= MINIMUM_FALLBACK_ZOOM_LEVEL:
+                raise
+            logger.warning(f"Map for task {task.pk} at zoom level {zoom_level} needs too much memory, trying {zoom_level - 1}")
+            zoom_level -= 1
+
+
+def highest_zoom_level_within_memory_limit(task: NavigationTask, map_size: str, zoom_level: int, **kwargs) -> Optional[int]:
+    """
+    The highest zoom level, at most [zoom_level] and not below MINIMUM_FALLBACK_ZOOM_LEVEL, at which the map fits within
+    MEMORY_THRESHOLD_MB, or None if it fits at none of them. Only estimates: no map tiles are fetched.
+    """
+    for candidate in range(zoom_level, MINIMUM_FALLBACK_ZOOM_LEVEL - 1, -1):
+        if plot_route(task, map_size, zoom_level=candidate, estimate_only=True, **kwargs) <= MEMORY_THRESHOLD_MB:
+            return candidate
+    return None
+
+
 def get_contrasting_anr_gate_colour(colour: str) -> str:
     """
     Returns a colour that contrasts well with the provided ANR corridor colour.
@@ -1726,6 +1765,8 @@ def plot_route(
     # the figure's own physical size to exactly match what will actually be printed.
     horizontal_margin_mm: Optional[float] = None,
     vertical_margin_mm: Optional[float] = None,
+    # Return the estimated peak memory (MB) instead of the image, without fetching any map tiles
+    estimate_only: bool = False,
 ):
     route = task.route
     attribution = ""
@@ -2048,19 +2089,16 @@ def plot_route(
     tiles_mb = estimate_tile_memory_mb(total_tiles)
 
     estimated_mb = final_image_mb + tiles_mb
-    # Raised from 750 after a production investigation (Sentry: one user hit the old threshold 38
-    # times in 26h, always at zoom_level=14 - the form's max - across routes whose tiles_mb alone
-    # ranged ~770-1134MB, regardless of DPI/page size). 1500 comfortably covers that range plus the
-    # 792-tile/A3/300dpi config this module's calibration was originally profiled against (~1092MB
-    # measured post-fix peak, see test_map_memory_estimation.py) while leaving ~1.5GB of headroom
-    # under tracker-celery's 3Gi pod memory limit (--concurrency 1, so no concurrent task shares
-    # that headroom while a map renders).
-    MEMORY_THRESHOLD_MB = 1500
     logger.info(
         f"Estimated memory usage: {estimated_mb:.0f}MB ({final_image_mb:.0f}MB for map + {tiles_mb:.0f}MB for tiles)"
     )
 
+    if estimate_only:
+        plt.close(fig)
+        return estimated_mb
     if estimated_mb > MEMORY_THRESHOLD_MB:
+        # Nothing has been fetched yet, but the figure would otherwise stay open in the worker
+        plt.close(fig)
         raise MemoryEstimationExceededError(
             memory_estimation_exceeded_message(estimated_mb, final_image_mb, tiles_mb, MEMORY_THRESHOLD_MB, zoom_level)
         )

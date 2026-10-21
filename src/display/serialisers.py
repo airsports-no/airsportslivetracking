@@ -1,4 +1,5 @@
 import base64
+import copy
 import datetime
 import logging
 from typing import Optional
@@ -1843,6 +1844,13 @@ class FlightOrderConfigurationSerialiser(serializers.ModelSerializer):
                 validate_map_zoom_level(map_source, None, map_zoom_level)
             except CoreValidationError as exc:
                 raise ValidationError({"map_zoom_level": str(exc.message if hasattr(exc, "message") else exc)})
+        from display.flight_order_and_maps.generate_flight_orders import flight_order_map_memory_error
+
+        configuration = copy.copy(self.instance)
+        for field_name, value in attrs.items():
+            setattr(configuration, field_name, value)
+        if error := flight_order_map_memory_error(navigation_task, configuration):
+            raise ValidationError({"map_zoom_level": error})
         return attrs
 
 

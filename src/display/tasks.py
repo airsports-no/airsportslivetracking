@@ -45,7 +45,7 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
         from display.models import NavigationTask, Contestant
         from django.contrib.auth import get_user_model
         from display.flight_order_and_maps.generate_flight_orders import embed_map_in_pdf
-        from display.flight_order_and_maps.map_plotter import plot_route, MapTileRenderingDegradedError
+        from display.flight_order_and_maps.map_plotter import plot_route_within_memory_limit, MapTileRenderingDegradedError
 
         task = NavigationTask.objects.get(pk=task_id)
         contestant = Contestant.objects.get(pk=contestant_id) if contestant_id else None
@@ -54,8 +54,8 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
         logger.info(f"Async map generation started for task {task_id}, contestant {contestant_id}")
 
         map_source = map_params["map_source"]
+        requested_zoom_level = int(map_params["zoom_level"])
         plot_route_kwargs = dict(
-            zoom_level=int(map_params["zoom_level"]),
             landscape=map_params["landscape"],
             contestant=contestant,
             annotations=map_params["annotations"],
@@ -72,7 +72,9 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
 
         fallback_warning = None
         try:
-            map_image = plot_route(task, map_params["size"], map_source=map_source, **plot_route_kwargs)
+            map_image, zoom_level = plot_route_within_memory_limit(
+                task, map_params["size"], requested_zoom_level, map_source=map_source, **plot_route_kwargs
+            )
         except MapTileRenderingDegradedError:
             # "osm" is itself the fallback provider - if it's the one that's degraded, there's
             # nothing left to fall back to, so let this propagate to the outer except below.
@@ -83,11 +85,19 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
                 f"task {task_id}, contestant {contestant_id} - retrying with the 'osm' fallback "
                 f"provider."
             )
-            map_image = plot_route(task, map_params["size"], map_source="osm", **plot_route_kwargs)
+            map_image, zoom_level = plot_route_within_memory_limit(
+                task, map_params["size"], requested_zoom_level, map_source="osm", **plot_route_kwargs
+            )
             fallback_warning = (
                 "The selected map style was temporarily unavailable due to a map tile provider "
                 "issue, so a fallback map style (OpenStreetMap) was used instead."
             )
+        if zoom_level < requested_zoom_level:
+            zoom_warning = (
+                f"Zoom level {requested_zoom_level} needs too much memory for this map, so it was made with zoom "
+                f"level {zoom_level}. Choose a smaller scale or page size to keep the higher zoom level."
+            )
+            fallback_warning = f"{fallback_warning} {zoom_warning}" if fallback_warning else zoom_warning
 
         # Convert to PDF using existing logic
         from display.flight_order_and_maps.map_constants import A4
@@ -131,7 +141,13 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
         cache_key = f"map_gen_result_{task_id}_{contestant_id}_{user_id}"
         cache.set(cache_key, {"status": "error", "message": str(e)}, timeout=3600)
     except Exception as e:
-        logger.exception("Failed async map generation")
+        from display.flight_order_and_maps.map_plotter import MemoryEstimationExceededError
+
+        # Too heavy even at the lowest zoom: the organizer's settings, not a bug - the message tells them what to change
+        if isinstance(e, MemoryEstimationExceededError):
+            logger.warning(f"Async map generation for task {task_id} needs too much memory: {e}")
+        else:
+            logger.exception("Failed async map generation")
         cache_key = f"map_gen_result_{task_id}_{contestant_id}_{user_id}"
         cache.set(cache_key, {"status": "error", "message": str(e)}, timeout=3600)
 
@@ -301,8 +317,14 @@ def generate_and_maybe_notify_flight_order(
         for c in connections.all():
             c.close_if_unusable_or_obsolete()
         append_cache_dict(f"completed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, True)
-    except:
-        logger.exception("Exception in generate_flight_order")
+    except Exception as e:
+        from display.flight_order_and_maps.map_plotter import MemoryEstimationExceededError
+
+        # Too heavy even at the lowest zoom: the flight order configuration, not a bug (recorded as failed above)
+        if isinstance(e, MemoryEstimationExceededError):
+            logger.warning(f"Flight order for contestant {contestant_pk} needs too much memory: {e}")
+        else:
+            logger.exception("Exception in generate_flight_order")
 
 
 @app.task

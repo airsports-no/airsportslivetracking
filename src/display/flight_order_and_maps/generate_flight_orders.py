@@ -25,7 +25,14 @@ from shapely.geometry import Polygon
 
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.flight_order_and_maps.map_constants import A3, LANDSCAPE, SCALE_TO_FIT
-from display.flight_order_and_maps.map_plotter import PSEUDO_MERCATOR_SPHERE, plot_route
+from display.flight_order_and_maps.map_plotter import (
+    MEMORY_THRESHOLD_MB,
+    MINIMUM_FALLBACK_ZOOM_LEVEL,
+    PSEUDO_MERCATOR_SPHERE,
+    highest_zoom_level_within_memory_limit,
+    plot_route,
+    plot_route_within_memory_limit,
+)
 from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_image
 from display.models import Contestant
 from display.models.flight_order_configuration import FlightOrderConfiguration
@@ -94,6 +101,37 @@ def build_flight_order_map_plot_kwargs(
         "horizontal_margin_mm": 20,
         "vertical_margin_mm": 25,
     }
+
+
+def flight_order_map_memory_error(navigation_task, flight_order_configuration: FlightOrderConfiguration) -> Optional[str]:
+    """
+    Why the configured flight order map cannot be made for [navigation_task]'s route within the memory limit, naming the
+    highest zoom level that would fit, or None if it fits. Only estimates (no map tiles are fetched), from the task's route
+    without any contestant's declaration.
+    """
+    map_plot_kwargs = build_flight_order_map_plot_kwargs(navigation_task, flight_order_configuration)
+    zoom_level = map_plot_kwargs.pop("zoom_level")
+    size = flight_order_configuration.document_size
+    try:
+        estimated_mb = plot_route(navigation_task, size, zoom_level=zoom_level, estimate_only=True, **map_plot_kwargs)
+        if estimated_mb <= MEMORY_THRESHOLD_MB:
+            return None
+        highest_zoom_level = (
+            highest_zoom_level_within_memory_limit(navigation_task, size, zoom_level - 1, **map_plot_kwargs)
+            if zoom_level > MINIMUM_FALLBACK_ZOOM_LEVEL
+            else None
+        )
+    except Exception:
+        # A task whose route cannot be drawn yet has nothing to check against
+        logger.warning(f"Could not estimate the flight order map memory for task {navigation_task.pk}", exc_info=True)
+        return None
+    message = (
+        f"With these settings the map at zoom level {zoom_level} needs about {estimated_mb:.0f} MB, more than the "
+        f"{MEMORY_THRESHOLD_MB} MB available."
+    )
+    if highest_zoom_level is not None:
+        return f"{message} The highest zoom level that fits is {highest_zoom_level}."
+    return f"{message} It does not fit at zoom level {MINIMUM_FALLBACK_ZOOM_LEVEL} either: choose a smaller scale or page size."
 
 
 def get_flight_order_visual_waypoints(contestant: Contestant, include_contestant_declarations: bool) -> list[Waypoint]:
@@ -653,14 +691,17 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         flight_order_configuration.turning_point_photos_zoom_level,
     )
 
-    map_image = plot_route(
+    # A configuration too heavy for this route gets a slightly coarser map rather than no flight order at all
+    map_plot_kwargs = build_flight_order_map_plot_kwargs(
+        contestant.navigation_task,
+        flight_order_configuration,
+        contestant=contestant,
+    )
+    map_image, _ = plot_route_within_memory_limit(
         contestant.navigation_task,
         flight_order_configuration.document_size,
-        **build_flight_order_map_plot_kwargs(
-            contestant.navigation_task,
-            flight_order_configuration,
-            contestant=contestant,
-        ),
+        map_plot_kwargs.pop("zoom_level"),
+        **map_plot_kwargs,
     )
     mapimage_file = NamedTemporaryFile(suffix=".png")
     mapimage_file.write(map_image.read())
