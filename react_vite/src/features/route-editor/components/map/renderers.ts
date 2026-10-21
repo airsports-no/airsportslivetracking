@@ -69,8 +69,9 @@ const getPointTooltipLabel = (point: RoutePoint, index: number) => {
   if (point.type === UNKNOWN_LEG_TRIGGER_TYPE) {
     return `${index + 1}. ⚑ UL ${point.name}`;
   }
-  // point.name already carries the trigger name (see buildDummyBranchWaypoint's
-  // `${trigger.name}-D<n>` naming), so no separate trigger lookup is needed here.
+  if (point.featureType === 'dummy_branch_waypoint') {
+    return `${index + 1}. ${point.name} (dummy)`;
+  }
   return `${index + 1}. ${point.name}`;
 };
 

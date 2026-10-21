@@ -569,6 +569,22 @@ class TestContestantTaskConfiguration(TestCase):
         self.assertIn('"00:10:00"', mp_row)
         self.assertIn('"00:20:00"', fp_row)
 
+    def test_unknown_legs_flight_order_times_only_the_starting_and_finishing_points(self):
+        # The legs and times of the true route would tell the pilot where the unknown legs go.
+        from display.flight_order_and_maps.generate_flight_orders import _gate_times_table_rows
+
+        self.navigation_task.task_subtype = UNKNOWN_LEGS
+        self.navigation_task.save(update_fields=["task_subtype"])
+        contestant = Contestant.objects.get(pk=self.contestant.pk)
+        waypoints = contestant.navigation_task.route.waypoints
+
+        rows = _gate_times_table_rows(contestant, waypoints).split(",\n")
+
+        gate_rows = [row.strip() for row in rows[2:]]
+        self.assertEqual(2, len(gate_rows), gate_rows)
+        self.assertTrue(gate_rows[0].startswith(f'"{waypoints[0].name}", "-", "-"'))
+        self.assertTrue(gate_rows[1].startswith(f'"{waypoints[-1].name}", "-", "-"'))
+
     def test_turnpoint_hunt_compiles_compulsory_point_times_without_predicted_sequence(self):
         editable_route = EditableRoute.objects.create(
             name="Turnpoint hunt primitives",

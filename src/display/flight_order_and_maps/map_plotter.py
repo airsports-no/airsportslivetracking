@@ -87,7 +87,7 @@ import six
 import datetime
 import os
 import sys
-from typing import Optional, Tuple, List, cast
+from typing import Optional, Tuple, List
 
 from django.db import models
 from PIL import Image
@@ -1054,6 +1054,52 @@ def plot_waypoint_name(
     )
 
 
+def plot_unknown_legs_point_name(
+    route: Route,
+    name: str,
+    latitude: float,
+    longitude: float,
+    contestant: Optional[Contestant],
+    annotations: bool,
+    colour: str,
+):
+    """
+    Labels a point of the route as an unknown-legs task shows it (backbone and dummy points, never the unknown-leg points).
+    Only the starting and finishing points are given a time: the times of the others would give away the true route.
+    """
+    plt.text(
+        longitude,
+        latitude,
+        name + " " * (2 + len(name)),
+        verticalalignment="center",
+        color=colour,
+        horizontalalignment="center",
+        transform=PSEUDO_MERCATOR_SPHERE,
+        fontsize=10,
+        family="monospace",
+        clip_on=True,
+    )
+    waypoints = route.waypoints
+    if contestant is None or not annotations or not waypoints or name not in (waypoints[0].name, waypoints[-1].name):
+        return
+    waypoint_time = contestant.gate_times.get(name)
+    if waypoint_time is None:
+        return
+    timing = " {}".format(waypoint_time.astimezone(route.navigationtask.contest.time_zone).strftime("%M:%S"))
+    plt.text(
+        longitude,
+        latitude,
+        " " * len(timing) + timing,
+        verticalalignment="center",
+        color=colour,
+        horizontalalignment="center",
+        transform=PSEUDO_MERCATOR_SPHERE,
+        fontsize=12,
+        family="monospace",
+        clip_on=True,
+    )
+
+
 def get_contrasting_anr_gate_colour(colour: str) -> str:
     """
     Returns a colour that contrasts well with the provided ANR corridor colour.
@@ -1850,6 +1896,7 @@ def plot_route(
                             ys,
                             **plot_kwargs,
                         )
+                    # Without a contestant plot_catalogue_targets already marks and names the points
                     if contestant is not None:
                         for name, lat, lon, is_unknown_leg_trigger in ordered_segment_points:
                             if is_unknown_leg_trigger:
@@ -1863,21 +1910,7 @@ def plot_route(
                                 markersize=20,
                                 fillstyle="none",
                             )
-                            route_like = contestant.navigation_task.route if contestant is not None else route
-                            route_like = cast(Route, route_like)
-                            waypoint = next((item for item in render_waypoints if item.name == name), None)
-                            if waypoint is not None:
-                                bearing = getattr(waypoint, "bearing_next", 0)
-                                plot_waypoint_name(
-                                    route_like,
-                                    waypoint,
-                                    bearing,
-                                    annotations,
-                                    waypoints_only,
-                                    contestant,
-                                    line_width,
-                                    "red",
-                                )
+                            plot_unknown_legs_point_name(route, name, lat, lon, contestant, annotations, "red")
     elif ANR_CORRIDOR in task.scorecard.task_type:
         paths = plot_anr_corridor_track(
             route,

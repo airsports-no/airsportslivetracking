@@ -44,6 +44,7 @@ import {
   getDummyBranchPhase,
   getWizardBannerText,
   isUnknownLegTrigger,
+  nameUnknownLegsRoutePoints,
 } from '../unknownLegWizard';
 
 const getFreeMapStepMaxCount = (
@@ -142,6 +143,17 @@ export default function RouteEditor() {
   const [pendingBounds, setPendingBounds] = useState<L.LatLngBoundsExpression | null>(null);
 
   const markDirty = useCallback(() => setIsDirty(true), []);
+
+  // 2.A5: the generated map labels every shown point, so the points are numbered in the order the map shows them
+  // (dummy legs included) instead of carrying generic names. Also renames an older route when it is opened.
+  useEffect(() => {
+    if (selectedTaskTemplateId !== 'cima_a5') return;
+    const named = nameUnknownLegsRoutePoints(routePoints, standalonePoints);
+    if (named.routePoints === routePoints && named.standalonePoints === standalonePoints) return;
+    setRoutePoints(named.routePoints);
+    setStandalonePoints(named.standalonePoints);
+    markDirty();
+  }, [selectedTaskTemplateId, routePoints, standalonePoints, markDirty]);
 
   useEffect(() => {
     modeRef.current = mode;

@@ -32,9 +32,9 @@ from display.models.flight_order_configuration import FlightOrderConfiguration
 from display.models.route import Photo
 from display.services.photo_management import get_observation_photo_names
 from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS, UNKNOWN_LEGS
 from display.utilities.coordinate_utilities import normalise_bearing, utm_from_lat_lon
-from display.utilities.gate_definitions import DUMMY, SECRETPOINT, UNKNOWN_LEG
+from display.utilities.gate_definitions import DUMMY, FINISHPOINT, SECRETPOINT, STARTINGPOINT, UNKNOWN_LEG
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
 from display.utilities.wind_utilities import (
     calculate_ground_speed,
@@ -475,6 +475,16 @@ def _gate_times_table_rows(contestant: "Contestant", waypoints: List[Waypoint]) 
             local_time = local_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S")
         add_row(["Takeoff gate", "-", "-", "-", "-", "-", "-", local_time])
         rows.append("table.hline()")
+
+    if contestant.navigation_task.task_subtype == UNKNOWN_LEGS:
+        # The legs and times of the true route would tell where the unknown legs go: only the starting and finishing
+        # points' times are given, the pilot plans the rest.
+        for waypoint in waypoints:
+            gate_time = contestant.gate_times.get(waypoint.name) if waypoint.type in (STARTINGPOINT, FINISHPOINT) else None
+            if gate_time is not None:
+                local_time = gate_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S")
+                add_row([waypoint.name, "-", "-", "-", "-", "-", "-", local_time])
+        waypoints = []
 
     # Contract navigation: MP is T after SP and FP T after MP, whatever the legs' lengths. The gate times of the declared
     # turnpoints between them (not time checks) are those of a constant speed through each half, so the ground speed and
