@@ -62,4 +62,15 @@ def describe(task: NavigationTask, now: datetime.datetime) -> dict:
         "finish_time": task.finish_time,
         "is_open_now": task.start_time <= now <= task.finish_time,
         "simulator_policy": task.simulator_policy,
+        # What kind of flying it is, e.g. "Precision" / "2.A1 Curve navigation with time estimation" (null when unknown)
+        "task_type": _task_type(task),
     }
+
+
+def _task_type(task: NavigationTask) -> Optional[dict]:
+    from display.serialisers import _serialize_task_subtype_definition
+
+    definition = _serialize_task_subtype_definition(task)
+    if definition is None:
+        return None
+    return {key: definition[key] for key in ("display_name", "coarse_family_label")}

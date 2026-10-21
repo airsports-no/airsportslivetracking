@@ -92,6 +92,9 @@ class TestOpenRegistrationToday(TestCase):
         self.assertEqual((item["contest_id"], item["navigation_task_id"]), (self.contest.pk, task.pk))
         self.assertTrue(item["is_open_now"])
         self.assertEqual(item["time_zone"], "Europe/Oslo")
+        self.assertEqual(item["task_type"], {
+            "display_name": task.subtype_definition.display_name, "coarse_family_label": "Precision",
+        })
 
     def test_unknown_timezone_is_rejected(self):
         self.assertEqual(self.client.get(URL, {"timezone": "Mars/Base"}).status_code, 400)
