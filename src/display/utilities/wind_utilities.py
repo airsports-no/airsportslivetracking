@@ -29,3 +29,12 @@ def calculate_ground_speed_relative_angle(airspeed, wind_correction_angle, wind_
 def calculate_ground_speed_combined(true_track, airspeed, wind_speed, wind_direction):
     wind_correction_angle = calculate_wind_correction_angle(true_track, airspeed, wind_speed, wind_direction)
     return calculate_ground_speed(true_track, airspeed, wind_correction_angle, wind_speed, wind_direction)
+
+
+def calculate_heading_for_ground_speed(true_track, ground_speed, wind_speed, wind_direction):
+    """The true heading that makes good [ground_speed] along [true_track] in the wind (blowing from [wind_direction])."""
+    track = true_track * np.pi / 180
+    wind_towards = (wind_direction + 180) * np.pi / 180
+    air_east = ground_speed * np.sin(track) - wind_speed * np.sin(wind_towards)
+    air_north = ground_speed * np.cos(track) - wind_speed * np.cos(wind_towards)
+    return (np.arctan2(air_east, air_north) * 180 / np.pi) % 360
