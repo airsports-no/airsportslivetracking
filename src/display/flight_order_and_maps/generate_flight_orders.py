@@ -32,15 +32,10 @@ from display.models.flight_order_configuration import FlightOrderConfiguration
 from display.models.route import Photo
 from display.services.photo_management import get_observation_photo_names
 from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
 from display.utilities.coordinate_utilities import normalise_bearing, utm_from_lat_lon
 from display.utilities.gate_definitions import DUMMY, SECRETPOINT, UNKNOWN_LEG
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
-from display.utilities.wind_utilities import (
-    calculate_ground_speed,
-    calculate_heading_for_ground_speed,
-    calculate_wind_correction_angle,
-)
+from display.utilities.wind_utilities import calculate_ground_speed, calculate_wind_correction_angle
 from display.waypoint import Waypoint
 from live_tracking_map.settings import MEDIA_ROOT_URL
 
@@ -476,10 +471,6 @@ def _gate_times_table_rows(contestant: "Contestant", waypoints: List[Waypoint]) 
         add_row(["Takeoff gate", "-", "-", "-", "-", "-", "-", local_time])
         rows.append("table.hline()")
 
-    # Contract navigation: MP is T after SP and FP T after MP, whatever the legs' lengths. The gate times of the declared
-    # turnpoints between them (not time checks) are those of a constant speed through each half, so the ground speed and
-    # heading shown are what that takes, not the contestant's airspeed, and there is no procedure turn time in them.
-    contract_navigation = contestant.navigation_task.task_subtype == CONTRACT_NAVIGATION_TIME_CONTROLS
     accumulated_distance = 0
     last_record_distance = 0
     previous_waypoint = None
@@ -508,16 +499,9 @@ def _gate_times_table_rows(contestant: "Contestant", waypoints: List[Waypoint]) 
                 contestant.wind_direction,
             )
             gate_time = contestant.gate_times.get(waypoint.name, None)
+            local_waypoint_time = gate_time.astimezone(contestant.navigation_task.contest.time_zone)
             if gate_time is not None:
-                local_waypoint_time = gate_time.astimezone(contestant.navigation_task.contest.time_zone)
                 distance = accumulated_distance - last_record_distance
-                if contract_navigation and last_recorded_time:
-                    leg_seconds = (gate_time - last_recorded_time).total_seconds()
-                    if leg_seconds > 0:
-                        ground_speed = (distance / 1852) / (leg_seconds / 3600)
-                        wind_bearing = calculate_heading_for_ground_speed(
-                            bearing, ground_speed, contestant.wind_speed, contestant.wind_direction
-                        )
                 add_row(
                     [
                         waypoint.name,
@@ -533,9 +517,7 @@ def _gate_times_table_rows(contestant: "Contestant", waypoints: List[Waypoint]) 
                                     - last_recorded_time
                                     - (
                                         PROCEDURE_TURN_DURATION
-                                        if not contract_navigation
-                                        and previous_waypoint is not None
-                                        and previous_waypoint.is_procedure_turn
+                                        if previous_waypoint is not None and previous_waypoint.is_procedure_turn
                                         else datetime.timedelta(seconds=0)
                                     )
                                 )

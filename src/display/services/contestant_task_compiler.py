@@ -979,8 +979,7 @@ class ContestantTaskCompiler:
         if not declared_sequence or not effective_waypoints:
             return {}
 
-        # Same anchor as every other gate time: with adaptive start the midnight placeholder until the start is known
-        base_time = self.contestant.gate_time_anchor()
+        base_time = self.contestant.takeoff_time + datetime.timedelta(minutes=self.contestant.minutes_to_starting_point)
         time_model = compiled_effective_route_payload.get("time_model") or {}
         t_seconds = int(time_model.get("t_seconds") or 0)
         if t_seconds <= 0:

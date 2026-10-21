@@ -413,7 +413,7 @@ class TestContestantTaskConfiguration(TestCase):
             {"declared_sequence": ["A", "MP", "B", "FP"], "declared_t_seconds": 82},
         )
 
-    def _use_contract_navigation_route(self):
+    def test_contract_navigation_declared_gate_times_follow_declared_leg_distances(self):
         editable_route = EditableRoute.objects.create(
             name="Contract nav distance timing",
             route={
@@ -493,9 +493,6 @@ class TestContestantTaskConfiguration(TestCase):
         self.navigation_task.editable_route = editable_route
         self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
 
-    def test_contract_navigation_declared_gate_times_follow_declared_leg_distances(self):
-        self._use_contract_navigation_route()
-
         compiled = ContestantTaskCompiler(self.contestant).compile(
             declaration_payload={"declared_sequence": ["A", "MP", "B", "FP"], "declared_t_seconds": 600},
             force=True,
@@ -511,63 +508,6 @@ class TestContestantTaskConfiguration(TestCase):
         self.assertEqual((fp_time - mp_time).total_seconds(), 600)
         self.assertAlmostEqual((a_time - sp_time).total_seconds(), 300, delta=5)
         self.assertAlmostEqual((b_time - mp_time).total_seconds(), 300, delta=5)
-
-    def _compile_adaptive_contract_navigation(self):
-        self._use_contract_navigation_route()
-        self.contestant.adaptive_start = True
-        self.contestant.save()
-        compiled = ContestantTaskCompiler(self.contestant).compile(
-            declaration_payload={"declared_sequence": ["A", "MP", "B", "FP"], "declared_t_seconds": 600},
-            force=True,
-        )
-        # A fresh instance: save() above may have cached "no configuration" on this one (post_save signal)
-        self.contestant = Contestant.objects.get(pk=self.contestant.pk)
-        return compiled
-
-    def test_contract_navigation_adaptive_start_times_are_relative_until_the_start(self):
-        # Contestant 15932 (2.A3, adaptive start): the declared times were anchored on take-off + minutes to the
-        # starting point, so the flight order showed made-up absolute times instead of the placeholder from midnight
-        # that every other adaptive-start time uses until the start is known.
-        compiled = self._compile_adaptive_contract_navigation()
-        times = {key: datetime.datetime.fromisoformat(value) for key, value in compiled.compiled_gate_times_payload.items()}
-        midnight = self.contestant.takeoff_time.astimezone(self.contest.time_zone).replace(
-            hour=0, minute=0, second=0, microsecond=0
-        )
-        self.assertEqual(midnight, times["SP"])
-        self.assertEqual(600, (times["MP"] - times["SP"]).total_seconds())
-        self.assertEqual(600, (times["FP"] - times["MP"]).total_seconds())
-
-    def test_contract_navigation_adaptive_start_keeps_declared_t(self):
-        # On the starting-line crossing the gate times were calculated again from the route at the contestant's speed,
-        # replacing MP = SP + T and FP = SP + 2T with times that have nothing to do with T.
-        compiled = self._compile_adaptive_contract_navigation()
-        compiled_a = datetime.datetime.fromisoformat(compiled.compiled_gate_times_payload["A"])
-        compiled_sp = datetime.datetime.fromisoformat(compiled.compiled_gate_times_payload["SP"])
-        start = datetime.datetime(2020, 8, 1, 8, 40, tzinfo=datetime.timezone.utc)
-
-        times = self.contestant.adaptive_start_gate_times(start)
-
-        self.assertEqual(start, times["SP"])
-        self.assertEqual(start + datetime.timedelta(seconds=600), times["MP"])
-        self.assertEqual(start + datetime.timedelta(seconds=1200), times["FP"])
-        self.assertEqual(start + (compiled_a - compiled_sp), times["A"])
-
-    def test_contract_navigation_flight_order_flies_each_half_at_constant_speed(self):
-        # The flight order subtracted a procedure turn from legs whose times do not include one: contestant 15932's
-        # leg to MP read "-1 day, 23:59:45".
-        from display.flight_order_and_maps.generate_flight_orders import (
-            _gate_times_table_rows,
-            get_flight_order_visual_waypoints,
-        )
-
-        self._compile_adaptive_contract_navigation()
-        rows = _gate_times_table_rows(self.contestant, get_flight_order_visual_waypoints(self.contestant, True))
-
-        self.assertNotIn("day", rows)
-        mp_row = next(row for row in rows.split(",\n") if row.strip().startswith('"MP"'))
-        fp_row = next(row for row in rows.split(",\n") if row.strip().startswith('"FP"'))
-        self.assertIn('"00:10:00"', mp_row)
-        self.assertIn('"00:20:00"', fp_row)
 
     def test_turnpoint_hunt_compiles_compulsory_point_times_without_predicted_sequence(self):
         editable_route = EditableRoute.objects.create(

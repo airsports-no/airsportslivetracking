@@ -23,11 +23,7 @@ from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
-from display.utilities.cima_task_type_definitions import (
-    ABSOLUTE_TIME_DECLARATION_SUBTYPES,
-    CONTRACT_NAVIGATION_TIME_CONTROLS,
-    DECLARATION_REQUIRED_SUBTYPES,
-)
+from display.utilities.cima_task_type_definitions import ABSOLUTE_TIME_DECLARATION_SUBTYPES
 from display.utilities.gate_definitions import STARTINGPOINT
 from display.utilities.navigation_task_type_definitions import (
     POKER,
@@ -210,12 +206,6 @@ class Contestant(models.Model):
         blank=True,
         help_text="What the pilot declared when registering: a real aircraft or a flight simulator. Positions of the other kind are "
         "ignored. Empty for flights registered before this existed: then only the task's simulator policy decides.",
-    )
-    self_registered = models.BooleanField(
-        default=False,
-        editable=False,
-        help_text="Is true if the pilot booked this flight themselves (self management) rather than a contest manager adding it. "
-        "The pilot's flight order is then e-mailed automatically, for tasks requiring a declaration once it has been saved.",
     )
     blocked_positions_at = models.DateTimeField(
         null=True,
@@ -713,14 +703,6 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
             logger.info(f"Terminating concurrent contestants for {self} (IDs: {tracker_ids}): {overlapping}")
             overlapping.update(finished_by_time=termination_time)
 
-    @property
-    def awaits_required_declaration(self) -> bool:
-        """True if the task requires a declaration (DECLARATION_REQUIRED_SUBTYPES) and there is no valid one yet."""
-        if self.navigation_task.task_subtype not in DECLARATION_REQUIRED_SUBTYPES:
-            return False
-        config = getattr(self, "contestanttaskconfiguration", None)
-        return not (config and config.is_valid)
-
     def get_declared_absolute_times(self) -> list[datetime.datetime]:
         """
         The contestant's manually declared absolute predicted/override times, for task subtypes
@@ -862,50 +844,6 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         actual = self.actualgatetime_set.filter(gate=start_waypoint.name).first()
         return round_time_minute(actual.time) if actual else None
 
-    def gate_time_anchor(self) -> datetime.datetime:
-        """
-        The time the starting point is planned for, from which the gate times are calculated. With adaptive start that is
-        the real starting-line crossing once there is one, and until then a placeholder at midnight (contest time zone) that
-        makes the gate times read as offsets from the start.
-        """
-        if self.adaptive_start:
-            # Once the contestant has actually crossed the starting line, every gate time
-            # from here on must be anchored to that real crossing - not the midnight-anchored
-            # relative placeholder used before the start is known. Without this, any caller
-            # that recomputes from scratch with no explicit start_point_override (the
-            # gate_times setter on a routine contestant edit, a lazy gate_times property
-            # recompute, ContestantTaskCompiler._build_gate_times_payload on a later
-            # compile()) would silently revert an adaptive-start contestant's absolute gate
-            # times back to that placeholder long after the real crossing was recorded.
-            return self._actual_starting_line_crossing_time() or (
-                self.takeoff_time.astimezone(self.navigation_task.contest.time_zone).replace(
-                    hour=0, minute=0, second=0, microsecond=0
-                )
-            )
-        return self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
-
-    def adaptive_start_gate_times(self, starting_point_time: datetime.datetime) -> dict:
-        """
-        The gate times once an adaptive-start contestant has crossed the starting line at [starting_point_time], calculated
-        again from the route. Contract navigation's times come from the declared T, not from the route, so its compiled
-        gate times are moved along with the start instead. Take-off and landing gates keep their own times.
-        """
-        gate_times = self.calculate_missing_gate_times({}, starting_point_time)
-        if self.navigation_task.task_subtype != CONTRACT_NAVIGATION_TIME_CONTROLS:
-            return gate_times
-        config = getattr(self, "contestanttaskconfiguration", None)
-        payload = (config.compiled_gate_times_payload or {}) if config and config.is_valid else {}
-        waypoints = self.navigation_task.route.waypoints
-        compiled_start = payload.get(waypoints[0].name) if waypoints else None
-        if not compiled_start:
-            return gate_times
-        offset = starting_point_time - dateutil.parser.parse(compiled_start)
-        takeoff_and_landing = self._get_takeoff_and_landing_times()
-        for gate_name, value in payload.items():
-            if gate_name not in takeoff_and_landing:
-                gate_times[gate_name] = dateutil.parser.parse(value) + offset
-        return gate_times
-
     def calculate_missing_gate_times(
         self, predefined_gate_times: dict, start_point_override: Optional[datetime.datetime] = None
     ) -> dict:
@@ -914,7 +852,25 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         start time, route, airspeed, and wind information. Optionally provide a dictionary of pre-calculated gate times
         or an initial starting time.
         """
-        previous_crossing_time = start_point_override or self.gate_time_anchor()
+        if start_point_override:
+            previous_crossing_time = start_point_override
+        else:
+            if self.adaptive_start:
+                # Once the contestant has actually crossed the starting line, every gate time
+                # from here on must be anchored to that real crossing - not the midnight-anchored
+                # relative placeholder used before the start is known. Without this, any caller
+                # that recomputes from scratch with no explicit start_point_override (the
+                # gate_times setter on a routine contestant edit, a lazy gate_times property
+                # recompute, ContestantTaskCompiler._build_gate_times_payload on a later
+                # compile()) would silently revert an adaptive-start contestant's absolute gate
+                # times back to that placeholder long after the real crossing was recorded.
+                previous_crossing_time = self._actual_starting_line_crossing_time() or (
+                    self.takeoff_time.astimezone(self.navigation_task.contest.time_zone).replace(
+                        hour=0, minute=0, second=0, microsecond=0
+                    )
+                )
+            else:
+                previous_crossing_time = self.takeoff_time + datetime.timedelta(minutes=self.minutes_to_starting_point)
         crossing_times = {}
         relative_crossing_times = calculate_and_get_relative_gate_times(
             self.navigation_task.route,
