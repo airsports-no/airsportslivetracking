@@ -5,7 +5,7 @@ from django.test import TestCase
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from guardian.shortcuts import assign_perm
 
-from display.models import Contest, MyUser, NavigationTask, Route
+from display.models import Contest, MyUser, NavigationTask, Route, Squadron, SquadronMembership
 from display.services.open_registration import open_registration_tasks_today
 
 URL = "/api/v1/contests/open_registration_today/"
@@ -65,6 +65,35 @@ class TestOpenRegistrationToday(TestCase):
         self.assertEqual(self.names(timezone_name="UTC", user=other), ["Public"])
         self.assertEqual(sorted(self.names(timezone_name="UTC", user=viewer)), ["Mine", "Public"])
         self.assertEqual(sorted(self.names(timezone_name="UTC", user=organizer)), ["Mine", "Private task", "Public"])
+
+    def test_the_members_of_a_squadron_get_the_private_tasks_of_the_contests_shared_with_it(self):
+        # Through the endpoint, as the apps ask: the view uses the real clock and the signed-in user
+        real_now = datetime.datetime.now(datetime.timezone.utc)
+        member = MyUser.objects.create_user(email="member@example.com", password="pw")
+        outsider = MyUser.objects.create_user(email="outsider@example.com", password="pw")
+        squadron = Squadron.objects.create(name="Bodø flyklubb")
+        SquadronMembership.objects.create(squadron=squadron, user=member)
+        shared = Contest.objects.create(
+            name="Club evening", start_time=real_now, finish_time=real_now, is_public=False, location="67.3,14.4"
+        )
+        shared.shared_with_squadrons.add(squadron)
+        for name, public in (("Private task", False), ("Public task", True)):
+            task = NavigationTask.create(
+                name=name, original_scorecard=get_default_scorecard(),
+                start_time=real_now - datetime.timedelta(minutes=5), finish_time=real_now + datetime.timedelta(hours=1),
+                route=Route.objects.create(name=f"route-{name}"), contest=shared,
+            )
+            NavigationTask.objects.filter(pk=task.pk).update(allow_self_management=True, is_public=public)
+
+        def listed(user):
+            self.client.logout()
+            if user:
+                self.client.force_login(user)
+            return sorted(item["navigation_task_name"] for item in self.client.get(URL, {"timezone": "UTC"}).json())
+
+        self.assertEqual(listed(member), ["Private task", "Public task"])
+        self.assertEqual(listed(outsider), [])
+        self.assertEqual(listed(None), [])
 
     def test_today_follows_the_callers_time_zone(self):
         # 12:00 UTC is 14:00 in Oslo (UTC+2): a task starting at 23:00 UTC is already tomorrow there.
