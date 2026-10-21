@@ -75,6 +75,16 @@ class TestSelfRegistrationDeclarationFlightOrder(TestCase):
                 "type": "FeatureCollection",
                 "features": [
                     {"type": "Feature", "properties": {"featureType": "route_path"}, "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]}},
+                    *[
+                        {
+                            "type": "Feature",
+                            "properties": {"id": f"wp-{name}", "name": name, "pointType": point_type, "featureType": "route_waypoint", "width": 1852, "isTiming": True, "isPassing": True, "sequence": sequence},
+                            "geometry": {"type": "Point", "coordinates": coordinates},
+                        }
+                        for sequence, (name, point_type, coordinates) in enumerate(
+                            [("SP", "sp", [11.0, 60.0]), ("MP", "tp", [11.05, 60.05]), ("FP", "fp", [11.1, 60.1])]
+                        )
+                    ],
                     {"type": "Feature", "properties": {"id": "cat-1", "name": "A", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
                     {"type": "Feature", "properties": {"id": "cat-2", "name": "MP", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.25, 60.25]}},
                     {"type": "Feature", "properties": {"id": "cat-3", "name": "C", "pointType": "tp", "featureType": "catalogue_turnpoint"}, "geometry": {"type": "Point", "coordinates": [11.35, 60.35]}},
