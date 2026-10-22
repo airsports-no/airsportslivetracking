@@ -28,15 +28,22 @@ calibration case below, which is now allowed) while keeping ~1.5GB of headroom u
 tracker-celery's 3Gi pod memory limit.
 """
 
+from types import SimpleNamespace
+from unittest.mock import patch
+
+import pytest
+
 from display.flight_order_and_maps.map_plotter import (
+    MEMORY_THRESHOLD_MB,
+    MINIMUM_FALLBACK_ZOOM_LEVEL,
+    MemoryEstimationExceededError,
+    plot_route_within_memory_limit,
     estimate_memory_usage,
+    highest_zoom_level_within_memory_limit,
     estimate_tile_memory_mb,
     memory_estimation_exceeded_message,
     total_tile_count,
 )
-
-# Mirrors plot_route()'s local MEMORY_THRESHOLD_MB safety threshold.
-MEMORY_THRESHOLD_MB = 1500
 
 # The real production configuration that OOM-crashed a tracker-celery pod.
 REAL_WORLD_TOTAL_TILES = 792
@@ -124,3 +131,90 @@ class TestTotalTileCount:
         # provider="openaip" means the base imagery already IS the OpenAIP layer - plot_route
         # skips adding a separate overlay image in that case, so there's no second fetch.
         assert total_tile_count(792, include_openaip_overlay=True, provider="openaip") == 792
+
+
+def _plot_route_needing(memory_by_zoom: dict):
+    """A plot_route stand-in: estimates from [memory_by_zoom], and refuses like the real one above the threshold."""
+
+    def fake_plot_route(task, map_size, zoom_level=None, estimate_only=False, **kwargs):
+        estimated_mb = memory_by_zoom[zoom_level]
+        if estimate_only:
+            return estimated_mb
+        if estimated_mb > MEMORY_THRESHOLD_MB:
+            raise MemoryEstimationExceededError(f"too much at {zoom_level}")
+        return f"image at {zoom_level}"
+
+    return fake_plot_route
+
+
+class TestPlotRouteWithinMemoryLimit:
+    # Sentry PYTHON-DJANGO-Z: a flight order configured at zoom 14 and 1:200,000 needed ~2140MB, so the pilots of that
+    # task got no flight order at all.
+    def test_lowers_the_zoom_level_until_the_map_fits(self):
+        task = SimpleNamespace(pk=1)
+        with patch(
+            "display.flight_order_and_maps.map_plotter.plot_route",
+            side_effect=_plot_route_needing({14: 2140, 13: 1600, 12: 600}),
+        ):
+            assert plot_route_within_memory_limit(task, "A4", 14) == ("image at 12", 12)
+
+    def test_gives_up_below_the_minimum_zoom_level(self):
+        task = SimpleNamespace(pk=1)
+        too_much = {zoom: 5000 for zoom in range(MINIMUM_FALLBACK_ZOOM_LEVEL, 15)}
+        with patch("display.flight_order_and_maps.map_plotter.plot_route", side_effect=_plot_route_needing(too_much)):
+            with pytest.raises(MemoryEstimationExceededError):
+                plot_route_within_memory_limit(task, "A4", 14)
+
+    def test_does_not_go_below_the_lowest_zoom_level_of_an_uploaded_map(self):
+        # Below its lowest zoom level an uploaded map has no tiles: the map would come out blank
+        task = SimpleNamespace(pk=1)
+        uploaded_map = SimpleNamespace(pk=1)
+        with patch(
+            "display.flight_order_and_maps.map_plotter.resolve_map_source_definition", return_value={"min_zoom": 12}
+        ), patch(
+            "display.flight_order_and_maps.map_plotter.plot_route",
+            side_effect=_plot_route_needing({14: 2140, 13: 1600, 12: 1550, 11: 600}),
+        ):
+            with pytest.raises(MemoryEstimationExceededError):
+                plot_route_within_memory_limit(task, "A4", 14, user_map_source=uploaded_map)
+            assert highest_zoom_level_within_memory_limit(task, "A4", 14, user_map_source=uploaded_map) is None
+
+
+class TestFlightOrderMapMemoryError:
+    def _configuration(self, zoom_level):
+        return SimpleNamespace(
+            map_zoom_level=zoom_level,
+            map_orientation="landscape",
+            map_include_contestant_declarations=True,
+            map_include_annotations=True,
+            map_plot_track_between_waypoints=True,
+            map_dpi=300,
+            map_scale=200,
+            map_source="osm",
+            map_include_openaip_overlay=False,
+            map_line_width=0.5,
+            map_minute_mark_line_width=0.5,
+            map_line_colour="#0000ff",
+            map_include_meridians_and_parallels_lines=True,
+            document_size="A4",
+        )
+
+    def _error(self, zoom_level, memory_by_zoom):
+        from display.flight_order_and_maps.generate_flight_orders import flight_order_map_memory_error
+
+        with patch(
+            "display.flight_order_and_maps.generate_flight_orders.plot_route", side_effect=_plot_route_needing(memory_by_zoom)
+        ), patch("display.flight_order_and_maps.map_plotter.plot_route", side_effect=_plot_route_needing(memory_by_zoom)):
+            return flight_order_map_memory_error(SimpleNamespace(pk=1), self._configuration(zoom_level))
+
+    def test_a_configuration_that_fits_is_accepted(self):
+        assert self._error(12, {12: 900}) is None
+
+    def test_names_the_highest_zoom_level_that_fits(self):
+        error = self._error(14, {14: 2140, 13: 1600, 12: 600})
+        assert "zoom level 14 needs about 2140 MB" in error
+        assert "The highest zoom level that fits is 12." in error
+
+    def test_says_when_no_zoom_level_fits(self):
+        error = self._error(14, {zoom: 5000 for zoom in range(MINIMUM_FALLBACK_ZOOM_LEVEL, 15)})
+        assert "choose a smaller scale or page size" in error

@@ -1,5 +1,10 @@
 import type { RoutePoint } from '../../types';
-import { buildDummyBranchWaypoint, getDummyBranchPhase, getWizardBannerText } from './unknownLegWizard';
+import {
+  buildDummyBranchWaypoint,
+  getDummyBranchPhase,
+  getWizardBannerText,
+  nameUnknownLegsRoutePoints,
+} from './unknownLegWizard';
 
 const makeRoutePoint = (overrides: Partial<RoutePoint> = {}): RoutePoint => ({
   id: 'point-1',
@@ -92,5 +97,51 @@ describe('buildDummyBranchWaypoint', () => {
     const point = buildDummyBranchWaypoint({ lat: 60.3, lng: 11.3 }, trigger, existing);
     expect(point.name).toBe('WP3-D5');
     expect(point.branchSequence).toBe(4);
+  });
+});
+
+describe('nameUnknownLegsRoutePoints', () => {
+  const backbone = () => [
+    makeRoutePoint({ id: 'sp', name: 'SP', type: 'sp' }),
+    makeRoutePoint({ id: 'ul-a', name: 'WP 2', type: 'ul' }),
+    makeRoutePoint({ id: 'secret-a', name: 'Secret 6', type: 'secret' }),
+    makeRoutePoint({ id: 'tp-a', name: 'WP 3' }),
+    makeRoutePoint({ id: 'ul-b', name: 'WP 4', type: 'ul' }),
+    makeRoutePoint({ id: 'tp-b', name: 'WP 5' }),
+    makeRoutePoint({ id: 'fp', name: 'FP', type: 'fp' }),
+  ];
+  const dummy = (id: string, triggerPointId: string, branchSequence: number, name: string) =>
+    makeRoutePoint({ id, name, type: 'dummy', featureType: 'dummy_branch_waypoint', triggerPointId, branchSequence });
+
+  it('numbers the shown points in map order, with each trigger\'s dummies right after it', () => {
+    const named = nameUnknownLegsRoutePoints(backbone(), [
+      dummy('d-b1', 'ul-b', 0, 'WP 4-D1'),
+      dummy('d-a2', 'ul-a', 1, 'WP 2-D2'),
+      dummy('d-a1', 'ul-a', 0, 'WP 2-D1'),
+    ]);
+
+    expect(named.routePoints.map((point) => point.name)).toEqual([
+      'SP',
+      'Unknown leg 1',
+      'Secret 6',
+      'TP 3',
+      'Unknown leg 2',
+      'TP 5',
+      'FP',
+    ]);
+    expect(Object.fromEntries(named.standalonePoints.map((point) => [point.id, point.name]))).toEqual({
+      'd-a1': 'TP 1',
+      'd-a2': 'TP 2',
+      'd-b1': 'TP 4',
+    });
+  });
+
+  it('keeps the trigger types and returns the same arrays when the names are already right', () => {
+    const first = nameUnknownLegsRoutePoints(backbone(), [dummy('d-a1', 'ul-a', 0, 'WP 2-D1')]);
+    expect(first.routePoints[1].type).toBe('ul');
+
+    const second = nameUnknownLegsRoutePoints(first.routePoints, first.standalonePoints);
+    expect(second.routePoints).toBe(first.routePoints);
+    expect(second.standalonePoints).toBe(first.standalonePoints);
   });
 });

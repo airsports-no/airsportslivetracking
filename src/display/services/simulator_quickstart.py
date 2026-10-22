@@ -164,9 +164,9 @@ def register(user, person: Person, now: Optional[datetime.datetime] = None) -> C
         )
 
         def make_flight_order():
-            from display.tasks import generate_and_maybe_notify_flight_order
+            from display.services.self_registration import send_self_registration_flight_order
 
-            generate_and_maybe_notify_flight_order.apply_async((contestant.pk, user.email, user.first_name, True))
+            send_self_registration_flight_order(contestant, user.email, user.first_name)
 
         transaction.on_commit(make_flight_order)
     return contestant

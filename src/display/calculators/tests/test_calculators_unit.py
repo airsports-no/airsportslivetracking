@@ -527,7 +527,7 @@ class TestGateCalculator(CalculatorUnitTestBase):
         rewrite produces the same result both times."""
         new_start_time = datetime.datetime(2020, 1, 1, 10, 5, tzinfo=datetime.timezone.utc)
         recalculated_times = {"WP1": datetime.datetime(2020, 1, 1, 10, 6, tzinfo=datetime.timezone.utc)}
-        self.contestant.calculate_missing_gate_times.return_value = recalculated_times
+        self.contestant.adaptive_start_gate_times.return_value = recalculated_times
         pos = self.create_position(60, 11, new_start_time)
         event = AdaptiveStartEvent(new_start_time, pos)
 

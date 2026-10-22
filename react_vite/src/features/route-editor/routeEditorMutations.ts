@@ -66,7 +66,8 @@ export function renumberRoutePoints(points: RoutePoint[], isThreePointBackboneTa
     } else {
       waypointCounter += 1;
       nextPoint.name = `WP ${waypointCounter}`;
-      if (nextPoint.featureType === 'route_waypoint' || !nextPoint.featureType) {
+      // An unknown-leg trigger stays one: only its name follows the numbering
+      if ((nextPoint.featureType === 'route_waypoint' || !nextPoint.featureType) && nextPoint.type !== 'ul') {
         nextPoint.type = 'tp';
       }
       secretCounter = 1;
@@ -100,7 +101,7 @@ export function reverseRoutePoints(points: RoutePoint[], isThreePointBackboneTas
     } else if (isThreePointBackboneTask && index === 1) {
       nextPoint.type = 'tp';
       nextPoint.name = 'MP';
-    } else if (nextPoint.type !== 'secret') {
+    } else if (nextPoint.type !== 'secret' && nextPoint.type !== 'ul') {
       nextPoint.type = 'tp';
     }
 

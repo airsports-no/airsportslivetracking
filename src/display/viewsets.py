@@ -234,7 +234,6 @@ from display.services.task_templates import (
 )
 from display.services.token_assignment import assign_token_to_contest, replace_token_for_contest
 from display.tasks import (
-    generate_and_maybe_notify_flight_order,
     generate_editable_route_thumbnail,
     generate_map_async,
     import_gpx_track,
@@ -2430,7 +2429,11 @@ class NavigationTaskViewSet(ModelViewSet):
             assert_can_self_register_contestant(navigation_task, contest_team)
             if contest_team.team.crew.member1.email != request.user.email:
                 raise drf_exceptions.ValidationError("You cannot add a team where you are not the pilot")
-            from display.services.self_registration import create_self_managed_contestant, resolve_flight_mode
+            from display.services.self_registration import (
+                create_self_managed_contestant,
+                resolve_flight_mode,
+                send_self_registration_flight_order,
+            )
 
             flight_mode = resolve_flight_mode(request, serialiser.validated_data.get("flight_mode"), navigation_task)
             # Pretend that the submitted time is in the contest time zone
@@ -2444,11 +2447,7 @@ class NavigationTaskViewSet(ModelViewSet):
                 serialiser.validated_data.get("declaration_payload"),
                 flight_mode=flight_mode,
             )
-            # mail_link = EmailMapLink.objects.create(contestant=contestant)
-            # mail_link.send_email(request.user.email, request.user.first_name)
-            generate_and_maybe_notify_flight_order.apply_async(
-                (contestant.pk, request.user.email, request.user.first_name, True)
-            )
+            send_self_registration_flight_order(contestant, request.user.email, request.user.first_name)
             return Response(ContestantSerialiser(contestant).data, status=status.HTTP_201_CREATED)
 
     @action(
