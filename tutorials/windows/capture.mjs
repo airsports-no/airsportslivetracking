@@ -197,6 +197,20 @@ export async function startCapture({ output, url, auth, viewport = "1440,810", g
   // Playwright dismisses dialogs (confirm, alert) when nothing handles them, while recording and while replaying
   page.on("dialog", (dialog) => write(`// A dialog was dismissed: ${JSON.stringify(dialog.message())}`));
   await page.goto(url);
+  // Where a new route's map opens: say what the page sees, so a location that does not get through is noticed
+  const seen = await page
+    .evaluate(
+      () =>
+        new Promise((resolve) =>
+          navigator.geolocation.getCurrentPosition(
+            (position) => resolve(position.coords.latitude + ", " + position.coords.longitude),
+            (error) => resolve("no location (" + error.message + ")"),
+            { timeout: 5000 },
+          ),
+        ),
+    )
+    .catch((error) => "no location (" + error.message + ")");
+  console.log(`Location given: ${geolocation || "none"}. The page sees: ${seen}`);
   return { browser, context, page };
 }
 

@@ -43,6 +43,7 @@ try {
     }
     $Arguments = @("capture.mjs", "--output", $Output, "--url", $Url, "--auth", $AuthFile, "--viewport", $Viewport)
     if ($Geolocation) { $Arguments += @("--geolocation", $Geolocation) }
+    Write-Host "node $($Arguments -join ' ')"
     & node @Arguments
 }
 finally {
