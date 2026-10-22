@@ -24,7 +24,7 @@ const lastAtOrBefore = <T extends { t: number }>(items: T[], t: number): T | und
   return found;
 };
 
-export const Screen = ({ timeline, edit }: { timeline: Timeline; edit: Edit }) => {
+export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; edit: Edit; voice?: boolean }) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const outMs = (frame / fps) * 1000;
@@ -104,7 +104,7 @@ export const Screen = ({ timeline, edit }: { timeline: Timeline; edit: Edit }) =
           <Cursor actions={pointerActions} outMs={outMs} viewport={viewport} zoom={zoom} />
         </div>
       </div>
-      {timeline.narration.map((item, index) => (
+      {voice && timeline.narration.map((item, index) => (
         <Sequence key={index} from={Math.round((edit.toOut(item.t) / 1000) * fps)}>
           <Audio src={staticFile(item.file)} />
         </Sequence>

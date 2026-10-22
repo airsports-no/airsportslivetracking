@@ -102,8 +102,8 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    Windows browser to scrub through every recorded tutorial.
 5. **Render (WSL).** `npm run render -- <name>` writes to `out/`:
    - `<name>.mp4`: the finished video with the voice
-   - `<name>-picture.mp4` and `<name>-voice.wav`: picture and voice separately, both starting at 0, for fine
-     tuning in DaVinci Resolve
+   - `<name>-picture.mp4`, `<name>-voice.wav` and `<name>-music.wav`: picture, voice and music separately, all
+     starting at 0, for fine tuning in DaVinci Resolve
    - `<name>.srt`: the narration as subtitles
    - `<name>-chapters.txt`: the chapters with their start times, ready for a YouTube description
 
@@ -152,6 +152,25 @@ export default defineTutorial({
 
 Changing `series` or `next` in a script needs `npm run record` again (they are saved with the recording); changing
 the brand files only needs a render, and shows live in `npm run studio`.
+
+## Background music
+
+Every video has the same background track, set in `brand.music` (`src/remotion/brand.ts`): at full level on the
+title and end screens, low between narration lines, and lower still under the narration, about 17 dB below the
+voice, fading down just before each line and back up after it. Tune the three levels in `brand.music.levels`.
+
+The music file is not in git: the licence covers using it in the videos, not passing the file on. Put the track in
+`public/brand/music/` and level it once, so quiet and loud passages sit at the same distance below the voice:
+
+```
+npm run music -- "public/brand/music/new-morning-tracktribe.mp3"
+```
+
+which writes `new-morning-tracktribe.levelled.mp3` beside it (the file `brand.music.file` points to). The current
+track is "New Morning" by TrackTribe from the YouTube Audio Library (no attribution required). A script can turn the
+music off with `music: false`, or use another levelled file with `music: "brand/music/<file>.mp3"`.
+
+`npm run render` also writes `<name>-music.wav`, the music as mixed, beside the picture and the voice.
 
 ## Narration voices
 

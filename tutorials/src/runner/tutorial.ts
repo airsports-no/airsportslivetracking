@@ -50,6 +50,8 @@ export type Tutorial = {
   series?: string;
   // The title of the tutorial to watch next, on the end screen
   next?: string;
+  // Background music: the brand's track by default (src/remotion/brand.ts), false for none, or a file in public/
+  music?: false | string;
   // Path on the site the recording starts from
   startUrl?: string;
   captions?: boolean;

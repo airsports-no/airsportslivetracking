@@ -60,6 +60,7 @@ const timeline: Timeline = {
   subtitle: tutorial.subtitle,
   series: tutorial.series,
   next: tutorial.next,
+  music: tutorial.music,
   viewport: settings.viewport,
   durationMs: 0,
   frames: [],

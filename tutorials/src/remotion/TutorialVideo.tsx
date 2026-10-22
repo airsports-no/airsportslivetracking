@@ -1,19 +1,20 @@
 import { linearTiming, TransitionSeries } from "@remotion/transitions";
 import { fade } from "@remotion/transitions/fade";
 import { useMemo } from "react";
-import { AbsoluteFill, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
-import { computeEdit } from "../shared/edit";
+import { AbsoluteFill, Audio, Img, interpolate, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import { computeEdit, type Edit } from "../shared/edit";
 import { INTRO_MS, OUTRO_MS, TRANSITION_MS } from "../shared/layout";
 import type { Timeline } from "../shared/timeline";
 import { brand } from "./brand";
 import { Screen } from "./Screen";
 import { theme } from "./theme";
 
-export type TutorialProps = { name: string; timeline: Timeline };
+// audio: "voice" or "music" renders only that, for the separate tracks npm run render exports
+export type TutorialProps = { name: string; timeline: Timeline; audio?: "all" | "voice" | "music" };
 
 const frames = (ms: number, fps: number) => Math.round((ms / 1000) * fps);
 
-export const TutorialVideo = ({ timeline }: TutorialProps) => {
+export const TutorialVideo = ({ timeline, audio = "all" }: TutorialProps) => {
   const { fps } = useVideoConfig();
   const edit = useMemo(() => computeEdit(timeline), [timeline]);
   const transition = linearTiming({ durationInFrames: frames(TRANSITION_MS, fps) });
@@ -25,14 +26,57 @@ export const TutorialVideo = ({ timeline }: TutorialProps) => {
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={transition} />
         <TransitionSeries.Sequence durationInFrames={frames(edit.durationMs, fps)}>
-          <Screen timeline={timeline} edit={edit} />
+          <Screen timeline={timeline} edit={edit} voice={audio !== "music"} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={transition} />
         <TransitionSeries.Sequence durationInFrames={frames(OUTRO_MS, fps)}>
           <EndScreen timeline={timeline} />
         </TransitionSeries.Sequence>
       </TransitionSeries>
+      {audio !== "voice" && timeline.music !== false && (
+        <Music timeline={timeline} edit={edit} file={timeline.music ?? brand.music.file} />
+      )}
     </AbsoluteFill>
+  );
+};
+
+const clamp01 = (value: number) => Math.min(1, Math.max(0, value));
+
+// The background music: at full level on the title and end screens, low between narration lines, and lower still under
+// the narration (down shortly before a line, back up after it), fading in and out at the ends of the video
+const Music = ({ timeline, edit, file }: { timeline: Timeline; edit: Edit; file: string }) => {
+  const { fps, durationInFrames } = useVideoConfig();
+  const { levels, startAtMs } = brand.music;
+  const totalMs = (durationInFrames / fps) * 1000;
+  const tutorialStart = INTRO_MS - TRANSITION_MS;
+  const endScreenStart = totalMs - OUTRO_MS;
+  const lines = useMemo(
+    () =>
+      timeline.narration.map((item) => {
+        const start = tutorialStart + edit.toOut(item.t);
+        return [start, start + item.durationMs] as const;
+      }),
+    [timeline, edit, tutorialStart],
+  );
+  const volume = (frame: number) => {
+    const t = (frame / fps) * 1000;
+    const inTutorial = Math.min(clamp01((t - tutorialStart) / 900), clamp01((endScreenStart + TRANSITION_MS - t) / 900));
+    let ducked = 0;
+    for (const [start, end] of lines) {
+      ducked = Math.max(ducked, t < start ? clamp01(1 - (start - t) / 400) : t > end ? clamp01(1 - (t - end) / 800) : 1);
+    }
+    const tutorialLevel = levels.between + (levels.underVoice - levels.between) * ducked;
+    const level = levels.full * (1 - inTutorial) + tutorialLevel * inTutorial;
+    return level * Math.min(clamp01(t / 600), clamp01((totalMs - t) / 2500));
+  };
+  return (
+    <Audio
+      src={staticFile(file)}
+      volume={volume}
+      loop
+      loopVolumeCurveBehavior="extend"
+      trimBefore={startAtMs ? Math.round((startAtMs / 1000) * fps) : undefined}
+    />
   );
 };
 

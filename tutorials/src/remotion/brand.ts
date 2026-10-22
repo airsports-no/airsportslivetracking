@@ -14,6 +14,18 @@ export const brand = {
     muted: "#94a3b8",
     line: "rgba(255,255,255,0.08)",
   },
+  // Background music for every video, unless a script says otherwise (music: false, or another file). The file is not
+  // in git (the licence covers using it in the videos, not passing it on): put it in public/brand/music/.
+  music: {
+    // "New Morning" by TrackTribe, from the YouTube Audio Library, levelled with npm run music
+    file: "brand/music/new-morning-tracktribe.levelled.mp3",
+    credit: "Music: New Morning by TrackTribe",
+    // Volume (1 = as levelled) on the title and end screens, between narration lines, and under the narration: about
+    // 4, 14 and 22 dB down, which puts the music some 17 dB under the voice while it speaks
+    levels: { full: 0.6, between: 0.2, underVoice: 0.08 },
+    // Where in the track the video starts (ms)
+    startAtMs: 0,
+  },
   // The end screen: where to go from here
   endScreen: {
     links: [

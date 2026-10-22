@@ -40,6 +40,8 @@ export type Timeline = {
   subtitle?: string;
   series?: string;
   next?: string;
+  // false: no background music; a path in public/: this track instead of the brand's
+  music?: false | string;
   viewport: { width: number; height: number };
   durationMs: number;
   frames: Frame[];

@@ -8,9 +8,10 @@ import { OUT_DIR, RECORDINGS_DIR, tutorialName } from "./config";
 
 // npm run render -- <tutorial>
 //
-// out/<tutorial>.mp4          the finished video with the voice
+// out/<tutorial>.mp4          the finished video with voice and music
 // out/<tutorial>-picture.mp4  the same picture without sound   } for fine tuning in DaVinci Resolve:
-// out/<tutorial>-voice.wav    the voice track alone            } both start at 0 and line up
+// out/<tutorial>-voice.wav    the voice alone                  } all start at 0 and line up
+// out/<tutorial>-music.wav    the music alone, already mixed   }
 // out/<tutorial>.srt          the narration as subtitles
 // out/<tutorial>-chapters.txt the chapters, for a YouTube description (when the script has chapter() steps)
 
@@ -38,10 +39,12 @@ run("npx", [
 ]);
 run("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-an", "-c:v", "copy", path.join(OUT_DIR, `${name}-picture.mp4`)]);
 const timeline: Timeline = JSON.parse(readFileSync(path.join(RECORDINGS_DIR, name, "timeline.json"), "utf8"));
-// A tutorial without narration has no sound to take out
-if (timeline.narration.length > 0) {
-  run("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-vn", "-c:a", "pcm_s16le", path.join(OUT_DIR, `${name}-voice.wav`)]);
-}
+// The voice and the music each on their own (rendered again with only that sound: audio only, quick)
+const stem = (audio: "voice" | "music") =>
+  run("npx", ["remotion", "render", compositionId(name), path.join(OUT_DIR, `${name}-${audio}.wav`), "--codec=wav",
+    `--props=${JSON.stringify({ audio })}`, "--log=error"]);
+if (timeline.narration.length > 0) stem("voice");
+if (timeline.music !== false) stem("music");
 
 // Subtitles, on the video's own timeline (after the cuts and the title card)
 const edit = computeEdit(timeline);
@@ -67,4 +70,4 @@ const chapters = (timeline.chapters ?? []).map((chapter) => `${minutesSeconds(of
 if (chapters.length > 0) {
   writeFileSync(path.join(OUT_DIR, `${name}-chapters.txt`), ["0:00 Introduction", ...chapters].join("\n") + "\n");
 }
-console.log(`Rendered ${video}, with -picture.mp4, -voice.wav and .srt beside it`);
+console.log(`Rendered ${video}, with the picture, voice and music separately and the subtitles beside it`);

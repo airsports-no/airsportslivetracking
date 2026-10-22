@@ -8,6 +8,7 @@
     "record": "tsx src/runner/record.ts",
     "studio": "remotion studio src/remotion/index.ts",
     "render": "tsx src/runner/render.ts",
+    "music": "tsx src/runner/music.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
