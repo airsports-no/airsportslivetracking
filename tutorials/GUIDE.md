@@ -117,6 +117,25 @@ Tips for the narration:
   (`"2.A3": "two A three"`). The captions keep the written form.
 - If a sentence is longer than what happens on screen, the next sentence simply waits for it: nothing is cut off.
 
+### Tutorials that create things
+
+A tutorial that creates a route or a navigation task creates it again every time it is recorded, and recording the
+clicks created it once already. Two routes with the same name confuse the replay (it finds two of everything), so name
+what the tutorial creates in the script, and it is deleted before every recording:
+
+```ts
+export default defineTutorial({
+  title: "Creating a 2.A3 route",
+  cleanUp: { routes: ["Task 2.A3"], navigationTasks: ["Task 2.A3"], contest: "Tutorial demo" },
+  ...
+```
+
+- Routes and navigation tasks with exactly those names are deleted. Use names that only the tutorial uses.
+- `contest` is optional: with it, only that contest is searched for the tasks, which is quicker.
+- What a recording creates is left in place afterwards, so you can look at it; the next recording removes it.
+- Before recording the clicks again on Windows, clean up by hand: `npm run cleanup -- my-tutorial`.
+- It only runs against the local site, never against the real one.
+
 ## Step 3: Make the recording (WSL)
 
 ```
@@ -197,4 +216,5 @@ Changes that only need a render show up live in Studio (step 4) while you edit.
 | The map starts in the wrong place | Set `TUTORIAL_GEOLOCATION` in `tutorials/.env` (it is used for both recordings) |
 | A click lands in the wrong place on the map | Record the clicks again with the latest recorder: map clicks should appear as `map.click(...)` lines |
 | A step fails because something is not found | The page changed (a button renamed or moved): record that part of the clicks again |
+| A step fails because it finds two of something ("strict mode violation") | An earlier recording left it behind: add it to `cleanUp` in the script, or run `npm run cleanup -- <name>` |
 | The narration sounds wrong | Rephrase the sentence, or add the word to `pronunciations.json` |

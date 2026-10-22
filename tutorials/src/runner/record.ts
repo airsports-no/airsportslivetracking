@@ -5,6 +5,7 @@ import { chromium, type Locator } from "playwright";
 import { STEP_LEAD_MS, STEP_PAUSE_AFTER_MS } from "../shared/edit";
 import type { Timeline } from "../shared/timeline";
 import { AUTH_FILE, RECORDINGS_DIR, ROOT, SCRIPTS_DIR, settings, tutorialName } from "./config";
+import { cleanUp } from "./cleanup";
 import { synthesise } from "./narration";
 import type { MapSteps, Tutorial, TutorialContext } from "./tutorial";
 
@@ -30,6 +31,9 @@ if (!name) {
 }
 const headed = process.argv.includes("--headed");
 const tutorial: Tutorial = (await import(pathToFileURL(path.join(SCRIPTS_DIR, `${name}.ts`)).href)).default;
+
+// What an earlier recording (or recording the clicks) created would otherwise be there twice
+await cleanUp(tutorial.cleanUp);
 
 const outputDir = path.join(RECORDINGS_DIR, name);
 rmSync(outputDir, { recursive: true, force: true });

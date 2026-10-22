@@ -10,6 +10,7 @@
     "render": "tsx src/runner/render.ts",
     "music": "tsx src/runner/music.ts",
     "fetch-assets": "tsx src/runner/fetch-assets.ts",
+    "cleanup": "tsx src/runner/cleanup.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

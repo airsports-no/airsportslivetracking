@@ -51,6 +51,15 @@ export type TutorialContext = {
   map: MapSteps;
 };
 
+// What an earlier recording created and the next one would create again, removed (by exact name) before every
+// recording: the replay then starts from the same state and does not find two of everything
+export type CleanUp = {
+  routes?: string[];
+  navigationTasks?: string[];
+  // The contest the tasks are in: only that one is searched (quicker than all contests)
+  contest?: string;
+};
+
 export type Tutorial = {
   title: string;
   subtitle?: string;
@@ -60,6 +69,7 @@ export type Tutorial = {
   next?: string;
   // Background music: the brand's track by default (src/remotion/brand.ts), false for none, or a file in public/
   music?: false | string;
+  cleanUp?: CleanUp;
   // Path on the site the recording starts from
   startUrl?: string;
   captions?: boolean;

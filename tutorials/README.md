@@ -103,6 +103,10 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    - `showPdf(source, { width })` shows a PDF's pages with pdf.js (the headless recording browser has no PDF viewer):
      a path on the site, fetched logged in (a flight order's download address), or a file. `width` is the share of
      the window a page takes (0.7). Go back with `page.goto(...)`.
+   - `cleanUp: { routes, navigationTasks, contest }` in the tutorial definition deletes, through the site's API,
+     the routes and navigation tasks with those exact names before every recording (and with
+     `npm run cleanup -- <name>`), so a tutorial that creates them starts from the same state each time. Local site
+     only, unless `TUTORIAL_ALLOW_CLEANUP=1`.
    - `chapter(title)` starts a phase: its name slides in at the bottom of the video and shows in the header, and
      it becomes a chapter in `out/<name>-chapters.txt`.
    - `pause(ms)` keeps a still moment that would otherwise be cut.
