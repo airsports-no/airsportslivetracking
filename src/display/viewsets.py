@@ -242,7 +242,7 @@ from display.tasks import (
 )
 from display.utilities.calculator_running_utilities import is_calculator_running, is_dispatch_pending
 from display.utilities.calculator_termination_utilities import cancel_termination_request
-from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
+from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS, scorecard_suits_task_subtype
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map import settings
@@ -1942,12 +1942,20 @@ class GetScorecardsViewSet(ReadOnlyModelViewSet):
         {shortcut_name, name, task_type} only, not the full gate-score configuration payload.
         Optional ?task_type=<family> filters to scorecards that support it (Scorecard.task_type
         is a plain Python list, not a queryable JSON field, so this is filtered in Python - the
-        same check the Django wizards make in get_context_data()).
+        same check the Django wizards make in get_context_data()). With it, optional
+        ?task_subtype=<subtype> narrows a CIMA subtype to its own scorecard, and without one only
+        the scorecards no subtype claims are offered (scorecard_suits_task_subtype).
         """
         task_type = request.query_params.get("task_type")
+        task_subtype = request.query_params.get("task_subtype")
         scorecards = Scorecard.get_originals()
         if task_type:
-            scorecards = [scorecard for scorecard in scorecards if task_type in scorecard.task_type]
+            scorecards = [
+                scorecard
+                for scorecard in scorecards
+                if task_type in scorecard.task_type
+                and scorecard_suits_task_subtype(scorecard.shortcut_name, task_subtype)
+            ]
         return Response(
             [
                 {"shortcut_name": scorecard.shortcut_name, "name": scorecard.name, "task_type": scorecard.task_type}
