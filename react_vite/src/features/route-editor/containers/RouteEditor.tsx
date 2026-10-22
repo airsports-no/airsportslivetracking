@@ -938,7 +938,7 @@ export default function RouteEditor() {
         {currentWizardActionLabel && (
           <WizardActionBanner
             currentWizardActionLabel={currentWizardActionLabel}
-            title={bannerText?.title || 'Active wizard step'}
+            title={bannerText?.title}
             instruction={bannerText?.instruction || wizardPrompt || 'Follow the wizard instructions on the map.'}
             stopWizardAction={stopWizardAction}
             dummyBranchPhase={dummyBranchPhase}
