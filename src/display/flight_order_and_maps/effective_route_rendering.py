@@ -185,6 +185,28 @@ def _build_unknown_legs_targets_from_payload(payload: dict[str, Any]) -> list[di
     return targets
 
 
+def _attach_curve_controls(targets: list[dict[str, Any]], editable_route) -> list[dict[str, Any]]:
+    """
+    The route's curved legs for the contestant's view of an unknown-legs route: a point whose incoming leg is curved in
+    the route editor gets the curve's control point ("curve_control", [lng, lat]) and the point the curve starts from
+    ("curve_from"), so the view draws that leg curved. The curve's own points are secret waypoints, which that view
+    leaves out, so without this the leg is drawn straight.
+    """
+    curves = {}
+    previous_name = None
+    for feature in editable_route.get_ordered_track_waypoints():
+        properties = feature.get("properties", {})
+        name = properties.get("name")
+        control_lat, control_lng = properties.get("controlLat"), properties.get("controlLng")
+        if name and properties.get("segmentType") == "curved" and control_lat is not None and control_lng is not None:
+            curves[name] = {"curve_control": [control_lng, control_lat], "curve_from": previous_name}
+        previous_name = name
+    for target in targets:
+        if target.get("kind") == "catalogue_turnpoint" and not target.get("trigger_point_id") and target.get("name") in curves:
+            target.update(curves[target["name"]])
+    return targets
+
+
 def get_task_catalogue_targets(navigation_task, contestant=None) -> list[dict[str, Any]]:
     editable_route = getattr(navigation_task, "editable_route", None)
     if editable_route is None:
@@ -199,12 +221,12 @@ def get_task_catalogue_targets(navigation_task, contestant=None) -> list[dict[st
                 payload = candidate
 
     if payload and navigation_task.task_subtype == "unknown_legs":
-        return _build_unknown_legs_targets_from_payload(payload)
+        return _attach_curve_controls(_build_unknown_legs_targets_from_payload(payload), editable_route)
 
     compiled_task = getattr(navigation_task, "compilednavigationtask", None)
     compiled_payload = getattr(compiled_task, "compiled_payload", None) if compiled_task is not None else None
     if compiled_payload and navigation_task.task_subtype == "unknown_legs":
-        return _build_unknown_legs_targets_from_payload(compiled_payload)
+        return _attach_curve_controls(_build_unknown_legs_targets_from_payload(compiled_payload), editable_route)
 
     targets = []
     for feature in editable_route.get_catalogue_turnpoints():

@@ -210,6 +210,9 @@ export interface NavigationTaskCatalogueTarget {
   branch_sequence?: number | null;
   connector_to_name?: string | null;
   is_unknown_leg_trigger?: boolean;
+  // The leg into this point is curved in the route: the curve's control point ([lng, lat]) and the point it starts from
+  curve_control?: [number, number];
+  curve_from?: string | null;
 }
 
 export interface NavigationTask {

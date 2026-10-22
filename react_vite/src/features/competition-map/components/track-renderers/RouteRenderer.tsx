@@ -107,6 +107,19 @@ function renderGateLines(map: L.Map, gates: Waypoint[]): L.Layer[] {
   );
 }
 
+// The points strictly between start and end of a quadratic Bezier curve, as the route editor draws curved legs
+function quadraticCurve(start: [number, number], control: [number, number], end: [number, number], steps = 20): L.LatLngExpression[] {
+  const points: L.LatLngExpression[] = [];
+  for (let step = 1; step < steps; step += 1) {
+    const t = step / steps;
+    const a = (1 - t) * (1 - t);
+    const b = 2 * (1 - t) * t;
+    const c = t * t;
+    points.push([a * start[0] + b * control[0] + c * end[0], a * start[1] + b * control[1] + c * end[1]]);
+  }
+  return points;
+}
+
 function renderPrecisionRoute(
   map: L.Map,
   route: RouteData,
@@ -177,9 +190,17 @@ function renderPrecisionRoute(
         });
       segments.forEach((segmentTargets) => {
         const visibleSegmentTargets = segmentTargets.filter((target) => routeTypeByName.get(target.name) !== 'secret');
-        const track: L.LatLngExpression[] = visibleSegmentTargets.map((target) => {
+        // A leg that is curved in the route is drawn curved: its own points are secret waypoints, left out here
+        const track: L.LatLngExpression[] = [];
+        visibleSegmentTargets.forEach((target, index) => {
           const [lng, lat] = target.coordinates;
-          return [lat, lng] as L.LatLngExpression;
+          const previous = visibleSegmentTargets[index - 1];
+          if (target.curve_control && previous && previous.name === target.curve_from) {
+            const [previousLng, previousLat] = previous.coordinates;
+            const [controlLng, controlLat] = target.curve_control;
+            track.push(...quadraticCurve([previousLat, previousLng], [controlLat, controlLng], [lat, lng]));
+          }
+          track.push([lat, lng]);
         });
         if (track.length >= 2) {
           layers.push(L.polyline(track, { color: "blue" }).addTo(map));

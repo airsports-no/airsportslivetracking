@@ -137,6 +137,7 @@ from display.utilities.coordinate_utilities import (
 )
 from display.flight_order_and_maps.map_constants import A3
 from display.utilities.cima_scoring_config import CimaScoringConfig
+from display.utilities.editable_route_utilities import get_quadratic_bezier_points
 from display.utilities.gate_definitions import (
     SECRETPOINT,
     ANR_TP,
@@ -1918,6 +1919,7 @@ def plot_route(
                 if not segment_targets:
                     continue
                 ordered_segment_points = []
+                curve_by_name = {}
                 previous_point_was_branch = False
                 for target in segment_targets:
                     coordinates = target.get("coordinates")
@@ -1935,9 +1937,20 @@ def plot_route(
                             is_unknown_leg_trigger,
                         )
                     )
+                    if target.get("curve_control"):
+                        curve_by_name[target.get("name") or ""] = (target["curve_control"], target.get("curve_from"))
                     previous_point_was_branch = is_branch_point
                 if len(ordered_segment_points) >= 2:
-                    path = np.array([(lat, lon) for _, lat, lon, _ in ordered_segment_points])
+                    # A leg that is curved in the route (curve_control, effective_route_rendering) is drawn curved
+                    path_points = []
+                    for position, (name, lat, lon, _) in enumerate(ordered_segment_points):
+                        control, curve_from = curve_by_name.get(name, (None, None))
+                        if control and position > 0 and ordered_segment_points[position - 1][0] == curve_from:
+                            path_points.extend(
+                                get_quadratic_bezier_points(path_points[-1], (lat, lon), (control[1], control[0]))[1:-1]
+                            )
+                        path_points.append((lat, lon))
+                    path = np.array(path_points)
                     paths.append(path)
                     if not waypoints_only:
                         ys, xs = path.T

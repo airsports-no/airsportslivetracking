@@ -659,6 +659,48 @@ class MapFallbackTests(TestCase):
         self.assertIn({"name": "HG1", "coordinates": [11.1, 60.1], "kind": "catalogue_turnpoint", "segment_name": "segment_1"}, targets)
         self.assertIn({"name": "HG1", "coordinates": [11.1, 60.1], "kind": "hidden_gate"}, targets)
 
+    def test_unknown_legs_targets_carry_curved_legs(self):
+        # The contestant's view of an unknown-legs route leaves out the curve's own (secret) points, so the point a
+        # curved leg ends at carries the curve, and the live map and the PDF map draw that leg curved
+        from types import SimpleNamespace
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+
+        editable_route = EditableRoute.objects.create(
+            name="Unknown legs with a curved first leg",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"id": "sp-1", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "ul-1", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "sequence": 1, "segmentType": "curved", "controlLat": 60.05, "controlLng": 11.25}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "fp-1", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                ],
+            },
+        )
+        self.task.editable_route = editable_route
+        self.task.task_subtype = UNKNOWN_LEGS
+        self.task.save(update_fields=["editable_route", "task_subtype"])
+        contestant = SimpleNamespace(
+            contestanttaskconfiguration=SimpleNamespace(
+                is_valid=True,
+                compiled_effective_route_payload={
+                    "segments": [
+                        {
+                            "name": "segment_1",
+                            "display_waypoint_names": ["SP", "TRG1"],
+                            "display_coordinates_by_name": {"SP": [11.0, 60.0], "TRG1": [11.2, 60.2]},
+                        }
+                    ],
+                },
+            )
+        )
+
+        targets = {target["name"]: target for target in get_task_catalogue_targets(self.task, contestant=contestant)}
+
+        self.assertEqual([11.25, 60.05], targets["TRG1"]["curve_control"])
+        self.assertEqual("SP", targets["TRG1"]["curve_from"])
+        self.assertNotIn("curve_control", targets["SP"])
+
     def test_unknown_legs_selected_contestant_targets_include_segment_name(self):
         from types import SimpleNamespace
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
