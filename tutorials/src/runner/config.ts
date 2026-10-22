@@ -22,4 +22,11 @@ export const settings = {
     "Calm, friendly and clear, like a patient instructor showing a colleague how to use a web application.",
   // The browser window size the tutorials are recorded in (CSS pixels). The video is 16:9, so keep this 16:9.
   viewport: { width: Number(process.env.TUTORIAL_WIDTH || 1440), height: Number(process.env.TUTORIAL_HEIGHT || 810) },
+  // "latitude,longitude" the browser reports (a new route's map opens there); the same as -Geolocation when recording
+  // the clicks
+  geolocation: process.env.TUTORIAL_GEOLOCATION || "",
 };
+
+// A tutorial is named by its script: "task2.a3", "scripts/task2.a3.ts" and "task2.a3.ts" all mean scripts/task2.a3.ts
+export const tutorialName = (argument: string | undefined) =>
+  argument ? path.basename(argument).replace(/\.ts$/, "") : undefined;

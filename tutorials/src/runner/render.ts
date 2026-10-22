@@ -4,7 +4,7 @@ import path from "node:path";
 import { computeEdit } from "../shared/edit";
 import type { Timeline } from "../shared/timeline";
 import { compositionId, INTRO_MS, TRANSITION_MS } from "../shared/layout";
-import { OUT_DIR, RECORDINGS_DIR } from "./config";
+import { OUT_DIR, RECORDINGS_DIR, tutorialName } from "./config";
 
 // npm run render -- <tutorial>
 //
@@ -13,7 +13,7 @@ import { OUT_DIR, RECORDINGS_DIR } from "./config";
 // out/<tutorial>-voice.wav    the voice track alone            } both start at 0 and line up
 // out/<tutorial>.srt          the narration as subtitles
 
-const name = process.argv[2];
+const name = tutorialName(process.argv.slice(2).find((argument) => !argument.startsWith("--")));
 if (!name) {
   console.error("Usage: npm run render -- <tutorial name>");
   process.exit(1);

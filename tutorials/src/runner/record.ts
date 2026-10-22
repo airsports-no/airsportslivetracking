@@ -3,7 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium, type Locator } from "playwright";
 import { DEFAULT_EDIT, type Timeline } from "../shared/timeline";
-import { AUTH_FILE, RECORDINGS_DIR, SCRIPTS_DIR, settings } from "./config";
+import { AUTH_FILE, RECORDINGS_DIR, SCRIPTS_DIR, settings, tutorialName } from "./config";
 import { synthesise } from "./narration";
 import type { Tutorial, TutorialContext } from "./tutorial";
 
@@ -17,7 +17,7 @@ const NARRATION_GAP_MS = 300;
 const TYPING_DELAY_MS = 55;
 const DEVICE_SCALE_FACTOR = 2;
 
-const name = process.argv[2];
+const name = tutorialName(process.argv.slice(2).find((argument) => !argument.startsWith("--")));
 if (!name) {
   console.error("Usage: npm run record -- <tutorial name> [--headed]");
   process.exit(1);
@@ -36,6 +36,15 @@ const context = await browser.newContext({
   viewport: settings.viewport,
   deviceScaleFactor: DEVICE_SCALE_FACTOR,
   storageState: existsSync(AUTH_FILE) ? AUTH_FILE : undefined,
+  ...(settings.geolocation
+    ? {
+        geolocation: {
+          latitude: Number(settings.geolocation.split(",")[0]),
+          longitude: Number(settings.geolocation.split(",")[1]),
+        },
+        permissions: ["geolocation"],
+      }
+    : {}),
 });
 const page = await context.newPage();
 

@@ -21,13 +21,8 @@ cp .env.example .env       # optional: site address, voice
 **On Windows**, once:
 
 1. Install Node.js (LTS), for example `winget install OpenJS.NodeJS.LTS`, and open a new PowerShell.
-2. Install the browser Playwright records in (run it from a normal Windows folder, not a `\\wsl.localhost` one):
-
-   ```powershell
-   npx -y playwright@1.64.1 install chromium
-   ```
-
-   Keep the version the same as `playwright` in `package.json`.
+2. Nothing else: the first run of the recording script below installs Playwright and its browser into
+   `%LOCALAPPDATA%\aslt-tutorial-recorder`.
 3. Check that the local site opens on Windows at http://localhost:8002 (WSL passes `localhost` through). If it
    does not, use the address that works with `-BaseUrl` below and set the same `TUTORIAL_BASE_URL` in `.env`.
 
@@ -39,15 +34,21 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
 1. **Record the clicks (Windows).** In PowerShell:
 
    ```powershell
-   powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsportslivetracking\tutorials\windows\codegen.ps1 create-2a3-task
+   powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsportslivetracking\tutorials\windows\codegen.ps1 task2.a3
    ```
 
-   A browser opens on the site next to Playwright's recorder. The first time, log in there: the session is saved
-   to `.auth/state.json` when you close the browser, and every later recording, in Windows or WSL, starts logged
-   in. Click through the task; the code is written live to `recorded/create-2a3-task.js`. Options: `-Path
-   /some/page` to start elsewhere, `-BaseUrl` for another site address.
+   A browser opens on the site (with developer tools, which you can close). The first time, log in there: the
+   session is saved to `.auth/state.json` when you close the browser, and every later recording, in Windows or WSL,
+   starts logged in. Click through the task; each step is written live to `recorded/task2.a3.js` and shown in the
+   PowerShell window. Close the browser when done. Options: `-Path /some/page` to start elsewhere, `-BaseUrl` for
+   another site address.
 
-   Log in as a demo user with demo data, since the session file is what the recordings use.
+   The recorder (`windows/capture.mjs`) writes the same readable steps as Playwright's codegen, but keeps the
+   exact position of clicks and drags on the map, and wheel zooming on the map, which codegen loses. Those replay
+   correctly only if the map opens at the same place and zoom when the tutorial is recorded, so start from the same
+   state each time. A new route's map opens where the browser says it is: give a location with `-Geolocation
+   60.8,11.1` here and the same `TUTORIAL_GEOLOCATION` in `.env` (otherwise it opens at the editor's default, in
+   London). Log in as a demo user with demo data, since the session file is what the recordings use.
 2. **Write the script (WSL).** Copy `scripts/example.ts` to `scripts/<name>.ts` (kebab-case), paste the
    `page.` lines from `recorded/<name>.js` into `run()`, and add the narration between the
    steps:
@@ -80,7 +81,9 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
 
 Re-recording only regenerates narration lines that changed: the voice is cached in `.cache/`.
 
-On Linux or macOS with a desktop, `npm run login` and `npm run codegen` do the same as the Windows script.
+On Linux or macOS with a desktop, `npm run login` and `npm run codegen` (Playwright's codegen, without map positions)
+or `node windows/capture.mjs --output recorded/<name>.js --url http://localhost:8002/ --auth .auth/state.json` work
+too.
 
 ## How it works
 
