@@ -3,12 +3,14 @@ import { AbsoluteFill, Audio, Img, interpolate, Sequence, staticFile, useCurrent
 import { planCamera } from "../shared/camera";
 import type { Edit } from "../shared/edit";
 import { HEADER_HEIGHT, VIDEO, WINDOW_MARGIN } from "../shared/layout";
-import type { Action, Box, Frame, Timeline } from "../shared/timeline";
+import { isHidden, type Action, type Box, type Frame, type Timeline } from "../shared/timeline";
 import { brand } from "./brand";
 import { theme } from "./theme";
 
 // The recorded page in a window, with the camera, cursor, highlights, captions and voice. Times are video times
 // (after the cuts) unless named src.
+
+const JUMP_FADE_MS = 500;
 
 const lastAtOrBefore = <T extends { t: number }>(items: T[], t: number): T | undefined => {
   let low = 0;
@@ -33,9 +35,15 @@ export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; e
 
   const camera = useMemo(() => planCamera(timeline, edit), [timeline, edit]);
   const pointerActions = useMemo(
-    () => timeline.actions.map((action) => ({ ...action, t: edit.toOut(action.t) })),
+    () =>
+      timeline.actions
+        .filter((action) => !isHidden(timeline, action.t))
+        .map((action) => ({ ...action, t: edit.toOut(action.t) })),
     [timeline, edit],
   );
+  // Where a hidden part was cut out, the last picture before it fades out over the page as it is after
+  const jump = edit.jumps.find((item) => outMs >= item.outMs && outMs < item.outMs + JUMP_FADE_MS);
+  const jumpFromFrame = jump ? lastAtOrBefore(timeline.frames, jump.fromSrcMs) : undefined;
 
   const windowScale = Math.min(
     (VIDEO.width - 2 * WINDOW_MARGIN.x) / viewport.width,
@@ -88,6 +96,19 @@ export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; e
         >
           {shownFrame && (
             <Img src={staticFile(shownFrame.file)} style={{ width: viewport.width, height: viewport.height }} />
+          )}
+          {jump && jumpFromFrame && (
+            <Img
+              src={staticFile(jumpFromFrame.file)}
+              style={{
+                position: "absolute",
+                left: 0,
+                top: 0,
+                width: viewport.width,
+                height: viewport.height,
+                opacity: 1 - (outMs - jump.outMs) / JUMP_FADE_MS,
+              }}
+            />
           )}
           {timeline.highlights.map((item, index) => (
             <HighlightBox

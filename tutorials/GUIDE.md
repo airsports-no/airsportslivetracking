@@ -49,6 +49,9 @@ A browser opens on the site. Click through the task calmly, as in the finished v
 - **Mark each phase with F8.** A box asks for the phase's name ("Placing the points") and, if you like, what should
   be said during it. Type it right away while you know what you are doing, or leave it empty and write it later.
   The box itself is not recorded.
+- **Hide what the tutorial is not about with F9.** Press F9, do the setup (create a task for the route, generate
+  the flight orders, ...), press F9 again. Those steps are performed when the video is made, but cut from it: the
+  video crossfades straight from where you were to where you end up. A red badge shows while hiding is on.
 - **Zoom and pan freely on the map.** Zooming, panning and the points you place are recorded exactly.
 - **Typing is fine.** Text you type into fields is typed out again, letter by letter, in the video.
 - **Close the browser** when you are done. The steps are in `tutorials/recorded/my-tutorial.js`.
@@ -88,7 +91,23 @@ What you can use in a script:
 | `await chapter("...")` | Starts a new phase: its name appears in the video and becomes a chapter |
 | `await highlight(page.getByText("Save Route"), { label: "Save when done" })` | Dims the page around something and points it out |
 | `await pause(2000)` | Keeps a still moment of 2 seconds, for example to let something sink in |
+| `await startHidden()` … `await endHidden()` | The steps in between are performed but cut from the video (F9 writes these) |
+| `await showPdf("/display/navigationtask/3612/downloadflightorders/")` | Shows a PDF's pages, for example the flight orders (see below) |
 | `camera("wide")` … `camera("auto")` | Shows the whole page instead of zooming in, for example while working on the map |
+
+**Showing a flight order or another PDF.** The browser that records the video cannot display PDFs, so a PDF opened
+by clicking will not show. Use `showPdf` instead: it shows the pages on screen, and you can scroll and highlight as
+usual. For a task's flight orders: generate them in a hidden part, then show them:
+
+```ts
+await startHidden();
+// ... the clicks that generate the flight orders, and waiting until they are ready ...
+await endHidden();
+await showPdf("/display/navigationtask/3612/downloadflightorders/");
+await say("This is the navigation map the pilots get. Note the curved leg after the start.");
+await page.mouse.wheel(0, 900);   // scroll to the next page
+await page.goto("/");             // back to the site
+```
 
 Tips for the narration:
 

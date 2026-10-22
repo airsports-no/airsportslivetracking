@@ -1,4 +1,4 @@
-import type { Box, Timeline } from "./timeline";
+import { isHidden, type Box, type Timeline } from "./timeline";
 import type { Edit } from "./edit";
 
 // The automatic zoom: the camera moves in on what is being clicked, typed in or highlighted, stays while the work
@@ -54,7 +54,7 @@ export function planCamera(timeline: Timeline, edit: Edit): (outMs: number) => C
   const targets = [
     // Scrolling moves the page under the camera, it is not something to look at
     ...timeline.actions
-      .filter((action) => action.kind !== "scroll")
+      .filter((action) => action.kind !== "scroll" && !isHidden(timeline, action.t))
       .map((action) => ({
       t: action.t,
       box: action.box ?? {
@@ -64,7 +64,9 @@ export function planCamera(timeline: Timeline, edit: Edit): (outMs: number) => C
       },
       endT: action.t,
     })),
-    ...timeline.highlights.map((item) => ({ t: item.t, box: item.box, endT: item.t + item.durationMs })),
+    ...timeline.highlights
+      .filter((item) => !isHidden(timeline, item.t))
+      .map((item) => ({ t: item.t, box: item.box, endT: item.t + item.durationMs })),
   ].sort((a, b) => a.t - b.t);
 
   const keyframes: Keyframe[] = [{ t: 0, ...wide }];

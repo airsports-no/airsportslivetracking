@@ -97,6 +97,12 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
      it is spoken; the next `say` waits for it. `{ spoken: "..." }` changes how a line sounds without changing
      its caption.
    - `highlight(locator, { label, durationMs })` dims the page around an element and outlines it.
+   - `startHidden()` and `endHidden()` (F9 when recording the clicks) cut the steps between them from the video:
+     they are performed, and the video crossfades from the last picture before to the page after. For setup the
+     tutorial is not about, such as creating a task to show a route on the live map.
+   - `showPdf(source, { width })` shows a PDF's pages with pdf.js (the headless recording browser has no PDF viewer):
+     a path on the site, fetched logged in (a flight order's download address), or a file. `width` is the share of
+     the window a page takes (0.7). Go back with `page.goto(...)`.
    - `chapter(title)` starts a phase: its name slides in at the bottom of the video and shows in the header, and
      it becomes a chapter in `out/<name>-chapters.txt`.
    - `pause(ms)` keeps a still moment that would otherwise be cut.

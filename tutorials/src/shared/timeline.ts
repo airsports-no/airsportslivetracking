@@ -27,6 +27,9 @@ export type Frame = { t: number; file: string };
 // From chapter(): the start of a phase of the tutorial
 export type Chapter = { t: number; title: string };
 
+// From startHidden()/endHidden(): steps that are performed but cut from the video
+export type HiddenPart = { start: number; end: number };
+
 export type EditSettings = {
   // A stretch without anything happening (no screen change, action, narration, highlight or pause) longer than this
   // is shortened to keepGapMs
@@ -52,9 +55,15 @@ export type Timeline = {
   holds: Hold[];
   // Missing in recordings made before chapters existed
   chapters?: Chapter[];
+  // Missing in recordings made before hidden parts existed
+  hidden?: HiddenPart[];
   // The script's own settings, over DEFAULT_EDIT
   edit: Partial<EditSettings>;
   captions: boolean;
 };
 
 export const DEFAULT_EDIT: EditSettings = { minGapMs: 700, keepGapMs: 250 };
+
+// Whether something at recording time t happened in a hidden part (it is cut from the video)
+export const isHidden = (timeline: Timeline, t: number) =>
+  (timeline.hidden ?? []).some((part) => t >= part.start && t <= part.end);

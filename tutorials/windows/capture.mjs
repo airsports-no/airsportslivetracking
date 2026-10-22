@@ -133,11 +133,48 @@ const PAGE_SCRIPT = `(() => {
       openPhaseBox();
       return;
     }
+    if (event.key === "F9") {
+      event.preventDefault();
+      toggleHidden();
+      return;
+    }
     if (["Enter", "Escape", "Tab"].includes(event.key)) {
       flushTyping();
       emit("await page.keyboard.press(" + quote(event.key) + ");");
     }
   }, true);
+
+  // F9 starts and ends a hidden part: what you do in between is performed when the video is recorded, but cut from it
+  // (setting something up the tutorial is not about). A badge shows while it is on, and stays on across pages.
+  const HIDDEN_KEY = "__captureHidden";
+  const showHiddenBadge = () => {
+    if (sessionStorage.getItem(HIDDEN_KEY) !== "on" || document.querySelector("[data-capture-badge]")) return;
+    const badge = document.createElement("div");
+    badge.setAttribute("data-capture-ui", "");
+    badge.setAttribute("data-capture-badge", "");
+    badge.textContent = "Hidden from the video (F9 to end)";
+    badge.style.cssText = "position:fixed;top:12px;right:12px;z-index:2147483647;background:#e11d24;color:white;" +
+      "font:600 13px system-ui,sans-serif;padding:6px 12px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,0.35);" +
+      "pointer-events:none";
+    (document.body || document.documentElement).append(badge);
+  };
+  const toggleHidden = () => {
+    flushTyping();
+    if (sessionStorage.getItem(HIDDEN_KEY) === "on") {
+      sessionStorage.removeItem(HIDDEN_KEY);
+      document.querySelectorAll("[data-capture-badge]").forEach((badge) => badge.remove());
+      emit("await endHidden();");
+      emit("// ── Shown again ──");
+    } else {
+      sessionStorage.setItem(HIDDEN_KEY, "on");
+      emit("");
+      emit("// ── Hidden from the video ──");
+      emit("await startHidden();");
+      showHiddenBadge();
+    }
+  };
+  document.addEventListener("DOMContentLoaded", showHiddenBadge);
+  showHiddenBadge();
 
   // F8 marks the start of a new phase of the tutorial: a box asks for its name and, optionally, the narration to speak
   // while it happens. Written as a chapter() and a say() that does not wait, so the voice runs alongside the clicks.

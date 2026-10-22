@@ -10,6 +10,8 @@ export type Segment = { srcStart: number; srcEnd: number; outStart: number };
 export type Edit = {
   segments: Segment[];
   durationMs: number;
+  // Where a hidden part was cut out (video time): the picture crossfades there
+  jumps: { outMs: number; fromSrcMs: number }[];
   // Recording time to video time, and back
   toOut: (srcMs: number) => number;
   toSrc: (outMs: number) => number;
@@ -65,9 +67,20 @@ export function computeEdit(timeline: Timeline): Edit {
     kept.push([start, end]);
     cursor = Math.max(cursor, end);
   }
+  // Hidden parts (startHidden/endHidden) go entirely, whatever happens in them
+  const hidden = merge((timeline.hidden ?? []).map((part): Interval => [part.start, part.end]));
+  const visible = merge(kept).flatMap(([start, end]) => {
+    let pieces: Interval[] = [[start, end]];
+    for (const [hiddenStart, hiddenEnd] of hidden) {
+      pieces = pieces.flatMap(([a, b]): Interval[] =>
+        hiddenEnd <= a || hiddenStart >= b ? [[a, b]] : ([[a, hiddenStart], [hiddenEnd, b]] as Interval[]).filter(([x, y]) => y > x),
+      );
+    }
+    return pieces;
+  });
   const segments: Segment[] = [];
   let out = 0;
-  for (const [srcStart, srcEnd] of merge(kept)) {
+  for (const [srcStart, srcEnd] of visible) {
     segments.push({ srcStart, srcEnd, outStart: out });
     out += srcEnd - srcStart;
   }
@@ -94,5 +107,8 @@ export function computeEdit(timeline: Timeline): Edit {
     const last = segments[segments.length - 1];
     return last ? last.srcEnd : 0;
   };
-  return { segments, durationMs, toOut, toSrc };
+  const jumps = hidden
+    .filter(([start]) => start > 0 && start < timeline.durationMs)
+    .map(([start, end]) => ({ outMs: toOut(end), fromSrcMs: start }));
+  return { segments, durationMs, jumps, toOut, toSrc };
 }

@@ -40,6 +40,14 @@ export type TutorialContext = {
   // The start of a phase of the tutorial ("Placing the points"): a label in the video, and a chapter in
   // out/<name>-chapters.txt. The recorder writes these when you press F8.
   chapter(title: string): void;
+  // The steps between startHidden() and endHidden() are performed but cut from the video, which crossfades from the
+  // last picture before to the page as it is after (for setting something up the tutorial is not about). The recorder
+  // writes these when you press F9.
+  startHidden(): Promise<void>;
+  endHidden(): Promise<void>;
+  // Shows a PDF's pages in the browser (the headless recording browser cannot): a path on the site such as a flight
+  // order's download address, fetched logged in, or a file. Go back to the site with page.goto(...).
+  showPdf(source: string, options?: { width?: number }): Promise<void>;
   map: MapSteps;
 };
 
@@ -70,5 +78,8 @@ declare global {
   const pause: TutorialContext["pause"];
   const camera: TutorialContext["camera"];
   const chapter: TutorialContext["chapter"];
+  const startHidden: TutorialContext["startHidden"];
+  const endHidden: TutorialContext["endHidden"];
+  const showPdf: TutorialContext["showPdf"];
   const map: TutorialContext["map"];
 }

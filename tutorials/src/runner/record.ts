@@ -1,10 +1,10 @@
-import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, readFileSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium, type Locator } from "playwright";
 import { STEP_LEAD_MS, STEP_PAUSE_AFTER_MS } from "../shared/edit";
 import type { Timeline } from "../shared/timeline";
-import { AUTH_FILE, RECORDINGS_DIR, SCRIPTS_DIR, settings, tutorialName } from "./config";
+import { AUTH_FILE, RECORDINGS_DIR, ROOT, SCRIPTS_DIR, settings, tutorialName } from "./config";
 import { synthesise } from "./narration";
 import type { MapSteps, Tutorial, TutorialContext } from "./tutorial";
 
@@ -70,6 +70,7 @@ const timeline: Timeline = {
   camera: [],
   holds: [],
   chapters: [],
+  hidden: [],
   // Only the script's own settings: the defaults are applied when rendering, so changing them needs no new recording
   edit: { ...tutorial.edit },
   captions: tutorial.captions ?? true,
@@ -281,9 +282,57 @@ const mapSteps: MapSteps = {
   }),
 };
 
+let hiddenSince: number | null = null;
+
+const waitForStillPage = async () => {
+  const deadline = Date.now() + STILL_MAX_WAIT_MS;
+  while (Date.now() - lastFrameAt < STILL_MS && Date.now() < deadline) await sleep(50);
+};
+
+// A PDF shown in the browser with pdf.js, served from a made-up address so its module and worker load like any page's
+const PDF_VIEWER_ORIGIN = "https://tutorial-pdf.local";
+const pdfjsBuild = path.join(ROOT, "node_modules", "pdfjs-dist", "build");
+const showPdfPages = async (pdf: Buffer, widthFraction: number) => {
+  const viewer = `<!doctype html><html><head><meta charset="utf-8"><title>PDF</title><style>
+    body { margin: 0; background: #525659; display: flex; flex-direction: column; align-items: center; gap: 24px;
+      padding: 32px 0; }
+    canvas { background: white; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5); }
+  </style></head><body><script type="module">
+    import * as pdfjs from "/pdf.min.mjs";
+    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
+    const document_ = await pdfjs.getDocument("/document.pdf").promise;
+    const width = window.innerWidth * ${widthFraction};
+    for (let number = 1; number <= document_.numPages; number++) {
+      const pdfPage = await document_.getPage(number);
+      const scale = width / pdfPage.getViewport({ scale: 1 }).width;
+      const viewport = pdfPage.getViewport({ scale: scale * window.devicePixelRatio });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = width + "px";
+      document.body.append(canvas);
+      await pdfPage.render({ canvas, canvasContext: canvas.getContext("2d"), viewport }).promise;
+    }
+    window.__pdfShown = true;
+  </script></body></html>`;
+  await page.route(`${PDF_VIEWER_ORIGIN}/**`, (route) => {
+    const file = new URL(route.request().url()).pathname;
+    if (file === "/document.pdf") return route.fulfill({ body: pdf, contentType: "application/pdf" });
+    if (file === "/pdf.min.mjs" || file === "/pdf.worker.min.mjs") {
+      return route.fulfill({ body: readFileSync(path.join(pdfjsBuild, file.slice(1))), contentType: "text/javascript" });
+    }
+    return route.fulfill({ body: viewer, contentType: "text/html" });
+  });
+  await page.goto(`${PDF_VIEWER_ORIGIN}/viewer.html`);
+  await page.waitForFunction(() => (window as unknown as { __pdfShown?: boolean }).__pdfShown === true, null, {
+    timeout: 30000,
+  });
+};
+
 const tutorialContext: TutorialContext = {
   page,
   async say(text, options = {}) {
+    if (hiddenSince !== null) console.warn(`  say inside a hidden part, cut from the video with it: ${text}`);
     // Lines never overlap
     await waitUntil(narrationEndsAt);
     // Generating the voice may take a moment: that still stretch is cut from the video
@@ -317,6 +366,31 @@ const tutorialContext: TutorialContext = {
     timeline.chapters!.push({ t: now(), title });
     console.log(`  chapter: ${title}`);
   },
+  async startHidden() {
+    if (hiddenSince !== null) return;
+    // A line still being spoken would be cut off with the hidden part
+    await waitUntil(narrationEndsAt);
+    hiddenSince = now();
+    console.log("  hidden part starts");
+  },
+  async endHidden() {
+    if (hiddenSince === null) return;
+    // The video comes back on the page once it has finished changing (loading, drawing the map)
+    await waitForStillPage();
+    timeline.hidden!.push({ start: hiddenSince, end: now() });
+    hiddenSince = null;
+    console.log("  hidden part ends");
+  },
+  async showPdf(source, options = {}) {
+    const bytes = /^(https?:)?\//.test(source)
+      ? await (async () => {
+          const response = await context.request.get(source);
+          if (!response.ok()) throw new Error(`Could not fetch the PDF ${source}: ${response.status()}`);
+          return response.body();
+        })()
+      : readFileSync(source);
+    await showPdfPages(bytes, options.width ?? 0.7);
+  },
   map: mapSteps,
 };
 
@@ -328,6 +402,7 @@ try {
   Object.assign(globalThis, tutorialContext);
   await tutorial.run(tutorialContext);
   await waitUntil(narrationEndsAt);
+  await tutorialContext.endHidden();
   await tutorialContext.pause(1200);
 } catch (error) {
   failure = error;
