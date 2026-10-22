@@ -312,16 +312,26 @@ const tutorialContext: TutorialContext = {
 };
 
 console.log(`Recording ${name}: ${tutorial.title}`);
+let failure: unknown = null;
 try {
   await tutorialContext.pause(800);
   await tutorial.run(tutorialContext);
   await waitUntil(narrationEndsAt);
   await tutorialContext.pause(1200);
+} catch (error) {
+  failure = error;
 } finally {
   await cdp.send("Page.stopScreencast").catch(() => undefined);
   timeline.durationMs = now();
   writeFileSync(path.join(outputDir, "timeline.json"), JSON.stringify(timeline, null, 1));
   await browser.close();
+}
+// Reported here, not left uncaught: the voice library's handler for uncaught errors prints its whole minified source
+// in front of the message
+if (failure) {
+  console.error(`\nThe recording stopped: ${failure instanceof Error ? failure.stack : failure}`);
+  console.error(`What was recorded until then is kept in public/recordings/${name}/.`);
+  process.exit(1);
 }
 console.log(
   `Recorded ${(timeline.durationMs / 1000).toFixed(1)} s: ${timeline.frames.length} frames, ` +
