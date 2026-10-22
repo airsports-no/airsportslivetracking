@@ -998,6 +998,7 @@ export default function RouteEditor() {
           hideLabels={hideLabels}
           wizardPolygonType={wizardPolygonType}
           legInsertType={wizardRouteInsertType}
+          onEdit={markDirty}
           activeTriggerId={dummyBranchPhase === 'placing' ? dummyBranchTriggerId : null}
           emphasizeUnknownLegTriggers={dummyBranchPhase === 'awaiting_trigger'}
           setRoutePoints={setRoutePoints}

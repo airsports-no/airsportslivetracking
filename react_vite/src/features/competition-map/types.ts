@@ -210,9 +210,11 @@ export interface NavigationTaskCatalogueTarget {
   branch_sequence?: number | null;
   connector_to_name?: string | null;
   is_unknown_leg_trigger?: boolean;
-  // The leg into this point is curved in the route: the curve's control point ([lng, lat]) and the point it starts from
+  // The leg into this point is curved in the route: the curve's control point ([lng, lat]), the point it starts from
+  // and where that is ([lng, lat]; a hidden gate the contestant's view leaves out, possibly)
   curve_control?: [number, number];
   curve_from?: string | null;
+  curve_start?: [number, number];
 }
 
 export interface NavigationTask {

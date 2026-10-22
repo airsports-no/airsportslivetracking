@@ -120,6 +120,19 @@ function quadraticCurve(start: [number, number], control: [number, number], end:
   return points;
 }
 
+// The line into [target] after [previous] when the leg is curved: to the curve's start first if that is not the
+// previous point drawn (a hidden gate left out of this view), then along the curve. Nothing for a straight leg.
+function curveInto(target: NavigationTaskCatalogueTarget, previous: NavigationTaskCatalogueTarget): L.LatLngExpression[] {
+  if (!target.curve_control) return [];
+  const [startLng, startLat] = target.curve_start ?? previous.coordinates;
+  const [controlLng, controlLat] = target.curve_control;
+  const [lng, lat] = target.coordinates;
+  const [previousLng, previousLat] = previous.coordinates;
+  const viaHiddenStart: L.LatLngExpression[] =
+    startLat === previousLat && startLng === previousLng ? [] : [[startLat, startLng]];
+  return [...viaHiddenStart, ...quadraticCurve([startLat, startLng], [controlLat, controlLng], [lat, lng])];
+}
+
 function renderPrecisionRoute(
   map: L.Map,
   route: RouteData,
@@ -194,12 +207,7 @@ function renderPrecisionRoute(
         const track: L.LatLngExpression[] = [];
         visibleSegmentTargets.forEach((target, index) => {
           const [lng, lat] = target.coordinates;
-          const previous = visibleSegmentTargets[index - 1];
-          if (target.curve_control && previous && previous.name === target.curve_from) {
-            const [previousLng, previousLat] = previous.coordinates;
-            const [controlLng, controlLat] = target.curve_control;
-            track.push(...quadraticCurve([previousLat, previousLng], [controlLat, controlLng], [lat, lng]));
-          }
+          if (index > 0) track.push(...curveInto(target, visibleSegmentTargets[index - 1]));
           track.push([lat, lng]);
         });
         if (track.length >= 2) {
@@ -448,15 +456,12 @@ function renderUnknownLegDummyBranches(map: L.Map, targets: NavigationTaskCatalo
     const [triggerLng, triggerLat] = trigger.coordinates;
     const points: L.LatLngExpression[] = [[triggerLat, triggerLng]];
     // A curved dummy leg follows its curve (curve_control, from the trigger or the previous branch point)
-    let previous: { name: string; lat: number; lng: number } = { name: trigger.name, lat: triggerLat, lng: triggerLng };
+    let previous: NavigationTaskCatalogueTarget = trigger;
     orderedBranch.forEach((target) => {
       const [lng, lat] = target.coordinates;
-      if (target.curve_control && target.curve_from === previous.name) {
-        const [controlLng, controlLat] = target.curve_control;
-        points.push(...quadraticCurve([previous.lat, previous.lng], [controlLat, controlLng], [lat, lng]));
-      }
+      points.push(...curveInto(target, previous));
       points.push([lat, lng]);
-      previous = { name: target.name, lat, lng };
+      previous = target;
     });
     if (points.length >= 2) {
       layers.push(L.polyline(points, { color: '#9ca3af', weight: 3, dashArray: '8 6' }).addTo(map));

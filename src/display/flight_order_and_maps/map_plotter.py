@@ -418,6 +418,11 @@ def get_plot_extent(
         lon, lat = coordinates
         latitudes.append(lat)
         longitudes.append(lon)
+        # A curved leg bows towards its control point and stays within the triangle it makes with the leg's ends
+        control = target.get("curve_control") or []
+        if len(control) == 2:
+            longitudes.append(control[0])
+            latitudes.append(control[1])
 
     if not latitudes or not longitudes:
         return route.get_extent()
@@ -1937,17 +1942,21 @@ def plot_route(
                             is_unknown_leg_trigger,
                         )
                     )
-                    if target.get("curve_control"):
-                        curve_by_name[target.get("name") or ""] = (target["curve_control"], target.get("curve_from"))
+                    if target.get("curve_control") and target.get("curve_start"):
+                        curve_by_name[target.get("name") or ""] = (target["curve_control"], target["curve_start"])
                     previous_point_was_branch = is_branch_point
                 if len(ordered_segment_points) >= 2:
                     # A leg that is curved in the route (curve_control, effective_route_rendering) is drawn curved
                     path_points = []
                     for position, (name, lat, lon, _) in enumerate(ordered_segment_points):
-                        control, curve_from = curve_by_name.get(name, (None, None))
-                        if control and position > 0 and ordered_segment_points[position - 1][0] == curve_from:
+                        control, start = curve_by_name.get(name, (None, None))
+                        if control and position > 0:
+                            # The curve may start at a hidden gate the view leaves out: the line runs there first
+                            start_point = (start[1], start[0])
+                            if path_points[-1] != start_point:
+                                path_points.append(start_point)
                             path_points.extend(
-                                get_quadratic_bezier_points(path_points[-1], (lat, lon), (control[1], control[0]))[1:-1]
+                                get_quadratic_bezier_points(start_point, (lat, lon), (control[1], control[0]))[1:-1]
                             )
                         path_points.append((lat, lon))
                     path = np.array(path_points)

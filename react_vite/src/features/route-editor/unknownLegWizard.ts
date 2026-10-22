@@ -138,3 +138,16 @@ export function previousOnDummyBranch(
   if (position > 0) return branch[position - 1];
   return routePoints.find((item) => item.id === point.triggerPointId);
 }
+
+// The waypoint after [point] on its dummy branch, or the first one when [point] is the trigger: the leg starting at
+// [point], whose curve handle moves along when [point] is dragged
+export function nextOnDummyBranch(point: RoutePoint, standalonePoints: RoutePoint[]): RoutePoint | undefined {
+  const triggerId = point.featureType === 'dummy_branch_waypoint' ? point.triggerPointId : point.id;
+  if (!triggerId) return undefined;
+  const branch = standalonePoints
+    .filter((item) => item.featureType === 'dummy_branch_waypoint' && item.triggerPointId === triggerId)
+    .sort((left, right) => (left.branchSequence ?? 0) - (right.branchSequence ?? 0));
+  if (point.featureType !== 'dummy_branch_waypoint') return branch[0];
+  const position = branch.findIndex((item) => item.id === point.id);
+  return position >= 0 ? branch[position + 1] : undefined;
+}

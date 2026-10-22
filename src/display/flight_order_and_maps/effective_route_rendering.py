@@ -188,26 +188,31 @@ def _build_unknown_legs_targets_from_payload(payload: dict[str, Any]) -> list[di
 def _attach_curve_controls(targets: list[dict[str, Any]], editable_route) -> list[dict[str, Any]]:
     """
     The route's curved legs for the contestant's view of an unknown-legs route: a point whose incoming leg is curved in
-    the route editor gets the curve's control point ("curve_control", [lng, lat]) and the point the curve starts from
-    ("curve_from"), so the view draws that leg curved. The curve's own points are secret waypoints, which that view
-    leaves out, so without this the leg is drawn straight.
+    the route editor gets the curve's control point ("curve_control", [lng, lat]), the point the curve starts from
+    ("curve_from") and where that is ("curve_start", [lng, lat]), so the view draws that leg curved. The curve's own
+    points are secret waypoints, which that view leaves out, so without this the leg is drawn straight. The start may be
+    a hidden gate the view leaves out too: the line then runs to its position before the curve begins.
     """
-    def curve(properties: dict, curve_from: str | None) -> dict | None:
+    def curve(properties: dict, previous: dict | None) -> dict | None:
         control_lat, control_lng = properties.get("controlLat"), properties.get("controlLng")
-        if properties.get("segmentType") != "curved" or control_lat is None or control_lng is None:
+        if previous is None or properties.get("segmentType") != "curved" or control_lat is None or control_lng is None:
             return None
-        return {"curve_control": [control_lng, control_lat], "curve_from": curve_from}
+        return {
+            "curve_control": [control_lng, control_lat],
+            "curve_from": previous.get("properties", {}).get("name"),
+            "curve_start": previous.get("geometry", {}).get("coordinates"),
+        }
 
     route_curves = {}
-    name_by_id = {}
-    previous_name = None
+    feature_by_id = {}
+    previous = None
     for feature in editable_route.get_ordered_track_waypoints():
         properties = feature.get("properties", {})
         name = properties.get("name")
-        name_by_id[properties.get("id")] = name
-        if name and (leg := curve(properties, previous_name)):
+        feature_by_id[properties.get("id")] = feature
+        if name and (leg := curve(properties, previous)):
             route_curves[name] = leg
-        previous_name = name
+        previous = feature
 
     # A dummy-branch waypoint's leg starts at the previous waypoint on its branch, or at the trigger for the first one
     branch_curves = {}
@@ -215,13 +220,13 @@ def _attach_curve_controls(targets: list[dict[str, Any]], editable_route) -> lis
     for feature in editable_route.get_features_type("dummy_branch_waypoint"):
         branches.setdefault(feature.get("properties", {}).get("triggerPointId"), []).append(feature)
     for trigger_id, branch in branches.items():
-        previous_name = name_by_id.get(trigger_id)
+        previous = feature_by_id.get(trigger_id)
         for feature in sorted(branch, key=lambda item: item.get("properties", {}).get("branchSequence", 0)):
             properties = feature.get("properties", {})
             name = properties.get("name")
-            if name and (leg := curve(properties, previous_name)):
+            if name and (leg := curve(properties, previous)):
                 branch_curves[name] = leg
-            previous_name = name
+            previous = feature
 
     for target in targets:
         if target.get("kind") != "catalogue_turnpoint":
