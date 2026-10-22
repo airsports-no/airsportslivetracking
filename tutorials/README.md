@@ -4,6 +4,9 @@ Short tutorial videos of the site, made from a script: you click through a task 
 the narration beside them, and the toolset records the screen, generates the voice, cuts the dead time and renders a
 video with automatic zoom, a smooth cursor, highlights and captions.
 
+**New to this? Start with [GUIDE.md](GUIDE.md)**, the workflow from idea to finished video without the technical
+details. This README covers the setup and how the toolset works.
+
 The interactive part, clicking through the site to record the steps, happens in a browser on **Windows**.
 Everything else (recording the video, previewing, rendering) runs in **WSL**, headless.
 
