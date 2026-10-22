@@ -104,13 +104,13 @@ describe('getWizardRouteInsertLabel', () => {
 
   it('gives the hidden-gate-specific instruction for a hidden_gate step key', () => {
     expect(getWizardRouteInsertLabel({ ...baseStep, key: 'hidden_gate', pointType: 'secret' })).toBe(
-      'Click the existing true backbone route line to insert a hidden gate.',
+      'Click a leg of the route where a hidden gate should be: it is inserted there. Click more legs for more gates.',
     );
   });
 
   it('gives the known-time-gate-specific instruction for a known_time_gate step key', () => {
     expect(getWizardRouteInsertLabel({ ...baseStep, key: 'known_time_gate', pointType: 'tp' })).toBe(
-      'Click the existing route line to insert a known time gate.',
+      'Click a leg of the route where a known time gate should be: it is inserted there.',
     );
   });
 

@@ -99,6 +99,8 @@ export const drawRouteLine = (
   dragRef: React.MutableRefObject<any>,
   handleDragMove: (e: L.LeafletMouseEvent) => void,
   handleDragEnd: (e: L.LeafletMouseEvent) => void,
+  // The type of point a click on a leg inserts: a secret gate, unless a wizard step asks for another (a known time gate)
+  legInsertType: RoutePoint['type'] | null = null,
 ) => {
   if (routePoints.length <= 1) return;
 
@@ -195,15 +197,19 @@ export const drawRouteLine = (
       const dist = getDistance(p1, clickPt);
       const newLoc = getDestinationPoint(p1, dist, bearing);
 
+      const insertType = legInsertType ?? 'secret';
+      const isSecret = insertType === 'secret';
       const newPoint: RoutePoint = {
         id: crypto.randomUUID(),
         lat: newLoc.lat,
         lng: newLoc.lng,
-        name: `Secret ${routePoints.length}`,
-        type: 'secret',
+        name: isSecret
+          ? `Secret ${routePoints.length}`
+          : `${insertType.toUpperCase()} ${routePoints.filter((point) => point.type === insertType).length + 1}`,
+        type: insertType,
         featureType: 'route_waypoint',
-        width: 1000,
-        isTiming: false,
+        width: isSecret ? 1000 : 1852,
+        isTiming: !isSecret,
         isPassing: true,
         segmentType: 'straight',
       };

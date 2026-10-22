@@ -166,7 +166,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     steps: [
       routeStep('Build the precision route first. This task requires at least one curved leg - use the curve tool (hold the curve modifier while placing a point, or convert a leg in the point editor) for at least one section.'),
       pointStep('known_time_gate', 'Visible known time points', 'Your visible route points are the known time points for this task. Use route geometry first; add explicit known-time markers only if you need extra authored markers beyond the normal route points.', 'tp', 'route_waypoint', 'route_insert', 1, 'route_waypoints'),
-      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route to add spatial-precision scoring. You can insert points on the route and convert them to hidden gates in the point editor.', 'secret', 'route_waypoint', 'route_insert', 0),
+      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route to add spatial-precision scoring. Click a leg of the finished route to insert one there.', 'secret', 'route_waypoint', 'route_insert', 0),
     ],
   },
   {
@@ -179,7 +179,7 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     guideSummary: 'Build the visible precision route first. Hidden gates are not required, but consider adding a few along the route corridor for spatial-precision scoring.',
     steps: [
       routeStep('Build the visible route with start, visible turn points, and finish.'),
-      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route corridor to add spatial-precision scoring. You can insert points on the route and convert them to hidden gates in the point editor.', 'secret', 'route_waypoint', 'route_insert', 0),
+      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route corridor to add spatial-precision scoring. Click a leg of the finished route to insert one there.', 'secret', 'route_waypoint', 'route_insert', 0),
     ],
   },
   {
@@ -420,8 +420,8 @@ export const countWizardStepMatches = (
 };
 
 export const getWizardRouteInsertLabel = (step: WizardStep): string => {
-  if (step.key === 'hidden_gate') return 'Click the existing true backbone route line to insert a hidden gate.';
-  if (step.key === 'known_time_gate') return 'Click the existing route line to insert a known time gate.';
+  if (step.key === 'hidden_gate') return 'Click a leg of the route where a hidden gate should be: it is inserted there. Click more legs for more gates.';
+  if (step.key === 'known_time_gate') return 'Click a leg of the route where a known time gate should be: it is inserted there.';
   if (step.pointType === 'ul') return 'Click the backbone waypoint you want as a trigger; the wizard then goes straight to placing its dummy waypoints.';
   if (step.featureType === 'dummy_branch_waypoint') return 'Click an amber unknown-leg trigger on the map — placement starts automatically — then click the map for each dummy waypoint.';
   return 'Click the existing route line to insert the required point.';

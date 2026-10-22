@@ -69,6 +69,8 @@ interface MapCanvasProps {
     maxObsDist: number;
     hideLabels: boolean;
     wizardPolygonType?: Polygon['type'] | null;
+    // A wizard step placing points on the route: the type a click on a leg inserts (a secret gate when unset)
+    legInsertType?: RoutePoint['type'] | null;
     activeTriggerId?: string | null;
     emphasizeUnknownLegTriggers?: boolean;
     setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
@@ -99,6 +101,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   maxObsDist,
   hideLabels,
   wizardPolygonType,
+  legInsertType,
   activeTriggerId,
   emphasizeUnknownLegTriggers,
   setRoutePoints,
@@ -125,7 +128,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   const [selectedBaseLayerKey, setSelectedBaseLayerKey] = useState<string>('osm');
   const [selectedOverlayKey, setSelectedOverlayKey] = useState<string | null>(null);
   const [openAipEnabled, setOpenAipEnabled] = useState<boolean>(false);
-  const [mapSelectorCollapsed, setMapSelectorCollapsed] = useState<boolean>(false);
+  const [mapSelectorCollapsed, setMapSelectorCollapsed] = useState<boolean>(true);
   const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(12);
   
   const { handleDragMove, handleDragEnd, dragRef } = useDragHandlers({
@@ -541,7 +544,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       hideLabels,
       dragRef,
       handleDragMove,
-      handleDragEnd
+      handleDragEnd,
+      legInsertType ?? null,
     );
 
     // --- RENDERER: DRAW POINTS ---
@@ -637,7 +641,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     routePoints, standalonePoints, gates, tempGatePoint, showCorridor, observationMarkers, 
     polygons, tempPolygonPoints, selectedId, selectionType, mode,
     setRoutePoints, setStandalonePoints, setGates, setObservationMarkers, setPolygons, 
-    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels, activeTriggerId, emphasizeUnknownLegTriggers
+    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels, activeTriggerId, emphasizeUnknownLegTriggers, legInsertType
   ]);
 
   return (

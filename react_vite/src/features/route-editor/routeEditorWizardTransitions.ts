@@ -58,9 +58,12 @@ export function getWizardTransition(step: WizardStep | undefined, routeInsertLab
           selectExistingRouteFeatureType: step.featureType,
         };
       }
+      // Points on the route (hidden gates, known time gates) go onto the leg that is clicked, as View mode inserts a
+      // secret gate, and the step stays active for the next one. add_point would append a new backbone point instead
+      // and bend the route through it.
       return {
         ...DEFAULT_TRANSITION,
-        mode: 'add_point',
+        mode: 'view',
         currentWizardActionLabel: step.help,
         wizardRouteInsertType: step.pointType ?? null,
         wizardRouteInsertFeatureType: step.featureType,
