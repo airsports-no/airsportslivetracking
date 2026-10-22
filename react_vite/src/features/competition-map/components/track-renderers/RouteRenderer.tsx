@@ -154,6 +154,9 @@ function renderPrecisionRoute(
       if (actualTrack.length >= 2) {
         layers.push(L.polyline(actualTrack, { color: "blue" }).addTo(map));
       }
+      // The real route's gates, unknown-leg and secret gates included, as gate lines like every other task type:
+      // renderCatalogueTargets leaves out its own markers for these points.
+      layers.push(...renderGateLines(map, route.waypoints.filter((waypoint: Waypoint) => (waypoint.gate_check || waypoint.time_check) && waypoint.type !== 'dummy')));
     } else {
       const segments = new Map<string, NavigationTaskCatalogueTarget[]>();
       taskCatalogueTargets
@@ -270,7 +273,7 @@ function renderPokerRoute(map: L.Map, route: RouteData): L.Layer[] {
 }
 
 
-function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarget[], showUnknownLegOverlays: boolean, options: { labelCatalogueTurnpoints?: boolean } = {}): L.Layer[] {
+function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarget[], showUnknownLegOverlays: boolean, options: { labelCatalogueTurnpoints?: boolean; gateLineWaypointNames?: Set<string> } = {}): L.Layer[] {
   const layers: L.Layer[] = [];
   const hiddenGateNames = new Set(
     targets
@@ -301,6 +304,9 @@ function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarg
     if (kind === 'unknown_leg_connector_end') {
       return;
     }
+    // Drawn as its gate line by renderPrecisionRoute instead (the label still comes from the target)
+    const hasGateLine = (kind === 'unknown_leg_trigger' || kind === 'hidden_gate' || (kind === 'catalogue_turnpoint' && !target.trigger_point_id))
+      && Boolean(options.gateLineWaypointNames?.has(target.name));
     if (kind === 'catalogue_turnpoint' && (((target as any).is_unknown_leg_trigger) || hiddenGateNames.has(target.name))) {
       return;
     }
@@ -317,7 +323,11 @@ function renderCatalogueTargets(map: L.Map, targets: NavigationTaskCatalogueTarg
       : (markerStyleByKind[kind] || markerStyleByKind.catalogue_turnpoint);
     let layer: L.Layer;
 
-    if (style.html) {
+    if (hasGateLine) {
+      layer = L.marker([lat, lng], {
+        icon: L.divIcon({ className: 'leaflet-div-icon-empty', html: '', iconSize: [0, 0], iconAnchor: [0, 0] }),
+      }).addTo(map);
+    } else if (style.html) {
       const marker = L.marker([lat, lng], {
         icon: L.divIcon({
           className: 'leaflet-div-icon-empty',
@@ -549,6 +559,10 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, scorec
       const isUnknownLegsTask = (taskCatalogueTargets || []).some((target) => Boolean(target.segment_name));
       layers = layers.concat(renderCatalogueTargets(map, renderedCatalogueTargets, showUnknownLegOverlays, {
         labelCatalogueTurnpoints: isUnknownLegsTask,
+        // renderPrecisionRoute draws these as gate lines when the real route is shown
+        gateLineWaypointNames: isUnknownLegsTask && showUnknownLegOverlays && taskType.includes("precision")
+          ? new Set(renderedRoute.waypoints.filter((w: Waypoint) => (w.gate_check || w.time_check) && w.type !== 'dummy' && w.gate_line?.length >= 2).map((w: Waypoint) => w.name))
+          : undefined,
       }));
       if (showUnknownLegOverlays && isUnknownLegsTask) {
         layers = layers.concat(renderUnknownLegDummyBranches(map, renderedCatalogueTargets));
