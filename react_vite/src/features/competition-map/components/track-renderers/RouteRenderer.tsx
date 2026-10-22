@@ -94,15 +94,13 @@ interface Props {
 }
 
 // From precisionRenderer.js
-// CIMA waypoints are always represented as circles rather than the legacy
-// gate-line tick mark. Any subtype key that isn't one of the "legacy_*"
-// compatibility keys is a CIMA task (mirrors get_task_type_group() on the
-// backend, which buckets every non-legacy subtype into the "cima" group).
-function isCimaTaskSubtype(taskSubtype?: string | null): boolean {
-  return Boolean(taskSubtype) && !taskSubtype!.startsWith('legacy_');
+// Gates are drawn as their gate lines for every task type, CIMA included, so the map shows exactly where the time is
+// scored. Only the flight order's PDF map draws CIMA waypoints as circles (map_plotter.py).
+function renderGateLines(map: L.Map, gates: Waypoint[]): L.Layer[] {
+  return gates
+    .filter((gate: Waypoint) => gate.gate_line?.length >= 2)
+    .map((gate: Waypoint) => L.polyline(gate.gate_line, { color: "blue" }).addTo(map));
 }
-
-const CIMA_WAYPOINT_CIRCLE_STYLE = { radius: 8, color: 'blue', weight: 2, fillColor: 'white', fillOpacity: 0 };
 
 function renderPrecisionRoute(
   map: L.Map,
@@ -114,20 +112,14 @@ function renderPrecisionRoute(
   hasSelectedContestant: boolean = false,
 ): L.Layer[] {
   const layers: L.Layer[] = [];
-  const isCimaTask = isCimaTaskSubtype(taskSubtype);
-  // 2.A3's GENERAL (no contestant selected) map shows only the three
-  // backbone waypoints as circles, with no connecting lines and no freeway
+  // 2.A3's GENERAL (no contestant selected) map shows only the gates of the
+  // three backbone waypoints, with no connecting lines and no freeway
   // points. Once a contestant is selected, the full declared route (already
   // substituted in by getRenderedRoute) renders normally below.
   const isContractNavigationGeneralView = taskSubtype === 'contract_navigation_time_controls' && !hasSelectedContestant;
 
   if (isContractNavigationGeneralView) {
-    route.waypoints
-      .filter((waypoint: Waypoint) => waypoint.type !== 'dummy')
-      .forEach((waypoint: Waypoint) => {
-        layers.push(L.circleMarker([waypoint.latitude, waypoint.longitude], CIMA_WAYPOINT_CIRCLE_STYLE).addTo(map));
-      });
-    return layers;
+    return renderGateLines(map, route.waypoints.filter((waypoint: Waypoint) => waypoint.type !== 'dummy'));
   }
 
   route.waypoints.filter((waypoint: Waypoint) => {
@@ -192,17 +184,7 @@ function renderPrecisionRoute(
     return ((waypoint.gate_check || waypoint.time_check) && (canSeeSecrets || waypoint.type !== 'secret') && waypoint.type!=="dummy")
   });
 
-  if (isCimaTask) {
-    filterWaypoints().forEach((waypoint: Waypoint) => {
-      layers.push(L.circleMarker([waypoint.latitude, waypoint.longitude], CIMA_WAYPOINT_CIRCLE_STYLE).addTo(map));
-    });
-  } else {
-    filterWaypoints().forEach((gate: Waypoint) => {
-      layers.push(L.polyline(gate.gate_line, {
-          color: "blue"
-      }).addTo(map));
-    });
-  }
+  layers.push(...renderGateLines(map, filterWaypoints()));
 
   const path: L.LatLngExpression[] = route.waypoints
     .filter((waypoint: Waypoint) => waypoint.type !== 'dummy')
