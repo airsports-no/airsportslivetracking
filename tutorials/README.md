@@ -47,7 +47,7 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    exact position of clicks and drags on the map, and wheel zooming on the map, which codegen loses. Those replay
    correctly only if the map opens at the same place and zoom when the tutorial is recorded, so start from the same
    state each time. A new route's map opens where the browser says it is: give a location with `-Geolocation
-   60.8,11.1` here and the same `TUTORIAL_GEOLOCATION` in `.env` (otherwise it opens at the editor's default, in
+   "60.8,11.1"` here (in quotes: PowerShell turns 60.8,11.1 into a list) and the same `TUTORIAL_GEOLOCATION` in `.env` (otherwise it opens at the editor's default, in
    London). Log in as a demo user with demo data, since the session file is what the recordings use.
 2. **Write the script (WSL).** Copy `scripts/example.ts` to `scripts/<name>.ts` (kebab-case), paste the
    `page.` lines from `recorded/<name>.js` into `run()`, and add the narration between the
