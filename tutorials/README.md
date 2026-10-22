@@ -90,6 +90,9 @@ too.
 - **Recording** (`src/runner/record.ts`): the browser itself streams a sharp JPEG of every screen change (at twice
   the resolution, so zooming in stays crisp). A script inside the page reports where every click and keystroke
   lands, so the camera and cursor follow whatever the script does.
+- **Pacing** (`src/runner/record.ts`): before each step the recording waits until the page has stopped changing,
+  then holds it still while the camera moves to the target (`STEP_LEAD_MS`), so nothing happens while the view
+  moves; after each step it pauses (`STEP_PAUSE_AFTER_MS`, 0.9 s). Both are in `src/shared/edit.ts`.
 - **Cutting** (`src/shared/edit.ts`): stretches where nothing happens (no screen change, action, narration,
   highlight or pause) longer than 0.7 s are shortened to 0.25 s. Page loads, voice generation and hesitation
   disappear. Tune per tutorial with `edit: { minGapMs, keepGapMs }`.

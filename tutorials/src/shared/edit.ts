@@ -1,3 +1,4 @@
+import { CAMERA } from "./camera";
 import type { Timeline } from "./timeline";
 
 // Which parts of the recording make it into the video. Anything happening (the screen changing, an action, a
@@ -16,8 +17,12 @@ export type Edit = {
 
 // How long around an event counts as "something happening"
 const SCREEN_CHANGE_AFTER_MS = 350;
-const ACTION_BEFORE_MS = 800; // the cursor travels to the target
-const ACTION_AFTER_MS = 600;
+// The recording keeps the page still for this long before each step, while the camera and cursor travel to the
+// target, and pauses this long after it, so the steps do not follow each other too fast. Both are kept in the video.
+export const STEP_LEAD_MS = CAMERA.transitionMs + 150;
+export const STEP_PAUSE_AFTER_MS = 900;
+const ACTION_BEFORE_MS = STEP_LEAD_MS;
+const ACTION_AFTER_MS = STEP_PAUSE_AFTER_MS;
 
 type Interval = [number, number];
 

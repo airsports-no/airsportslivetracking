@@ -2,6 +2,7 @@ import { existsSync, mkdirSync, rmSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium, type Locator } from "playwright";
+import { STEP_LEAD_MS, STEP_PAUSE_AFTER_MS } from "../shared/edit";
 import { DEFAULT_EDIT, type Timeline } from "../shared/timeline";
 import { AUTH_FILE, RECORDINGS_DIR, SCRIPTS_DIR, settings, tutorialName } from "./config";
 import { synthesise } from "./narration";
@@ -15,6 +16,11 @@ import type { Tutorial, TutorialContext } from "./tutorial";
 
 const NARRATION_GAP_MS = 300;
 const TYPING_DELAY_MS = 55;
+// Before each step the page is left still: first until it has stopped changing, then long enough for the video's
+// camera to move to the next target (STEP_LEAD_MS), so nothing happens while the view moves. After each step the
+// recording pauses (STEP_PAUSE_AFTER_MS). The cutting keeps both.
+const STILL_MS = 300;
+const STILL_MAX_WAIT_MS = 4000;
 const DEVICE_SCALE_FACTOR = 2;
 
 const name = tutorialName(process.argv.slice(2).find((argument) => !argument.startsWith("--")));
@@ -30,7 +36,7 @@ rmSync(outputDir, { recursive: true, force: true });
 mkdirSync(path.join(outputDir, "frames"), { recursive: true });
 mkdirSync(path.join(outputDir, "narration"), { recursive: true });
 
-const browser = await chromium.launch({ headless: !headed, slowMo: Number(process.env.TUTORIAL_SLOWMO || 350) });
+const browser = await chromium.launch({ headless: !headed, slowMo: Number(process.env.TUTORIAL_SLOWMO || 0) });
 const context = await browser.newContext({
   baseURL: settings.baseUrl,
   viewport: settings.viewport,
@@ -110,6 +116,31 @@ await context.addInitScript(`(() => {
   });
 })();`);
 
+let lastFrameAt = 0;
+const sleep = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
+const settle = async () => {
+  if (!startedAt) return;
+  const deadline = Date.now() + STILL_MAX_WAIT_MS;
+  while (Date.now() - lastFrameAt < STILL_MS && Date.now() < deadline) await sleep(50);
+  await sleep(STEP_LEAD_MS);
+};
+// Steps made of other steps (fill() clicks, then types) settle once, before the first
+let inStep = false;
+const settled =
+  <T extends unknown[], R>(action: (...args: T) => Promise<R>) =>
+  async function (this: unknown, ...args: T): Promise<R> {
+    if (inStep) return action.apply(this, args);
+    inStep = true;
+    try {
+      await settle();
+      const result = await action.apply(this, args);
+      await sleep(STEP_PAUSE_AFTER_MS);
+      return result;
+    } finally {
+      inStep = false;
+    }
+  };
+
 // Codegen records fill(), which sets a field instantly: type it visibly instead
 const locatorPrototype = Object.getPrototypeOf(page.locator("body"));
 const originalFill = locatorPrototype.fill;
@@ -130,10 +161,17 @@ locatorPrototype.selectOption = async function (this: Locator, ...args: unknown[
   const box = await this.boundingBox();
   if (box && startedAt) {
     timeline.actions.push({ t: now(), kind: "click", x: box.x + box.width / 2, y: box.y + box.height / 2, box });
-    await page.waitForTimeout(400);
   }
   return originalSelectOption.apply(this, args);
 };
+for (const method of ["click", "dblclick", "fill", "selectOption", "check", "uncheck", "setChecked", "hover", "tap", "dragTo"]) {
+  locatorPrototype[method] = settled(locatorPrototype[method]);
+}
+// The map steps from the recorder: mouse.down starts a drag, wheel zooms the map
+for (const method of ["click", "dblclick", "down", "wheel"] as const) {
+  const original = page.mouse[method].bind(page.mouse) as (...args: unknown[]) => Promise<void>;
+  (page.mouse as unknown as Record<string, unknown>)[method] = settled(original);
+}
 
 await page.goto(tutorial.startUrl ?? "/");
 await page.waitForLoadState("networkidle").catch(() => undefined);
@@ -147,6 +185,7 @@ cdp.on("Page.screencastFrame", ({ data, metadata, sessionId }) => {
   // changes count, or the still stretches would not be cut
   if (data === previousFrame) return;
   previousFrame = data;
+  lastFrameAt = Date.now();
   if (!startedAt) startedAt = Math.round((metadata.timestamp ?? Date.now() / 1000) * 1000);
   const file = `frames/${String(++frameCount).padStart(6, "0")}.jpg`;
   writeFileSync(path.join(outputDir, file), Buffer.from(data, "base64"));
@@ -185,6 +224,7 @@ const tutorialContext: TutorialContext = {
   async highlight(target, options = {}) {
     const locator = typeof target === "string" ? page.locator(target) : target;
     await locator.scrollIntoViewIfNeeded();
+    await settle();
     const box = await locator.boundingBox();
     if (!box) throw new Error(`Nothing to highlight: ${target}`);
     const durationMs = options.durationMs ?? 2500;
