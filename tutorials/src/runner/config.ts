@@ -9,6 +9,8 @@ export const SCRIPTS_DIR = path.join(ROOT, "scripts");
 export const RECORDINGS_DIR = path.join(ROOT, "public", "recordings");
 export const OUT_DIR = path.join(ROOT, "out");
 export const PRONUNCIATIONS_FILE = path.join(ROOT, "pronunciations.json");
+// The team's private bucket for files that cannot be in git (npm run fetch-assets)
+export const ASSETS_BUCKET = process.env.TUTORIAL_ASSETS_BUCKET || "gs://airsports-tutorial-assets";
 
 if (existsSync(path.join(ROOT, ".env"))) process.loadEnvFile(path.join(ROOT, ".env"));
 

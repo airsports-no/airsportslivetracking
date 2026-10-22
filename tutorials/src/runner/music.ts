@@ -1,6 +1,6 @@
 import { spawnSync } from "node:child_process";
 import path from "node:path";
-import { ROOT } from "./config";
+import { ASSETS_BUCKET, ROOT } from "./config";
 
 // npm run music -- <track.mp3>
 //
@@ -26,3 +26,6 @@ const result = spawnSync(
 );
 if (result.status !== 0) process.exit(result.status ?? 1);
 console.log(`Wrote ${output}: set brand.music.file to "brand/music/${path.basename(output)}"`);
+console.log(
+  `Share both files with the team (not in git): gcloud storage cp "${input}" "${output}" ${ASSETS_BUCKET}/music/`,
+);

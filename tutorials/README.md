@@ -19,6 +19,7 @@ cd tutorials
 npm ci
 npx playwright install chromium
 cp .env.example .env       # optional: site address, voice
+npm run fetch-assets       # the background music, from the team's private bucket (needs gcloud auth login)
 ```
 
 **On Windows**, once:
@@ -162,14 +163,18 @@ Every video has the same background track, set in `brand.music` (`src/remotion/b
 title and end screens, low between narration lines, and lower still under the narration, about 17 dB below the
 voice, fading down just before each line and back up after it. Tune the three levels in `brand.music.levels`.
 
-The music file is not in git: the licence covers using it in the videos, not passing the file on. Put the track in
-`public/brand/music/` and level it once, so quiet and loud passages sit at the same distance below the voice:
+The music file is not in git, since the repository is public and the licence covers using the track in the videos,
+not passing the file on. It is kept in the team's private bucket `gs://airsports-tutorial-assets/music/`, and
+`npm run fetch-assets` downloads it into `public/brand/music/` (with `gcloud` logged in to the project).
+
+A new track is levelled once, so quiet and loud passages sit at the same distance below the voice:
 
 ```
-npm run music -- "public/brand/music/new-morning-tracktribe.mp3"
+npm run music -- "public/brand/music/<track>.mp3"
 ```
 
-which writes `new-morning-tracktribe.levelled.mp3` beside it (the file `brand.music.file` points to). The current
+which writes `<track>.levelled.mp3` beside it (point `brand.music.file` at it) and prints the command that uploads
+both files to the bucket for the rest of the team. The current
 track is "New Morning" by TrackTribe from the YouTube Audio Library (no attribution required). A script can turn the
 music off with `music: false`, or use another levelled file with `music: "brand/music/<file>.mp3"`.
 

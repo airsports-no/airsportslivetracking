@@ -9,6 +9,7 @@
     "studio": "remotion studio src/remotion/index.ts",
     "render": "tsx src/runner/render.ts",
     "music": "tsx src/runner/music.ts",
+    "fetch-assets": "tsx src/runner/fetch-assets.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

@@ -15,7 +15,8 @@ export const brand = {
     line: "rgba(255,255,255,0.08)",
   },
   // Background music for every video, unless a script says otherwise (music: false, or another file). The file is not
-  // in git (the licence covers using it in the videos, not passing it on): put it in public/brand/music/.
+  // in git (the licence covers using it in the videos, not passing it on): npm run fetch-assets fetches it from the
+  // team's private bucket into public/brand/music/.
   music: {
     // "New Morning" by TrackTribe, from the YouTube Audio Library, levelled with npm run music
     file: "brand/music/new-morning-tracktribe.levelled.mp3",

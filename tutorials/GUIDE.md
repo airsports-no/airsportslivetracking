@@ -3,6 +3,17 @@
 This guide walks through making a tutorial video, from idea to finished video. It leaves out how the tools work
 inside; for that, and for the one-time setup, see [README.md](README.md).
 
+## Getting the music
+
+The background music is not in git. Once, after the setup in the README, fetch it from the team's storage:
+
+```
+cd tutorials
+npm run fetch-assets
+```
+
+(This needs `gcloud`, logged in with `gcloud auth login`. If a render stops saying the music is missing, run it.)
+
 ## The idea in short
 
 You click through the task once, the way you would show it to someone. The clicks are saved as a script. You add
