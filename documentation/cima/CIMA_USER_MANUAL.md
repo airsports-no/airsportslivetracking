@@ -202,10 +202,15 @@ CIMA scoring starts every contestant at the catalogue's maximum and subtracts pe
 | 2.A6, 2.B2 | 0 | Additive: the score climbs from zero as targets are achieved |
 | 2.B3 Duration | not preset | Check the scorecard before flying |
 
-The task is created from the **CIMA Precision** scorecard (2.A8: **CIMA ANR**), the only one offered for a CIMA
-task type. It has no procedure turns, which the catalogue does not have, and scores time gates as the catalogue
-does: one point per second of error, at most 180 (Emax), and 180 for a gate not flown. 2.B3 Duration is offered the
-legacy precision scorecards.
+A CIMA task is created from the CIMA scorecard for its type, the only one offered:
+
+- **CIMA Precision** (2.A1–2.A7, 2.B2) has no procedure turns, which the catalogue does not have, and scores time
+  gates as the catalogue does: one point per second of error, at most 180 (Emax), 180 for a gate not flown, and no
+  grace period.
+- **CIMA ANR** (2.A8) has the FAI ANR 2022 values, including its starting and finishing gates: 3 points per second
+  after a 2-second grace period, at most 200.
+
+2.B3 Duration is offered the legacy precision scorecards.
 
 Scorecard values (for example the circle performance factor, the speed-keeping tolerance and penalty, and the
 turnpoint-hunt target values) are edited in the task's scorecard. Backtracking and other penalties apply as
