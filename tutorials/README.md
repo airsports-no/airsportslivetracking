@@ -18,7 +18,7 @@ Everything else (recording the video, previewing, rendering) runs in **WSL**, he
 cd tutorials
 npm ci
 npx playwright install chromium
-cp .env.example .env       # optional: site address, voice
+cp .env.example .env       # site address, page size, start location, voice (see the comments in it)
 npm run fetch-assets       # the background music, from the team's private bucket (needs gcloud auth login)
 ```
 
@@ -28,7 +28,7 @@ npm run fetch-assets       # the background music, from the team's private bucke
 2. Nothing else: the first run of the recording script below installs Playwright and its browser into
    `%LOCALAPPDATA%\aslt-tutorial-recorder`.
 3. Check that the local site opens on Windows at http://localhost:8002 (WSL passes `localhost` through). If it
-   does not, use the address that works with `-BaseUrl` below and set the same `TUTORIAL_BASE_URL` in `.env`.
+   does not, set the address that works as `TUTORIAL_BASE_URL` in `.env`: both recordings use it.
 
 The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsportslivetracking\tutorials` on Windows
 (`wslpath -w .` in WSL prints it).
@@ -60,6 +60,10 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    so the narration is spoken while the phase's clicks happen. Leave the narration empty and a commented-out
    `say` marks the spot to fill in later.
 
+   **Hide setup with F9.** Press **F9**, do what the tutorial is not about (create a task for the route, generate
+   the flight orders, ...), press **F9** again; a red badge shows while hiding is on. The steps are written between
+   `await startHidden();` and `await endHidden();`: they are performed when the video is recorded, but cut from it.
+
    The recorder (`windows/capture.mjs`) writes the same readable steps as Playwright's codegen, and records the
    route editor's map so it replays exactly, however much you zoom and pan to find your spots:
 
@@ -81,9 +85,9 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    override them for one run (in quotes: PowerShell turns 60.8,11.1 into a list). Resizing the browser window while
    recording does not change the page size. Log in as a demo user with demo data, since the session file is what the
    recordings use.
-2. **Write the script (WSL).** Copy `scripts/example.ts` to `scripts/<name>.ts` (kebab-case), paste the
-   `page.` lines from `recorded/<name>.js` into `run()`, and add the narration between the
-   steps:
+2. **Write the script (WSL).** Copy `scripts/example.ts` to `scripts/<name>.ts` (kebab-case), paste the steps
+   from `recorded/<name>.js` (everything below its header comment) into `run()`, and add or polish the narration
+   between the steps:
 
    ```ts
    await say("Open the contest you want to add the task to.");
@@ -103,10 +107,6 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    - `showPdf(source, { width })` shows a PDF's pages with pdf.js (the headless recording browser has no PDF viewer):
      a path on the site, fetched logged in (a flight order's download address), or a file. `width` is the share of
      the window a page takes (0.7). Go back with `page.goto(...)`.
-   - `cleanUp: { routes, navigationTasks, contest }` in the tutorial definition deletes, through the site's API,
-     the routes and navigation tasks with those exact names before every recording (and with
-     `npm run cleanup -- <name>`), so a tutorial that creates them starts from the same state each time. Local site
-     only, unless `TUTORIAL_ALLOW_CLEANUP=1`.
    - `chapter(title)` starts a phase: its name slides in at the bottom of the video and shows in the header, and
      it becomes a chapter in `out/<name>-chapters.txt`.
    - `pause(ms)` keeps a still moment that would otherwise be cut.
@@ -114,17 +114,35 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    - `page`, `say`, `map` and the rest are available in `run()` as they are: pasted steps work without listing them.
    - `camera("wide")` shows the whole page (for example while drawing on the map) until `camera("auto")`.
    - `fill()` from the recorder is typed out visibly, key by key.
-3. **Record (WSL).** `npm run record -- <name>` plays the script in a headless browser and records everything
-   into `public/recordings/<name>/`. Nothing needs to be on screen. (`--headed` shows the browser through WSLg,
-   if you want to watch.)
+
+   Besides `run()`, the tutorial definition (`defineTutorial({ ... })`) takes:
+
+   - `title`, `subtitle`, `series`, `next`: the title screen, the header during the video and the end screen (see
+     "The look").
+   - `startUrl`: the path on the site the recording starts from (`/` by default).
+   - `cleanUp: { routes, navigationTasks, contest }`: what the tutorial creates, deleted by exact name through the
+     site's API before every recording (and with `npm run cleanup -- <name>`), so it starts from the same state each
+     time and the replay does not find two of anything. `contest` limits the search for tasks to that contest. Local
+     site only, unless `TUTORIAL_ALLOW_CLEANUP=1`.
+   - `captions: false`: no captions.
+   - `music: false`, or `music: "brand/music/<file>.mp3"`: no background music, or another track.
+   - `edit: { minGapMs, keepGapMs }`: how much stillness this tutorial's cutting removes (see "How it works").
+3. **Record (WSL).** `npm run record -- <name>` first removes what an earlier recording created (`cleanUp`), then
+   plays the script in a headless browser, hidden parts included, and records everything into
+   `public/recordings/<name>/`. Nothing needs to be on screen. (`--headed` shows the browser through WSLg, if you
+   want to watch.)
 4. **Preview.** `npm run studio` starts Remotion Studio: open the address it prints (http://localhost:3000) in a
    Windows browser to scrub through every recorded tutorial.
 5. **Render (WSL).** `npm run render -- <name>` writes to `out/`:
-   - `<name>.mp4`: the finished video with the voice
+   - `<name>.mp4`: the finished video with voice and music
    - `<name>-picture.mp4`, `<name>-voice.wav` and `<name>-music.wav`: picture, voice and music separately, all
-     starting at 0, for fine tuning in DaVinci Resolve
+     starting at 0, for fine tuning in DaVinci Resolve (the voice only when there is narration, the music only when
+     there is music)
    - `<name>.srt`: the narration as subtitles
-   - `<name>-chapters.txt`: the chapters with their start times, ready for a YouTube description
+   - `<name>-chapters.txt`: the chapters with their start times, ready for a YouTube description (only when the
+     script has `chapter(...)` steps)
+
+   Rendering never runs the steps again: it makes the video from the last recording, as often as you like.
 
 Re-recording only regenerates narration lines that changed: the voice is cached in `.cache/`.
 
@@ -142,12 +160,16 @@ too.
   moves; after each step it pauses (`STEP_PAUSE_AFTER_MS`, 0.9 s). Both are in `src/shared/edit.ts`.
 - **Cutting** (`src/shared/edit.ts`): stretches where nothing happens (no screen change, action, narration,
   highlight or pause) longer than 0.7 s are shortened to 0.25 s. Page loads, voice generation and hesitation
-  disappear. Tune per tutorial with `edit: { minGapMs, keepGapMs }`.
+  disappear. The defaults are `DEFAULT_EDIT` in `src/shared/timeline.ts`, applied when rendering; a tutorial's own
+  `edit: { minGapMs, keepGapMs }` is saved with its recording. Hidden parts (`startHidden`/`endHidden`) are cut
+  entirely, and the video crossfades over the cut; their steps do not move the camera or the cursor.
 - **Camera** (`src/shared/camera.ts`): moves in on the element clicked, typed in or highlighted, stays while the
   work continues, and zooms out after a quiet spell or for large elements such as the map. Tune with `CAMERA`.
 - **Video** (`src/remotion/`): title card, the page in a window on a background, the camera, a drawn cursor
-  gliding on a slight curve with a ripple on each click, highlights, captions and the voice. Change the look in
-  `theme.ts` and `TutorialVideo.tsx`.
+  gliding on a slight curve with a ripple on each click, highlights, chapter labels, captions, the voice and the
+  music. Change the look in `brand.ts`, `theme.ts`, `TutorialVideo.tsx` and `Screen.tsx`.
+- **Clean-up** (`src/runner/cleanup.ts`): deletes a tutorial's `cleanUp` routes and navigation tasks through the
+  site's API, logged in with `.auth/state.json`.
 
 ## The look
 
@@ -210,6 +232,7 @@ Words the voice says wrong go in `pronunciations.json`, spelled the way they sho
 
 - Record against demo data on the local site, so names and numbers look the same every time and no real
   contestants appear.
-- Map clicks in the route editor are recorded as positions on the map: they replay correctly only if the map opens
-  at the same place and zoom, and the window size (`TUTORIAL_WIDTH`/`TUTORIAL_HEIGHT`) is unchanged.
+- Map steps in the route editor replay exactly (`map.view` and `map.click` are coordinates). Mouse steps elsewhere
+  (`page.mouse...`, such as dragging a slider) are positions on the page: they replay correctly only at the same
+  page size (`TUTORIAL_WIDTH`/`TUTORIAL_HEIGHT`) as when the clicks were recorded.
 - Remotion's licence is free for individuals and companies of up to three people; check it if that changes.

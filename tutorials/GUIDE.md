@@ -169,11 +169,15 @@ npm run render -- my-tutorial
 
 In `tutorials/out/` you get:
 
-- `my-tutorial.mp4`: the finished video, ready to publish
-- `my-tutorial-chapters.txt`: the chapters with their times, to paste into the YouTube description
+- `my-tutorial.mp4`: the finished video with voice and music, ready to publish
+- `my-tutorial-chapters.txt`: the chapters with their times, to paste into the YouTube description (when the script
+  has phases)
 - `my-tutorial.srt`: subtitles
 - `my-tutorial-picture.mp4`, `my-tutorial-voice.wav` and `my-tutorial-music.wav`: picture, voice and music
   separately, for fine tuning
+
+Rendering does not click through the site again: it makes the video from the last recording, so you can render as
+often as you like.
 
 ## Step 6 (optional): Fine tuning in DaVinci Resolve
 
@@ -188,6 +192,8 @@ Resolve for the very last step.
 |---|---|---|
 | Clicks, typing, narration text, highlights, pauses | `scripts/<name>.ts` | `npm run record -- <name>`, then render |
 | Phases and their names | `chapter(...)` lines in `scripts/<name>.ts` | record again |
+| What is cut from the video | `startHidden()` … `endHidden()` in `scripts/<name>.ts` (F9 when recording the clicks) | record again |
+| What is deleted before each recording | `cleanUp` in `scripts/<name>.ts` | record again |
 | Title, subtitle, series, next tutorial | top of `scripts/<name>.ts` | record again (they are saved with the recording) |
 | Captions on or off | `captions: false` in the script | record again |
 | How much stillness is cut, for one tutorial | `edit: { minGapMs, keepGapMs }` in the script | record again |
@@ -218,3 +224,7 @@ Changes that only need a render show up live in Studio (step 4) while you edit.
 | A step fails because something is not found | The page changed (a button renamed or moved): record that part of the clicks again |
 | A step fails because it finds two of something ("strict mode violation") | An earlier recording left it behind: add it to `cleanUp` in the script, or run `npm run cleanup -- <name>` |
 | The narration sounds wrong | Rephrase the sentence, or add the word to `pronunciations.json` |
+| A render stops saying the music is missing | Fetch it: `npm run fetch-assets` |
+| A sentence is missing from the video | It was spoken inside a hidden part, which is cut with it (the recording warns about this): move the `say` after `endHidden()` |
+| A PDF does not show | PDFs opened by clicking cannot be shown: use `showPdf(...)` with its address instead |
+| A step fails with "... is not defined" | Check the spelling: `page`, `say`, `map`, `chapter`, `highlight`, `pause`, `camera`, `startHidden`, `endHidden` and `showPdf` are available as they are |
