@@ -4,8 +4,9 @@ import { pathToFileURL } from "node:url";
 import { chromium, type Locator } from "playwright";
 import { STEP_LEAD_MS, STEP_PAUSE_AFTER_MS } from "../shared/edit";
 import type { Timeline } from "../shared/timeline";
-import { AUTH_FILE, RECORDINGS_DIR, ROOT, SCRIPTS_DIR, settings, tutorialName } from "./config";
+import { AUTH_FILE, RECORDINGS_DIR, SCRIPTS_DIR, settings, tutorialName } from "./config";
 import { cleanUp } from "./cleanup";
+import { showPdfInPage } from "./pdf-viewer";
 import { synthesise } from "./narration";
 import type { MapSteps, Tutorial, TutorialContext } from "./tutorial";
 
@@ -287,51 +288,14 @@ const mapSteps: MapSteps = {
 };
 
 let hiddenSince: number | null = null;
+let pdfRegionCount = 0;
 
 const waitForStillPage = async () => {
   const deadline = Date.now() + STILL_MAX_WAIT_MS;
   while (Date.now() - lastFrameAt < STILL_MS && Date.now() < deadline) await sleep(50);
 };
 
-// A PDF shown in the browser with pdf.js, served from a made-up address so its module and worker load like any page's
-const PDF_VIEWER_ORIGIN = "https://tutorial-pdf.local";
-const pdfjsBuild = path.join(ROOT, "node_modules", "pdfjs-dist", "build");
-const showPdfPages = async (pdf: Buffer, widthFraction: number) => {
-  const viewer = `<!doctype html><html><head><meta charset="utf-8"><title>PDF</title><style>
-    body { margin: 0; background: #525659; display: flex; flex-direction: column; align-items: center; gap: 24px;
-      padding: 32px 0; }
-    canvas { background: white; box-shadow: 0 4px 18px rgba(0, 0, 0, 0.5); }
-  </style></head><body><script type="module">
-    import * as pdfjs from "/pdf.min.mjs";
-    pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-    const document_ = await pdfjs.getDocument("/document.pdf").promise;
-    const width = window.innerWidth * ${widthFraction};
-    for (let number = 1; number <= document_.numPages; number++) {
-      const pdfPage = await document_.getPage(number);
-      const scale = width / pdfPage.getViewport({ scale: 1 }).width;
-      const viewport = pdfPage.getViewport({ scale: scale * window.devicePixelRatio });
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.width = width + "px";
-      document.body.append(canvas);
-      await pdfPage.render({ canvas, canvasContext: canvas.getContext("2d"), viewport }).promise;
-    }
-    window.__pdfShown = true;
-  </script></body></html>`;
-  await page.route(`${PDF_VIEWER_ORIGIN}/**`, (route) => {
-    const file = new URL(route.request().url()).pathname;
-    if (file === "/document.pdf") return route.fulfill({ body: pdf, contentType: "application/pdf" });
-    if (file === "/pdf.min.mjs" || file === "/pdf.worker.min.mjs") {
-      return route.fulfill({ body: readFileSync(path.join(pdfjsBuild, file.slice(1))), contentType: "text/javascript" });
-    }
-    return route.fulfill({ body: viewer, contentType: "text/html" });
-  });
-  await page.goto(`${PDF_VIEWER_ORIGIN}/viewer.html`);
-  await page.waitForFunction(() => (window as unknown as { __pdfShown?: boolean }).__pdfShown === true, null, {
-    timeout: 30000,
-  });
-};
+const showPdfPages = (pdf: Buffer, width: number, pages: number[] | undefined) => showPdfInPage(page, pdf, { width, pages });
 
 const tutorialContext: TutorialContext = {
   page,
@@ -393,7 +357,29 @@ const tutorialContext: TutorialContext = {
           return response.body();
         })()
       : readFileSync(source);
-    await showPdfPages(bytes, options.width ?? 0.7);
+    await showPdfPages(bytes, options.width ?? 0.7, options.pages);
+  },
+  pdfPage(number) {
+    return page.locator(`[data-pdf-page="${number}"]`);
+  },
+  async pdfRegion(number, region) {
+    const id = `pdf-region-${++pdfRegionCount}`;
+    await page.evaluate(
+      ([id, number, region]) => {
+        const pageBox = document.querySelector(`[data-pdf-page="${number}"]`);
+        if (!pageBox) throw new Error(`Page ${number} of the PDF is not shown`);
+        const marker = document.createElement("div");
+        marker.id = id;
+        marker.className = "pdf-region";
+        marker.style.left = `${region.x * 100}%`;
+        marker.style.top = `${region.y * 100}%`;
+        marker.style.width = `${region.width * 100}%`;
+        marker.style.height = `${region.height * 100}%`;
+        pageBox.append(marker);
+      },
+      [id, number, region] as const,
+    );
+    return page.locator(`#${id}`);
   },
   map: mapSteps,
 };

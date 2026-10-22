@@ -47,7 +47,12 @@ export type TutorialContext = {
   endHidden(): Promise<void>;
   // Shows a PDF's pages in the browser (the headless recording browser cannot): a path on the site such as a flight
   // order's download address, fetched logged in, or a file. Go back to the site with page.goto(...).
-  showPdf(source: string, options?: { width?: number }): Promise<void>;
+  // pages: only these pages (numbered from 1), width: the share of the window a page takes (0.7).
+  showPdf(source: string, options?: { width?: number; pages?: number[] }): Promise<void>;
+  // A page of the PDF shown, to scroll to or highlight
+  pdfPage(number: number): Locator;
+  // An area of a PDF page, to highlight: x, y, width and height as fractions of the page (0 to 1, from the top left)
+  pdfRegion(number: number, region: { x: number; y: number; width: number; height: number }): Promise<Locator>;
   map: MapSteps;
 };
 
@@ -91,5 +96,7 @@ declare global {
   const startHidden: TutorialContext["startHidden"];
   const endHidden: TutorialContext["endHidden"];
   const showPdf: TutorialContext["showPdf"];
+  const pdfPage: TutorialContext["pdfPage"];
+  const pdfRegion: TutorialContext["pdfRegion"];
   const map: TutorialContext["map"];
 }

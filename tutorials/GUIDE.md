@@ -93,6 +93,7 @@ What you can use in a script:
 | `await pause(2000)` | Keeps a still moment of 2 seconds, for example to let something sink in |
 | `await startHidden()` … `await endHidden()` | The steps in between are performed but cut from the video (F9 writes these) |
 | `await showPdf("pdfs/flight-order-2a3.pdf")` | Shows a PDF's pages, for example a flight order (see below) |
+| `await highlight(await pdfRegion(2, { x: 0.55, y: 0.54, width: 0.3, height: 0.14 }))` | Points out an area of a PDF page (see below) |
 | `camera("wide")` … `camera("auto")` | Shows the whole page instead of zooming in, for example while working on the map |
 
 **Showing a flight order or another PDF.** The browser that records the video cannot display PDFs, so a PDF opened
@@ -111,6 +112,23 @@ await page.mouse.wheel(0, 900);   // scroll to the next page
 await pause(3000);
 await page.goto("/");             // back to the site
 ```
+
+Only some pages: `showPdf("pdfs/flight-order-2a3.pdf", { pages: [2] })`.
+
+**Pointing out part of a PDF page.** `highlight` dims everything else, outlines what it is given, adds an optional
+label and lets the camera zoom in on it, for as long as `durationMs` (2.5 seconds by default). On a web page you give
+it the element, for example `page.getByRole("button", { name: "Save Route" })`. A PDF page is one picture, so give
+it an area of the page instead, with `pdfRegion(page number, { x, y, width, height })`, all as fractions of the page
+from its top left corner:
+
+```ts
+await highlight(await pdfRegion(2, { x: 0.55, y: 0.54, width: 0.3, height: 0.14 }), { label: "The curved leg" });
+await highlight(pdfPage(3), { label: "The observation photos" });   // a whole page
+```
+
+To find the fractions, run `npm run pdf-grid -- pdfs/flight-order-2a3.pdf`: it writes an image of each page with a
+labelled grid over it (`out/flight-order-2a3-page-2-grid.png`, ...), where you read off where the area starts and how
+much it covers. Open them from Windows in `tutorials\out`.
 
 `showPdf` can also fetch a PDF from the site, logged in: a contestant's flight order is at
 `/display/navigationtask/<task id>/downloadflightorders/?contestant_pks=<contestant id>` (exactly one contestant:

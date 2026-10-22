@@ -107,7 +107,10 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    - `showPdf(source, { width })` shows a PDF's pages with pdf.js (the headless recording browser has no PDF viewer):
      a file relative to `tutorials/` (such as a flight order saved in `pdfs/`), or a path on the site fetched logged
      in (`/display/navigationtask/<task>/downloadflightorders/?contestant_pks=<one contestant>`). `width` is the share
-     of the window a page takes (0.7). Go back with `page.goto(...)`.
+     of the window a page takes (0.7), `pages: [2, 3]` shows only those pages. Go back with `page.goto(...)`.
+   - `pdfPage(n)` is a shown PDF page and `await pdfRegion(n, { x, y, width, height })` an area of it (fractions of
+     the page from its top left), to scroll to or `highlight`. `npm run pdf-grid -- <file.pdf>` writes each page with a
+     labelled 10% grid to `out/`, to read the fractions from.
    - `chapter(title)` starts a phase: its name slides in at the bottom of the video and shows in the header, and
      it becomes a chapter in `out/<name>-chapters.txt`.
    - `pause(ms)` keeps a still moment that would otherwise be cut.
