@@ -5,7 +5,7 @@ export default defineTutorial({
   title: "Finding your way around",
   subtitle: "Air Sports Live Tracking",
   startUrl: "/",
-  async run({ page, say, highlight, camera }) {
+  async run({ page, say, highlight, camera, map }) {
     camera("wide");
     await say("Welcome to Air Sports Live Tracking. This short tour shows where to find your contests.");
     camera("auto");

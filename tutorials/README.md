@@ -43,10 +43,20 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    PowerShell window. Close the browser when done. Options: `-Path /some/page` to start elsewhere, `-BaseUrl` for
    another site address.
 
-   The recorder (`windows/capture.mjs`) writes the same readable steps as Playwright's codegen, but keeps the
-   exact position of clicks and drags on the map, and wheel zooming on the map, which codegen loses. Those replay
-   correctly only if the map opens at the same place and zoom when the tutorial is recorded, so start from the same
-   state each time. A new route's map opens where the browser says it is: give a location with `-Geolocation
+   The recorder (`windows/capture.mjs`) writes the same readable steps as Playwright's codegen, and records the
+   route editor's map so it replays exactly, however much you zoom and pan to find your spots:
+
+   ```ts
+   await map.wheel([[700, 400, -100, 0], [700, 400, -100, 83]]);   // each wheel tick, with its timing
+   await map.view(60.7953122, 11.0912345, 14);                     // the exact view the map came to rest at
+   await map.drag([[800, 500, 0], [760, 485, 17], [720, 470, 27]]); // a pan or a dragged point, in full
+   await map.click(60.8012034, 11.1034001);                         // a map click, as coordinates
+   ```
+
+   Your zooming and panning play back at your own speed, and after each move the map settles on exactly the view
+   you had, so every point lands on the coordinates you clicked. You can edit a `map.click` coordinate by hand.
+   This needs the route editor's map handle (`window.__routeEditorMap`); without it, map clicks are recorded as
+   positions on the map, which replay correctly only if the map opens at the same place and zoom each time. A new route's map opens where the browser says it is: give a location with `-Geolocation
    "60.8,11.1"` here (in quotes: PowerShell turns 60.8,11.1 into a list) and the same `TUTORIAL_GEOLOCATION` in `.env` (otherwise it opens at the editor's default, in
    London). Log in as a demo user with demo data, since the session file is what the recordings use.
 2. **Write the script (WSL).** Copy `scripts/example.ts` to `scripts/<name>.ts` (kebab-case), paste the
@@ -66,6 +76,8 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
      its caption.
    - `highlight(locator, { label, durationMs })` dims the page around an element and outlines it.
    - `pause(ms)` keeps a still moment that would otherwise be cut.
+   - `map.view`, `map.click`, `map.drag` and `map.wheel` are the recorder's map steps (step 1); `run()` takes `map`
+     beside `page`.
    - `camera("wide")` shows the whole page (for example while drawing on the map) until `camera("auto")`.
    - `fill()` from the recorder is typed out visibly, key by key.
 3. **Record (WSL).** `npm run record -- <name>` plays the script in a headless browser and records everything

@@ -36,10 +36,13 @@ run("npx", [
   "--crf=16",
 ]);
 run("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-an", "-c:v", "copy", path.join(OUT_DIR, `${name}-picture.mp4`)]);
-run("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-vn", "-c:a", "pcm_s16le", path.join(OUT_DIR, `${name}-voice.wav`)]);
+const timeline: Timeline = JSON.parse(readFileSync(path.join(RECORDINGS_DIR, name, "timeline.json"), "utf8"));
+// A tutorial without narration has no sound to take out
+if (timeline.narration.length > 0) {
+  run("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-vn", "-c:a", "pcm_s16le", path.join(OUT_DIR, `${name}-voice.wav`)]);
+}
 
 // Subtitles, on the video's own timeline (after the cuts and the title card)
-const timeline: Timeline = JSON.parse(readFileSync(path.join(RECORDINGS_DIR, name, "timeline.json"), "utf8"));
 const edit = computeEdit(timeline);
 const offset = INTRO_MS - TRANSITION_MS;
 const stamp = (ms: number) => {

@@ -6,7 +6,7 @@ import { STEP_LEAD_MS, STEP_PAUSE_AFTER_MS } from "../shared/edit";
 import { DEFAULT_EDIT, type Timeline } from "../shared/timeline";
 import { AUTH_FILE, RECORDINGS_DIR, SCRIPTS_DIR, settings, tutorialName } from "./config";
 import { synthesise } from "./narration";
-import type { Tutorial, TutorialContext } from "./tutorial";
+import type { MapSteps, Tutorial, TutorialContext } from "./tutorial";
 
 // npm run record -- <tutorial> [--headed]
 //
@@ -168,6 +168,14 @@ for (const method of ["click", "dblclick", "fill", "selectOption", "check", "unc
   locatorPrototype[method] = settled(locatorPrototype[method]);
 }
 // The map steps from the recorder: mouse.down starts a drag, wheel zooms the map
+// The map steps replay their gestures with the plain mouse: the pause comes once, before the whole gesture
+const mouse = {
+  move: page.mouse.move.bind(page.mouse),
+  down: page.mouse.down.bind(page.mouse),
+  up: page.mouse.up.bind(page.mouse),
+  click: page.mouse.click.bind(page.mouse),
+  wheel: page.mouse.wheel.bind(page.mouse),
+};
 for (const method of ["click", "dblclick", "down", "wheel"] as const) {
   const original = page.mouse[method].bind(page.mouse) as (...args: unknown[]) => Promise<void>;
   (page.mouse as unknown as Record<string, unknown>)[method] = settled(original);
@@ -206,6 +214,68 @@ const waitUntil = async (t: number) => {
   if (remaining > 0) await page.waitForTimeout(remaining);
 };
 
+// The route editor's map (window.__routeEditorMap, set by its useMapInit): where its top left corner is on the page
+const NO_MAP = "The route editor's map is not on this page (window.__routeEditorMap)";
+const mapCorner = () =>
+  page.evaluate((message) => {
+    const map = (window as any).__routeEditorMap;
+    if (!map) throw new Error(message);
+    const rect = map.getContainer().getBoundingClientRect();
+    return { x: rect.x, y: rect.y };
+  }, NO_MAP);
+
+const mapSteps: MapSteps = {
+  async view(lat, lng, zoom) {
+    await page.evaluate(
+      ([lat, lng, zoom, message]) =>
+        new Promise<void>((resolve, reject) => {
+          const map = (window as any).__routeEditorMap;
+          if (!map) return reject(new Error(message));
+          const center = map.getCenter();
+          if (Math.abs(center.lat - lat) < 1e-7 && Math.abs(center.lng - lng) < 1e-7 && Math.abs(map.getZoom() - zoom) < 1e-3) {
+            return resolve();
+          }
+          map.once("moveend", () => resolve());
+          map.setView([lat, lng], zoom, { animate: true });
+          setTimeout(() => resolve(), 3000);
+        }),
+      [lat, lng, zoom, NO_MAP] as const,
+    );
+  },
+  click: settled(async (lat: number, lng: number) => {
+    const point = await page.evaluate(
+      ([lat, lng, message]) => {
+        const map = (window as any).__routeEditorMap;
+        if (!map) throw new Error(message);
+        const rect = map.getContainer().getBoundingClientRect();
+        const inMap = map.latLngToContainerPoint([lat, lng]);
+        return { x: rect.x + inMap.x, y: rect.y + inMap.y };
+      },
+      [lat, lng, NO_MAP] as const,
+    );
+    await mouse.click(point.x, point.y);
+  }),
+  drag: settled(async (path: [number, number, number][]) => {
+    const corner = await mapCorner();
+    const [[startX, startY], ...rest] = path;
+    await mouse.move(corner.x + startX, corner.y + startY);
+    await mouse.down();
+    for (const [x, y, ms] of rest) {
+      if (ms) await sleep(ms);
+      await mouse.move(corner.x + x, corner.y + y);
+    }
+    await mouse.up();
+  }),
+  wheel: settled(async (ticks: [number, number, number, number][]) => {
+    const corner = await mapCorner();
+    for (const [x, y, deltaY, ms] of ticks) {
+      if (ms) await sleep(ms);
+      await mouse.move(corner.x + x, corner.y + y);
+      await mouse.wheel(0, deltaY);
+    }
+  }),
+};
+
 const tutorialContext: TutorialContext = {
   page,
   async say(text, options = {}) {
@@ -238,6 +308,7 @@ const tutorialContext: TutorialContext = {
   camera(mode) {
     timeline.camera.push({ t: now(), mode });
   },
+  map: mapSteps,
 };
 
 console.log(`Recording ${name}: ${tutorial.title}`);

@@ -1,5 +1,7 @@
-// Records clicks for a tutorial script. Like Playwright's codegen (it uses the same locator generator), but clicks
-// and drags on the map keep their exact position, which codegen does not record, and wheel zooming on the map is kept.
+// Records clicks for a tutorial script. Like Playwright's codegen (it uses the same locator generator), but the route
+// editor's map is recorded so it replays exactly, which codegen cannot do: clicks as coordinates (map.click), panning,
+// dragging and wheel zooming in full with their timing (map.drag, map.wheel), and the exact view the map comes to rest
+// at after each move (map.view). Elsewhere a map without window.__routeEditorMap gets clicks by position.
 //
 // Plain JavaScript that needs only the playwright package, so it runs on Windows: see codegen.ps1, which runs it.
 //
@@ -58,23 +60,47 @@ const PAGE_SCRIPT = `(() => {
     editing = isTextField(event.target) ? { element: event.target, value: event.target.value } : null;
   }, true);
 
+  // The route editor's Leaflet map (window.__routeEditorMap): map clicks are written as coordinates and every map
+  // movement ends with its exact view, so the replay lands on exactly the same points whatever the timing
+  const leaflet = () => window.__routeEditorMap;
+  const fixed = (value, digits) => Number(value.toFixed(digits));
+  const relative = (map, event) => {
+    const rect = map.getBoundingClientRect();
+    return [round(event.clientX - rect.x), round(event.clientY - rect.y)];
+  };
+
   let press = null;
   window.addEventListener("pointerdown", (event) => {
     flushTyping();
-    press = { x: event.clientX, y: event.clientY, target: event.target, map: mapOf(event.target),
-      locator: locatorOf(event.target) };
+    const map = mapOf(event.target);
+    press = { x: event.clientX, y: event.clientY, target: event.target, map, at: performance.now(),
+      locator: locatorOf(event.target), path: map ? [[...relative(map, event), 0]] : [] };
+  }, true);
+  window.addEventListener("pointermove", (event) => {
+    if (!press || !press.map) return;
+    const now = performance.now();
+    if (now - press.at < 16) return;
+    press.path.push([...relative(press.map, event), round(now - press.at)]);
+    press.at = now;
   }, true);
   window.addEventListener("pointerup", (event) => {
     if (!press) return;
-    const { x, y, target, map, locator } = press;
+    const { x, y, target, map, locator, path, at } = press;
     press = null;
     const moved = Math.hypot(event.clientX - x, event.clientY - y) > 6;
-    if (moved) {
-      // A drag (moving a waypoint, panning the map): replayed with the mouse, in page coordinates
+    if (map && moved) {
+      // Panning, or dragging a point: the whole path with its timing, relative to the map
+      path.push([...relative(map, event), round(performance.now() - at)]);
+      emit("await map.drag(" + JSON.stringify(path) + ");");
+      pendingView();
+    } else if (moved) {
       emit("await page.mouse.move(" + round(x) + ", " + round(y) + ");");
       emit("await page.mouse.down();");
       emit("await page.mouse.move(" + round(event.clientX) + ", " + round(event.clientY) + ", { steps: 20 });");
       emit("await page.mouse.up();");
+    } else if (map && leaflet()) {
+      const point = leaflet().mouseEventToLatLng(event);
+      emit("await map.click(" + fixed(point.lat, 7) + ", " + fixed(point.lng, 7) + ");");
     } else if (map) {
       const rect = map.getBoundingClientRect();
       emit("await page.locator(" + quote(mapSelector(map)) + ").click({ position: { x: " + round(x - rect.x) +
@@ -100,20 +126,50 @@ const PAGE_SCRIPT = `(() => {
     }
   }, true);
 
-  // Zooming the map with the wheel changes where everything is: kept, summed per gesture
+  // Wheel zooming: every tick with its timing, relative to the map
   let wheel = null;
   window.addEventListener("wheel", (event) => {
-    if (!mapOf(event.target)) return;
+    const map = mapOf(event.target);
+    if (!map) return;
+    const now = performance.now();
     if (wheel) clearTimeout(wheel.timer);
-    else wheel = { x: event.clientX, y: event.clientY, deltaY: 0 };
-    wheel.deltaY += event.deltaY;
+    else wheel = { ticks: [], at: now };
+    wheel.ticks.push([...relative(map, event), round(event.deltaY), round(now - wheel.at)]);
+    wheel.at = now;
     wheel.timer = setTimeout(() => {
-      emit("await page.mouse.move(" + round(wheel.x) + ", " + round(wheel.y) + ");");
-      emit("await page.mouse.wheel(0, " + round(wheel.deltaY) + ");");
-      emit("await page.waitForTimeout(600);");
+      emit("await map.wheel(" + JSON.stringify(wheel.ticks) + ");");
       wheel = null;
+      pendingView();
     }, 400);
   }, { capture: true, passive: true });
+
+  // After the map has come to rest (zoom animation, the glide after a pan, or a move the page made itself), its view,
+  // unless a gesture is still being written or the view is unchanged
+  let lastView = "";
+  let viewTimer = null;
+  const pendingView = () => {
+    clearTimeout(viewTimer);
+    viewTimer = setTimeout(() => {
+      const map = leaflet();
+      if (!map) return;
+      if (wheel || (press && press.map)) return pendingView();
+      const center = map.getCenter();
+      const view = fixed(center.lat, 7) + ", " + fixed(center.lng, 7) + ", " + fixed(map.getZoom(), 3);
+      if (view === lastView) return;
+      lastView = view;
+      emit("await map.view(" + view + ");");
+    }, 450);
+  };
+  let watched = null;
+  setInterval(() => {
+    const map = leaflet();
+    if (map && map !== watched) {
+      watched = map;
+      lastView = "";
+      map.on("moveend", pendingView);
+      pendingView();
+    }
+  }, 300);
 })();`;
 
 export async function startCapture({ output, url, auth, viewport = "1440,810", geolocation, onStep = () => {} }) {
@@ -128,7 +184,8 @@ export async function startCapture({ output, url, auth, viewport = "1440,810", g
   });
   writeFileSync(
     output,
-    `// Recorded ${new Date().toISOString()} from ${url}\n// Paste these lines into run() of the tutorial script.\n\n`,
+    `// Recorded ${new Date().toISOString()} from ${url}\n// Paste these lines into run() of the tutorial script` +
+      ` (which takes { page, say, highlight, camera, map }).\n\n`,
   );
   const write = (line) => {
     appendFileSync(output, line + "\n");
