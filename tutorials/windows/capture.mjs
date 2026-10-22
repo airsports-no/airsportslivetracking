@@ -262,7 +262,7 @@ export async function startCapture({ output, url, auth, viewport = "1440,810", g
   writeFileSync(
     output,
     `// Recorded ${new Date().toISOString()} from ${url}\n// Paste these lines into run() of the tutorial script` +
-      ` (which takes { page, say, highlight, camera, map }).\n\n`,
+      `.\n\n`,
   );
   const write = (line) => {
     appendFileSync(output, line + "\n");

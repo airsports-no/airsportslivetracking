@@ -65,7 +65,7 @@ export default defineTutorial({
   series: "Route editor",
   next: "Creating a 2.A5 route",
   startUrl: "/",
-  async run({ page, say, highlight, camera, chapter, map }) {
+  async run() {
     await say("In this tutorial you will create the route for a contract navigation task.");
 
     // ── Phase: Opening the route editor ──
@@ -172,7 +172,6 @@ Changes that only need a render show up live in Studio (step 4) while you edit.
 | What you see | What to do |
 |---|---|
 | Studio shows an old version | Record again (`npm run record -- <name>`) and reload Studio; restart it if a new tutorial does not appear |
-| `map is not defined` (or `chapter`, `highlight`, ...) | Add the name to the `run({ page, say, ... })` line at the top of the script |
 | The map starts in the wrong place | Use the same location for recording clicks (`-Geolocation "60.8,11.1"`, in quotes) and in `.env` |
 | A click lands in the wrong place on the map | Record the clicks again with the latest recorder: map clicks should appear as `map.click(...)` lines |
 | A step fails because something is not found | The page changed (a button renamed or moved): record that part of the clicks again |

@@ -60,3 +60,15 @@ export type Tutorial = {
 };
 
 export const defineTutorial = (tutorial: Tutorial) => tutorial;
+
+// While a tutorial is recorded, everything in TutorialContext is also a global: steps pasted from the recorder work in
+// run() without listing page, say, map, ... in its parameters
+declare global {
+  const page: TutorialContext["page"];
+  const say: TutorialContext["say"];
+  const highlight: TutorialContext["highlight"];
+  const pause: TutorialContext["pause"];
+  const camera: TutorialContext["camera"];
+  const chapter: TutorialContext["chapter"];
+  const map: TutorialContext["map"];
+}

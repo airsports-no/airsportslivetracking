@@ -95,8 +95,8 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    - `chapter(title)` starts a phase: its name slides in at the bottom of the video and shows in the header, and
      it becomes a chapter in `out/<name>-chapters.txt`.
    - `pause(ms)` keeps a still moment that would otherwise be cut.
-   - `map.view`, `map.click`, `map.drag` and `map.wheel` are the recorder's map steps (step 1); `run()` takes `map`
-     beside `page`.
+   - `map.view`, `map.click`, `map.drag` and `map.wheel` are the recorder's map steps (step 1).
+   - `page`, `say`, `map` and the rest are available in `run()` as they are: pasted steps work without listing them.
    - `camera("wide")` shows the whole page (for example while drawing on the map) until `camera("auto")`.
    - `fill()` from the recorder is typed out visibly, key by key.
 3. **Record (WSL).** `npm run record -- <name>` plays the script in a headless browser and records everything

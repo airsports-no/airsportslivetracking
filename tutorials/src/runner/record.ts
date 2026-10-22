@@ -324,6 +324,8 @@ console.log(`Recording ${name}: ${tutorial.title}`);
 let failure: unknown = null;
 try {
   await tutorialContext.pause(800);
+  // Also as globals, so pasted steps work whether or not run() lists the names it uses
+  Object.assign(globalThis, tutorialContext);
   await tutorial.run(tutorialContext);
   await waitUntil(narrationEndsAt);
   await tutorialContext.pause(1200);
