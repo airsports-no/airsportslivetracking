@@ -105,8 +105,9 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
      they are performed, and the video crossfades from the last picture before to the page after. For setup the
      tutorial is not about, such as creating a task to show a route on the live map.
    - `showPdf(source, { width })` shows a PDF's pages with pdf.js (the headless recording browser has no PDF viewer):
-     a path on the site, fetched logged in (a flight order's download address), or a file. `width` is the share of
-     the window a page takes (0.7). Go back with `page.goto(...)`.
+     a file relative to `tutorials/` (such as a flight order saved in `pdfs/`), or a path on the site fetched logged
+     in (`/display/navigationtask/<task>/downloadflightorders/?contestant_pks=<one contestant>`). `width` is the share
+     of the window a page takes (0.7). Go back with `page.goto(...)`.
    - `chapter(title)` starts a phase: its name slides in at the bottom of the video and shows in the header, and
      it becomes a chapter in `out/<name>-chapters.txt`.
    - `pause(ms)` keeps a still moment that would otherwise be cut.

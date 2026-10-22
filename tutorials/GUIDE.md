@@ -92,22 +92,31 @@ What you can use in a script:
 | `await highlight(page.getByText("Save Route"), { label: "Save when done" })` | Dims the page around something and points it out |
 | `await pause(2000)` | Keeps a still moment of 2 seconds, for example to let something sink in |
 | `await startHidden()` … `await endHidden()` | The steps in between are performed but cut from the video (F9 writes these) |
-| `await showPdf("/display/navigationtask/3612/downloadflightorders/")` | Shows a PDF's pages, for example the flight orders (see below) |
+| `await showPdf("pdfs/flight-order-2a3.pdf")` | Shows a PDF's pages, for example a flight order (see below) |
 | `camera("wide")` … `camera("auto")` | Shows the whole page instead of zooming in, for example while working on the map |
 
 **Showing a flight order or another PDF.** The browser that records the video cannot display PDFs, so a PDF opened
 by clicking will not show. Use `showPdf` instead: it shows the pages on screen, and you can scroll and highlight as
-usual. For a task's flight orders: generate them in a hidden part, then show them:
+usual.
+
+The simplest is a saved file. Generate the flight order on the site once, download it, and save it in
+`tutorials/pdfs/` (for example `pdfs/flight-order-2a3.pdf`). It does not change between recordings, so the video is
+the same every time:
 
 ```ts
-await startHidden();
-// ... the clicks that generate the flight orders, and waiting until they are ready ...
-await endHidden();
-await showPdf("/display/navigationtask/3612/downloadflightorders/");
-await say("This is the navigation map the pilots get. Note the curved leg after the start.");
+await showPdf("pdfs/flight-order-2a3.pdf");
+await say("This is the navigation map the pilots get. Note the curved leg after the start.", { wait: false });
+await pause(3000);
 await page.mouse.wheel(0, 900);   // scroll to the next page
+await pause(3000);
 await page.goto("/");             // back to the site
 ```
+
+`showPdf` can also fetch a PDF from the site, logged in: a contestant's flight order is at
+`/display/navigationtask/<task id>/downloadflightorders/?contestant_pks=<contestant id>` (exactly one contestant:
+with several the site sends a zip). That only works for a task and contestant that already exist with generated
+flight orders, not for ones the tutorial creates, whose ids change with every recording. Use a narrower page with
+`showPdf(source, { width: 0.5 })` to see a whole A4 page at once.
 
 Tips for the narration:
 
@@ -226,5 +235,5 @@ Changes that only need a render show up live in Studio (step 4) while you edit.
 | The narration sounds wrong | Rephrase the sentence, or add the word to `pronunciations.json` |
 | A render stops saying the music is missing | Fetch it: `npm run fetch-assets` |
 | A sentence is missing from the video | It was spoken inside a hidden part, which is cut with it (the recording warns about this): move the `say` after `endHidden()` |
-| A PDF does not show | PDFs opened by clicking cannot be shown: use `showPdf(...)` with its address instead |
+| A PDF does not show | PDFs opened by clicking cannot be shown: save the PDF in `tutorials/pdfs/` and use `showPdf("pdfs/<file>.pdf")` |
 | A step fails with "... is not defined" | Check the spelling: `page`, `say`, `map`, `chapter`, `highlight`, `pause`, `camera`, `startHidden`, `endHidden` and `showPdf` are available as they are |
