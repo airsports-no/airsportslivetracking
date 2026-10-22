@@ -160,14 +160,25 @@ const PAGE_SCRIPT = `(() => {
       emit("await map.view(" + view + ");");
     }, 450);
   };
+  // A new route's map opens where the browser says it is (the route editor's locate()). Should it still be at the
+  // editor's default view after a moment, the recorder moves it to the given location itself
+  const DEFAULT_VIEW = [51.505, -0.09];
   let watched = null;
   setInterval(() => {
     const map = leaflet();
     if (map && map !== watched) {
       watched = map;
       lastView = "";
-      map.on("moveend", pendingView);
-      pendingView();
+      setTimeout(() => {
+        const start = window.__captureStart;
+        const center = map.getCenter();
+        if (start && Math.abs(center.lat - DEFAULT_VIEW[0]) < 1e-6 && Math.abs(center.lng - DEFAULT_VIEW[1]) < 1e-6) {
+          map.setView([start.lat, start.lng], 11, { animate: false });
+          window.__captureNote && window.__captureNote("The map did not move to the location: moved it there");
+        }
+        map.on("moveend", pendingView);
+        pendingView();
+      }, 1500);
     }
   }, 300);
 })();`;
@@ -192,6 +203,10 @@ export async function startCapture({ output, url, auth, viewport = "1440,810", g
     onStep(line);
   };
   await context.exposeBinding("__captureStep", (_source, line) => write(line));
+  await context.exposeBinding("__captureNote", (_source, note) => console.log(note));
+  if (geolocation) {
+    await context.addInitScript(`window.__captureStart = ${JSON.stringify({ lat: latitude, lng: longitude })};`);
+  }
   await context.addInitScript(PAGE_SCRIPT);
   const page = await context.newPage();
   // Playwright dismisses dialogs (confirm, alert) when nothing handles them, while recording and while replaying
