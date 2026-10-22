@@ -37,6 +37,9 @@ export type TutorialContext = {
   pause(ms: number): Promise<void>;
   // "wide" shows the whole page instead of zooming in, until camera("auto")
   camera(mode: "wide" | "auto"): void;
+  // The start of a phase of the tutorial ("Placing the points"): a label in the video, and a chapter in
+  // out/<name>-chapters.txt. The recorder writes these when you press F8.
+  chapter(title: string): void;
   map: MapSteps;
 };
 

@@ -12,6 +12,7 @@ import { OUT_DIR, RECORDINGS_DIR, tutorialName } from "./config";
 // out/<tutorial>-picture.mp4  the same picture without sound   } for fine tuning in DaVinci Resolve:
 // out/<tutorial>-voice.wav    the voice track alone            } both start at 0 and line up
 // out/<tutorial>.srt          the narration as subtitles
+// out/<tutorial>-chapters.txt the chapters, for a YouTube description (when the script has chapter() steps)
 
 const name = tutorialName(process.argv.slice(2).find((argument) => !argument.startsWith("--")));
 if (!name) {
@@ -56,4 +57,14 @@ const srt = timeline.narration
   })
   .join("\n");
 writeFileSync(path.join(OUT_DIR, `${name}.srt`), srt);
+
+// Chapters in the form YouTube reads from a video's description: the first must start at 0:00
+const minutesSeconds = (ms: number) => {
+  const seconds = Math.floor(ms / 1000);
+  return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
+};
+const chapters = (timeline.chapters ?? []).map((chapter) => `${minutesSeconds(offset + edit.toOut(chapter.t))} ${chapter.title}`);
+if (chapters.length > 0) {
+  writeFileSync(path.join(OUT_DIR, `${name}-chapters.txt`), ["0:00 Introduction", ...chapters].join("\n") + "\n");
+}
 console.log(`Rendered ${video}, with -picture.mp4, -voice.wav and .srt beside it`);

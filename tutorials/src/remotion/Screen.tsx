@@ -49,10 +49,21 @@ export const Screen = ({ timeline, edit }: { timeline: Timeline; edit: Edit }) =
     `translate(${-(cx - viewport.width / (2 * zoom))}px, ${-(cy - viewport.height / (2 * zoom))}px)`;
 
   const shownFrame: Frame | undefined = lastAtOrBefore(timeline.frames, srcMs) ?? timeline.frames[0];
+  const chapters = useMemo(
+    () => (timeline.chapters ?? []).map((chapter) => ({ ...chapter, t: edit.toOut(chapter.t) })),
+    [timeline, edit],
+  );
+  const chapter = lastAtOrBefore(chapters, outMs);
 
   return (
     <AbsoluteFill style={{ background: theme.background, fontFamily: theme.font }}>
-      <Header left={(VIDEO.width - windowWidth) / 2} width={windowWidth} series={timeline.series} title={timeline.title} />
+      <Header
+        left={(VIDEO.width - windowWidth) / 2}
+        width={windowWidth}
+        series={timeline.series}
+        title={timeline.title}
+        chapter={chapter?.title}
+      />
       <div
         style={{
           position: "absolute",
@@ -98,6 +109,14 @@ export const Screen = ({ timeline, edit }: { timeline: Timeline; edit: Edit }) =
           <Audio src={staticFile(item.file)} />
         </Sequence>
       ))}
+      {chapter && (
+        <ChapterLabel
+          title={chapter.title}
+          sinceMs={outMs - chapter.t}
+          left={(VIDEO.width - windowWidth) / 2 + 36}
+          bottom={WINDOW_MARGIN.bottom + 150}
+        />
+      )}
       {timeline.captions && <Captions timeline={timeline} edit={edit} outMs={outMs} />}
     </AbsoluteFill>
   );
@@ -299,7 +318,19 @@ const Captions = ({ timeline, edit, outMs }: { timeline: Timeline; edit: Edit; o
 };
 
 // Above the window: the logo, and which tutorial this is
-const Header = ({ left, width, series, title }: { left: number; width: number; series?: string; title: string }) => {
+const Header = ({
+  left,
+  width,
+  series,
+  title,
+  chapter,
+}: {
+  left: number;
+  width: number;
+  series?: string;
+  title: string;
+  chapter?: string;
+}) => {
   const logoHeight = 34;
   return (
     <div
@@ -325,6 +356,39 @@ const Header = ({ left, width, series, title }: { left: number; width: number; s
           </>
         )}
         <span style={{ color: theme.text, fontWeight: 600 }}>{title}</span>
+        {chapter && <span style={{ color: theme.muted, fontWeight: 500 }}>› {chapter}</span>}
+      </div>
+    </div>
+  );
+};
+
+// When a phase starts: its name slides in at the bottom left for a few seconds
+const CHAPTER_LABEL_MS = 3200;
+const ChapterLabel = ({ title, sinceMs, left, bottom }: { title: string; sinceMs: number; left: number; bottom: number }) => {
+  if (sinceMs < 0 || sinceMs > CHAPTER_LABEL_MS) return null;
+  const enter = interpolate(sinceMs, [0, 450], [0, 1], { extrapolateRight: "clamp", easing: theme.ease });
+  const leave = interpolate(sinceMs, [CHAPTER_LABEL_MS - 400, CHAPTER_LABEL_MS], [1, 0], { extrapolateLeft: "clamp" });
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left,
+        bottom,
+        opacity: Math.min(enter, leave),
+        transform: `translateX(${(1 - enter) * -40}px)`,
+        display: "flex",
+        alignItems: "stretch",
+        boxShadow: "0 16px 40px rgba(0,0,0,0.45)",
+        borderRadius: 12,
+        overflow: "hidden",
+      }}
+    >
+      <div style={{ width: 8, background: theme.accent }} />
+      <div style={{ background: "rgba(10,12,16,0.92)", padding: "16px 28px" }}>
+        <div style={{ color: theme.accent, fontSize: 18, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase" }}>
+          Next step
+        </div>
+        <div style={{ color: theme.text, fontSize: 38, fontWeight: 700, marginTop: 4 }}>{title}</div>
       </div>
     </div>
   );

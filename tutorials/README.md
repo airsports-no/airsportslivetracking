@@ -43,6 +43,19 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    PowerShell window. Close the browser when done. Options: `-Path /some/page` to start elsewhere, `-BaseUrl` for
    another site address.
 
+   **Mark the phases as you go.** Press **F8** whenever a new phase starts (finding the right mode in the menus,
+   placing the points, switching to the next mode, ...). A box asks for the phase's name and, if you like, the
+   narration to speak during it; it is not part of the recording. Each phase is written as:
+
+   ```ts
+   // ── Phase: Placing the points ──
+   await chapter("Placing the points");
+   await say("Now click on the map where the start point should be.", { wait: false });
+   ```
+
+   so the narration is spoken while the phase's clicks happen. Leave the narration empty and a commented-out
+   `say` marks the spot to fill in later.
+
    The recorder (`windows/capture.mjs`) writes the same readable steps as Playwright's codegen, and records the
    route editor's map so it replays exactly, however much you zoom and pan to find your spots:
 
@@ -75,6 +88,8 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
      it is spoken; the next `say` waits for it. `{ spoken: "..." }` changes how a line sounds without changing
      its caption.
    - `highlight(locator, { label, durationMs })` dims the page around an element and outlines it.
+   - `chapter(title)` starts a phase: its name slides in at the bottom of the video and shows in the header, and
+     it becomes a chapter in `out/<name>-chapters.txt`.
    - `pause(ms)` keeps a still moment that would otherwise be cut.
    - `map.view`, `map.click`, `map.drag` and `map.wheel` are the recorder's map steps (step 1); `run()` takes `map`
      beside `page`.
@@ -90,6 +105,7 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    - `<name>-picture.mp4` and `<name>-voice.wav`: picture and voice separately, both starting at 0, for fine
      tuning in DaVinci Resolve
    - `<name>.srt`: the narration as subtitles
+   - `<name>-chapters.txt`: the chapters with their start times, ready for a YouTube description
 
 Re-recording only regenerates narration lines that changed: the voice is cached in `.cache/`.
 

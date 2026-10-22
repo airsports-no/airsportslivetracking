@@ -55,7 +55,11 @@ const PAGE_SCRIPT = `(() => {
       editing.value = editing.element.value;
     }
   };
+  // The recorder's own phase box (F8) is not part of the tutorial
+  const isOurs = (event) => Boolean(event.target && event.target.closest && event.target.closest("[data-capture-ui]"));
+
   document.addEventListener("focusin", (event) => {
+    if (isOurs(event)) return;
     flushTyping();
     editing = isTextField(event.target) ? { element: event.target, value: event.target.value } : null;
   }, true);
@@ -71,6 +75,7 @@ const PAGE_SCRIPT = `(() => {
 
   let press = null;
   window.addEventListener("pointerdown", (event) => {
+    if (isOurs(event)) return;
     flushTyping();
     const map = mapOf(event.target);
     press = { x: event.clientX, y: event.clientY, target: event.target, map, at: performance.now(),
@@ -84,6 +89,7 @@ const PAGE_SCRIPT = `(() => {
     press.at = now;
   }, true);
   window.addEventListener("pointerup", (event) => {
+    if (isOurs(event)) return;
     if (!press) return;
     const { x, y, target, map, locator, path, at } = press;
     press = null;
@@ -111,6 +117,7 @@ const PAGE_SCRIPT = `(() => {
   }, true);
 
   document.addEventListener("change", (event) => {
+    if (isOurs(event)) return;
     const element = event.target;
     if (element instanceof HTMLSelectElement) {
       emit("await page." + locatorOf(element) + ".selectOption(" + quote(element.value) + ");");
@@ -120,15 +127,74 @@ const PAGE_SCRIPT = `(() => {
   }, true);
 
   window.addEventListener("keydown", (event) => {
+    if (isOurs(event)) return;
+    if (event.key === "F8") {
+      event.preventDefault();
+      openPhaseBox();
+      return;
+    }
     if (["Enter", "Escape", "Tab"].includes(event.key)) {
       flushTyping();
       emit("await page.keyboard.press(" + quote(event.key) + ");");
     }
   }, true);
 
+  // F8 marks the start of a new phase of the tutorial: a box asks for its name and, optionally, the narration to speak
+  // while it happens. Written as a chapter() and a say() that does not wait, so the voice runs alongside the clicks.
+  const openPhaseBox = () => {
+    if (document.querySelector("[data-capture-ui]")) return;
+    flushTyping();
+    const host = document.createElement("div");
+    host.setAttribute("data-capture-ui", "");
+    host.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:flex;align-items:flex-start;" +
+      "justify-content:center;padding-top:80px;background:rgba(0,0,0,0.35)";
+    const root = host.attachShadow({ mode: "open" });
+    root.innerHTML = \`
+      <style>
+        form { width: 640px; background: #12161d; color: #f8fafc; border-radius: 14px; padding: 22px 24px;
+          font: 15px system-ui, sans-serif; box-shadow: 0 20px 60px rgba(0,0,0,0.5); border-top: 4px solid #e11d24; }
+        h2 { margin: 0 0 14px; font-size: 18px; }
+        label { display: block; margin: 12px 0 6px; color: #94a3b8; }
+        input, textarea { width: 100%; box-sizing: border-box; background: #0a0c10; color: #f8fafc;
+          border: 1px solid #334155; border-radius: 8px; padding: 9px 11px; font: inherit; }
+        textarea { height: 96px; resize: vertical; }
+        p { margin: 12px 0 0; color: #94a3b8; font-size: 13px; }
+      </style>
+      <form>
+        <h2>New phase</h2>
+        <label for="title">Phase name (shown in the video and as a chapter)</label>
+        <input id="title" autocomplete="off">
+        <label for="narration">Narration, spoken while the phase happens (may be left empty)</label>
+        <textarea id="narration"></textarea>
+        <p>Enter (Ctrl+Enter in the narration) to add, Esc to cancel. Not part of the recording.</p>
+      </form>\`;
+    document.body.append(host);
+    const form = root.querySelector("form");
+    const title = root.getElementById("title");
+    const narration = root.getElementById("narration");
+    const close = () => host.remove();
+    const submit = () => {
+      const name = title.value.trim();
+      const text = narration.value.trim().replace(/\\s+/g, " ");
+      emit("");
+      emit("// ── Phase" + (name ? ": " + name : "") + " ──");
+      if (name) emit("await chapter(" + quote(name) + ");");
+      emit(text ? "await say(" + quote(text) + ", { wait: false });" : "// await say(\\"\\", { wait: false });");
+      close();
+    };
+    form.addEventListener("submit", (event) => { event.preventDefault(); submit(); });
+    root.addEventListener("keydown", (event) => {
+      event.stopPropagation();
+      if (event.key === "Escape") close();
+      if (event.key === "Enter" && (event.target === title || event.ctrlKey)) { event.preventDefault(); submit(); }
+    });
+    title.focus();
+  };
+
   // Wheel zooming: every tick with its timing, relative to the map
   let wheel = null;
   window.addEventListener("wheel", (event) => {
+    if (isOurs(event)) return;
     const map = mapOf(event.target);
     if (!map) return;
     const now = performance.now();

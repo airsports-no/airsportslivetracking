@@ -24,6 +24,9 @@ export type Hold = { t: number; durationMs: number };
 
 export type Frame = { t: number; file: string };
 
+// From chapter(): the start of a phase of the tutorial
+export type Chapter = { t: number; title: string };
+
 export type EditSettings = {
   // A stretch without anything happening (no screen change, action, narration, highlight or pause) longer than this
   // is shortened to keepGapMs
@@ -45,6 +48,8 @@ export type Timeline = {
   narration: Narration[];
   camera: CameraDirective[];
   holds: Hold[];
+  // Missing in recordings made before chapters existed
+  chapters?: Chapter[];
   edit: EditSettings;
   captions: boolean;
 };

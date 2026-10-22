@@ -68,6 +68,7 @@ const timeline: Timeline = {
   narration: [],
   camera: [],
   holds: [],
+  chapters: [],
   edit: { ...DEFAULT_EDIT, ...tutorial.edit },
   captions: tutorial.captions ?? true,
 };
@@ -309,6 +310,10 @@ const tutorialContext: TutorialContext = {
   },
   camera(mode) {
     timeline.camera.push({ t: now(), mode });
+  },
+  chapter(title) {
+    timeline.chapters!.push({ t: now(), title });
+    console.log(`  chapter: ${title}`);
   },
   map: mapSteps,
 };
