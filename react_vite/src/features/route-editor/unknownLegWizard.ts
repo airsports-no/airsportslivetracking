@@ -70,3 +70,55 @@ export function buildDummyBranchWaypoint(
     isPassing: true,
   };
 }
+
+const withName = (point: RoutePoint, name: string): RoutePoint => (point.name === name ? point : { ...point, name });
+
+/**
+ * Names the points of an unknown-legs (2.A5) route in the order the map shows them, so that the numbers on the
+ * generated map follow the route including its dummy legs: SP, then TP 1, TP 2, ... through the turnpoints and each
+ * unknown-leg trigger's dummy waypoints (right after the trigger, in branch order), then FP. The triggers themselves
+ * are never shown and are named Unknown leg 1, 2, ...; secret points keep their names. Points whose name is already
+ * right are returned as they are, so an already named route comes back unchanged (same arrays).
+ */
+export function nameUnknownLegsRoutePoints(
+  routePoints: RoutePoint[],
+  standalonePoints: RoutePoint[],
+): { routePoints: RoutePoint[]; standalonePoints: RoutePoint[] } {
+  const dummiesByTrigger = new Map<string, RoutePoint[]>();
+  standalonePoints.forEach((point) => {
+    if (point.featureType === 'dummy_branch_waypoint' && point.triggerPointId) {
+      dummiesByTrigger.set(point.triggerPointId, [...(dummiesByTrigger.get(point.triggerPointId) || []), point]);
+    }
+  });
+  const dummyNames = new Map<string, string>();
+  let turnpointCounter = 0;
+  let unknownLegCounter = 0;
+
+  const namedRoutePoints = routePoints.map((point, index) => {
+    if (index === 0) return withName(point, 'SP');
+    if (index === routePoints.length - 1) return withName(point, 'FP');
+    if (point.type === 'secret') return point;
+    if (isUnknownLegTrigger(point)) {
+      unknownLegCounter += 1;
+      [...(dummiesByTrigger.get(point.id) || [])]
+        .sort((a, b) => (a.branchSequence ?? 0) - (b.branchSequence ?? 0))
+        .forEach((dummy) => {
+          turnpointCounter += 1;
+          dummyNames.set(dummy.id, `TP ${turnpointCounter}`);
+        });
+      return withName(point, `Unknown leg ${unknownLegCounter}`);
+    }
+    turnpointCounter += 1;
+    return withName(point, `TP ${turnpointCounter}`);
+  });
+  const namedStandalonePoints = standalonePoints.map((point) => {
+    const name = dummyNames.get(point.id);
+    return name ? withName(point, name) : point;
+  });
+
+  const unchanged = (before: RoutePoint[], after: RoutePoint[]) => after.every((point, index) => point === before[index]);
+  return {
+    routePoints: unchanged(routePoints, namedRoutePoints) ? routePoints : namedRoutePoints,
+    standalonePoints: unchanged(standalonePoints, namedStandalonePoints) ? standalonePoints : namedStandalonePoints,
+  };
+}

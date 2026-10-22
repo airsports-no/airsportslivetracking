@@ -1,3 +1,4 @@
+import copy
 import datetime
 import json
 
@@ -218,6 +219,14 @@ class FlightOrderConfigurationForm(forms.ModelForm):
             return cleaned_data
 
         validate_map_zoom_level(cleaned_data.get("map_source"), None, cleaned_data.get("map_zoom_level"))
+        if not self.errors and self.instance.navigation_task_id:
+            from display.flight_order_and_maps.generate_flight_orders import flight_order_map_memory_error
+
+            configuration = copy.copy(self.instance)
+            for field_name, value in cleaned_data.items():
+                setattr(configuration, field_name, value)
+            if error := flight_order_map_memory_error(self.instance.navigation_task, configuration):
+                self.add_error("map_zoom_level", error)
         return cleaned_data
 
     def __init__(self, *args, **kwargs):

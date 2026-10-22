@@ -25,17 +25,29 @@ from shapely.geometry import Polygon
 
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.flight_order_and_maps.map_constants import A3, LANDSCAPE, SCALE_TO_FIT
-from display.flight_order_and_maps.map_plotter import PSEUDO_MERCATOR_SPHERE, plot_route
+from display.flight_order_and_maps.map_plotter import (
+    MEMORY_THRESHOLD_MB,
+    PSEUDO_MERCATOR_SPHERE,
+    highest_zoom_level_within_memory_limit,
+    lowest_fallback_zoom_level,
+    plot_route,
+    plot_route_within_memory_limit,
+)
 from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_image
 from display.models import Contestant
 from display.models.flight_order_configuration import FlightOrderConfiguration
 from display.models.route import Photo
 from display.services.photo_management import get_observation_photo_names
 from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
+from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS, UNKNOWN_LEGS
 from display.utilities.coordinate_utilities import normalise_bearing, utm_from_lat_lon
-from display.utilities.gate_definitions import DUMMY, SECRETPOINT, UNKNOWN_LEG
+from display.utilities.gate_definitions import DUMMY, FINISHPOINT, SECRETPOINT, STARTINGPOINT, UNKNOWN_LEG
 from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
-from display.utilities.wind_utilities import calculate_ground_speed, calculate_wind_correction_angle
+from display.utilities.wind_utilities import (
+    calculate_ground_speed,
+    calculate_heading_for_ground_speed,
+    calculate_wind_correction_angle,
+)
 from display.waypoint import Waypoint
 from live_tracking_map.settings import MEDIA_ROOT_URL
 
@@ -89,6 +101,34 @@ def build_flight_order_map_plot_kwargs(
         "horizontal_margin_mm": 20,
         "vertical_margin_mm": 25,
     }
+
+
+def flight_order_map_memory_error(navigation_task, flight_order_configuration: FlightOrderConfiguration) -> Optional[str]:
+    """
+    Why the configured flight order map cannot be made for [navigation_task]'s route within the memory limit, naming the
+    highest zoom level that would fit, or None if it fits. Only estimates (no map tiles are fetched), from the task's route
+    without any contestant's declaration.
+    """
+    map_plot_kwargs = build_flight_order_map_plot_kwargs(navigation_task, flight_order_configuration)
+    zoom_level = map_plot_kwargs.pop("zoom_level")
+    size = flight_order_configuration.document_size
+    try:
+        estimated_mb = plot_route(navigation_task, size, zoom_level=zoom_level, estimate_only=True, **map_plot_kwargs)
+        if estimated_mb <= MEMORY_THRESHOLD_MB:
+            return None
+        highest_zoom_level = highest_zoom_level_within_memory_limit(navigation_task, size, zoom_level - 1, **map_plot_kwargs)
+        lowest_zoom_level = lowest_fallback_zoom_level(**map_plot_kwargs)
+    except Exception:
+        # A task whose route cannot be drawn yet has nothing to check against
+        logger.warning(f"Could not estimate the flight order map memory for task {navigation_task.pk}", exc_info=True)
+        return None
+    message = (
+        f"With these settings the map at zoom level {zoom_level} needs about {estimated_mb:.0f} MB, more than the "
+        f"{MEMORY_THRESHOLD_MB} MB available."
+    )
+    if highest_zoom_level is not None:
+        return f"{message} The highest zoom level that fits is {highest_zoom_level}."
+    return f"{message} It does not fit at zoom level {lowest_zoom_level} either: choose a smaller scale or page size."
 
 
 def get_flight_order_visual_waypoints(contestant: Contestant, include_contestant_declarations: bool) -> list[Waypoint]:
@@ -471,6 +511,20 @@ def _gate_times_table_rows(contestant: "Contestant", waypoints: List[Waypoint]) 
         add_row(["Takeoff gate", "-", "-", "-", "-", "-", "-", local_time])
         rows.append("table.hline()")
 
+    if contestant.navigation_task.task_subtype == UNKNOWN_LEGS:
+        # The legs and times of the true route would tell where the unknown legs go: only the starting and finishing
+        # points' times are given, the pilot plans the rest.
+        for waypoint in waypoints:
+            gate_time = contestant.gate_times.get(waypoint.name) if waypoint.type in (STARTINGPOINT, FINISHPOINT) else None
+            if gate_time is not None:
+                local_time = gate_time.astimezone(contestant.navigation_task.contest.time_zone).strftime("%H:%M:%S")
+                add_row([waypoint.name, "-", "-", "-", "-", "-", "-", local_time])
+        waypoints = []
+
+    # Contract navigation: MP is T after SP and FP T after MP, whatever the legs' lengths. The gate times of the declared
+    # turnpoints between them (not time checks) are those of a constant speed through each half, so the ground speed and
+    # heading shown are what that takes, not the contestant's airspeed, and there is no procedure turn time in them.
+    contract_navigation = contestant.navigation_task.task_subtype == CONTRACT_NAVIGATION_TIME_CONTROLS
     accumulated_distance = 0
     last_record_distance = 0
     previous_waypoint = None
@@ -499,9 +553,16 @@ def _gate_times_table_rows(contestant: "Contestant", waypoints: List[Waypoint]) 
                 contestant.wind_direction,
             )
             gate_time = contestant.gate_times.get(waypoint.name, None)
-            local_waypoint_time = gate_time.astimezone(contestant.navigation_task.contest.time_zone)
             if gate_time is not None:
+                local_waypoint_time = gate_time.astimezone(contestant.navigation_task.contest.time_zone)
                 distance = accumulated_distance - last_record_distance
+                if contract_navigation and last_recorded_time:
+                    leg_seconds = (gate_time - last_recorded_time).total_seconds()
+                    if leg_seconds > 0:
+                        ground_speed = (distance / 1852) / (leg_seconds / 3600)
+                        wind_bearing = calculate_heading_for_ground_speed(
+                            bearing, ground_speed, contestant.wind_speed, contestant.wind_direction
+                        )
                 add_row(
                     [
                         waypoint.name,
@@ -517,7 +578,9 @@ def _gate_times_table_rows(contestant: "Contestant", waypoints: List[Waypoint]) 
                                     - last_recorded_time
                                     - (
                                         PROCEDURE_TURN_DURATION
-                                        if previous_waypoint is not None and previous_waypoint.is_procedure_turn
+                                        if not contract_navigation
+                                        and previous_waypoint is not None
+                                        and previous_waypoint.is_procedure_turn
                                         else datetime.timedelta(seconds=0)
                                     )
                                 )
@@ -625,14 +688,17 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         flight_order_configuration.turning_point_photos_zoom_level,
     )
 
-    map_image = plot_route(
+    # A configuration too heavy for this route gets a slightly coarser map rather than no flight order at all
+    map_plot_kwargs = build_flight_order_map_plot_kwargs(
+        contestant.navigation_task,
+        flight_order_configuration,
+        contestant=contestant,
+    )
+    map_image, _ = plot_route_within_memory_limit(
         contestant.navigation_task,
         flight_order_configuration.document_size,
-        **build_flight_order_map_plot_kwargs(
-            contestant.navigation_task,
-            flight_order_configuration,
-            contestant=contestant,
-        ),
+        map_plot_kwargs.pop("zoom_level"),
+        **map_plot_kwargs,
     )
     mapimage_file = NamedTemporaryFile(suffix=".png")
     mapimage_file.write(map_image.read())
