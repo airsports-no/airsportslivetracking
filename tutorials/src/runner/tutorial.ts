@@ -43,6 +43,10 @@ export type TutorialContext = {
 export type Tutorial = {
   title: string;
   subtitle?: string;
+  // Which series the tutorial belongs to ("Route editor"): above the title, and in the header during the video
+  series?: string;
+  // The title of the tutorial to watch next, on the end screen
+  next?: string;
   // Path on the site the recording starts from
   startUrl?: string;
   captions?: boolean;

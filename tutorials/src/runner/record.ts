@@ -58,6 +58,8 @@ const timeline: Timeline = {
   name,
   title: tutorial.title,
   subtitle: tutorial.subtitle,
+  series: tutorial.series,
+  next: tutorial.next,
   viewport: settings.viewport,
   durationMs: 0,
   frames: [],

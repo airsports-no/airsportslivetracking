@@ -12,6 +12,7 @@
   },
   "dependencies": {
     "@remotion/cli": "4.0.537",
+    "@remotion/google-fonts": "4.0.537",
     "@remotion/transitions": "4.0.537",
     "kokoro-js": "1.2.1",
     "playwright": "1.64.1",

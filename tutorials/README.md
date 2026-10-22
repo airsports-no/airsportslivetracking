@@ -114,6 +114,29 @@ too.
   gliding on a slight curve with a ripple on each click, highlights, captions and the voice. Change the look in
   `theme.ts` and `TutorialVideo.tsx`.
 
+## The look
+
+Every video shares the same profile, set in `src/remotion/brand.ts` (logo, colours, end screen links) and
+`src/remotion/theme.ts` (font, background):
+
+- **Title screen**: the logo, `series` and `title`, and `subtitle`, from the tutorial script.
+- **During the tutorial**: a header strip above the page with the logo on the left and the series and title on the
+  right, so the logo stays visible when the camera zooms in.
+- **End screen**: "Next tutorial: …" when the script sets `next`, otherwise "Thanks for watching", and the links in
+  `brand.endScreen.links` (the app, the guides, more tutorials, the FAQ).
+
+```ts
+export default defineTutorial({
+  title: "Creating a 2.A3 route",
+  subtitle: "Contract navigation with time controls",
+  series: "Route editor",
+  next: "Creating a 2.A5 route",
+  ...
+```
+
+Changing `series` or `next` in a script needs `npm run record` again (they are saved with the recording); changing
+the brand files only needs a render, and shows live in `npm run studio`.
+
 ## Narration voices
 
 Set `TTS_PROVIDER` in `.env`:

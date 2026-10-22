@@ -35,6 +35,8 @@ export type Timeline = {
   name: string;
   title: string;
   subtitle?: string;
+  series?: string;
+  next?: string;
   viewport: { width: number; height: number };
   durationMs: number;
   frames: Frame[];

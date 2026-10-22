@@ -2,8 +2,9 @@ import { useMemo } from "react";
 import { AbsoluteFill, Audio, Img, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
 import { planCamera } from "../shared/camera";
 import type { Edit } from "../shared/edit";
-import { VIDEO, WINDOW_MARGIN } from "../shared/layout";
+import { HEADER_HEIGHT, VIDEO, WINDOW_MARGIN } from "../shared/layout";
 import type { Action, Box, Frame, Timeline } from "../shared/timeline";
+import { brand } from "./brand";
 import { theme } from "./theme";
 
 // The recorded page in a window, with the camera, cursor, highlights, captions and voice. Times are video times
@@ -38,7 +39,7 @@ export const Screen = ({ timeline, edit }: { timeline: Timeline; edit: Edit }) =
 
   const windowScale = Math.min(
     (VIDEO.width - 2 * WINDOW_MARGIN.x) / viewport.width,
-    (VIDEO.height - 2 * WINDOW_MARGIN.y) / viewport.height,
+    (VIDEO.height - WINDOW_MARGIN.top - WINDOW_MARGIN.bottom) / viewport.height,
   );
   const windowWidth = viewport.width * windowScale;
   const windowHeight = viewport.height * windowScale;
@@ -51,11 +52,12 @@ export const Screen = ({ timeline, edit }: { timeline: Timeline; edit: Edit }) =
 
   return (
     <AbsoluteFill style={{ background: theme.background, fontFamily: theme.font }}>
+      <Header left={(VIDEO.width - windowWidth) / 2} width={windowWidth} series={timeline.series} title={timeline.title} />
       <div
         style={{
           position: "absolute",
           left: (VIDEO.width - windowWidth) / 2,
-          top: (VIDEO.height - windowHeight) / 2,
+          top: WINDOW_MARGIN.top,
           width: windowWidth,
           height: windowHeight,
           borderRadius: 18,
@@ -231,7 +233,7 @@ const HighlightBox = ({
           width: box.width + 2 * pad,
           height: box.height + 2 * pad,
           borderRadius: 10,
-          boxShadow: `0 0 0 ${3 / zoom}px ${theme.highlight}, 0 0 24px 6px rgba(245,158,11,0.45), 0 0 0 9999px rgba(15,23,42,0.45)`,
+          boxShadow: `0 0 0 ${3 / zoom}px ${theme.highlight}, 0 0 24px 6px ${theme.highlightGlow}, 0 0 0 9999px rgba(10,12,16,0.5)`,
         }}
       />
       {label && (
@@ -243,7 +245,7 @@ const HighlightBox = ({
             transform: `translate(-50%, ${below ? "0" : "-100%"}) scale(${1 / Math.sqrt(zoom)})`,
             transformOrigin: below ? "50% 0" : "50% 100%",
             background: theme.highlight,
-            color: "#111827",
+            color: "white",
             fontFamily: theme.font,
             fontWeight: 600,
             fontSize: 20,
@@ -291,6 +293,38 @@ const Captions = ({ timeline, edit, outMs }: { timeline: Timeline; edit: Edit; o
         }}
       >
         {current.text}
+      </div>
+    </div>
+  );
+};
+
+// Above the window: the logo, and which tutorial this is
+const Header = ({ left, width, series, title }: { left: number; width: number; series?: string; title: string }) => {
+  const logoHeight = 34;
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left,
+        width,
+        top: 0,
+        height: HEADER_HEIGHT,
+        display: "flex",
+        alignItems: "center",
+        justifyContent: "space-between",
+      }}
+    >
+      <Img src={staticFile(brand.wordmark)} style={{ height: logoHeight, width: logoHeight * brand.wordmarkAspect }} />
+      <div style={{ display: "flex", alignItems: "center", gap: 14, fontSize: 24, color: theme.muted }}>
+        {series && (
+          <>
+            <span style={{ color: theme.accent, fontWeight: 700, letterSpacing: 2, textTransform: "uppercase", fontSize: 18 }}>
+              {series}
+            </span>
+            <span style={{ opacity: 0.4 }}>|</span>
+          </>
+        )}
+        <span style={{ color: theme.text, fontWeight: 600 }}>{title}</span>
       </div>
     </div>
   );
