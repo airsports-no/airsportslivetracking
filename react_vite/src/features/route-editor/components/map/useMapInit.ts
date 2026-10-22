@@ -34,9 +34,14 @@ export default function useMapInit(): React.MutableRefObject<L.Map | null> {
     const map = L.map('map-container', { zoomControl: false }).setView([51.505, -0.09], 13);
 
     mapRef.current = map;
+    // The tutorial video recorder (tutorials/) reads and sets the view through this, so zooming and panning and the
+    // points placed on the map replay exactly
+    const tutorialWindow = window as unknown as { __routeEditorMap?: L.Map };
+    tutorialWindow.__routeEditorMap = map;
     setReady(true);
 
     return () => {
+      if (tutorialWindow.__routeEditorMap === map) delete tutorialWindow.__routeEditorMap;
       // Leaflet workaround (Sentry JAVASCRIPT-REACT-5): map.remove() stops pan/fly animations
       // and removes the map's DOM pane, but never resets _animatingZoom nor cancels the raw
       // setTimeout(_onZoomTransitionEnd, 250) that _animateZoom schedules. If we unmount mid
