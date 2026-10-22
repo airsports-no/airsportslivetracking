@@ -60,6 +60,12 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    so the narration is spoken while the phase's clicks happen. Leave the narration empty and a commented-out
    `say` marks the spot to fill in later.
 
+   **Re-record one chapter** with `-Chapter "<title>"`: the steps of `scripts/<name>.ts` before that chapter are
+   replayed first (quickly, without narration; map steps go straight to their result), then recording starts, into
+   `recorded/<name>.chapter.js`. `npm run replace-chapter -- <name> "<title>"` replaces the chapter's steps in the
+   script with them, keeping its `chapter(...)` line and the narration after it (the old script goes to `.bak`).
+   `-Paused` starts without recording, for setting the page up by hand; **F10** starts and pauses recording.
+
    **Hide setup with F9.** Press **F9**, do what the tutorial is not about (create a task for the route, generate
    the flight orders, ...), press **F9** again; a red badge shows while hiding is on. The steps are written between
    `await startHidden();` and `await endHidden();`: they are performed when the video is recorded, but cut from it.

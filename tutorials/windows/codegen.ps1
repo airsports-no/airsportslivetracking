@@ -17,7 +17,12 @@ param(
     # "width,height" of the page, 16:9
     [string]$Viewport = "",
     # "latitude,longitude" the browser reports, where a new route's map opens
-    [string]$Geolocation = ""
+    [string]$Geolocation = "",
+    # Re-record this chapter of scripts\<Name>.ts: the steps before it are replayed first, then recording starts.
+    # The steps go to recorded\<Name>.chapter.js; npm run replace-chapter puts them into the script.
+    [string]$Chapter = "",
+    # Start without recording: set the page up by hand, then F10 starts (and pauses) recording
+    [switch]$Paused
 )
 
 $ErrorActionPreference = "Stop"
@@ -44,7 +49,9 @@ $AuthDir = Join-Path $Tutorials ".auth"
 $AuthFile = Join-Path $AuthDir "state.json"
 $RecordedDir = Join-Path $Tutorials "recorded"
 New-Item -ItemType Directory -Force -Path $AuthDir, $RecordedDir | Out-Null
-$Output = Join-Path $RecordedDir "$Name.js"
+$Output = if ($Chapter) { Join-Path $RecordedDir "$Name.chapter.js" } else { Join-Path $RecordedDir "$Name.js" }
+$Script = Join-Path (Join-Path $Tutorials "scripts") "$Name.ts"
+if ($Chapter -and -not (Test-Path $Script)) { throw "No tutorial script $Script to re-record a chapter of" }
 $Url = ([Uri]::new([Uri]$BaseUrl, $Path)).AbsoluteUri
 
 # Node cannot run from a \\wsl.localhost folder: the recorder runs from a local copy, with Playwright installed beside it
@@ -62,6 +69,8 @@ try {
     }
     $Arguments = @("capture.mjs", "--output", $Output, "--url", $Url, "--auth", $AuthFile, "--viewport", $Viewport)
     if ($Geolocation) { $Arguments += @("--geolocation", $Geolocation) }
+    if ($Chapter) { $Arguments += @("--script", $Script, "--chapter", $Chapter) }
+    if ($Paused) { $Arguments += "--paused" }
     Write-Host "node $($Arguments -join ' ')"
     & node @Arguments
 }

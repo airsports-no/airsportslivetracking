@@ -227,16 +227,26 @@ const waitUntil = async (t: number) => {
 
 // The route editor's map (window.__routeEditorMap, set by its useMapInit): where its top left corner is on the page
 const NO_MAP = "The route editor's map is not on this page (window.__routeEditorMap)";
-const mapCorner = () =>
-  page.evaluate((message) => {
+// A map step may come right after the step that opens the route editor: wait for its map
+const waitForMap = () =>
+  page
+    .waitForFunction(() => Boolean((window as unknown as { __routeEditorMap?: unknown }).__routeEditorMap), null, {
+      timeout: 15000,
+    })
+    .catch(() => undefined);
+const mapCorner = async () => {
+  await waitForMap();
+  return page.evaluate((message) => {
     const map = (window as any).__routeEditorMap;
     if (!map) throw new Error(message);
     const rect = map.getContainer().getBoundingClientRect();
     return { x: rect.x, y: rect.y };
   }, NO_MAP);
+};
 
 const mapSteps: MapSteps = {
   async view(lat, lng, zoom) {
+    await waitForMap();
     await page.evaluate(
       ([lat, lng, zoom, message]) =>
         new Promise<void>((resolve, reject) => {
@@ -254,6 +264,7 @@ const mapSteps: MapSteps = {
     );
   },
   click: settled(async (lat: number, lng: number) => {
+    await waitForMap();
     const point = await page.evaluate(
       ([lat, lng, message]) => {
         const map = (window as any).__routeEditorMap;

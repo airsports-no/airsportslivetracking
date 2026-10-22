@@ -11,7 +11,7 @@
 // Each recorded step is appended to the output file as it happens. Close the browser to finish: the login session is
 // then saved to --auth.
 
-import { appendFileSync, existsSync, writeFileSync } from "node:fs";
+import { appendFileSync, existsSync, readFileSync, writeFileSync } from "node:fs";
 
 // window.playwright (the locator generator) is only there in this debug mode, which Playwright reads when it loads
 process.env.PWDEBUG = "console";
@@ -136,6 +136,12 @@ const PAGE_SCRIPT = `(() => {
     if (event.key === "F9") {
       event.preventDefault();
       toggleHidden();
+      return;
+    }
+    if (event.key === "F10") {
+      event.preventDefault();
+      flushTyping();
+      window.__captureToggleRecording && window.__captureToggleRecording();
       return;
     }
     if (["Enter", "Escape", "Tab"].includes(event.key)) {
@@ -286,12 +292,22 @@ const PAGE_SCRIPT = `(() => {
   }, 300);
 })();`;
 
-export async function startCapture({ output, url, auth, viewport = "1440,810", geolocation, onStep = () => {} }) {
+export async function startCapture({
+  output,
+  url,
+  auth,
+  viewport = "1440,810",
+  geolocation,
+  paused = false,
+  onStep = () => {},
+}) {
   const [width, height] = viewport.split(",").map(Number);
   // Where the browser says it is (the route editor opens a new route's map there): must match TUTORIAL_GEOLOCATION
   const [latitude, longitude] = geolocation ? geolocation.split(",").map(Number) : [];
   const browser = await chromium.launch({ headless: false });
   const context = await browser.newContext({
+    // Steps replayed from a script go to paths on the site ("/...")
+    baseURL: new URL(url).origin,
     viewport: { width, height },
     storageState: auth && existsSync(auth) ? auth : undefined,
     ...(geolocation ? { geolocation: { latitude, longitude }, permissions: ["geolocation"] } : {}),
@@ -301,11 +317,48 @@ export async function startCapture({ output, url, auth, viewport = "1440,810", g
     `// Recorded ${new Date().toISOString()} from ${url}\n// Paste these lines into run() of the tutorial script` +
       `.\n\n`,
   );
+  // While paused (F10, or while the steps before a chapter are replayed) nothing is written
+  let recording = !paused;
   const write = (line) => {
+    if (!recording) return;
     appendFileSync(output, line + "\n");
     onStep(line);
   };
   await context.exposeBinding("__captureStep", (_source, line) => write(line));
+  // A badge says when nothing is being recorded
+  const showRecordingState = (target) =>
+    target
+      .evaluate((isRecording) => {
+        document.querySelectorAll("[data-capture-paused]").forEach((badge) => badge.remove());
+        if (isRecording) return;
+        const badge = document.createElement("div");
+        badge.setAttribute("data-capture-ui", "");
+        badge.setAttribute("data-capture-paused", "");
+        badge.textContent = "Not recording (F10 to start)";
+        badge.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;" +
+          "background:#334155;color:white;font:600 13px system-ui,sans-serif;padding:6px 12px;border-radius:999px;" +
+          "box-shadow:0 4px 14px rgba(0,0,0,0.35);pointer-events:none";
+        (document.body || document.documentElement).append(badge);
+      }, recording)
+      .catch(() => undefined);
+  const setRecording = async (target, on) => {
+    recording = on;
+    console.log(on ? "Recording." : "Paused: not recording (F10 to start again).");
+    // Recording starts from the map's exact view, wherever it was set up
+    if (on) {
+      const view = await target
+        .evaluate(() => {
+          const map = window.__routeEditorMap;
+          if (!map) return null;
+          const center = map.getCenter();
+          return [Number(center.lat.toFixed(7)), Number(center.lng.toFixed(7)), Number(map.getZoom().toFixed(3))];
+        })
+        .catch(() => null);
+      if (view) write(`await map.view(${view.join(", ")});`);
+    }
+    await showRecordingState(target);
+  };
+  await context.exposeBinding("__captureToggleRecording", ({ page: source }) => setRecording(source, !recording));
   await context.exposeBinding("__captureNote", (_source, note) => console.log(note));
   if (geolocation) {
     await context.addInitScript(`window.__captureStart = ${JSON.stringify({ lat: latitude, lng: longitude })};`);
@@ -314,6 +367,7 @@ export async function startCapture({ output, url, auth, viewport = "1440,810", g
   const page = await context.newPage();
   // Playwright dismisses dialogs (confirm, alert) when nothing handles them, while recording and while replaying
   page.on("dialog", (dialog) => write(`// A dialog was dismissed: ${JSON.stringify(dialog.message())}`));
+  page.on("domcontentloaded", () => showRecordingState(page));
   await page.goto(url);
   // Where a new route's map opens: say what the page sees, so a location that does not get through is noticed
   const seen = await page
@@ -329,26 +383,140 @@ export async function startCapture({ output, url, auth, viewport = "1440,810", g
     )
     .catch((error) => "no location (" + error.message + ")");
   console.log(`Location given: ${geolocation || "none"}. The page sees: ${seen}`);
-  return { browser, context, page };
+  return { browser, context, page, setRecording: (on) => setRecording(page, on) };
+}
+
+// The steps of a tutorial script before one of its chapters: the lines of run() above that chapter's
+// chapter("...") line (and the phase comment above it). Recorded steps are plain JavaScript, so they run as they are.
+export function stepsBeforeChapter(source, title) {
+  const lines = source.split(/\r?\n/);
+  const runIndex = lines.findIndex((line) => /async\s+run\s*\(/.test(line));
+  const quoted = [JSON.stringify(title), `'${title}'`, `\`${title}\``];
+  const chapterIndex = lines.findIndex(
+    (line, index) => index > runIndex && /chapter\(/.test(line) && quoted.some((text) => line.includes(text)),
+  );
+  if (runIndex < 0) throw new Error("No run() in the script");
+  if (chapterIndex < 0) throw new Error(`No chapter("${title}") in the script`);
+  let end = chapterIndex;
+  while (end - 1 > runIndex && /^\s*\/\/ ── Phase/.test(lines[end - 1])) end--;
+  const startUrl = source.match(/startUrl:\s*["'`]([^"'`]+)["'`]/)?.[1] ?? "/";
+  return { steps: lines.slice(runIndex + 1, end).join("\n"), startUrl };
+}
+
+// Plays steps back quickly to reach the state a chapter starts from: narration, highlights and pauses are skipped,
+// map steps go straight to their result
+export async function replaySteps(page, steps) {
+  // A map step may come right after the step that opens the route editor: wait for its map
+  const mapCall = async (body, argument) => {
+    await page.waitForFunction(() => Boolean(window.__routeEditorMap), null, { timeout: 15000 });
+    return page.evaluate(body, argument);
+  };
+  const corner = () =>
+    mapCall(() => {
+      const rect = window.__routeEditorMap.getContainer().getBoundingClientRect();
+      return { x: rect.x, y: rect.y };
+    });
+  const map = {
+    view: (lat, lng, zoom) =>
+      mapCall(
+        ([lat, lng, zoom]) =>
+          new Promise((resolve) => {
+            const leaflet = window.__routeEditorMap;
+            leaflet.once("moveend", () => resolve());
+            leaflet.setView([lat, lng], zoom, { animate: false });
+            setTimeout(resolve, 1500);
+          }),
+        [lat, lng, zoom],
+      ),
+    click: async (lat, lng) => {
+      const point = await mapCall(
+        ([lat, lng]) => {
+          const leaflet = window.__routeEditorMap;
+          const rect = leaflet.getContainer().getBoundingClientRect();
+          const inMap = leaflet.latLngToContainerPoint([lat, lng]);
+          return { x: rect.x + inMap.x, y: rect.y + inMap.y };
+        },
+        [lat, lng],
+      );
+      await page.mouse.click(point.x, point.y);
+      await page.waitForTimeout(150);
+    },
+    drag: async (path) => {
+      const { x, y } = await corner();
+      await page.mouse.move(x + path[0][0], y + path[0][1]);
+      await page.mouse.down();
+      for (const [px, py] of path.slice(1)) await page.mouse.move(x + px, y + py);
+      await page.mouse.up();
+    },
+    wheel: async (ticks) => {
+      const { x, y } = await corner();
+      for (const [px, py, deltaY] of ticks) {
+        await page.mouse.move(x + px, y + py);
+        await page.mouse.wheel(0, deltaY);
+        await page.waitForTimeout(60);
+      }
+      await page.waitForTimeout(400);
+    },
+  };
+  const skip = async () => {};
+  const helpers = {
+    page,
+    map,
+    say: skip,
+    chapter: skip,
+    highlight: skip,
+    pause: skip,
+    camera: () => {},
+    startHidden: skip,
+    endHidden: skip,
+    showPdf: async () => console.log("  (a showPdf step is not replayed here)"),
+    pdfPage: () => page.locator("body"),
+    pdfRegion: async () => page.locator("body"),
+  };
+  const AsyncFunction = Object.getPrototypeOf(async () => {}).constructor;
+  await new AsyncFunction(...Object.keys(helpers), steps)(...Object.values(helpers));
 }
 
 if (process.argv[1] && process.argv[1].endsWith("capture.mjs")) {
   const output = option("output");
   const url = option("url");
   const auth = option("auth");
+  const script = option("script");
+  const chapter = option("chapter");
   if (!output || !url) {
-    console.error("Usage: node capture.mjs --output <file.js> --url <start url> [--auth <state.json>] [--viewport w,h]");
+    console.error(
+      "Usage: node capture.mjs --output <file.js> --url <start url> [--auth <state.json>] [--viewport w,h]\n" +
+        "         [--geolocation lat,lng] [--paused] [--script <tutorial.ts> --chapter <title>]",
+    );
     process.exit(1);
   }
-  const { browser, context, page } = await startCapture({
+  // Re-recording a chapter: the steps before it are replayed first, while nothing is recorded
+  const before = script && chapter ? stepsBeforeChapter(readFileSync(script, "utf8"), chapter) : null;
+  const startUrl = before ? new URL(before.startUrl, url).href : url;
+  const { browser, context, page, setRecording } = await startCapture({
     output,
-    url,
+    url: startUrl,
     auth,
     viewport: option("viewport"),
     geolocation: option("geolocation"),
+    paused: Boolean(before) || process.argv.includes("--paused"),
     onStep: (line) => console.log(line),
   });
-  console.log("Recording. Close the browser window when you are done.");
+  if (before) {
+    console.log(`Replaying the steps before "${chapter}"...`);
+    try {
+      await replaySteps(page, before.steps);
+      await setRecording(true);
+      console.log(`Now record "${chapter}". Close the browser when you are done.`);
+    } catch (error) {
+      console.error(`The replay stopped: ${error.message}`);
+      console.log("Set the page up by hand, then press F10 to start recording.");
+    }
+  } else if (process.argv.includes("--paused")) {
+    console.log("Not recording yet: set the page up, then press F10 to start (and F10 again to pause).");
+  } else {
+    console.log("Recording. Close the browser window when you are done.");
+  }
   await page.waitForEvent("close", { timeout: 0 });
   if (auth) await context.storageState({ path: auth });
   await browser.close();

@@ -12,6 +12,7 @@
     "fetch-assets": "tsx src/runner/fetch-assets.ts",
     "cleanup": "tsx src/runner/cleanup.ts",
     "pdf-grid": "tsx src/runner/pdf-grid.ts",
+    "replace-chapter": "tsx src/runner/replace-chapter.ts",
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {

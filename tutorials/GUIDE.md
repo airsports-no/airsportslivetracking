@@ -54,6 +54,7 @@ A browser opens on the site. Click through the task calmly, as in the finished v
   video crossfades straight from where you were to where you end up. A red badge shows while hiding is on.
 - **Zoom and pan freely on the map.** Zooming, panning and the points you place are recorded exactly.
 - **Typing is fine.** Text you type into fields is typed out again, letter by letter, in the video.
+- **Pause with F10.** F10 stops recording until you press it again, for example while you look something up.
 - **Close the browser** when you are done. The steps are in `tutorials/recorded/my-tutorial.js`.
 
 The first time, log in in that browser window; the login is remembered from then on.
@@ -163,6 +164,30 @@ export default defineTutorial({
 - Before recording the clicks again on Windows, clean up by hand: `npm run cleanup -- my-tutorial`.
 - It only runs against the local site, never against the real one.
 
+### Re-recording one chapter
+
+To redo the clicks of one chapter without recording the whole tutorial again:
+
+```powershell
+powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsportslivetracking\tutorials\windows\codegen.ps1 my-tutorial -Chapter "Placing the points"
+```
+
+The browser plays back the script's steps before that chapter, quickly and without narration, so the page is in the
+state the chapter starts from. Then recording starts: click through the chapter again and close the browser. The new
+steps are in `recorded/my-tutorial.chapter.js`. Put them into the script, in WSL:
+
+```
+npm run replace-chapter -- my-tutorial "Placing the points"
+```
+
+The chapter keeps its `chapter(...)` line and the narration right after it; its other steps are replaced by the new
+ones. The old script is kept as `scripts/my-tutorial.ts.bak`. Run `npm run cleanup -- my-tutorial` first if the steps
+before the chapter create things.
+
+If the playback stops (for example because the page changed), set the page up by hand and press **F10** to start
+recording. To set everything up by hand from the start, use `-Paused` instead of `-Chapter`: nothing is recorded until
+you press F10, and F10 pauses again.
+
 ## Step 3: Make the recording (WSL)
 
 ```
@@ -248,7 +273,7 @@ Changes that only need a render show up live in Studio (step 4) while you edit.
 | Studio shows an old version | Record again (`npm run record -- <name>`) and reload Studio; restart it if a new tutorial does not appear |
 | The map starts in the wrong place | Set `TUTORIAL_GEOLOCATION` in `tutorials/.env` (it is used for both recordings) |
 | A click lands in the wrong place on the map | Record the clicks again with the latest recorder: map clicks should appear as `map.click(...)` lines |
-| A step fails because something is not found | The page changed (a button renamed or moved): record that part of the clicks again |
+| A step fails because something is not found | The page changed (a button renamed or moved): re-record that chapter (`-Chapter "..."`, see "Re-recording one chapter") |
 | A step fails because it finds two of something ("strict mode violation") | An earlier recording left it behind: add it to `cleanUp` in the script, or run `npm run cleanup -- <name>` |
 | The narration sounds wrong | Rephrase the sentence, or add the word to `pronunciations.json` |
 | A render stops saying the music is missing | Fetch it: `npm run fetch-assets` |
