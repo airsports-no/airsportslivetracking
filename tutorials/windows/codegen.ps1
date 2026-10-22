@@ -7,16 +7,35 @@
 # is saved when you close it and used from then on, also by `npm run record` in WSL. The recorded steps are written
 # live to tutorials\recorded\<name>.js, ready to paste into scripts/<name>.ts.
 
+# The page size, start location and site address come from tutorials\.env (TUTORIAL_WIDTH/TUTORIAL_HEIGHT,
+# TUTORIAL_GEOLOCATION, TUTORIAL_BASE_URL), the same settings `npm run record` uses, so the two always match. Give
+# -Viewport, -Geolocation or -BaseUrl only to override them.
 param(
     [Parameter(Position = 0)][string]$Name = "recording",
     [string]$Path = "/",
-    [string]$BaseUrl = "http://localhost:8002",
-    [string]$Viewport = "1440,810",
-    # "latitude,longitude" the browser reports, where a new route's map opens. Must match TUTORIAL_GEOLOCATION in .env
+    [string]$BaseUrl = "",
+    # "width,height" of the page, 16:9
+    [string]$Viewport = "",
+    # "latitude,longitude" the browser reports, where a new route's map opens
     [string]$Geolocation = ""
 )
 
 $ErrorActionPreference = "Stop"
+
+$Settings = @{}
+$EnvFile = Join-Path (Split-Path -Parent $PSScriptRoot) ".env"
+if (Test-Path $EnvFile) {
+    foreach ($Line in Get-Content $EnvFile) {
+        if ($Line -match '^\s*([A-Z_]+)\s*=\s*(.*?)\s*$') { $Settings[$Matches[1]] = $Matches[2].Trim('"') }
+    }
+}
+if (-not $BaseUrl) { $BaseUrl = if ($Settings["TUTORIAL_BASE_URL"]) { $Settings["TUTORIAL_BASE_URL"] } else { "http://localhost:8002" } }
+if (-not $Viewport) {
+    $Width = if ($Settings["TUTORIAL_WIDTH"]) { $Settings["TUTORIAL_WIDTH"] } else { "1440" }
+    $Height = if ($Settings["TUTORIAL_HEIGHT"]) { $Settings["TUTORIAL_HEIGHT"] } else { "810" }
+    $Viewport = "$Width,$Height"
+}
+if (-not $Geolocation) { $Geolocation = $Settings["TUTORIAL_GEOLOCATION"] }
 # The same Playwright version as tutorials/package.json
 $PlaywrightVersion = "1.64.1"
 

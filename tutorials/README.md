@@ -73,9 +73,14 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    Your zooming and panning play back at your own speed, and after each move the map settles on exactly the view
    you had, so every point lands on the coordinates you clicked. You can edit a `map.click` coordinate by hand.
    This needs the route editor's map handle (`window.__routeEditorMap`); without it, map clicks are recorded as
-   positions on the map, which replay correctly only if the map opens at the same place and zoom each time. A new route's map opens where the browser says it is: give a location with `-Geolocation
-   "60.8,11.1"` here (in quotes: PowerShell turns 60.8,11.1 into a list) and the same `TUTORIAL_GEOLOCATION` in `.env` (otherwise it opens at the editor's default, in
-   London). Log in as a demo user with demo data, since the session file is what the recordings use.
+   positions on the map, which replay correctly only if the map opens at the same place and zoom each time.
+
+   The page size, where a new route's map opens (where the browser says it is) and the site address come from
+   `.env` (`TUTORIAL_WIDTH`/`TUTORIAL_HEIGHT`, `TUTORIAL_GEOLOCATION`, `TUTORIAL_BASE_URL`), which `npm run record`
+   uses too, so both recordings always match. `-Viewport "1920,1080"`, `-Geolocation "60.8,11.1"` and `-BaseUrl`
+   override them for one run (in quotes: PowerShell turns 60.8,11.1 into a list). Resizing the browser window while
+   recording does not change the page size. Log in as a demo user with demo data, since the session file is what the
+   recordings use.
 2. **Write the script (WSL).** Copy `scripts/example.ts` to `scripts/<name>.ts` (kebab-case), paste the
    `page.` lines from `recorded/<name>.js` into `run()`, and add the narration between the
    steps:

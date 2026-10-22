@@ -30,16 +30,18 @@ Because the video is made from the script, you can fix a sentence or a click and
   each. Short tutorials (2–4 minutes) with one clear goal work best.
 - **Use demo data.** Record on the local site, logged in as a demo user, so no real contests or people appear and the
   video looks the same every time you make it again.
-- **Pick the start location.** A new route's map opens where the browser says you are. Choose a place that fits the
-  tutorial, for example `60.8,11.1` near Hamar, and use the same one every time (see step 1, and
-  `TUTORIAL_GEOLOCATION` in `tutorials/.env`).
+- **Check the settings in `tutorials/.env`.** They apply to recording the clicks and the video alike:
+  - `TUTORIAL_GEOLOCATION`: where a new route's map opens, for example `60.8,11.1` near Hamar.
+  - `TUTORIAL_WIDTH` and `TUTORIAL_HEIGHT`: the size of the page, 16:9, for example `1920` and `1080`. A bigger page
+    gives more room; text looks a little smaller in the video, but the camera zooms in where you work. Resizing the
+    browser window while recording does not change it.
 
 ## Step 1: Record the clicks (Windows)
 
 In PowerShell:
 
 ```powershell
-powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsportslivetracking\tutorials\windows\codegen.ps1 my-tutorial -Geolocation "60.8,11.1"
+powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsportslivetracking\tutorials\windows\codegen.ps1 my-tutorial
 ```
 
 A browser opens on the site. Click through the task calmly, as in the finished video.
@@ -155,7 +157,8 @@ Resolve for the very last step.
 | Music on or off, or another track for one video | `music: false` or `music: "..."` in the script | record again |
 | Pronunciation of a word | `pronunciations.json` | record again (only the affected sentences are regenerated) |
 | Voice | `.env` (`TTS_PROVIDER`, `TTS_VOICE`) | record again |
-| Where a new route's map starts | `-Geolocation` when recording clicks and `TUTORIAL_GEOLOCATION` in `.env` (same value) | record the clicks and the video again |
+| Where a new route's map starts | `TUTORIAL_GEOLOCATION` in `.env` | record the clicks and the video again |
+| Page size (room on screen) | `TUTORIAL_WIDTH`, `TUTORIAL_HEIGHT` in `.env` | record the clicks and the video again |
 | Pace: pause before and after each step | `STEP_LEAD_MS`, `STEP_PAUSE_AFTER_MS` in `src/shared/edit.ts` | record again |
 | Camera: how far it zooms in, how fast, when it zooms out | `CAMERA` in `src/shared/camera.ts` | render |
 | Music levels (title, between sentences, under the voice) | `brand.music.levels` in `src/remotion/brand.ts` | render |
@@ -172,7 +175,7 @@ Changes that only need a render show up live in Studio (step 4) while you edit.
 | What you see | What to do |
 |---|---|
 | Studio shows an old version | Record again (`npm run record -- <name>`) and reload Studio; restart it if a new tutorial does not appear |
-| The map starts in the wrong place | Use the same location for recording clicks (`-Geolocation "60.8,11.1"`, in quotes) and in `.env` |
+| The map starts in the wrong place | Set `TUTORIAL_GEOLOCATION` in `tutorials/.env` (it is used for both recordings) |
 | A click lands in the wrong place on the map | Record the clicks again with the latest recorder: map clicks should appear as `map.click(...)` lines |
 | A step fails because something is not found | The page changed (a button renamed or moved): record that part of the clicks again |
 | The narration sounds wrong | Rephrase the sentence, or add the word to `pronunciations.json` |
