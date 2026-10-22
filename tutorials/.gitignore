@@ -1,0 +1,7 @@
+node_modules/
+.cache/
+.auth/
+.env
+out/
+public/recordings/
+recorded/

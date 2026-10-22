@@ -1,0 +1,28 @@
+{
+  "name": "aslt-tutorials",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "login": "tsx src/runner/login.ts",
+    "codegen": "tsx src/runner/codegen.ts",
+    "record": "tsx src/runner/record.ts",
+    "studio": "remotion studio src/remotion/index.ts",
+    "render": "tsx src/runner/render.ts",
+    "typecheck": "tsc --noEmit"
+  },
+  "dependencies": {
+    "@remotion/cli": "4.0.537",
+    "@remotion/transitions": "4.0.537",
+    "kokoro-js": "1.2.1",
+    "playwright": "1.64.1",
+    "react": "19.2.0",
+    "react-dom": "19.2.0",
+    "remotion": "4.0.537"
+  },
+  "devDependencies": {
+    "@types/node": "24.10.1",
+    "@types/react": "19.2.0",
+    "tsx": "4.23.15",
+    "typescript": "5.9.3"
+  }
+}
