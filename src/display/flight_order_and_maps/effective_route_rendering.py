@@ -185,6 +185,58 @@ def _build_unknown_legs_targets_from_payload(payload: dict[str, Any]) -> list[di
     return targets
 
 
+def _attach_curve_controls(targets: list[dict[str, Any]], editable_route) -> list[dict[str, Any]]:
+    """
+    The route's curved legs for the contestant's view of an unknown-legs route: a point whose incoming leg is curved in
+    the route editor gets the curve's control point ("curve_control", [lng, lat]), the point the curve starts from
+    ("curve_from") and where that is ("curve_start", [lng, lat]), so the view draws that leg curved. The curve's own
+    points are secret waypoints, which that view leaves out, so without this the leg is drawn straight. The start may be
+    a hidden gate the view leaves out too: the line then runs to its position before the curve begins.
+    """
+    def curve(properties: dict, previous: dict | None) -> dict | None:
+        control_lat, control_lng = properties.get("controlLat"), properties.get("controlLng")
+        if previous is None or properties.get("segmentType") != "curved" or control_lat is None or control_lng is None:
+            return None
+        return {
+            "curve_control": [control_lng, control_lat],
+            "curve_from": previous.get("properties", {}).get("name"),
+            "curve_start": previous.get("geometry", {}).get("coordinates"),
+        }
+
+    route_curves = {}
+    feature_by_id = {}
+    previous = None
+    for feature in editable_route.get_ordered_track_waypoints():
+        properties = feature.get("properties", {})
+        name = properties.get("name")
+        feature_by_id[properties.get("id")] = feature
+        if name and (leg := curve(properties, previous)):
+            route_curves[name] = leg
+        previous = feature
+
+    # A dummy-branch waypoint's leg starts at the previous waypoint on its branch, or at the trigger for the first one
+    branch_curves = {}
+    branches = {}
+    for feature in editable_route.get_features_type("dummy_branch_waypoint"):
+        branches.setdefault(feature.get("properties", {}).get("triggerPointId"), []).append(feature)
+    for trigger_id, branch in branches.items():
+        previous = feature_by_id.get(trigger_id)
+        for feature in sorted(branch, key=lambda item: item.get("properties", {}).get("branchSequence", 0)):
+            properties = feature.get("properties", {})
+            name = properties.get("name")
+            if name and (leg := curve(properties, previous)):
+                branch_curves[name] = leg
+            previous = feature
+
+    for target in targets:
+        if target.get("kind") != "catalogue_turnpoint":
+            continue
+        leg = (branch_curves if target.get("trigger_point_id") else route_curves).get(target.get("name"))
+        if leg:
+            target.update(leg)
+    return targets
+
+
 def get_task_catalogue_targets(navigation_task, contestant=None) -> list[dict[str, Any]]:
     editable_route = getattr(navigation_task, "editable_route", None)
     if editable_route is None:
@@ -199,12 +251,12 @@ def get_task_catalogue_targets(navigation_task, contestant=None) -> list[dict[st
                 payload = candidate
 
     if payload and navigation_task.task_subtype == "unknown_legs":
-        return _build_unknown_legs_targets_from_payload(payload)
+        return _attach_curve_controls(_build_unknown_legs_targets_from_payload(payload), editable_route)
 
     compiled_task = getattr(navigation_task, "compilednavigationtask", None)
     compiled_payload = getattr(compiled_task, "compiled_payload", None) if compiled_task is not None else None
     if compiled_payload and navigation_task.task_subtype == "unknown_legs":
-        return _build_unknown_legs_targets_from_payload(compiled_payload)
+        return _attach_curve_controls(_build_unknown_legs_targets_from_payload(compiled_payload), editable_route)
 
     targets = []
     for feature in editable_route.get_catalogue_turnpoints():

@@ -12,6 +12,7 @@ import * as Renderers from './map/renderers';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { fetchEditableRouteMapSources, fetchGlobalEditableRouteMapSources, MapSourceFetchError } from '../api';
 import { MapSource } from '../types';
+import { previousOnDummyBranch } from '../unknownLegWizard';
 
 const BUILTIN_BASE_SOURCES: MapSource[] = [
   {
@@ -83,6 +84,8 @@ interface MapCanvasProps {
     setMode: (mode: Mode) => void;
     setTempPolygonPoints: React.Dispatch<React.SetStateAction<LatLng[]>>;
     onMapClick: (latlng: L.LatLng) => void;
+    // An edit made on the map (a drag, a point inserted on a leg): the route has unsaved changes
+    onEdit?: () => void;
 }
 
 const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({ 
@@ -113,7 +116,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   setSelectionType,
   setMode,
   setTempPolygonPoints,
-  onMapClick
+  onMapClick,
+  onEdit,
 }, ref) => {
   const mapRef = useMapInit();
   const markersRef = useRef<{[key: string]: L.Layer}>({});
@@ -142,7 +146,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     setSelectedId,
     setSelectionType,
     setMode,
-    maxObsDist
+    maxObsDist,
+    onEdit,
   });
 
   // --- Expose Map Instance to Parent ---
@@ -538,7 +543,11 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       routeLineRef, 
       polylinesRef, 
       mode, 
-      setRoutePoints, 
+      // A point inserted by clicking a leg is an edit
+      (update) => {
+        onEdit?.();
+        setRoutePoints(update);
+      },
       setSelectedId, 
       setSelectionType, 
       hideLabels,
@@ -550,7 +559,11 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
 
     // --- RENDERER: DRAW POINTS ---
     Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'point', { activeTriggerId, emphasizeUnknownLegTriggers });
-    Renderers.drawPoints(map, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'standalone_point', { activeTriggerId, emphasizeUnknownLegTriggers });
+    Renderers.drawPoints(map, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'standalone_point', {
+      activeTriggerId,
+      emphasizeUnknownLegTriggers,
+      previousOf: (point) => previousOnDummyBranch(point, routePoints, standalonePoints),
+    });
 
     // --- RENDERER: DRAW GATES ---
     Renderers.drawGates(map, gates, polylinesRef, setSelectedId, setSelectionType, setMode, hideLabels);
@@ -641,7 +654,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     routePoints, standalonePoints, gates, tempGatePoint, showCorridor, observationMarkers, 
     polygons, tempPolygonPoints, selectedId, selectionType, mode,
     setRoutePoints, setStandalonePoints, setGates, setObservationMarkers, setPolygons, 
-    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels, activeTriggerId, emphasizeUnknownLegTriggers, legInsertType
+    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels, activeTriggerId, emphasizeUnknownLegTriggers, legInsertType, onEdit
   ]);
 
   return (

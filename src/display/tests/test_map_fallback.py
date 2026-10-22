@@ -659,6 +659,150 @@ class MapFallbackTests(TestCase):
         self.assertIn({"name": "HG1", "coordinates": [11.1, 60.1], "kind": "catalogue_turnpoint", "segment_name": "segment_1"}, targets)
         self.assertIn({"name": "HG1", "coordinates": [11.1, 60.1], "kind": "hidden_gate"}, targets)
 
+    def test_unknown_legs_targets_carry_curved_legs(self):
+        # The contestant's view of an unknown-legs route leaves out the curve's own (secret) points, so the point a
+        # curved leg ends at carries the curve, and the live map and the PDF map draw that leg curved
+        from types import SimpleNamespace
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+
+        editable_route = EditableRoute.objects.create(
+            name="Unknown legs with a curved first leg",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"id": "sp-1", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "width": 1852, "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "ul-1", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "width": 1852, "sequence": 1, "segmentType": "curved", "controlLat": 60.05, "controlLng": 11.25}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "fp-1", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "width": 1852, "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                ],
+            },
+        )
+        self.task.editable_route = editable_route
+        self.task.task_subtype = UNKNOWN_LEGS
+        self.task.save(update_fields=["editable_route", "task_subtype"])
+        contestant = SimpleNamespace(
+            contestanttaskconfiguration=SimpleNamespace(
+                is_valid=True,
+                compiled_effective_route_payload={
+                    "segments": [
+                        {
+                            "name": "segment_1",
+                            "display_waypoint_names": ["SP", "TRG1"],
+                            "display_coordinates_by_name": {"SP": [11.0, 60.0], "TRG1": [11.2, 60.2]},
+                        }
+                    ],
+                },
+            )
+        )
+
+        targets = {target["name"]: target for target in get_task_catalogue_targets(self.task, contestant=contestant)}
+
+        self.assertEqual([11.25, 60.05], targets["TRG1"]["curve_control"])
+        self.assertEqual("SP", targets["TRG1"]["curve_from"])
+        self.assertEqual([11.0, 60.0], targets["TRG1"]["curve_start"])
+        self.assertNotIn("curve_control", targets["SP"])
+
+        # The PDF map's zoom-to-fit takes in the curve: it bows towards its control point
+        from display.flight_order_and_maps.map_plotter import get_plot_extent
+
+        south, north, west, east = get_plot_extent(self.task.route, [], list(targets.values()))
+        self.assertGreaterEqual(east, 11.25)
+
+    def test_unknown_legs_curve_after_a_hidden_gate_starts_at_the_gate(self):
+        # The contestant's view leaves the hidden gate out, so the curve carries where it starts
+        from types import SimpleNamespace
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+
+        editable_route = EditableRoute.objects.create(
+            name="Unknown legs with a curve after a hidden gate",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"id": "sp-1", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "hg-1", "name": "HG1", "pointType": "secret", "featureType": "route_waypoint", "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.1, 60.1]}},
+                    {"type": "Feature", "properties": {"id": "ul-1", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "sequence": 2, "segmentType": "curved", "controlLat": 60.1, "controlLng": 11.3}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "fp-1", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "sequence": 3}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                ],
+            },
+        )
+        self.task.editable_route = editable_route
+        self.task.task_subtype = UNKNOWN_LEGS
+        self.task.save(update_fields=["editable_route", "task_subtype"])
+        contestant = SimpleNamespace(
+            contestanttaskconfiguration=SimpleNamespace(
+                is_valid=True,
+                compiled_effective_route_payload={
+                    "segments": [
+                        {
+                            "name": "segment_1",
+                            "display_waypoint_names": ["SP", "HG1", "TRG1"],
+                            "display_coordinates_by_name": {"SP": [11.0, 60.0], "HG1": [11.1, 60.1], "TRG1": [11.2, 60.2]},
+                        }
+                    ],
+                },
+            )
+        )
+
+        targets = {target["name"]: target for target in get_task_catalogue_targets(self.task, contestant=contestant)}
+
+        self.assertEqual("HG1", targets["TRG1"]["curve_from"])
+        self.assertEqual([11.1, 60.1], targets["TRG1"]["curve_start"])
+
+    def test_unknown_legs_targets_carry_curved_dummy_legs(self):
+        # A dummy leg's curve starts at the trigger for the first dummy waypoint, then at the previous one
+        from types import SimpleNamespace
+        from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
+        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+
+        def dummy(identifier, name, sequence, coordinates, curved):
+            properties = {"id": identifier, "name": name, "pointType": "dummy", "featureType": "dummy_branch_waypoint",
+                          "triggerPointId": "ul-1", "branchSequence": sequence, "sequence": 3 + sequence}
+            if curved:
+                properties.update({"segmentType": "curved", "controlLat": 60.4, "controlLng": 11.5})
+            return {"type": "Feature", "properties": properties, "geometry": {"type": "Point", "coordinates": coordinates}}
+
+        editable_route = EditableRoute.objects.create(
+            name="Unknown legs with curved dummy legs",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {"type": "Feature", "properties": {"id": "sp-1", "name": "SP", "pointType": "sp", "featureType": "route_waypoint", "sequence": 0}, "geometry": {"type": "Point", "coordinates": [11.0, 60.0]}},
+                    {"type": "Feature", "properties": {"id": "ul-1", "name": "TRG1", "pointType": "ul", "featureType": "route_waypoint", "sequence": 1}, "geometry": {"type": "Point", "coordinates": [11.2, 60.2]}},
+                    {"type": "Feature", "properties": {"id": "fp-1", "name": "FP", "pointType": "fp", "featureType": "route_waypoint", "sequence": 2}, "geometry": {"type": "Point", "coordinates": [11.4, 60.4]}},
+                    dummy("d-1", "D1", 0, [11.3, 60.3], True),
+                    dummy("d-2", "D2", 1, [11.6, 60.3], True),
+                ],
+            },
+        )
+        self.task.editable_route = editable_route
+        self.task.task_subtype = UNKNOWN_LEGS
+        self.task.save(update_fields=["editable_route", "task_subtype"])
+        branch = [
+            {"name": "D1", "coordinates": [11.3, 60.3], "trigger_point_id": "ul-1", "branch_sequence": 0},
+            {"name": "D2", "coordinates": [11.6, 60.3], "trigger_point_id": "ul-1", "branch_sequence": 1},
+        ]
+        contestant = SimpleNamespace(
+            contestanttaskconfiguration=SimpleNamespace(
+                is_valid=True,
+                compiled_effective_route_payload={
+                    "segments": [
+                        {
+                            "name": "segment_1",
+                            "display_waypoint_names": ["SP", "TRG1", "D1", "D2"],
+                            "display_coordinates_by_name": {"SP": [11.0, 60.0], "TRG1": [11.2, 60.2], "D1": [11.3, 60.3], "D2": [11.6, 60.3]},
+                            "dummy_branch_waypoints": branch,
+                        }
+                    ],
+                },
+            )
+        )
+
+        targets = {target["name"]: target for target in get_task_catalogue_targets(self.task, contestant=contestant)}
+
+        self.assertEqual(("TRG1", [11.5, 60.4]), (targets["D1"]["curve_from"], targets["D1"]["curve_control"]))
+        self.assertEqual("D1", targets["D2"]["curve_from"])
+
     def test_unknown_legs_selected_contestant_targets_include_segment_name(self):
         from types import SimpleNamespace
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets

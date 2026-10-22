@@ -4,6 +4,7 @@ import {
   getDummyBranchPhase,
   getWizardBannerText,
   nameUnknownLegsRoutePoints,
+  previousOnDummyBranch,
 } from './unknownLegWizard';
 
 const makeRoutePoint = (overrides: Partial<RoutePoint> = {}): RoutePoint => ({
@@ -143,5 +144,29 @@ describe('nameUnknownLegsRoutePoints', () => {
     const second = nameUnknownLegsRoutePoints(first.routePoints, first.standalonePoints);
     expect(second.routePoints).toBe(first.routePoints);
     expect(second.standalonePoints).toBe(first.standalonePoints);
+  });
+});
+
+describe('previousOnDummyBranch', () => {
+  const trigger = makeRoutePoint({ id: 'ul-1', name: 'UL1', type: 'ul' as RoutePoint['type'] });
+  const dummy = (id: string, branchSequence: number) => makeRoutePoint({
+    id,
+    type: 'dummy' as RoutePoint['type'],
+    featureType: 'dummy_branch_waypoint',
+    triggerPointId: 'ul-1',
+    branchSequence,
+  });
+
+  it('starts the first dummy leg at the trigger and later ones at the previous branch point', () => {
+    const first = dummy('d-1', 0);
+    const second = dummy('d-2', 1);
+    const routePoints = [makeRoutePoint({ id: 'sp' }), trigger];
+    const standalonePoints = [second, first];
+    expect(previousOnDummyBranch(first, routePoints, standalonePoints)?.id).toBe('ul-1');
+    expect(previousOnDummyBranch(second, routePoints, standalonePoints)?.id).toBe('d-1');
+  });
+
+  it('has nothing for a point that is not on a dummy branch', () => {
+    expect(previousOnDummyBranch(trigger, [trigger], [])).toBeUndefined();
   });
 });

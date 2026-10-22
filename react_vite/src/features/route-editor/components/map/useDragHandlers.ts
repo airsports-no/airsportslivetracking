@@ -5,6 +5,7 @@ import {
 } from '../../../../utils/geoUtils';
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Polygon, ObservationMarker, SelectionType, Mode } from '../../../../types';
+import { nextOnDummyBranch } from '../../unknownLegWizard';
 
 interface useDragHandlersProps {
     mapRef: React.MutableRefObject<L.Map | null>;
@@ -18,6 +19,8 @@ interface useDragHandlersProps {
     setSelectionType: (type: SelectionType | null) => void;
     setMode: (mode: Mode) => void;
     maxObsDist: number;
+    // A drag that changed something: the route has unsaved edits
+    onEdit?: () => void;
 }
 
 export default function useDragHandlers({
@@ -30,7 +33,8 @@ export default function useDragHandlers({
   routeLineRef,
   setSelectedId,
   setSelectionType,
-  setMode
+  setMode,
+  onEdit,
 }: useDragHandlersProps) {
   const dragRef = useRef<any>(null);
 
@@ -102,11 +106,12 @@ export default function useDragHandlers({
         const dash = markersRef.current[`curve-dash-${id}`] as L.Polyline;
         if (dash) {
            const p = initialPoints[index];
-           const prev = initialPoints[index - 1];
+           // A dummy-branch waypoint's leg starts at its previous branch point, not the point before it in the list
+           const prev = dragRef.current.previous ?? initialPoints[index - 1];
            dash.setLatLngs([[prev.lat, prev.lng], e.latlng, [p.lat, p.lng]]);
         }
 
-        if (routeLineRef.current) {
+        if (routeLineRef.current && dragRef.current.selectionType !== 'standalone_point') {
           const tempPoints = [...initialPoints];
           tempPoints[index] = { ...tempPoints[index], controlLat: e.latlng.lat, controlLng: e.latlng.lng };
           
@@ -180,16 +185,25 @@ export default function useDragHandlers({
     }
 
     if (hasMoved) {
+      // Any drag that moved something (a point, a curve handle, a zone) is an unsaved edit
+      onEdit?.();
       if (type === 'point') {
         const newLatLng = e.latlng;
         const latDiff = newLatLng.lat - startLatLng.lat;
         const lngDiff = newLatLng.lng - startLatLng.lng;
 
         if (dragRef.current.selectionType === 'standalone_point') {
-          setStandalonePoints(prev => prev.map((p: RoutePoint) => {
-            if (p.id !== id) return p;
-            return { ...p, lat: newLatLng.lat, lng: newLatLng.lng };
-          }));
+          setStandalonePoints(prev => {
+            const moved = prev.find((p) => p.id === id);
+            const next = moved ? nextOnDummyBranch(moved, prev) : undefined;
+            return prev.map((p: RoutePoint) => {
+              // The curve handles of the legs into and out of a dummy point move along with it
+              const shifted = (p.id === id || p.id === next?.id) && p.segmentType === 'curved' && p.controlLat && p.controlLng
+                ? { ...p, controlLat: p.controlLat + latDiff, controlLng: p.controlLng + lngDiff }
+                : p;
+              return p.id === id ? { ...shifted, lat: newLatLng.lat, lng: newLatLng.lng } : shifted;
+            });
+          });
           dragRef.current = null;
           return;
         }
@@ -254,8 +268,18 @@ export default function useDragHandlers({
 
           return newPoints;
         });
+        // A trigger's first dummy leg starts at it: that curve handle moves along too
+        setStandalonePoints(prev => {
+          const moved = initialPoints.find((p: RoutePoint) => p.id === id);
+          const first = moved ? nextOnDummyBranch(moved, prev) : undefined;
+          if (!first || first.segmentType !== 'curved' || !first.controlLat || !first.controlLng) return prev;
+          return prev.map((p) => (p.id === first.id
+            ? { ...p, controlLat: p.controlLat! + latDiff, controlLng: p.controlLng! + lngDiff }
+            : p));
+        });
       } else if (type === 'curve_control') {
-        setRoutePoints(prev => prev.map(p => {
+        const setPoints = dragRef.current.selectionType === 'standalone_point' ? setStandalonePoints : setRoutePoints;
+        setPoints(prev => prev.map(p => {
           if (p.id === id) {
             return { ...p, controlLat: e.latlng.lat, controlLng: e.latlng.lng };
           }

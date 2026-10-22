@@ -107,6 +107,32 @@ function renderGateLines(map: L.Map, gates: Waypoint[]): L.Layer[] {
   );
 }
 
+// The points strictly between start and end of a quadratic Bezier curve, as the route editor draws curved legs
+function quadraticCurve(start: [number, number], control: [number, number], end: [number, number], steps = 20): L.LatLngExpression[] {
+  const points: L.LatLngExpression[] = [];
+  for (let step = 1; step < steps; step += 1) {
+    const t = step / steps;
+    const a = (1 - t) * (1 - t);
+    const b = 2 * (1 - t) * t;
+    const c = t * t;
+    points.push([a * start[0] + b * control[0] + c * end[0], a * start[1] + b * control[1] + c * end[1]]);
+  }
+  return points;
+}
+
+// The line into [target] after [previous] when the leg is curved: to the curve's start first if that is not the
+// previous point drawn (a hidden gate left out of this view), then along the curve. Nothing for a straight leg.
+function curveInto(target: NavigationTaskCatalogueTarget, previous: NavigationTaskCatalogueTarget): L.LatLngExpression[] {
+  if (!target.curve_control) return [];
+  const [startLng, startLat] = target.curve_start ?? previous.coordinates;
+  const [controlLng, controlLat] = target.curve_control;
+  const [lng, lat] = target.coordinates;
+  const [previousLng, previousLat] = previous.coordinates;
+  const viaHiddenStart: L.LatLngExpression[] =
+    startLat === previousLat && startLng === previousLng ? [] : [[startLat, startLng]];
+  return [...viaHiddenStart, ...quadraticCurve([startLat, startLng], [controlLat, controlLng], [lat, lng])];
+}
+
 function renderPrecisionRoute(
   map: L.Map,
   route: RouteData,
@@ -177,9 +203,12 @@ function renderPrecisionRoute(
         });
       segments.forEach((segmentTargets) => {
         const visibleSegmentTargets = segmentTargets.filter((target) => routeTypeByName.get(target.name) !== 'secret');
-        const track: L.LatLngExpression[] = visibleSegmentTargets.map((target) => {
+        // A leg that is curved in the route is drawn curved: its own points are secret waypoints, left out here
+        const track: L.LatLngExpression[] = [];
+        visibleSegmentTargets.forEach((target, index) => {
           const [lng, lat] = target.coordinates;
-          return [lat, lng] as L.LatLngExpression;
+          if (index > 0) track.push(...curveInto(target, visibleSegmentTargets[index - 1]));
+          track.push([lat, lng]);
         });
         if (track.length >= 2) {
           layers.push(L.polyline(track, { color: "blue" }).addTo(map));
@@ -425,13 +454,15 @@ function renderUnknownLegDummyBranches(map: L.Map, targets: NavigationTaskCatalo
     if (!trigger) return;
     const orderedBranch = [...branchTargets].sort((a, b) => (a.branch_sequence ?? 0) - (b.branch_sequence ?? 0));
     const [triggerLng, triggerLat] = trigger.coordinates;
-    const points: L.LatLngExpression[] = [
-      [triggerLat, triggerLng],
-      ...orderedBranch.map((target) => {
-        const [lng, lat] = target.coordinates;
-        return [lat, lng] as L.LatLngExpression;
-      }),
-    ];
+    const points: L.LatLngExpression[] = [[triggerLat, triggerLng]];
+    // A curved dummy leg follows its curve (curve_control, from the trigger or the previous branch point)
+    let previous: NavigationTaskCatalogueTarget = trigger;
+    orderedBranch.forEach((target) => {
+      const [lng, lat] = target.coordinates;
+      points.push(...curveInto(target, previous));
+      points.push([lat, lng]);
+      previous = target;
+    });
     if (points.length >= 2) {
       layers.push(L.polyline(points, { color: '#9ca3af', weight: 3, dashArray: '8 6' }).addTo(map));
     }
