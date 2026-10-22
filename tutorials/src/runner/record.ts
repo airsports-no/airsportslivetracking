@@ -3,7 +3,7 @@ import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { chromium, type Locator } from "playwright";
 import { STEP_LEAD_MS, STEP_PAUSE_AFTER_MS } from "../shared/edit";
-import { DEFAULT_EDIT, type Timeline } from "../shared/timeline";
+import type { Timeline } from "../shared/timeline";
 import { AUTH_FILE, RECORDINGS_DIR, SCRIPTS_DIR, settings, tutorialName } from "./config";
 import { synthesise } from "./narration";
 import type { MapSteps, Tutorial, TutorialContext } from "./tutorial";
@@ -70,7 +70,8 @@ const timeline: Timeline = {
   camera: [],
   holds: [],
   chapters: [],
-  edit: { ...DEFAULT_EDIT, ...tutorial.edit },
+  // Only the script's own settings: the defaults are applied when rendering, so changing them needs no new recording
+  edit: { ...tutorial.edit },
   captions: tutorial.captions ?? true,
 };
 let startedAt = 0;

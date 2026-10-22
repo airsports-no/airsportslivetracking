@@ -52,7 +52,8 @@ export type Timeline = {
   holds: Hold[];
   // Missing in recordings made before chapters existed
   chapters?: Chapter[];
-  edit: EditSettings;
+  // The script's own settings, over DEFAULT_EDIT
+  edit: Partial<EditSettings>;
   captions: boolean;
 };
 

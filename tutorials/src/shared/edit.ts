@@ -1,5 +1,5 @@
 import { CAMERA } from "./camera";
-import type { Timeline } from "./timeline";
+import { DEFAULT_EDIT, type Timeline } from "./timeline";
 
 // Which parts of the recording make it into the video. Anything happening (the screen changing, an action, a
 // narration, a highlight, a pause) keeps a stretch; the still stretches between them are shortened, so loading pages,
@@ -49,7 +49,7 @@ export function activeIntervals(timeline: Timeline): Interval[] {
 }
 
 export function computeEdit(timeline: Timeline): Edit {
-  const { minGapMs, keepGapMs } = timeline.edit;
+  const { minGapMs, keepGapMs } = { ...DEFAULT_EDIT, ...timeline.edit };
   const active = activeIntervals(timeline);
   // Kept stretches: the active ones, plus each gap in full if short or shortened to keepGapMs (half on each side, so
   // the cut falls in the middle of the stillness)
