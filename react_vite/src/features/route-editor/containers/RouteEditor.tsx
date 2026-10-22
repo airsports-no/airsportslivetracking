@@ -938,7 +938,7 @@ export default function RouteEditor() {
         {currentWizardActionLabel && (
           <WizardActionBanner
             currentWizardActionLabel={currentWizardActionLabel}
-            title={bannerText?.title || 'Active wizard step'}
+            title={bannerText?.title}
             instruction={bannerText?.instruction || wizardPrompt || 'Follow the wizard instructions on the map.'}
             stopWizardAction={stopWizardAction}
             dummyBranchPhase={dummyBranchPhase}
@@ -962,6 +962,7 @@ export default function RouteEditor() {
           showCorridor={showCorridor}
           hideLabels={hideLabels}
           wizardPolygonType={wizardPolygonType}
+          legInsertType={wizardRouteInsertType}
           activeTriggerId={dummyBranchPhase === 'placing' ? dummyBranchTriggerId : null}
           emphasizeUnknownLegTriggers={dummyBranchPhase === 'awaiting_trigger'}
           setRoutePoints={setRoutePoints}

@@ -35,10 +35,10 @@ describe('getWizardTransition', () => {
     expect(result.routeInsertPrompt).toBe('insert: unknown_leg');
   });
 
-  it('a route_insert point step of any other type switches to add_point mode with the insert type/prompt set', () => {
+  it('a route_insert point step of any other type goes to view mode, inserting its type on the clicked leg', () => {
     const step = makeStep({ key: 'hidden_gate', kind: 'point', placement: 'route_insert', pointType: 'secret', featureType: 'route_waypoint' });
     const result = getWizardTransition(step, label);
-    expect(result.mode).toBe('add_point');
+    expect(result.mode).toBe('view');
     expect(result.wizardRouteInsertType).toBe('secret');
     expect(result.routeInsertPrompt).toBe('insert: hidden_gate');
   });

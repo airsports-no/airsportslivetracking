@@ -1,16 +1,19 @@
 import React from 'react';
-import { Wand2, X } from 'lucide-react';
+import { Wand2 } from 'lucide-react';
 import type { DummyBranchPhase } from '../unknownLegWizard';
 
 interface WizardActionBannerProps {
+  // The step's full description: shown on hover only, the wizard panel has it too
   currentWizardActionLabel: string;
-  title: string;
+  // A short title worth showing (which trigger the dummy waypoints belong to), or nothing
+  title?: string | null;
   instruction: string;
   stopWizardAction: () => void;
   dummyBranchPhase?: DummyBranchPhase;
   awaitingNonTriggerSelection?: boolean;
 }
 
+// A slim bar over the map while a wizard step is active: what to click, and Done. Kept small so the map stays usable.
 const WizardActionBanner: React.FC<WizardActionBannerProps> = ({
   currentWizardActionLabel,
   title,
@@ -20,37 +23,25 @@ const WizardActionBanner: React.FC<WizardActionBannerProps> = ({
   awaitingNonTriggerSelection = false,
 }) => {
   return (
-    <div className="absolute top-28 left-1/2 z-[999] w-[min(36rem,calc(100%-2rem))] -translate-x-1/2 pointer-events-auto">
-      <div className="card border border-warning/30 bg-base-100/95 shadow-xl backdrop-blur">
-        <div className="card-body gap-3 p-4">
-          <div className="flex items-start justify-between gap-3">
-            <div className="min-w-0">
-              <div className="mb-1 flex items-center gap-2 text-xs font-semibold uppercase tracking-wide text-warning">
-                <Wand2 size={14} />
-                Active step
-              </div>
-              <h3 className="text-sm font-semibold text-base-content">{currentWizardActionLabel}</h3>
-              <p className="mt-1 text-sm font-medium text-base-content">{title}</p>
-              <p className="mt-1 text-sm text-base-content/80">{instruction}</p>
-            </div>
-            <button type="button" onClick={stopWizardAction} className="btn btn-ghost btn-sm btn-square" title="Stop active step">
-              <X size={16} />
-            </button>
-          </div>
-
-          {dummyBranchPhase === 'awaiting_trigger' && awaitingNonTriggerSelection && (
-            <div className="rounded-lg border border-warning/30 bg-warning/10 px-3 py-2 text-sm text-base-content/80">
-              That waypoint isn't an unknown-leg trigger — pick an amber one, or change a waypoint's type to Unknown Leg.
-            </div>
-          )}
-
-          <div className="flex justify-end">
-            <button type="button" onClick={stopWizardAction} className="btn btn-outline btn-sm">
-              Stop active step
-            </button>
-          </div>
-        </div>
+    <div
+      className="absolute top-28 left-1/2 z-[999] w-max max-w-[min(34rem,calc(100%-2rem))] -translate-x-1/2 pointer-events-auto"
+      title={currentWizardActionLabel}
+    >
+      <div className="flex items-center gap-2 rounded-full border border-warning/40 bg-base-100/95 py-1 pl-3 pr-1 shadow-lg backdrop-blur">
+        <Wand2 size={14} className="shrink-0 text-warning" />
+        <p className="min-w-0 text-xs leading-snug text-base-content line-clamp-2">
+          {title && <span className="font-semibold">{title}: </span>}
+          {instruction}
+        </p>
+        <button type="button" onClick={stopWizardAction} className="btn btn-xs btn-warning shrink-0 rounded-full" title="Stop active step">
+          Done
+        </button>
       </div>
+      {dummyBranchPhase === 'awaiting_trigger' && awaitingNonTriggerSelection && (
+        <div className="mt-1 rounded-full border border-warning/30 bg-base-100/95 px-3 py-1 text-xs text-base-content/80 shadow">
+          That waypoint isn't an unknown-leg trigger: pick an amber one, or change a waypoint's type to Unknown Leg.
+        </div>
+      )}
     </div>
   );
 };
