@@ -16,12 +16,14 @@ import {
 
 interface TaskDetailsStepProps {
     taskType: string;
+    // A CIMA subtype is offered only its own scorecard, a legacy task only the legacy ones
+    taskSubtype: string;
     onSubmit: (values: NavigationTaskDetailsFormValues) => void;
     submitting: boolean;
     submitLabel: string;
 }
 
-const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, submitting, submitLabel }) => {
+const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, taskSubtype, onSubmit, submitting, submitLabel }) => {
     const {
         register,
         handleSubmit,
@@ -48,12 +50,12 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
         let cancelled = false;
         setScorecardsLoading(true);
         setScorecardsError(null);
-        fetchScorecardChoices(taskType)
+        fetchScorecardChoices(taskType, taskSubtype)
             .then(scorecards => {
                 if (cancelled) return;
                 const options = scorecards.map(scorecard => ({ value: scorecard.shortcut_name, label: scorecard.name }));
                 setScorecardOptions(options);
-                if (!originalScorecard && options.length > 0) {
+                if (!options.some(option => option.value === originalScorecard) && options.length > 0) {
                     setValue('original_scorecard', options[0].value);
                 }
             })
@@ -67,7 +69,7 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, onSubmit, s
             cancelled = true;
         };
         // eslint-disable-next-line react-hooks/exhaustive-deps
-    }, [taskType, retryCount]);
+    }, [taskType, taskSubtype, retryCount]);
 
     return (
         <form onSubmit={handleSubmit(onSubmit)} className="space-y-4">

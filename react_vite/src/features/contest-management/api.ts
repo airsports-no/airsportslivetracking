@@ -44,10 +44,13 @@ export const fetchTaskTemplates = async (editableRouteId?: number): Promise<Task
     return response.json();
 };
 
-export const fetchScorecardChoices = async (taskType?: string): Promise<ScorecardChoice[]> => {
+export const fetchScorecardChoices = async (taskType?: string, taskSubtype?: string): Promise<ScorecardChoice[]> => {
     let url = reverse('scorecards-choices');
     if (taskType) {
         url += `?task_type=${encodeURIComponent(taskType)}`;
+        if (taskSubtype) {
+            url += `&task_subtype=${encodeURIComponent(taskSubtype)}`;
+        }
     }
     const response = await fetch(url);
     if (!response.ok) {

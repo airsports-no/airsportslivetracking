@@ -23,7 +23,7 @@ DEFAULT_TIMING = {
 }
 
 
-def get_default_scorecard():
+def get_gates() -> dict:
     # Uses secret gates for all turning points along the track
     regular_gate = {
         "backtracking_before_gate_grace_period_nm": 0.5,
@@ -108,55 +108,65 @@ def get_default_scorecard():
         DUMMY: dict(regular_gate),
         UNKNOWN_LEG: dict(regular_gate),
     }
+    return gates
 
+
+def get_scorecard_defaults() -> dict:
+    """The scorecard's values apart from its name, gates and scoring direction (shared with the CIMA ANR scorecard)"""
+    return {
+        "backtracking_penalty": 200,  # verified
+        "backtracking_grace_time_seconds": 0,  # verified?
+        "backtracking_maximum_penalty": 400,  # verified
+        "use_procedure_turns": False,
+        "task_type": [ANR_CORRIDOR],
+        "calculator": ANR_CORRIDOR,
+        "corridor_maximum_penalty": 0,  # verified
+        "corridor_outside_penalty": 3,  # verified
+        "corridor_maximum_penalty_is_per_leg": True,
+        "corridor_grace_time": 5,  # verified
+        "prohibited_zone_penalty": 200,
+        "penalty_zone_grace_time": 5,
+        "prohibited_zone_maximum": 0,
+        "penalty_zone_penalty_per_second": 3,
+        "penalty_zone_maximum": -1,
+        "included_fields": [
+            [
+                "Corridor penalties",
+                "corridor_grace_time",
+                "backtracking_penalty",
+                "corridor_outside_penalty",
+                "corridor_maximum_penalty",
+                "corridor_maximum_penalty_is_per_leg",
+            ],
+            [
+                "Prohibited zone",
+                "prohibited_zone_grace_time",
+                "prohibited_zone_penalty",
+            ],
+            [
+                "Penalty zone",
+                "penalty_zone_grace_time",
+                "penalty_zone_penalty_per_second",
+                "penalty_zone_maximum",
+            ],
+            ["Initial score", "initial_score"],
+        ],
+    }
+
+
+def get_default_scorecard():
     scorecard, created = Scorecard.objects.update_or_create(
         name="FAI ANR 2022",
         defaults={
+            **get_scorecard_defaults(),
             "shortcut_name": "FAI ANR",
             "valid_from": datetime.datetime(2023, 1, 1, tzinfo=datetime.timezone.utc),
             "score_sorting_direction": "asc",
-            "backtracking_penalty": 200,  # verified
-            "backtracking_grace_time_seconds": 0,  # verified?
-            "backtracking_maximum_penalty": 400,  # verified
-            "use_procedure_turns": False,
-            "task_type": [ANR_CORRIDOR],
-            "calculator": ANR_CORRIDOR,
-            "corridor_maximum_penalty": 0,  # verified
-            "corridor_outside_penalty": 3,  # verified
-            "corridor_maximum_penalty_is_per_leg": True,
-            "corridor_grace_time": 5,  # verified
-            "prohibited_zone_penalty": 200,
-            "penalty_zone_grace_time": 5,
-            "prohibited_zone_maximum": 0,
-            "penalty_zone_penalty_per_second": 3,
-            "penalty_zone_maximum": -1,
-            "included_fields": [
-                [
-                    "Corridor penalties",
-                    "corridor_grace_time",
-                    "backtracking_penalty",
-                    "corridor_outside_penalty",
-                    "corridor_maximum_penalty",
-                    "corridor_maximum_penalty_is_per_leg",
-                ],
-                [
-                    "Prohibited zone",
-                    "prohibited_zone_grace_time",
-                    "prohibited_zone_penalty",
-                ],
-                [
-                    "Penalty zone",
-                    "penalty_zone_grace_time",
-                    "penalty_zone_penalty_per_second",
-                    "penalty_zone_maximum",
-                ],
-                ["Initial score", "initial_score"],
-            ],
         },
     )
     # Phase 2e of the scorecard-system review roadmap: gates are built as plain dicts and
     # written straight into config["gates"] - no more per-gate GateScore rows or the
     # signal-mirror round trip that used to require a refresh_from_db() at the end.
-    scorecard.config["gates"] = gates
+    scorecard.config["gates"] = get_gates()
     scorecard.save(update_fields=["config"])
     return scorecard
