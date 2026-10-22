@@ -95,11 +95,16 @@ interface Props {
 
 // From precisionRenderer.js
 // Gates are drawn as their gate lines for every task type, CIMA included, so the map shows exactly where the time is
-// scored. Only the flight order's PDF map draws CIMA waypoints as circles (map_plotter.py).
+// scored. Only the flight order's PDF map draws CIMA waypoints as circles (map_plotter.py). A gate without a gate
+// line still gets a visible circle.
+const GATE_WITHOUT_LINE_STYLE = { radius: 8, color: 'blue', weight: 2, fillColor: 'white', fillOpacity: 0 };
+
 function renderGateLines(map: L.Map, gates: Waypoint[]): L.Layer[] {
-  return gates
-    .filter((gate: Waypoint) => gate.gate_line?.length >= 2)
-    .map((gate: Waypoint) => L.polyline(gate.gate_line, { color: "blue" }).addTo(map));
+  return gates.map((gate: Waypoint) =>
+    gate.gate_line?.length >= 2
+      ? L.polyline(gate.gate_line, { color: "blue" }).addTo(map)
+      : L.circleMarker([gate.latitude, gate.longitude], GATE_WITHOUT_LINE_STYLE).addTo(map),
+  );
 }
 
 function renderPrecisionRoute(
@@ -156,7 +161,8 @@ function renderPrecisionRoute(
       }
       // The real route's gates, unknown-leg and secret gates included, as gate lines like every other task type:
       // renderCatalogueTargets leaves out its own markers for these points.
-      layers.push(...renderGateLines(map, route.waypoints.filter((waypoint: Waypoint) => (waypoint.gate_check || waypoint.time_check) && waypoint.type !== 'dummy')));
+      // (Those without a gate line keep their catalogue marker instead)
+      layers.push(...renderGateLines(map, route.waypoints.filter((waypoint: Waypoint) => (waypoint.gate_check || waypoint.time_check) && waypoint.type !== 'dummy' && waypoint.gate_line?.length >= 2)));
     } else {
       const segments = new Map<string, NavigationTaskCatalogueTarget[]>();
       taskCatalogueTargets
@@ -643,7 +649,7 @@ export default function RouteRenderer({ map, route, taskCatalogueTargets, scorec
       pendingFitCleanup?.();
       map.getContainer().classList.remove('hide-waypoint-labels');
     };
-  }, [map, route, taskCatalogueTargets, scorecard, taskType, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
+  }, [map, route, taskCatalogueTargets, scorecard, taskType, taskSubtype, navTaskDisplaySecrets, displaySecrets, contestants, selectedContestantId, isInitialLoad, onMapFit]);
 
   return null;
 }
