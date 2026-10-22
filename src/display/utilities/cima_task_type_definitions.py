@@ -66,6 +66,9 @@ DECLARATION_REQUIRED_SUBTYPES = frozenset(
     }
 )
 
+CIMA_PRECISION_SCORECARD = "CIMA Precision"
+CIMA_ANR_SCORECARD = "CIMA ANR"
+
 LEGACY_PRECISION = "legacy_precision"
 LEGACY_ANR_CORRIDOR = "legacy_anr_corridor"
 LEGACY_AIRSPORTS = "legacy_airsports"
@@ -87,6 +90,9 @@ class TaskSubtypeDefinition:
     forbidden_primitives: tuple[str, ...] = ()
     declaration_schema_key: str | None = None
     scoring_modules: tuple[str, ...] = ()
+    # The shortcut_name of the original scorecard the task is created from. None offers the scorecards of the
+    # coarse family that no subtype claims (the legacy ones).
+    scorecard_shortcut_name: str | None = None
 
 
 TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
@@ -139,6 +145,7 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         required_primitives=("route_path", "route_waypoint"),
         declaration_schema_key=CURVE_NAVIGATION_TIME_ESTIMATION,
         scoring_modules=("visible_time_gates", "hidden_gate_sequence", "backtracking"),
+        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
     ),
     PRECISION_NAVIGATION: TaskSubtypeDefinition(
         key=PRECISION_NAVIGATION,
@@ -150,6 +157,7 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         required_primitives=("route_path", "route_waypoint"),
         declaration_schema_key=PRECISION_NAVIGATION,
         scoring_modules=("visible_eta", "hidden_gate_sequence", "backtracking"),
+        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
     ),
     CONTRACT_NAVIGATION_TIME_CONTROLS: TaskSubtypeDefinition(
         key=CONTRACT_NAVIGATION_TIME_CONTROLS,
@@ -159,6 +167,7 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         required_primitives=("route_path", "route_waypoint", "catalogue_turnpoint"),
         declaration_schema_key=CONTRACT_NAVIGATION_TIME_CONTROLS,
         scoring_modules=("declared_sequence", "mandatory_time_points", "backtracking"),
+        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
     ),
     KNOWN_CIRCUIT: TaskSubtypeDefinition(
         key=KNOWN_CIRCUIT,
@@ -172,6 +181,7 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         # optional, not a structural prerequisite.
         required_primitives=("route_path", "route_waypoint"),
         scoring_modules=("observation_evidence", "hidden_gate_sequence", "backtracking"),
+        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
     ),
     UNKNOWN_LEGS: TaskSubtypeDefinition(
         key=UNKNOWN_LEGS,
@@ -183,6 +193,7 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         # see TaskCompiler._validate_unknown_legs_structure, which already enforces this.
         required_primitives=("route_path", "route_waypoint", "unknown_leg"),
         scoring_modules=("unknown_leg_sequence", "observation_evidence", "backtracking"),
+        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
     ),
     TURNPOINT_HUNT: TaskSubtypeDefinition(
         key=TURNPOINT_HUNT,
@@ -194,6 +205,7 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         required_primitives=("catalogue_turnpoint", "known_time_gate"),
         declaration_schema_key=TURNPOINT_HUNT,
         scoring_modules=("predicted_sequence", "compulsory_timing_gates", "observation_evidence", "backtracking"),
+        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
     ),
     CIRCLE: TaskSubtypeDefinition(
         key=CIRCLE,
@@ -207,6 +219,7 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
             "circle_exit_marker",
         ),
         scoring_modules=("circle_entry", "circle_radius", "circle_direction", "altitude_spread"),
+        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
     ),
     ANR_CATALOGUE: TaskSubtypeDefinition(
         key=ANR_CATALOGUE,
@@ -218,6 +231,7 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
         # a route to support this task type.
         required_primitives=("route_path", "route_waypoint"),
         scoring_modules=("route_to_sp", "route_from_fp", "takeoff_timing", "quarantine"),
+        scorecard_shortcut_name=CIMA_ANR_SCORECARD,
     ),
     LIMITED_FUEL_TURNPOINT_HUNT: TaskSubtypeDefinition(
         key=LIMITED_FUEL_TURNPOINT_HUNT,
@@ -235,6 +249,7 @@ TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
             "fuel_compliance",
             "backtracking",
         ),
+        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
     ),
     DURATION: TaskSubtypeDefinition(
         key=DURATION,
@@ -314,6 +329,25 @@ def validate_subtype_family_compatibility(subtype: str | None, coarse_family: st
 
 def get_default_task_subtype_for_family(coarse_family: str) -> str | None:
     return LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(coarse_family)
+
+
+SUBTYPE_SCORECARD_SHORTCUT_NAMES = frozenset(
+    definition.scorecard_shortcut_name
+    for definition in TASK_SUBTYPE_DEFINITIONS.values()
+    if definition.scorecard_shortcut_name is not None
+)
+
+
+def scorecard_suits_task_subtype(shortcut_name: str, subtype: str | None) -> bool:
+    """
+    Whether a task of [subtype] may be created from the original scorecard [shortcut_name]: a subtype with its own
+    scorecard only from that one, any other task (legacy, or a subtype without one) only from a scorecard no subtype
+    claims. The coarse family is checked separately (Scorecard.task_type).
+    """
+    definition = TASK_SUBTYPE_DEFINITIONS.get(subtype) if subtype else None
+    if definition is not None and definition.scorecard_shortcut_name is not None:
+        return shortcut_name == definition.scorecard_shortcut_name
+    return shortcut_name not in SUBTYPE_SCORECARD_SHORTCUT_NAMES
 
 
 # The catalogue's per-task maximum score, for subtypes where that maximum is a fixed constant

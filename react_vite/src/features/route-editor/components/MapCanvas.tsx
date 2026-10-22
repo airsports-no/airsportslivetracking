@@ -127,7 +127,6 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   const [openAipEnabled, setOpenAipEnabled] = useState<boolean>(false);
   const [mapSelectorCollapsed, setMapSelectorCollapsed] = useState<boolean>(false);
   const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(12);
-  const didAutoFitSourceRef = useRef(false);
   
   const { handleDragMove, handleDragEnd, dragRef } = useDragHandlers({
     mapRef,
@@ -313,20 +312,6 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   }, [mapRef, mapSources, routeId, selectedBaseLayerKey, selectedOverlayKey, openAipEnabled]);
 
   useEffect(() => {
-    if (!mapRef.current || !mapSources || routeId || didAutoFitSourceRef.current) return;
-
-    const preferredSource = mapSources.find((source) => source.origin === 'user_upload' && source.bounds);
-    if (!preferredSource || !preferredSource.bounds) return;
-
-    const [minLon, minLat, maxLon, maxLat] = preferredSource.bounds;
-    mapRef.current.fitBounds([
-      [minLat, minLon] as [number, number],
-      [maxLat, maxLon] as [number, number],
-    ]);
-    didAutoFitSourceRef.current = true;
-  }, [mapRef, mapSources, routeId]);
-
-  useEffect(() => {
     if (!mapRef.current) return;
     const map = mapRef.current;
     setCurrentZoomLevel(map.getZoom());
@@ -358,25 +343,33 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     setSelectedBaseLayerKey(baseKey);
   };
 
+  // Choosing one of your own uploaded maps moves the map to it. A new route otherwise opens where the browser says you
+  // are (RouteEditor's locate()), not on an uploaded map.
   const handleSelectOverlay = (overlayKey: string | null) => {
     setSelectedOverlayKey(overlayKey);
+    const source = uploadedOverlaySources.find((item) => item.key === overlayKey);
+    if (source?.bounds) zoomToSource(source);
   };
 
   const handleToggleOpenAip = () => {
     setOpenAipEnabled((prev) => !prev);
   };
 
-  const handleZoomToSelectedMap = () => {
-    if (!mapRef.current || !selectedOverlaySource?.bounds) return;
-    const [minLon, minLat, maxLon, maxLat] = selectedOverlaySource.bounds;
-    const normalizedDefaultZoom = selectedOverlaySource.default_zoom == null
+  function zoomToSource(source: MapSource) {
+    if (!mapRef.current || !source.bounds) return;
+    const [minLon, minLat, maxLon, maxLat] = source.bounds;
+    const normalizedDefaultZoom = source.default_zoom == null
       ? undefined
-      : Math.max(selectedOverlaySource.min_zoom, Math.min(selectedOverlaySource.default_zoom, selectedOverlaySource.max_zoom));
+      : Math.max(source.min_zoom, Math.min(source.default_zoom, source.max_zoom));
     const center: [number, number] = [
       (minLat + maxLat) / 2,
       (minLon + maxLon) / 2,
     ];
     mapRef.current.setView(center, normalizedDefaultZoom ?? mapRef.current.getZoom());
+  }
+
+  const handleZoomToSelectedMap = () => {
+    if (selectedOverlaySource) zoomToSource(selectedOverlaySource);
   };
 
 
