@@ -122,3 +122,19 @@ export function nameUnknownLegsRoutePoints(
     standalonePoints: unchanged(standalonePoints, namedStandalonePoints) ? standalonePoints : namedStandalonePoints,
   };
 }
+
+// The point a dummy-branch waypoint's leg starts from: the waypoint before it on its branch, or the unknown-leg trigger
+// for the first one. A curved dummy leg is drawn from there.
+export function previousOnDummyBranch(
+  point: RoutePoint,
+  routePoints: RoutePoint[],
+  standalonePoints: RoutePoint[],
+): RoutePoint | undefined {
+  if (point.featureType !== 'dummy_branch_waypoint' || !point.triggerPointId) return undefined;
+  const branch = standalonePoints
+    .filter((item) => item.featureType === 'dummy_branch_waypoint' && item.triggerPointId === point.triggerPointId)
+    .sort((left, right) => (left.branchSequence ?? 0) - (right.branchSequence ?? 0));
+  const position = branch.findIndex((item) => item.id === point.id);
+  if (position > 0) return branch[position - 1];
+  return routePoints.find((item) => item.id === point.triggerPointId);
+}

@@ -12,6 +12,7 @@ import * as Renderers from './map/renderers';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { fetchEditableRouteMapSources, fetchGlobalEditableRouteMapSources, MapSourceFetchError } from '../api';
 import { MapSource } from '../types';
+import { previousOnDummyBranch } from '../unknownLegWizard';
 
 const BUILTIN_BASE_SOURCES: MapSource[] = [
   {
@@ -550,7 +551,11 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
 
     // --- RENDERER: DRAW POINTS ---
     Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'point', { activeTriggerId, emphasizeUnknownLegTriggers });
-    Renderers.drawPoints(map, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'standalone_point', { activeTriggerId, emphasizeUnknownLegTriggers });
+    Renderers.drawPoints(map, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'standalone_point', {
+      activeTriggerId,
+      emphasizeUnknownLegTriggers,
+      previousOf: (point) => previousOnDummyBranch(point, routePoints, standalonePoints),
+    });
 
     // --- RENDERER: DRAW GATES ---
     Renderers.drawGates(map, gates, polylinesRef, setSelectedId, setSelectionType, setMode, hideLabels);

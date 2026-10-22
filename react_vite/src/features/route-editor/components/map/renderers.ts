@@ -284,7 +284,16 @@ export const drawRouteLine = (
   polylinesRef.current.push(polyline);
 
   branchLineGroups.forEach((group) => {
-    const branchLatLngs = group.points.map((point) => L.latLng(point.lat, point.lng));
+    // A curved dummy leg (segmentType curved on its end point) follows its curve, like a curved route leg
+    const branchLatLngs: L.LatLng[] = [];
+    group.points.forEach((point, index) => {
+      const previous = group.points[index - 1];
+      if (previous && point.segmentType === 'curved' && point.controlLat && point.controlLng) {
+        branchLatLngs.push(...getQuadraticBezierPoints(previous, point, { lat: point.controlLat, lng: point.controlLng }));
+      } else {
+        branchLatLngs.push(L.latLng(point.lat, point.lng));
+      }
+    });
     if (branchLatLngs.length < 2) return;
     const branchPolyline = L.polyline(branchLatLngs, {
       color: '#9ca3af',
@@ -339,8 +348,15 @@ export const drawPoints = (
   setSelectionType?: (type: SelectionType | null) => void,
   setMode?: (mode: Mode) => void,
   pointSelectionType: SelectionType = 'point',
-  options: { activeTriggerId?: string | null; emphasizeUnknownLegTriggers?: boolean } = {},
+  options: {
+    activeTriggerId?: string | null;
+    emphasizeUnknownLegTriggers?: boolean;
+    // Where a point's leg starts (for the curve handle), when that is not the point before it in the list: a
+    // dummy-branch waypoint's leg starts at the previous waypoint on its branch
+    previousOf?: (point: RoutePoint, index: number) => RoutePoint | undefined;
+  } = {},
 ) => {
+  const previousOf = options.previousOf ?? ((_point: RoutePoint, index: number) => routePoints[index - 1]);
   routePoints.forEach((p, index) => {
     const style = getRoutePointMarkerStyle(p, {
       activeTriggerId: options.activeTriggerId,
@@ -437,8 +453,8 @@ export const drawPoints = (
 
     markersRef.current[`point-${p.id}`] = pointGroup;
 
-    if (selectedId === p.id && p.segmentType === 'curved' && index > 0 && p.controlLat && p.controlLng) {
-      const prev = routePoints[index - 1];
+    const prev = previousOf(p, index);
+    if (selectedId === p.id && p.segmentType === 'curved' && prev && p.controlLat && p.controlLng) {
       const controlLatLng: L.LatLngTuple = [p.controlLat, p.controlLng];
 
       const dashLine = L.polyline([[prev.lat, prev.lng], controlLatLng, [p.lat, p.lng]], {
@@ -462,6 +478,8 @@ export const drawPoints = (
           startLatLng: e.latlng,
           initialPoints: routePoints,
           hasMoved: false,
+          selectionType: pointSelectionType,
+          previous: prev,
         };
         map.on('mousemove', handleDragMove);
         map.on('mouseup', handleDragEnd);

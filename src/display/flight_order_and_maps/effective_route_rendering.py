@@ -192,18 +192,43 @@ def _attach_curve_controls(targets: list[dict[str, Any]], editable_route) -> lis
     ("curve_from"), so the view draws that leg curved. The curve's own points are secret waypoints, which that view
     leaves out, so without this the leg is drawn straight.
     """
-    curves = {}
+    def curve(properties: dict, curve_from: str | None) -> dict | None:
+        control_lat, control_lng = properties.get("controlLat"), properties.get("controlLng")
+        if properties.get("segmentType") != "curved" or control_lat is None or control_lng is None:
+            return None
+        return {"curve_control": [control_lng, control_lat], "curve_from": curve_from}
+
+    route_curves = {}
+    name_by_id = {}
     previous_name = None
     for feature in editable_route.get_ordered_track_waypoints():
         properties = feature.get("properties", {})
         name = properties.get("name")
-        control_lat, control_lng = properties.get("controlLat"), properties.get("controlLng")
-        if name and properties.get("segmentType") == "curved" and control_lat is not None and control_lng is not None:
-            curves[name] = {"curve_control": [control_lng, control_lat], "curve_from": previous_name}
+        name_by_id[properties.get("id")] = name
+        if name and (leg := curve(properties, previous_name)):
+            route_curves[name] = leg
         previous_name = name
+
+    # A dummy-branch waypoint's leg starts at the previous waypoint on its branch, or at the trigger for the first one
+    branch_curves = {}
+    branches = {}
+    for feature in editable_route.get_features_type("dummy_branch_waypoint"):
+        branches.setdefault(feature.get("properties", {}).get("triggerPointId"), []).append(feature)
+    for trigger_id, branch in branches.items():
+        previous_name = name_by_id.get(trigger_id)
+        for feature in sorted(branch, key=lambda item: item.get("properties", {}).get("branchSequence", 0)):
+            properties = feature.get("properties", {})
+            name = properties.get("name")
+            if name and (leg := curve(properties, previous_name)):
+                branch_curves[name] = leg
+            previous_name = name
+
     for target in targets:
-        if target.get("kind") == "catalogue_turnpoint" and not target.get("trigger_point_id") and target.get("name") in curves:
-            target.update(curves[target["name"]])
+        if target.get("kind") != "catalogue_turnpoint":
+            continue
+        leg = (branch_curves if target.get("trigger_point_id") else route_curves).get(target.get("name"))
+        if leg:
+            target.update(leg)
     return targets
 
 

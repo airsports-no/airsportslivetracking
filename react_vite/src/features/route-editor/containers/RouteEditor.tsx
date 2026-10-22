@@ -45,6 +45,7 @@ import {
   getWizardBannerText,
   isUnknownLegTrigger,
   nameUnknownLegsRoutePoints,
+  previousOnDummyBranch,
 } from '../unknownLegWizard';
 
 const getFreeMapStepMaxCount = (
@@ -582,7 +583,33 @@ export default function RouteEditor() {
     setPolygons((polygonsState) => updateItemById(polygonsState, selectedId, (polygon) => ({ ...polygon, [field]: value })));
   };
 
+  // A selected dummy-branch waypoint and the point its leg starts from (null when no dummy waypoint is selected)
+  const selectedDummyPoint = selectionType === 'standalone_point'
+    ? standalonePoints.find((point) => point.id === selectedId && point.featureType === 'dummy_branch_waypoint')
+    : undefined;
+  const selectedDummyPrevious = selectedDummyPoint
+    ? previousOnDummyBranch(selectedDummyPoint, routePoints, standalonePoints)
+    : undefined;
+  // The point whose incoming leg Make Curved changes: a route point after the first, or a dummy-branch waypoint
+  const curvablePoint = selectionType === 'point'
+    ? routePoints.find((point, index) => point.id === selectedId && index > 0)
+    : selectedDummyPrevious ? selectedDummyPoint : undefined;
+
+  const curveDummyPoint = (update: (point: RoutePoint, previous: RoutePoint) => RoutePoint) => {
+    if (!selectedDummyPoint || !selectedDummyPrevious) return;
+    setIsDirty(true);
+    setStandalonePoints((points) => points.map((point) => (
+      point.id === selectedDummyPoint.id ? update(point, selectedDummyPrevious) : point
+    )));
+  };
+
   const toggleCurve = () => {
+    if (selectedDummyPoint) {
+      curveDummyPoint((point, previous) => (point.segmentType === 'curved'
+        ? { ...point, segmentType: 'straight' }
+        : { ...point, segmentType: 'curved', controlLat: (previous.lat + point.lat) / 2, controlLng: (previous.lng + point.lng) / 2 }));
+      return;
+    }
     setIsDirty(true);
     setRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
@@ -601,6 +628,14 @@ export default function RouteEditor() {
   };
 
   const resetCurve = () => {
+    if (selectedDummyPoint) {
+      curveDummyPoint((point, previous) => ({
+        ...point,
+        controlLat: (previous.lat + point.lat) / 2 + (point.lng - previous.lng) * 0.2,
+        controlLng: (previous.lng + point.lng) / 2 - (point.lat - previous.lat) * 0.2,
+      }));
+      return;
+    }
     setIsDirty(true);
     setRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
@@ -993,12 +1028,12 @@ export default function RouteEditor() {
             </div>
           )}
 
-          {selectedId && selectionType === 'point' && routePoints.findIndex(p => p.id === selectedId) > 0 && (
+          {curvablePoint && (
             <div className="bg-base-100 p-2 rounded shadow flex flex-col gap-2">
               <button onClick={toggleCurve} className="btn btn-sm btn-outline">
-                {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' ? 'Make Straight' : 'Make Curved'}
+                {curvablePoint.segmentType === 'curved' ? 'Make Straight' : 'Make Curved'}
               </button>
-              {routePoints.find(p => p.id === selectedId)?.segmentType === 'curved' && (
+              {curvablePoint.segmentType === 'curved' && (
                 <button onClick={resetCurve} className="btn btn-xs btn-ghost">
                   Reset Curve Handle
                 </button>

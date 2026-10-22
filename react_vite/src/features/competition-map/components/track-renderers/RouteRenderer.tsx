@@ -446,13 +446,18 @@ function renderUnknownLegDummyBranches(map: L.Map, targets: NavigationTaskCatalo
     if (!trigger) return;
     const orderedBranch = [...branchTargets].sort((a, b) => (a.branch_sequence ?? 0) - (b.branch_sequence ?? 0));
     const [triggerLng, triggerLat] = trigger.coordinates;
-    const points: L.LatLngExpression[] = [
-      [triggerLat, triggerLng],
-      ...orderedBranch.map((target) => {
-        const [lng, lat] = target.coordinates;
-        return [lat, lng] as L.LatLngExpression;
-      }),
-    ];
+    const points: L.LatLngExpression[] = [[triggerLat, triggerLng]];
+    // A curved dummy leg follows its curve (curve_control, from the trigger or the previous branch point)
+    let previous: { name: string; lat: number; lng: number } = { name: trigger.name, lat: triggerLat, lng: triggerLng };
+    orderedBranch.forEach((target) => {
+      const [lng, lat] = target.coordinates;
+      if (target.curve_control && target.curve_from === previous.name) {
+        const [controlLng, controlLat] = target.curve_control;
+        points.push(...quadraticCurve([previous.lat, previous.lng], [controlLat, controlLng], [lat, lng]));
+      }
+      points.push([lat, lng]);
+      previous = { name: target.name, lat, lng };
+    });
     if (points.length >= 2) {
       layers.push(L.polyline(points, { color: '#9ca3af', weight: 3, dashArray: '8 6' }).addTo(map));
     }

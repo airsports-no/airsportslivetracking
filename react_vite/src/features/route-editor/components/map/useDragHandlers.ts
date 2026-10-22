@@ -102,11 +102,12 @@ export default function useDragHandlers({
         const dash = markersRef.current[`curve-dash-${id}`] as L.Polyline;
         if (dash) {
            const p = initialPoints[index];
-           const prev = initialPoints[index - 1];
+           // A dummy-branch waypoint's leg starts at its previous branch point, not the point before it in the list
+           const prev = dragRef.current.previous ?? initialPoints[index - 1];
            dash.setLatLngs([[prev.lat, prev.lng], e.latlng, [p.lat, p.lng]]);
         }
 
-        if (routeLineRef.current) {
+        if (routeLineRef.current && dragRef.current.selectionType !== 'standalone_point') {
           const tempPoints = [...initialPoints];
           tempPoints[index] = { ...tempPoints[index], controlLat: e.latlng.lat, controlLng: e.latlng.lng };
           
@@ -188,6 +189,10 @@ export default function useDragHandlers({
         if (dragRef.current.selectionType === 'standalone_point') {
           setStandalonePoints(prev => prev.map((p: RoutePoint) => {
             if (p.id !== id) return p;
+            // A curved dummy leg's handle moves along with its point
+            if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
+              return { ...p, lat: newLatLng.lat, lng: newLatLng.lng, controlLat: p.controlLat + latDiff, controlLng: p.controlLng + lngDiff };
+            }
             return { ...p, lat: newLatLng.lat, lng: newLatLng.lng };
           }));
           dragRef.current = null;
@@ -255,7 +260,8 @@ export default function useDragHandlers({
           return newPoints;
         });
       } else if (type === 'curve_control') {
-        setRoutePoints(prev => prev.map(p => {
+        const setPoints = dragRef.current.selectionType === 'standalone_point' ? setStandalonePoints : setRoutePoints;
+        setPoints(prev => prev.map(p => {
           if (p.id === id) {
             return { ...p, controlLat: e.latlng.lat, controlLng: e.latlng.lng };
           }

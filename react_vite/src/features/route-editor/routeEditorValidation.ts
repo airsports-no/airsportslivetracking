@@ -204,6 +204,8 @@ export function buildRouteEditorSavePayload(args: {
             pointType: point.type,
             featureType: 'dummy_branch_waypoint',
             segmentType: point.segmentType || 'straight',
+            controlLat: point.controlLat,
+            controlLng: point.controlLng,
             width: point.width,
             isTiming: point.isTiming,
             isPassing: point.isPassing,
