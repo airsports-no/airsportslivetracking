@@ -284,6 +284,7 @@ const NavigationTaskCreationFlow: React.FC<NavigationTaskCreationFlowProps> = ({
                         {step === 'details' && template && (
                             <TaskDetailsStep
                                 taskType={template.task_type}
+                                taskSubtype={template.task_subtype}
                                 onSubmit={handleDetailsSubmit}
                                 submitting={submitting}
                                 submitLabel="Create navigation task"
