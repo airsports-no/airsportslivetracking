@@ -1963,17 +1963,12 @@ def plot_route(
                     paths.append(path)
                     if not waypoints_only:
                         ys, xs = path.T
-                        plot_kwargs = {
-                            "transform": PSEUDO_MERCATOR_SPHERE,
-                            "color": colour,
-                            "linewidth": line_width,
-                        }
-                        if contestant is None:
-                            plot_kwargs["linestyle"] = (0, (8, 6))
                         plt.plot(
                             xs,
                             ys,
-                            **plot_kwargs,
+                            transform=PSEUDO_MERCATOR_SPHERE,
+                            color=colour,
+                            linewidth=line_width,
                         )
                     # Without a contestant plot_catalogue_targets already marks and names the points
                     if contestant is not None:

@@ -352,7 +352,12 @@ class MapFallbackTests(TestCase):
             pass
 
         plot_calls = mock_plt.plot.call_args_list
-        segment_calls = [call for call in plot_calls if call.kwargs.get('linestyle') == (0, (8, 6))]
+        # The segments are solid lines (not single points)
+        segment_calls = [
+            call
+            for call in plot_calls
+            if call.kwargs.get('linestyle') is None and len(call.args) >= 2 and not isinstance(call.args[0], (int, float))
+        ]
         self.assertEqual(len(segment_calls), 2)
         self.assertEqual(tuple(segment_calls[0].args[0]), (11.0, 11.2, 11.3))
         self.assertEqual(tuple(segment_calls[0].args[1]), (60.0, 60.2, 60.3))
@@ -590,7 +595,7 @@ class MapFallbackTests(TestCase):
         segment_calls = [
             call
             for call in mock_plt.plot.call_args_list
-            if call.kwargs.get('linestyle') == (0, (8, 6))
+            if call.kwargs.get('linestyle') is None and len(call.args) >= 2 and not isinstance(call.args[0], (int, float))
         ]
         self.assertEqual(len(segment_calls), 1)
         self.assertEqual(tuple(segment_calls[0].args[0]), (11.0, 11.2, 11.3))
