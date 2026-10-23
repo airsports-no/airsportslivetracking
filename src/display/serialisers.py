@@ -461,6 +461,8 @@ class PhotoSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Photo
         fields = "__all__"
+        # Set when a picture is uploaded, cleared when it is reverted to the satellite image
+        read_only_fields = ["uploaded"]
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -623,6 +625,18 @@ class RouteSerialiser(serializers.ModelSerializer):
             "has_takeoff_gate",
             "number_of_photos",
         ]
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # The photos the viewer may see: someone who does not organise the task does not get its unknown-leg photos,
+        # decoys or (without observation registration) observation photos, which give the task away
+        from display.services.photo_management import photos_visible_to
+
+        request = self.context.get("request")
+        visible = {photo.pk for photo in photos_visible_to(getattr(request, "user", None), instance.photo_set.all())}
+        data["photo_set"] = [item for item in data["photo_set"] if item["id"] in visible]
+        data["number_of_photos"] = len(data["photo_set"])
+        return data
 
     @staticmethod
     def _create_waypoint(waypoint_data) -> Waypoint:

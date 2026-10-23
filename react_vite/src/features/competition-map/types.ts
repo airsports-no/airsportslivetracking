@@ -116,6 +116,8 @@ export interface Photo {
   target_kind?: string;
   is_decoy?: boolean;
   decoy_course?: number | null;
+  // The organiser's own picture, not the generated satellite image
+  uploaded?: boolean;
 }
 
 export interface RouteData {

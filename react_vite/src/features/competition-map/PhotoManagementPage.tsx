@@ -10,6 +10,14 @@ import { Loading } from '../route-editor/components/basicComponents';
 import { RotateCcw, Upload, ArrowLeft, MapPin, Plus, Trash2, X } from 'lucide-react';
 import { generatePath } from '../../urls';
 
+// What a photo target is (target_kind from the navigation task's photos endpoint)
+const TARGET_KIND_LABELS: Record<string, string> = {
+    route_waypoint: 'Route waypoint',
+    catalogue_turnpoint: 'Catalogue turnpoint',
+    unknown_leg: 'Unknown leg waypoint',
+    observation: 'Photo marker',
+};
+
 export default function PhotoManagementPage() {
     const { contestId, navigationTaskId } = useParams();
     const [navTask, setNavTask] = useState<NavigationTask | null>(null);
@@ -254,7 +262,10 @@ export default function PhotoManagementPage() {
                                             <span className="badge badge-primary font-bold">{index + 1}</span>
                                             <div>
                                                 <div className="font-bold truncate max-w-[150px]">{photo.name}</div>
-                                                <div className="text-xs opacity-60">{photo.target_kind === 'catalogue_turnpoint' ? 'Catalogue turnpoint' : 'Route waypoint'}</div>
+                                                <div className="text-xs opacity-60">
+                                                    {(photo.target_kind && TARGET_KIND_LABELS[photo.target_kind]) || 'Route waypoint'}
+                                                    {photo.uploaded ? ' · your photo' : ' · satellite'}
+                                                </div>
                                             </div>
                                         </div>
                                     </div>
