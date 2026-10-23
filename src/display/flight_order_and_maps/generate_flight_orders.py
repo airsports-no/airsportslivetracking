@@ -20,7 +20,7 @@ from cartopy import geodesic
 from cartopy.io.img_tiles import GoogleTiles
 from django.core.files.storage import default_storage
 from fpdf import FPDF
-from PIL import Image, ImageDraw, ImageFont
+from PIL import Image, ImageDraw, ImageFont, ImageOps
 from shapely.geometry import Polygon
 
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
@@ -347,19 +347,67 @@ def _turning_point_gallery_cells(
     contestant, flight_order_configuration: FlightOrderConfiguration, waypoints: List[Waypoint]
 ) -> List[Tuple[str, Optional[str]]]:
     render_waypoints = [wp for wp in waypoints if wp.type not in (SECRETPOINT, DUMMY, UNKNOWN_LEG)]
-    meters_across = flight_order_configuration.turning_point_photos_meters_across
-    zoom_level = flight_order_configuration.turning_point_photos_zoom_level
+    uploaded_photos = _uploaded_photos(contestant.navigation_task)
     cells = []
     for wp in render_waypoints:
-        image_file = get_turning_point_image(
-            waypoints,
-            waypoints.index(wp),
-            meters_across,
-            zoom_level,
-            is_unknown_leg=False,
-        )
+        image_file = _waypoint_image(waypoints, waypoints.index(wp), flight_order_configuration, uploaded_photos)
         cells.append((image_file.name, wp.name))
     return cells
+
+
+def _waypoint_image(
+    waypoints: List[Waypoint],
+    index: int,
+    flight_order_configuration: FlightOrderConfiguration,
+    uploaded_photos: dict[str, Photo],
+) -> NamedTemporaryFile:
+    """A route waypoint's picture: the organiser's own (photo management), or else one generated from satellite
+    images with the route drawn on it"""
+    if photo := uploaded_photos.get(waypoints[index].name):
+        return get_uploaded_photo_image(photo)
+    return get_turning_point_image(
+        waypoints,
+        index,
+        flight_order_configuration.turning_point_photos_meters_across,
+        flight_order_configuration.turning_point_photos_zoom_level,
+    )
+
+
+def _uploaded_photos(navigation_task) -> dict[str, Photo]:
+    """The organisers' own pictures (photo management), by name: the flight order uses them instead of generating
+    satellite images"""
+    return {photo.name: photo for photo in Photo.objects.filter(route=navigation_task.route, uploaded=True) if photo.file}
+
+
+def get_uploaded_photo_image(photo: Photo, course: Optional[float] = None) -> NamedTemporaryFile:
+    """
+    The organiser's own picture, upright (as the camera held it), with the course printed on it as on a generated
+    unknown-leg picture when one is given
+    """
+    with open(_resolve_photo_filename(photo), "rb") as source:
+        image = Image.open(source)
+        image = ImageOps.exif_transpose(image).convert("RGB")
+    if course is None:
+        temporary_file = NamedTemporaryFile(suffix=".png", delete=False)
+        image.save(temporary_file, "PNG")
+        temporary_file.seek(0)
+        return temporary_file
+    draw = ImageDraw.Draw(image)
+    # As large relative to the picture as on a generated image (100 px on 1000), outlined to stay readable on a photo
+    size = max(24, image.width // 10)
+    font = ImageFont.truetype("/src/fonts/OpenSans-Bold.ttf", size)
+    draw.text(
+        (size // 10, size // 10),
+        f"{int(round(course))}",
+        font=font,
+        fill=(255, 0, 0),
+        stroke_width=max(2, size // 20),
+        stroke_fill=(255, 255, 255),
+    )
+    temporary_file = NamedTemporaryFile(suffix=".png", delete=False)
+    image.save(temporary_file, "PNG")
+    temporary_file.seek(0)
+    return temporary_file
 
 
 def _unknown_leg_gallery_cells(
@@ -376,8 +424,13 @@ def _unknown_leg_gallery_cells(
     random.shuffle(render_waypoints)
     meters_across = flight_order_configuration.unknown_leg_photos_meters_across
     zoom_level = flight_order_configuration.unknown_leg_photos_zoom_level
+    uploaded_photos = _uploaded_photos(contestant.navigation_task)
     cells = []
     for wp in render_waypoints:
+        if photo := uploaded_photos.get(wp.name):
+            # The same course as a generated image prints (generate_turning_point_image)
+            cells.append((get_uploaded_photo_image(photo, wp.bearing_next).name, None))
+            continue
         # is_unknown_leg rendering never draws the prev/next track lines (see
         # generate_turning_point_image), so unlike the turning-point gallery this
         # doesn't need the full declared route as index context - the shuffled
@@ -453,16 +506,17 @@ def _compiled_observation_photos(contestant, flight_order_configuration: FlightO
 
 def _route_photos(contestant) -> list:
     """
-    The photos for the "Photos" pages: the route's observation photos (and decoys). The Photo table also holds the
-    photos of the route's waypoints, which belong on the turning point pages in flight order, not mixed in here.
-    A route without editable-route features cannot tell them apart and keeps all its photos.
+    The photos for the "Photos" pages: the route's observation photos. The Photo table also holds the photos of the
+    route's waypoints, which belong on the turning point pages in flight order, not mixed in here, and the decoys,
+    which only go among the unknown-leg photos. A route without editable-route features cannot tell the waypoint
+    photos apart and keeps all but the decoys.
     """
     navigation_task = contestant.navigation_task
-    photos = list(navigation_task.route.photo_set.all().order_by("name"))
+    photos = list(navigation_task.route.photo_set.filter(is_decoy=False).order_by("name"))
     if navigation_task.editable_route is None:
         return photos
     observation_names = get_observation_photo_names(navigation_task)
-    return [photo for photo in photos if photo.is_decoy or photo.name in observation_names]
+    return [photo for photo in photos if photo.name in observation_names]
 
 
 def _photo_gallery_cells(
@@ -675,18 +729,9 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
         contestant,
         include_contestant_declarations=bool(flight_order_configuration.map_include_contestant_declarations),
     )
-    starting_point_image_file = get_turning_point_image(
-        waypoints,
-        0,
-        flight_order_configuration.turning_point_photos_meters_across,
-        flight_order_configuration.turning_point_photos_zoom_level,
-    )
-    finish_point_image_file = get_turning_point_image(
-        waypoints,
-        len(waypoints) - 1,
-        flight_order_configuration.turning_point_photos_meters_across,
-        flight_order_configuration.turning_point_photos_zoom_level,
-    )
+    uploaded_photos = _uploaded_photos(contestant.navigation_task)
+    starting_point_image_file = _waypoint_image(waypoints, 0, flight_order_configuration, uploaded_photos)
+    finish_point_image_file = _waypoint_image(waypoints, len(waypoints) - 1, flight_order_configuration, uploaded_photos)
 
     # A configuration too heavy for this route gets a slightly coarser map rather than no flight order at all
     map_plot_kwargs = build_flight_order_map_plot_kwargs(
