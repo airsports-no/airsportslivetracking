@@ -183,9 +183,15 @@ const checkPlayedSteps = () => {
     );
   }
 };
+// The line of the tutorial script a step comes from, from where it was called (tsx maps it back to the script)
+const SCRIPT_LINE = new RegExp(`scripts[\\\\/]${name.replace(/[.*+?^${}()|[\]\\]/g, "\\$&")}\\.ts:(\\d+):\\d+`);
+const scriptLine = () => {
+  const match = new Error().stack?.match(SCRIPT_LINE);
+  return match ? Number(match[1]) : undefined;
+};
 const recordStep = (label: string) => {
   const id = `${chapterName} #${++stepInChapter}`;
-  if (startedAt) timeline.steps.push({ t: now(), id, label });
+  if (startedAt) timeline.steps.push({ t: now(), id, label, line: scriptLine() });
   if (BY_POSITION.test(label) && !byPosition.includes(id)) {
     byPosition.push(id);
     console.warn(`  ${id} picks by position (${label.match(BY_POSITION)![0]}): a unique name or text is safer`);
@@ -485,7 +491,8 @@ const tutorialContext: TutorialContext = {
     // Only marked: the video waits for the line when it is to be waited for, and keeps lines from overlapping
     const step = recordStep(`say(${JSON.stringify(text.length > 100 ? `${text.slice(0, 97)}...` : text)})`);
     timeline.says.push({ t: now(), step, text, spoken: options.spoken, wait: options.wait ?? true });
-    console.log(`  ${step} say: ${text}`);
+    // Not while only playing the steps before --from's chapter: nothing of them is kept
+    if (keeping) console.log(`  ${step} say: ${text}`);
   },
   async highlight(target, options = {}) {
     const locator = typeof target === "string" ? page.locator(target) : target;

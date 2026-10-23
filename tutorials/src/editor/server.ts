@@ -6,6 +6,7 @@ import { build } from "esbuild";
 import type { Timing } from "../shared/timing";
 import { ROOT, tutorialName } from "../runner/config";
 import { loadTimeline, loadTiming, loadVoice, narrate, timingFile } from "../runner/narrate";
+import { timingFileSource, writeIntoScript } from "../runner/write-script";
 
 // npm run timing -- <tutorial> [--port 3100]
 //
@@ -41,18 +42,6 @@ const editorScript = bundle.outputFiles[0].contents;
 const page = `<!doctype html><html><head><meta charset="utf-8"><title>Timing: ${name}</title>
 <meta name="viewport" content="width=device-width, initial-scale=1"></head>
 <body><div id="root"></div><script type="module" src="/editor.js"></script></body></html>`;
-
-// The timing file as code, as the first recording starts it: the header, then the changes
-const timingFileSource = (timing: Timing) => `import { defineTiming } from "../src/shared/timing";
-
-// Timing changes for ${name}, applied when the video is made: no new recording is needed to try them, and a new
-// recording gets them too. Steps are named "<chapter> #<n>" (the n-th step since that chapter() line). Written by the
-// timing editor (npm run timing -- ${name}), which can be used to change them, or change them here.
-export default defineTiming(${
-  // Plain names without quotes, as written by hand; step names keep theirs
-  JSON.stringify(timing, null, 2).replace(/^(\s*)"([A-Za-z_]\w*)":/gm, "$1$2:")
-});
-`;
 
 const TYPES: Record<string, string> = {
   ".jpg": "image/jpeg",
@@ -118,7 +107,7 @@ const saveTiming = (timing: Timing) => {
     copyFileSync(file, `${file}.bak`);
     backedUp = true;
   }
-  writeFileSync(file, timingFileSource(timing));
+  writeFileSync(file, timingFileSource(name, timing));
 };
 
 createServer(async (request, response) => {
@@ -138,6 +127,10 @@ createServer(async (request, response) => {
       return send(response, 200, JSON.stringify({ ok: true }));
     }
     if (url.pathname === "/api/job") return send(response, 200, JSON.stringify(job));
+    if (url.pathname === "/api/write-script" && request.method === "POST") {
+      // From the saved timing file: the page saves first
+      return send(response, 200, JSON.stringify(writeIntoScript(name, loadTimeline(name), await loadTiming(name))));
+    }
     if (url.pathname.startsWith("/api/job/") && request.method === "POST") {
       const { chapter } = JSON.parse((await readBody(request)) || "{}") as { chapter?: string };
       const kind = url.pathname.slice("/api/job/".length);

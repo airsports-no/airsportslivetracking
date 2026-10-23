@@ -233,6 +233,8 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
   for (const line of timing.lines ?? []) {
     if (!steps.has(line.at)) warnings.push(`The timing file adds a line at a step the recording does not have: ${line.at}`);
   }
+  const afterLineOf = (step: { id: string; label: string }) =>
+    timing.steps?.[step.id]?.afterLine ?? step.label.startsWith("showPdf(");
   // The recorded steps and the added lines, in the order they happen: an added line comes before its step
   const added = addedSays(timeline, timing);
   const events = [
@@ -246,9 +248,13 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
   const lineStarts = new Map<number, number>();
   for (const event of events) {
     const say = event.added ?? (event.step && says.get(event.step.id));
-    if (!say && event.step && waitedFor !== null) {
+    // A step that waits for the line before: after one that is waited for, or that is set to (afterLine; showPdf by
+    // default, as it changes the whole view)
+    const waitsFor = event.step && !say ? (afterLineOf(event.step) ? previousEnd : waitedFor) : null;
+    // Not in a hidden part: the hold would land where the video comes back
+    if (event.step && waitsFor !== null && Number.isFinite(waitsFor) && !isHidden(timeline, event.step.t)) {
       const lead = Math.max(previousT, event.step.t - STEP_LEAD_MS);
-      hold(lead, waitedFor + NARRATION_GAP_MS - toOut(lead));
+      hold(lead, Math.max(waitsFor, waitedFor ?? -Infinity) + NARRATION_GAP_MS - toOut(lead));
     }
     previousT = event.t;
     waitedFor = null;

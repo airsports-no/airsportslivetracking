@@ -90,6 +90,8 @@ export default defineTiming({
     // "Placing the points #12": { holdMs: 1500 },
     // A say() step: start the line 0.5 s earlier, let the next step wait for it, and say something else:
     // "Placing the points #1": { delayMs: -500, wait: true, text: "..." },
+    // Wait until the narration before this step has been said (showPdf does by default; false: it does not):
+    // "Placing the points #5": { afterLine: true },
   },
 });
 `,

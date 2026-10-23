@@ -285,10 +285,13 @@ chapters: [{ at: "Start #14", title: "Placing the points" }],
 lines: [{ at: "Start #14", text: "Now click on the map where the start point should be." }],
 ```
 
-The steps keep the names the recording gave them, even inside an added chapter. Once you are happy, it is best to
-write the chapters and sentences into the script before you next record (they then become part of the recording, and
-the timing file's entries for them can go), since recording again with new chapter lines renames the steps after
-them.
+The steps keep the names the recording gave them, even inside an added chapter. Once you are happy, press **Write
+into the script**: the added chapters and sentences become `chapter("...")` and `await say("...")` lines in the
+script, just before their steps (the old script is kept as `.bak`), the timing file's changes move to the names the
+steps will have, and the editor offers to record again from the first chapter they are in. From then on those
+chapters are real chapters, with **record from here** and **redo clicks**. (This needs a recording that knows the
+script's lines: one made since this button exists. A step on a line that runs more than once, in a loop, is refused:
+put that one in by hand.)
 
 **Or by hand.** The top left of the picture in Studio (not in the video) shows the name of the step being shown, such
 as `Backbone creation #3`: the third step since `chapter("Backbone creation")`. `npm run steps -- my-tutorial` lists
@@ -302,6 +305,7 @@ as you save:
 | `"Backbone creation #14": { holdMs: -800 }` | Takes 0.8 seconds off the wait before the step |
 | `"Select unknown waypoint #1": { delayMs: -500 }` | A sentence (`say`) starts 0.5 seconds earlier (positive: later) |
 | `"Select unknown waypoint #1": { wait: true }` | The next step waits until the sentence is finished (`false`: it carries on while it is spoken) |
+| `"Flight order #1": { afterLine: true }` | This step waits until the sentence before it is finished, even when that sentence does not make steps wait. Showing a PDF (`showPdf`) does this by default, so the view does not change mid-sentence; `false` turns it off. In the editor: "Before this step" |
 | `"Select unknown waypoint #1": { text: "..." }` | Says something else. Run `npm run narrate -- my-tutorial` to hear it in Studio |
 | `edit: { minGapMs: 700, keepGapMs: 250 }` | How much stillness is cut (see the table under "What to change where") |
 

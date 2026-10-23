@@ -185,6 +185,7 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
        "Backbone creation #12": { holdMs: 1500 },           // 1.5 s more still picture before the step
        "Backbone creation #14": { holdMs: -800 },           // 0.8 s less of the wait before it
        "Select unknown waypoint #1": { delayMs: -500, wait: true, text: "A better line." },  // a say() step
+       "Flight order #1": { afterLine: true },             // wait for the line before (showPdf does by default)
      },
    });
    ```

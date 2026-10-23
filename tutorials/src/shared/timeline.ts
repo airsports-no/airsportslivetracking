@@ -18,7 +18,13 @@ export type Highlight = { t: number; durationMs: number; box: Box; label?: strin
 // "<chapter> #<n>": the n-th such line since the chapter("...") line ("Start #<n>" before the first chapter). The
 // timing file (scripts/<name>.timing.ts) refers to steps by these names, which stay the same when the script is
 // recorded again, as long as the chapter's own lines are not changed.
-export type Step = { t: number; id: string; label: string };
+export type Step = {
+  t: number;
+  id: string;
+  label: string;
+  // The script's line (scripts/<name>.ts, from 1) the step comes from; missing in recordings made before this
+  line?: number;
+};
 
 // From say(): where a narration line belongs. The voice is made afterwards (npm run narrate), and the video makes
 // room for it, so the recording does not wait for it.

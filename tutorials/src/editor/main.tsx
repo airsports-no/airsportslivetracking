@@ -239,6 +239,33 @@ function App() {
     }
   }, [tidied, data]);
 
+  // The added chapters and lines into the script, so the next recording has them; then record from the first of them
+  const writeIntoScript = async () => {
+    if (
+      !window.confirm(
+        "Write the added chapters and lines into the script (the old one is kept as .bak)? The timing file then " +
+          "names the steps as the next recording will, so record again right after.",
+      )
+    ) {
+      return;
+    }
+    await save();
+    const response = await fetch("/api/write-script", { method: "POST" });
+    const result = await response.json();
+    if (!response.ok) {
+      setMessage(`Not written: ${result.error}`);
+      return;
+    }
+    const loaded: Data = await (await fetch("/api/data")).json();
+    const tidiedLoaded = tidy(loaded.timing, loaded.timeline.steps);
+    setTiming(tidiedLoaded);
+    setSaved(JSON.stringify(tidiedLoaded));
+    setSelected(null);
+    setMessage(`Wrote ${result.chapters} chapter(s) and ${result.lines} line(s) into the script`);
+    const from = result.recordFrom ? `from "${result.recordFrom}"` : "all of it";
+    if (window.confirm(`Record ${from} now, so the video has them?`)) void startJob("record", result.recordFrom ?? undefined);
+  };
+
   const makeVoice = async () => {
     await save();
     setBusy("Making the voice");
@@ -301,6 +328,16 @@ function App() {
         <div className="actions">
           {message && <span className="message">{message}</span>}
           {busy && <span className="message">{busy}…</span>}
+          {Boolean(tidied.chapters?.length || tidied.lines?.length) && (
+            <button
+              type="button"
+              onClick={writeIntoScript}
+              disabled={busy !== null || job?.running}
+              title="Turn the added chapters and lines into chapter() and say() lines in the script"
+            >
+              Write into the script
+            </button>
+          )}
           <button type="button" onClick={() => startJob("record")} disabled={job?.running}>
             Record all
           </button>
@@ -496,6 +533,7 @@ function ChangeBadges({ change }: { change: StepTiming }) {
   if (change.delayMs) badges.push(`line ${change.delayMs > 0 ? "+" : ""}${(change.delayMs / 1000).toFixed(1)} s`);
   if (change.wait !== undefined) badges.push(change.wait ? "waits" : "no wait");
   if (change.text) badges.push("text");
+  if (change.afterLine !== undefined) badges.push(change.afterLine ? "after the line" : "does not wait");
   return (
     <span className="badges">
       {badges.map((badge) => (
@@ -612,6 +650,23 @@ function Inspector({
           ))}
         </select>
       </label>
+      {!say && (
+        <label>
+          Before this step
+          <select
+            value={change.afterLine === undefined ? "" : String(change.afterLine)}
+            onChange={(event) =>
+              onChange({ afterLine: event.target.value === "" ? undefined : event.target.value === "true" })
+            }
+          >
+            <option value="">
+              as usual ({step.label.startsWith("showPdf(") ? "wait for the narration to finish" : "do not wait"})
+            </option>
+            <option value="true">wait until the narration before it has been said</option>
+            <option value="false">do not wait for the narration</option>
+          </select>
+        </label>
+      )}
       {say && (
         <>
           <label>

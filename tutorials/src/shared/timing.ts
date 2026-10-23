@@ -11,6 +11,8 @@ export type StepTiming = {
   // Play from this step until the step `until` (by default the next one) at this speed: 2 twice as fast, 0.5 half
   speed?: number;
   until?: string;
+  // Wait until the narration before it has been said (true by default for showPdf, which changes the whole view)
+  afterLine?: boolean;
   // For a say() step: start the line this much later (ms; negative: earlier)
   delayMs?: number;
   // For a say() step: whether the next step waits until the line has been said (the script's say() decides otherwise)
