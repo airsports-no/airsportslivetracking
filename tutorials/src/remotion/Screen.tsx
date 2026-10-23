@@ -137,7 +137,13 @@ export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; e
         edit.narration.map(
           (line) =>
             line.file && (
-              <Sequence key={line.step} from={Math.round((line.start / 1000) * fps)}>
+              // Only while it is said: a line left mounted to the end of the video counts against the player's audio
+              // tags (5), and the player stops with an error at the sixth line
+              <Sequence
+                key={line.step}
+                from={Math.round((line.start / 1000) * fps)}
+                durationInFrames={Math.ceil((line.durationMs / 1000) * fps) + 1}
+              >
                 <Audio src={staticFile(line.file)} />
               </Sequence>
             ),
