@@ -18,7 +18,7 @@ import { loadTiming, loadTimeline, narrate } from "./narrate";
 // out/<tutorial>-voice.wav    the voice alone                  } all start at 0 and line up
 // out/<tutorial>-music.wav    the music alone, already mixed   }
 // out/<tutorial>.srt          the narration as subtitles
-// out/<tutorial>-chapters.txt the chapters, for a YouTube description (when the script has chapter() steps)
+// out/<tutorial>-chapters.txt the chapters, for a YouTube description (when the script or the timing file has some)
 
 const name = tutorialName(process.argv.slice(2).find((argument) => !argument.startsWith("--")));
 if (!name) {
@@ -87,7 +87,7 @@ const minutesSeconds = (ms: number) => {
   const seconds = Math.floor(ms / 1000);
   return `${Math.floor(seconds / 60)}:${String(seconds % 60).padStart(2, "0")}`;
 };
-const chapters = (timeline.chapters ?? []).map((chapter) => `${minutesSeconds(offset + edit.toOut(chapter.t))} ${chapter.title}`);
+const chapters = edit.chapters.map((chapter) => `${minutesSeconds(offset + chapter.t)} ${chapter.title}`);
 if (chapters.length > 0) {
   writeFileSync(path.join(OUT_DIR, `${name}-chapters.txt`), ["0:00 Introduction", ...chapters].join("\n") + "\n");
 }

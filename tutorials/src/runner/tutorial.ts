@@ -22,8 +22,9 @@ export type MapSteps = {
   view(lat: number, lng: number, zoom: number): Promise<void>;
   // Clicks the map at this point, wherever it is on screen
   click(lat: number, lng: number): Promise<void>;
-  // Panning, or dragging a point: [x, y, ms] for each point of the path
-  drag(path: [number, number, number][]): Promise<void>;
+  // Panning, or dragging a point: [x, y, ms] for each point of the path. at: where on the map the drag started, and
+  // the zoom then (the recorder writes it), so it starts there however the map lies
+  drag(path: [number, number, number][], anchor?: { at: [number, number]; zoom: number }): Promise<void>;
   // Wheel zooming: [x, y, deltaY, ms] for each tick
   wheel(ticks: [number, number, number, number][]): Promise<void>;
 };
@@ -39,7 +40,7 @@ export type TutorialContext = {
   camera(mode: "wide" | "auto"): void;
   // The start of a phase of the tutorial ("Placing the points"): a label in the video, and a chapter in
   // out/<name>-chapters.txt. The recorder writes these when you press F8.
-  chapter(title: string): void;
+  chapter(title: string): Promise<void>;
   // The steps between startHidden() and endHidden() are performed but cut from the video, which crossfades from the
   // last picture before to the page as it is after (for setting something up the tutorial is not about). The recorder
   // writes these when you press F9.
@@ -47,12 +48,23 @@ export type TutorialContext = {
   endHidden(): Promise<void>;
   // Shows a PDF's pages in the browser (the headless recording browser cannot): a path on the site such as a flight
   // order's download address, fetched logged in, or a file. Go back to the site with page.goto(...).
-  // pages: only these pages (numbered from 1), width: the share of the window a page takes (0.7).
-  showPdf(source: string, options?: { width?: number; pages?: number[] }): Promise<void>;
+  // pages: only these pages (numbered from 1), width: the share of the window a page takes (0.7), or "page" for
+  // each page whole.
+  showPdf(source: string, options?: { width?: number | "page"; pages?: number[] }): Promise<void>;
+  // Zooms a shown PDF page from where it is to the window's full width, with an area of it in the middle: y and
+  // height as fractions of the page from its top (as pdfRegion). x and width: the part of the page that fills the
+  // width (all of it by default, 0 and 1), such as the map without the page's margins. Over durationMs (1800).
+  zoomPdf(
+    number: number,
+    band: { y: number; height: number; x?: number; width?: number },
+    options?: { durationMs?: number },
+  ): Promise<void>;
   // A page of the PDF shown, to scroll to or highlight
   pdfPage(number: number): Locator;
   // An area of a PDF page, to highlight: x, y, width and height as fractions of the page (0 to 1, from the top left)
   pdfRegion(number: number, region: { x: number; y: number; width: number; height: number }): Promise<Locator>;
+  // Dialogs (confirm, alert, "leave this page?") are accepted; "dismiss" declines the next one instead
+  nextDialog(answer: "accept" | "dismiss"): void;
   map: MapSteps;
 };
 
@@ -96,7 +108,9 @@ declare global {
   const startHidden: TutorialContext["startHidden"];
   const endHidden: TutorialContext["endHidden"];
   const showPdf: TutorialContext["showPdf"];
+  const zoomPdf: TutorialContext["zoomPdf"];
   const pdfPage: TutorialContext["pdfPage"];
   const pdfRegion: TutorialContext["pdfRegion"];
+  const nextDialog: TutorialContext["nextDialog"];
   const map: TutorialContext["map"];
 }

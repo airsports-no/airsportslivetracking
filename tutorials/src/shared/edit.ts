@@ -1,7 +1,7 @@
 import { CAMERA } from "./camera";
-import { DEFAULT_EDIT, isHidden, type Timeline } from "./timeline";
+import { DEFAULT_EDIT, isHidden, type Say, type Timeline } from "./timeline";
 import type { Pause } from "./captions";
-import type { Timing, Voice } from "./timing";
+import { addedLineKeys, type Timing, type Voice } from "./timing";
 
 // Which parts of the recording make it into the video, at what speed, and where the narration goes. Anything
 // happening (the screen changing, an action, a highlight, a pause) keeps a stretch; the still stretches between them
@@ -25,12 +25,16 @@ export type PlacedLine = {
   pauses: Pause[];
 };
 
+// A chapter where it starts in the video, recorded (chapter()) or added in the timing file
+export type PlacedChapter = { t: number; title: string };
+
 export type Edit = {
   segments: Segment[];
   durationMs: number;
   // Where a hidden part was cut out (video time): the picture crossfades there
   jumps: { outMs: number; fromSrcMs: number }[];
   narration: PlacedLine[];
+  chapters: PlacedChapter[];
   // Steps in the timing file that the recording does not have, and say() lines without a voice yet
   warnings: string[];
   // Recording time to video time (something at a held moment shows after the hold), and back
@@ -77,6 +81,27 @@ export function activeIntervals(timeline: Timeline): Interval[] {
     ...timeline.holds.map((item): Interval => [item.t, item.t + item.durationMs]),
   ];
   return merge(intervals.map(([a, b]): Interval => [Math.max(0, a), Math.min(timeline.durationMs, b)]));
+}
+
+// Where something added before a step goes in the recording: where the camera starts moving to the step, though not
+// before the step ahead of it
+export function stepAnchor(timeline: Timeline, id: string): number | undefined {
+  const index = timeline.steps.findIndex((step) => step.id === id);
+  if (index < 0) return undefined;
+  return Math.max(timeline.steps[index - 1]?.t ?? 0, timeline.steps[index].t - STEP_LEAD_MS);
+}
+
+// The timing file's added narration lines as say() lines at their steps (named by addedLineKeys), with what the
+// timing file says about each
+export function addedSays(timeline: Timeline, timing: Timing): (Say & { delayMs?: number })[] {
+  const lines = timing.lines ?? [];
+  const keys = addedLineKeys(lines);
+  return lines.flatMap((line, index) => {
+    const t = stepAnchor(timeline, line.at);
+    return t === undefined
+      ? []
+      : [{ t, step: keys[index], text: line.text, wait: line.wait ?? true, delayMs: line.delayMs }];
+  });
 }
 
 export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, timing: Timing = {}): Edit {
@@ -205,22 +230,35 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
   // that is waited for, the next step (its camera move) starts only once it has been said
   const narration: PlacedLine[] = [];
   const says = new Map(timeline.says.map((say) => [say.step, say]));
+  for (const line of timing.lines ?? []) {
+    if (!steps.has(line.at)) warnings.push(`The timing file adds a line at a step the recording does not have: ${line.at}`);
+  }
+  // The recorded steps and the added lines, in the order they happen: an added line comes before its step
+  const added = addedSays(timeline, timing);
+  const events = [
+    ...timeline.steps.map((step) => ({ t: step.t, before: 1, step, added: undefined })),
+    ...added.map((line) => ({ t: line.t, before: 0, step: undefined, added: line })),
+  ].sort((a, b) => a.t - b.t || a.before - b.before);
   let previousEnd = -Infinity;
   let waitedFor: number | null = null;
-  timeline.steps.forEach((step, index) => {
-    const say = says.get(step.id);
-    if (!say && waitedFor !== null) {
-      const lead = Math.max(timeline.steps[index - 1]?.t ?? 0, step.t - STEP_LEAD_MS);
+  let previousT = 0;
+  // Where the first line at each moment of the recording starts: a chapter there starts with it
+  const lineStarts = new Map<number, number>();
+  for (const event of events) {
+    const say = event.added ?? (event.step && says.get(event.step.id));
+    if (!say && event.step && waitedFor !== null) {
+      const lead = Math.max(previousT, event.step.t - STEP_LEAD_MS);
       hold(lead, waitedFor + NARRATION_GAP_MS - toOut(lead));
     }
+    previousT = event.t;
     waitedFor = null;
-    if (!say) return;
+    if (!say) continue;
     if (isHidden(timeline, say.t)) {
       warnings.push(`${say.step} is in a hidden part, so it is not said: ${say.text}`);
-      return;
+      continue;
     }
-    const change = timing.steps?.[say.step] ?? {};
-    const text = change.text ?? say.text;
+    const change = event.added ?? timing.steps?.[say.step] ?? {};
+    const text = (event.added ? undefined : timing.steps?.[say.step]?.text) ?? say.text;
     const line = voice.lines[say.step];
     const voiced = line && line.text === text ? line : undefined;
     if (!voiced) warnings.push(`${say.step} has no voice yet (npm run narrate -- ${timeline.name}): ${text}`);
@@ -229,9 +267,10 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
     hold(say.t, previousEnd + NARRATION_GAP_MS - (toOut(say.t) + delay));
     const start = toOut(say.t) + delay;
     narration.push({ step: say.step, start, durationMs, text, file: voiced?.file, pauses: voiced?.pauses ?? [] });
+    if (!lineStarts.has(say.t)) lineStarts.set(say.t, start);
     previousEnd = start + durationMs;
-    if (change.wait ?? say.wait) waitedFor = previousEnd;
-  });
+    if ((event.added ? undefined : timing.steps?.[say.step]?.wait) ?? say.wait) waitedFor = previousEnd;
+  }
   // The video lasts until the last line has been said
   const end = segments.length ? segments[segments.length - 1].outEnd : 0;
   if (previousEnd + NARRATION_GAP_MS > end) hold(timeline.durationMs, previousEnd + NARRATION_GAP_MS - end);
@@ -240,5 +279,16 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
   const jumps = hidden
     .filter(([start]) => start > 0 && start < timeline.durationMs)
     .map(([start, end]) => ({ outMs: toOut(end), fromSrcMs: start }));
-  return { segments, durationMs, jumps, narration, warnings, toOut, toSrc };
+  // The chapters, recorded and added, where they start in the video
+  const addedChapters = (timing.chapters ?? []).flatMap((chapter) => {
+    const t = stepAnchor(timeline, chapter.at);
+    if (t === undefined) warnings.push(`The timing file adds a chapter at a step the recording does not have: ${chapter.at}`);
+    return t === undefined ? [] : [{ src: t, title: chapter.title }];
+  });
+  const recordedChapters = (timeline.chapters ?? []).map((chapter) => ({ src: chapter.t, title: chapter.title }));
+  const chapters = [...recordedChapters, ...addedChapters]
+    .sort((a, b) => a.src - b.src)
+    // Not after the picture held for its first line, which is at the same moment
+    .map((chapter) => ({ t: lineStarts.get(chapter.src) ?? toOut(chapter.src), title: chapter.title }));
+  return { segments, durationMs, jumps, narration, chapters, warnings, toOut, toSrc };
 }

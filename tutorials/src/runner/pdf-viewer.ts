@@ -6,14 +6,15 @@ import { ROOT } from "./config";
 // Shows a PDF in a page with pdf.js: the headless recording browser has no PDF viewer. Served from a made-up address
 // so the pdf.js module and its worker load like any page's. Each page is a box of its own (data-pdf-page="n", numbered
 // as in the PDF), which pdfPage(n) and pdfRegion(n, ...) find. With grid, a labelled 10% grid lies over each page, to
-// read the fractions pdfRegion takes (npm run pdf-grid).
+// read the fractions pdfRegion takes (npm run pdf-grid). zoomPdfInPage zooms a page from where it is to the window's
+// full width, onto a band of it, drawing it sharp enough for that first (window.__sharpenPdfPage).
 
 const PDF_VIEWER_ORIGIN = "https://tutorial-pdf.local";
 const PDFJS_BUILD = path.join(ROOT, "node_modules", "pdfjs-dist", "build");
 
 export type PdfViewOptions = {
-  // The share of the window's width a page takes
-  width?: number;
+  // The share of the window's width a page takes, or "page": each page whole, as high as the window
+  width?: number | "page";
   // Only these pages, numbered from 1
   pages?: number[];
   grid?: boolean;
@@ -33,23 +34,41 @@ const viewerHtml = ({ width = 0.7, pages, grid = false }: PdfViewOptions) => `<!
     import * as pdfjs from "/pdf.min.mjs";
     pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
     const document_ = await pdfjs.getDocument("/document.pdf").promise;
-    const width = window.innerWidth * ${width};
+    const share = ${JSON.stringify(width)};
+    // Draws a page into a canvas as many pixels wide as given, shown as wide as cssWidth
+    const draw = async (pdfPage, cssWidth, pixelWidth) => {
+      const viewport = pdfPage.getViewport({ scale: pixelWidth / pdfPage.getViewport({ scale: 1 }).width });
+      const canvas = document.createElement("canvas");
+      canvas.width = viewport.width;
+      canvas.height = viewport.height;
+      canvas.style.width = cssWidth + "px";
+      await pdfPage.render({ canvas, canvasContext: canvas.getContext("2d"), viewport }).promise;
+      return canvas;
+    };
+    const shown = new Map();
+    // Before zooming in: the page drawn again for the width it will have, swapped in unchanged on screen
+    window.__sharpenPdfPage = async (number, cssWidthZoomed) => {
+      const item = shown.get(number);
+      if (!item) return;
+      const sharp = await draw(item.pdfPage, item.width, cssWidthZoomed * window.devicePixelRatio);
+      item.box.querySelector("canvas").replaceWith(sharp);
+      await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
+    };
     const pages = ${JSON.stringify(pages ?? null)} ?? Array.from({ length: document_.numPages }, (_, index) => index + 1);
     for (const number of pages) {
       if (number < 1 || number > document_.numPages) continue;
       const pdfPage = await document_.getPage(number);
-      const scale = width / pdfPage.getViewport({ scale: 1 }).width;
-      const viewport = pdfPage.getViewport({ scale: scale * window.devicePixelRatio });
-      const canvas = document.createElement("canvas");
-      canvas.width = viewport.width;
-      canvas.height = viewport.height;
-      canvas.style.width = width + "px";
+      const natural = pdfPage.getViewport({ scale: 1 });
+      // "page": as high as the window, less the margin above and below
+      const width = share === "page" ? ((window.innerHeight - 64) * natural.width) / natural.height : window.innerWidth * share;
+      // Drawn for the size it is shown at (zoomPdf draws it sharper when it zooms in): a much larger canvas is slow to
+      // appear, and the recording would show a blank page for a while
       const box = document.createElement("div");
       box.className = "pdf-page";
       box.dataset.pdfPage = String(number);
-      box.append(canvas);
+      box.append(await draw(pdfPage, width, width * window.devicePixelRatio));
       document.body.append(box);
-      await pdfPage.render({ canvas, canvasContext: canvas.getContext("2d"), viewport }).promise;
+      shown.set(number, { pdfPage, box, width });
       if (${grid}) {
         for (let tenth = 1; tenth < 10; tenth++) {
           const vertical = document.createElement("div");
@@ -70,8 +89,55 @@ const viewerHtml = ({ width = 0.7, pages, grid = false }: PdfViewOptions) => `<!
         }
       }
     }
+    // Once the pages are on the screen, not only drawn
+    await new Promise((resolve) => requestAnimationFrame(() => requestAnimationFrame(resolve)));
     window.__pdfShown = true;
   </script></body></html>`;
+
+// Zooms page n of the shown PDF so its part from x to x + width (fractions of the page from its left; all of it by
+// default) fills the window's width, with the band from y to y + height (from its top) in the middle of the window,
+// over durationMs. The page's regions (pdfRegion) move with it.
+export async function zoomPdfInPage(
+  page: Page,
+  number: number,
+  band: { y: number; height: number; x?: number; width?: number },
+  durationMs: number,
+): Promise<void> {
+  // Sharp for the zoom first: the page drawn as wide as it is going to be
+  await page.evaluate(
+    async ([number, bandWidth]) => {
+      const box = document.querySelector<HTMLElement>(`[data-pdf-page="${number}"]`);
+      const sharpen = (window as unknown as { __sharpenPdfPage?: (n: number, w: number) => Promise<void> })
+        .__sharpenPdfPage;
+      if (box && sharpen) await sharpen(number, window.innerWidth / bandWidth);
+    },
+    [number, band.width ?? 1 - (band.x ?? 0)] as const,
+  );
+  await page.evaluate(
+    ([number, band, durationMs]) =>
+      new Promise<void>((resolve, reject) => {
+        const box = document.querySelector<HTMLElement>(`[data-pdf-page="${number}"]`);
+        if (!box) return reject(new Error(`Page ${number} of the PDF is not shown`));
+        // The page grows past the window: no scroll bars, and nothing scrolls under it
+        document.documentElement.style.overflow = "hidden";
+        document.body.style.overflow = "hidden";
+        box.style.transform = "";
+        const rect = box.getBoundingClientRect();
+        const left = band.x ?? 0;
+        const scale = window.innerWidth / (rect.width * (band.width ?? 1 - left));
+        const height = rect.height * scale;
+        // The band's middle in the middle of the window, without showing past the page's top or bottom
+        const middle = (band.y + band.height / 2) * height;
+        const top = Math.min(0, Math.max(window.innerHeight - height, window.innerHeight / 2 - middle));
+        box.style.transformOrigin = "0 0";
+        box.style.transition = `transform ${durationMs}ms cubic-bezier(0.65, 0, 0.35, 1)`;
+        box.getBoundingClientRect();
+        box.style.transform = `translate(${-rect.left - left * rect.width * scale}px, ${top - rect.top}px) scale(${scale})`;
+        setTimeout(resolve, durationMs + 100);
+      }),
+    [number, band, durationMs] as const,
+  );
+}
 
 export async function showPdfInPage(page: Page, pdf: Buffer, options: PdfViewOptions = {}): Promise<void> {
   await page.route(`${PDF_VIEWER_ORIGIN}/**`, (route) => {

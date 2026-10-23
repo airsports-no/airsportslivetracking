@@ -19,11 +19,30 @@ export type StepTiming = {
   text?: string;
 };
 
+// A chapter or a narration line added without recording again, starting where the camera starts moving to the step
+// `at` (before that step happens). They work as chapter() and say() in the script would there.
+export type AddedChapter = { at: string; title: string };
+export type AddedLine = {
+  at: string;
+  text: string;
+  // Whether the step after it (`at`) waits until it has been said (by default it does, as say() does)
+  wait?: boolean;
+  // Start it this much later (ms; negative: earlier)
+  delayMs?: number;
+};
+
 export type Timing = {
   // How still stretches are cut, over the script's edit settings
   edit?: Partial<EditSettings>;
   steps?: Record<string, StepTiming>;
+  chapters?: AddedChapter[];
+  lines?: AddedLine[];
 };
+
+// The name of an added line, for its voice and in the timing editor: "<step> +<n>", the n-th line added before that
+// step
+export const addedLineKeys = (lines: AddedLine[]) =>
+  lines.map((line, index) => `${line.at} +${lines.slice(0, index + 1).filter((other) => other.at === line.at).length}`);
 
 export const defineTiming = (timing: Timing) => timing;
 

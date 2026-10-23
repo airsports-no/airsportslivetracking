@@ -116,14 +116,20 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    - `showPdf(source, { width })` shows a PDF's pages with pdf.js (the headless recording browser has no PDF viewer):
      a file relative to `tutorials/` (such as a flight order saved in `pdfs/`), or a path on the site fetched logged
      in (`/display/navigationtask/<task>/downloadflightorders/?contestant_pks=<one contestant>`). `width` is the share
-     of the window a page takes (0.7), `pages: [2, 3]` shows only those pages. Go back with `page.goto(...)`.
+     of the window a page takes (0.7), or `"page"` for each page whole, `pages: [2, 3]` shows only those pages. Go back
+     with `page.goto(...)`.
+   - `zoomPdf(n, { y, height, x, width })` zooms shown page `n` smoothly from where it is to the window's full width,
+     with the band from `y` to `y + height` in the middle: the whole map page first, then the route. `x` and `width`
+     pick the part of the page that fills the width (the map without the page's margins); `{ durationMs }` (1.8 s).
    - `pdfPage(n)` is a shown PDF page and `await pdfRegion(n, { x, y, width, height })` an area of it (fractions of
      the page from its top left), to scroll to or `highlight`. `npm run pdf-grid -- <file.pdf>` writes each page with a
      labelled 10% grid to `out/`, to read the fractions from.
    - `chapter(title)` starts a phase: its name slides in at the bottom of the video and shows in the header, and
      it becomes a chapter in `out/<name>-chapters.txt`.
    - `pause(ms)` keeps a still moment that would otherwise be cut.
-   - `map.view`, `map.click`, `map.drag` and `map.wheel` are the recorder's map steps (step 1).
+   - `map.view`, `map.click`, `map.drag` and `map.wheel` are the recorder's map steps (step 1). `map.drag` also gets
+     where on the map the drag started (`{ at: [lat, lng], zoom }`), so it starts on that spot however the map lies
+     when it is played, and dragging a point moves that point.
    - `page`, `say`, `map` and the rest are available in `run()` as they are: pasted steps work without listing them.
    - `camera("wide")` shows the whole page (for example while drawing on the map) until `camera("auto")`.
    - `fill()` from the recorder is typed out visibly, key by key.
@@ -146,11 +152,27 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    screen. (`--headed` shows the browser through WSLg, if you want to watch.) It does not wait for the narration;
    at the end it makes the voice (`npm run narrate`), and it starts the timing file `scripts/<name>.timing.ts` when
    there is none.
+
+   `--from "<chapter>"` records only from that chapter on and keeps the last recording up to it
+   (`src/runner/join.ts`): the steps before it are played exactly as when recording (the site reacts to their
+   timing), only not kept, to bring the site to where the chapter starts, and must be those of the last recording
+   (checked step by step). A
+   stopped recording says which picture shows the page as it was. Steps that pick by position (`.nth()`, `.first()`,
+   `.last()`) are reported. Dialogs are accepted, while recording the clicks too; `nextDialog("dismiss")` before a
+   step declines the one it opens.
 4. **Preview and adjust the timing.** `npm run studio` starts Remotion Studio: open the address it prints
    (http://localhost:3000) in a Windows browser to scrub through every recorded tutorial. The top left of the
    picture (in Studio only) names the step being shown, such as `Backbone creation #3`: the third step since
    `chapter("Backbone creation")`. `npm run steps -- <name>` lists every step with its time in the video.
-   Change the timing in `scripts/<name>.timing.ts` (in git); Studio shows a saved change straight away:
+
+   **The timing editor**, `npm run timing -- <name>` (http://localhost:3100, `--port` for another), is the easy way:
+   the video in a player (`@remotion/player`) beside the steps; choosing one jumps to it and gives its hold, speed,
+   line start, wait and text, and every change plays at once (the page works out the edit as the render does). Save
+   writes the timing file (rewriting it: comments are not kept, the old file goes to `.bak`), Make voice runs
+   `npm run narrate` for changed texts. "New chapter here" and "New line here" add a chapter or a narration line
+   before the chosen step, without recording again (`chapters` and `lines` in the timing file, each `at` a step;
+   added lines are named `<step> +<n>` for their voice). Or change the timing in `scripts/<name>.timing.ts` (in git)
+   by hand; Studio shows a saved change straight away:
 
    ```ts
    export default defineTiming({
@@ -211,6 +233,9 @@ too.
   narration is placed (see step 5 above).
 - **Camera** (`src/shared/camera.ts`): moves in on the element clicked, typed in or highlighted, stays while the
   work continues, and zooms out after a quiet spell or for large elements such as the map. Tune with `CAMERA`.
+- **Timing editor** (`src/editor/`): `server.ts` bundles `main.tsx` with esbuild, serves it with `public/` (with
+  ranges, for seeking in the voice and music) and the recording, and writes the timing file; `main.tsx` plays
+  `TutorialVideo` with the edited timing.
 - **Narration** (`src/runner/narrate.ts`): the voice for each `say()` step, with the timing file's `text` where it
   has one, in `public/recordings/<name>/voice.json` and `narration/`, with the pauses in each line, which time
   the captions of long lines.

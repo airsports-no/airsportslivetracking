@@ -3,6 +3,7 @@ import { existsSync, mkdirSync, readdirSync, readFileSync, rmSync, writeFileSync
 import path from "node:path";
 import { pathToFileURL } from "node:url";
 import { findPauses } from "../shared/captions";
+import { addedSays } from "../shared/edit";
 import type { Timeline } from "../shared/timeline";
 import type { Timing, Voice } from "../shared/timing";
 import { RECORDINGS_DIR, ROOT, SCRIPTS_DIR, settings, tutorialName } from "./config";
@@ -42,7 +43,8 @@ export async function narrate(name: string): Promise<Voice> {
   const directory = path.join(RECORDINGS_DIR, name, "narration");
   mkdirSync(directory, { recursive: true });
   const voice: Voice = { lines: {} };
-  for (const say of timeline.says) {
+  // The recording's say() lines (with the timing file's text where it has one) and the lines it adds
+  for (const say of [...timeline.says, ...addedSays(timeline, timing)]) {
     const text = timing.steps?.[say.step]?.text ?? say.text;
     // The script's spoken form only belongs to the script's text
     const spoken = text === say.text ? say.spoken : undefined;
@@ -63,7 +65,7 @@ export async function narrate(name: string): Promise<Voice> {
   const used = new Set(Object.values(voice.lines).map((line) => path.basename(line.file)));
   for (const file of readdirSync(directory)) if (!used.has(file)) rmSync(path.join(directory, file));
   writeFileSync(path.join(RECORDINGS_DIR, name, "voice.json"), JSON.stringify(voice, null, 1));
-  console.log(`Narration of ${name}: ${timeline.says.length} lines`);
+  console.log(`Narration of ${name}: ${Object.keys(voice.lines).length} lines`);
   return voice;
 }
 

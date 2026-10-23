@@ -75,5 +75,6 @@ export type Timeline = {
 export const DEFAULT_EDIT: EditSettings = { minGapMs: 700, keepGapMs: 250 };
 
 // Whether something at recording time t happened in a hidden part (it is cut from the video)
+// The end is where the video comes back: what happens right then (the next chapter's first line) is shown
 export const isHidden = (timeline: Timeline, t: number) =>
-  (timeline.hidden ?? []).some((part) => t >= part.start && t <= part.end);
+  (timeline.hidden ?? []).some((part) => t >= part.start && t < part.end);

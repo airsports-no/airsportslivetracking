@@ -6,17 +6,23 @@ import { STEP_LEAD_MS, STEP_PAUSE_AFTER_MS } from "../shared/edit";
 import type { Timeline } from "../shared/timeline";
 import { AUTH_FILE, RECORDINGS_DIR, SCRIPTS_DIR, settings, tutorialName } from "./config";
 import { cleanUp } from "./cleanup";
-import { showPdfInPage } from "./pdf-viewer";
+import { showPdfInPage, zoomPdfInPage } from "./pdf-viewer";
+import { differenceBeforeChapter, joinRecordings, keptRecording, type Earlier } from "./join";
 import { narrate, writeTimingTemplate } from "./narrate";
 import type { MapSteps, Tutorial, TutorialContext } from "./tutorial";
 
-// npm run record -- <tutorial> [--headed]
+// npm run record -- <tutorial> [--headed] [--from "<chapter>"]
 //
 // Plays scripts/<tutorial>.ts in a browser and records what the screen shows (every change, as sharp JPEG frames from
 // the browser itself), where each click and keystroke lands, and when each step, narration line and highlight happens.
 // The narration is only marked: its voice is made afterwards (npm run narrate, which this runs at the end), and the
 // video makes room for it. The video is made from this by `npm run render`, with the timing file's changes
 // (scripts/<tutorial>.timing.ts, started here when there is none).
+//
+// --from "<chapter>" records only from that chapter on, and keeps the last recording up to it: the steps before it are
+// played first exactly as when recording (the site reacts to their timing: a map pan done faster is a click), but what
+// they show is not kept, to bring the site to where the chapter starts. After a recording that stopped half way, or to
+// redo one part.
 
 const TYPING_DELAY_MS = 55;
 // Before each step the page is left still: first until it has stopped changing, then long enough for the video's
@@ -26,19 +32,30 @@ const STILL_MS = 300;
 const STILL_MAX_WAIT_MS = 4000;
 const DEVICE_SCALE_FACTOR = 2;
 
-const name = tutorialName(process.argv.slice(2).find((argument) => !argument.startsWith("--")));
-if (!name) {
-  console.error("Usage: npm run record -- <tutorial name> [--headed]");
+const fromIndex = process.argv.indexOf("--from");
+const fromChapter = fromIndex > 0 ? process.argv[fromIndex + 1] : undefined;
+const name = tutorialName(process.argv.slice(2).find((argument, index, all) => !argument.startsWith("--") && all[index - 1] !== "--from"));
+if (!name || (fromIndex > 0 && !fromChapter)) {
+  console.error('Usage: npm run record -- <tutorial name> [--headed] [--from "<chapter>"]');
   process.exit(1);
 }
 const headed = process.argv.includes("--headed");
 const tutorial: Tutorial = (await import(pathToFileURL(path.join(SCRIPTS_DIR, `${name}.ts`)).href)).default;
 
+const outputDir = path.join(RECORDINGS_DIR, name);
+// --from: the last recording up to the chapter is kept (its frames after it go once the new part is there). Checked
+// before cleaning up, so a mistyped chapter changes nothing.
+let earlier: Earlier | null = null;
+try {
+  earlier = fromChapter ? keptRecording(outputDir, fromChapter) : null;
+} catch (error) {
+  console.error(error instanceof Error ? error.message : error);
+  process.exit(1);
+}
+if (!earlier) rmSync(outputDir, { recursive: true, force: true });
+
 // What an earlier recording (or recording the clicks) created would otherwise be there twice
 await cleanUp(tutorial.cleanUp);
-
-const outputDir = path.join(RECORDINGS_DIR, name);
-rmSync(outputDir, { recursive: true, force: true });
 mkdirSync(path.join(outputDir, "frames"), { recursive: true });
 
 const browser = await chromium.launch({ headless: !headed, slowMo: Number(process.env.TUTORIAL_SLOWMO || 0) });
@@ -83,6 +100,8 @@ const timeline: Timeline = {
 };
 let startedAt = 0;
 const now = () => Date.now() - startedAt;
+// Before --from's chapter the steps are played as when recording, but nothing of them is kept
+let keeping = !fromChapter;
 
 // Clicks and keystrokes are seen from inside the page, so they are logged however they were made
 await page.exposeBinding("__tutorialAction", (_source, action) => {
@@ -120,6 +139,13 @@ await context.addInitScript(`(() => {
     lastScroll = Date.now();
     report({ kind: "scroll", x: event.clientX, y: event.clientY });
   }, { capture: true, passive: true });
+  // Links and windows that would open a new tab (the live map) open in this one: the recording, and the script's page,
+  // follow this tab only
+  document.addEventListener("click", (event) => {
+    const link = event.target && event.target.closest && event.target.closest("a[target]");
+    if (link && link.target !== "_self") link.target = "_self";
+  }, true);
+  window.open = (url) => { if (url) window.location.assign(url); return window; };
   // The blinking text cursor would count as constant screen changes
   document.addEventListener("DOMContentLoaded", () => {
     const style = document.createElement("style");
@@ -140,9 +166,27 @@ const settle = async () => {
 let chapterName = "Start";
 let stepInChapter = 0;
 const usedChapterNames = new Set<string>();
+// Steps that pick an element by its position among those that match (.nth(), .first(), .last()): another match
+// before it, on a later day, changes which one is used
+const BY_POSITION = /\.(nth\(\d+\)|first\(\)|last\(\))/;
+const byPosition: string[] = [];
+// The steps played before --from's chapter must be the kept recording's
+const checkPlayedSteps = () => {
+  const difference = earlier && differenceBeforeChapter(earlier, timeline.steps);
+  if (difference) {
+    throw new Error(
+      `The steps before "${fromChapter}" are not those of the last recording (${difference}), so what is kept of it ` +
+        "would not match: record the whole tutorial",
+    );
+  }
+};
 const recordStep = (label: string) => {
   const id = `${chapterName} #${++stepInChapter}`;
   if (startedAt) timeline.steps.push({ t: now(), id, label });
+  if (BY_POSITION.test(label) && !byPosition.includes(id)) {
+    byPosition.push(id);
+    console.warn(`  ${id} picks by position (${label.match(BY_POSITION)![0]}): a unique name or text is safer`);
+  }
   return id;
 };
 const describe = (value: unknown) => (typeof value === "string" ? JSON.stringify(value) : JSON.stringify(value) ?? "");
@@ -209,11 +253,21 @@ for (const method of ["click", "dblclick", "down", "wheel"] as const) {
   (page.mouse as unknown as Record<string, unknown>)[method] = settled(original, () => `page.mouse.${method}`);
 }
 
+// Dialogs (confirm, alert, "leave this page?") are accepted, as when the clicks were recorded, unless the script said
+// nextDialog("dismiss") before the step
+let nextDialogAnswer: "accept" | "dismiss" = "accept";
+page.on("dialog", (dialog) => {
+  const answer = nextDialogAnswer;
+  nextDialogAnswer = "accept";
+  console.log(`  dialog ${answer === "accept" ? "accepted" : "declined"}: ${dialog.message()}`);
+  (answer === "accept" ? dialog.accept() : dialog.dismiss()).catch(() => undefined);
+});
+
 await page.goto(tutorial.startUrl ?? "/");
 await page.waitForLoadState("networkidle").catch(() => undefined);
 
 const cdp = await context.newCDPSession(page);
-let frameCount = 0;
+let frameCount = earlier?.lastFrameNumber ?? 0;
 let previousFrame = "";
 cdp.on("Page.screencastFrame", ({ data, metadata, sessionId }) => {
   cdp.send("Page.screencastFrameAck", { sessionId }).catch(() => undefined);
@@ -223,18 +277,23 @@ cdp.on("Page.screencastFrame", ({ data, metadata, sessionId }) => {
   previousFrame = data;
   lastFrameAt = Date.now();
   if (!startedAt) startedAt = Math.round((metadata.timestamp ?? Date.now() / 1000) * 1000);
+  // Before --from's chapter: seen, so the page's stillness is known as when recording, but not kept
+  if (!keeping) return;
   const file = `frames/${String(++frameCount).padStart(6, "0")}.jpg`;
   writeFileSync(path.join(outputDir, file), Buffer.from(data, "base64"));
   const t = metadata.timestamp ? Math.round(metadata.timestamp * 1000) - startedAt : now();
   timeline.frames.push({ t: Math.max(0, t), file: `recordings/${name}/${file}` });
 });
-await cdp.send("Page.startScreencast", {
-  format: "jpeg",
-  quality: 92,
-  maxWidth: settings.viewport.width * DEVICE_SCALE_FACTOR,
-  maxHeight: settings.viewport.height * DEVICE_SCALE_FACTOR,
-});
-while (!startedAt) await new Promise((resolve) => setTimeout(resolve, 20));
+const startRecording = async () => {
+  await cdp.send("Page.startScreencast", {
+    format: "jpeg",
+    quality: 92,
+    maxWidth: settings.viewport.width * DEVICE_SCALE_FACTOR,
+    maxHeight: settings.viewport.height * DEVICE_SCALE_FACTOR,
+  });
+  while (!startedAt) await new Promise((resolve) => setTimeout(resolve, 20));
+};
+await startRecording();
 
 // The route editor's map (window.__routeEditorMap, set by its useMapInit): where its top left corner is on the page
 const NO_MAP = "The route editor's map is not on this page (window.__routeEditorMap)";
@@ -244,6 +303,32 @@ const waitForMap = () =>
     .waitForFunction(() => Boolean((window as unknown as { __routeEditorMap?: unknown }).__routeEditorMap), null, {
       timeout: 15000,
     })
+    .catch(() => undefined);
+// Until the map has stopped moving (a wheel zoom's animation, the glide after a pan): a map position becomes a point on
+// the screen only then, or a click lands where the map was a moment ago. Still: the same centre and zoom for 200 ms.
+const waitForStillMap = () =>
+  page
+    .evaluate(
+      () =>
+        new Promise<void>((resolve) => {
+          const map = (window as any).__routeEditorMap;
+          if (!map) return resolve();
+          const deadline = Date.now() + 4000;
+          let last = "";
+          let stillSince = Date.now();
+          const check = () => {
+            const center = map.getCenter();
+            const now = `${center.lat.toFixed(8)},${center.lng.toFixed(8)},${map.getZoom()}`;
+            if (now !== last) {
+              last = now;
+              stillSince = Date.now();
+            }
+            if (Date.now() - stillSince >= 200 || Date.now() > deadline) resolve();
+            else setTimeout(check, 40);
+          };
+          check();
+        }),
+    )
     .catch(() => undefined);
 const mapCorner = async () => {
   await waitForMap();
@@ -255,12 +340,32 @@ const mapCorner = async () => {
   }, NO_MAP);
 };
 
+// A drag recorded with where it started on the map (the recorder writes { at: [lat, lng], zoom }): it starts there
+// however the map lies now, and its moves are scaled to the zoom, so dragging a point drags that point. Without one,
+// the drag is played at the recorded positions in the map.
+const anchoredPath = async (path: [number, number, number][], anchor?: { at: [number, number]; zoom: number }) => {
+  if (!anchor) return path;
+  const now = await page.evaluate(([lat, lng]) => {
+    const map = (window as any).__routeEditorMap;
+    const point = map.latLngToContainerPoint([lat, lng]);
+    return { x: point.x, y: point.y, zoom: map.getZoom() };
+  }, anchor.at);
+  const scale = 2 ** (now.zoom - anchor.zoom);
+  const [startX, startY] = path[0];
+  return path.map(([x, y, ms]): [number, number, number] => [
+    Math.round(now.x + (x - startX) * scale),
+    Math.round(now.y + (y - startY) * scale),
+    ms,
+  ]);
+};
+
 const mapSteps: MapSteps = {
   async view(lat, lng, zoom) {
     recordStep(call("map.view", [lat, lng, zoom]));
     await waitForMap();
+    await waitForStillMap();
     await page.evaluate(
-      ([lat, lng, zoom, message]) =>
+      ([lat, lng, zoom, message, animate]) =>
         new Promise<void>((resolve, reject) => {
           const map = (window as any).__routeEditorMap;
           if (!map) return reject(new Error(message));
@@ -269,14 +374,15 @@ const mapSteps: MapSteps = {
             return resolve();
           }
           map.once("moveend", () => resolve());
-          map.setView([lat, lng], zoom, { animate: true });
+          map.setView([lat, lng], zoom, { animate });
           setTimeout(() => resolve(), 3000);
         }),
-      [lat, lng, zoom, NO_MAP] as const,
+      [lat, lng, zoom, NO_MAP, true] as const,
     );
   },
   click: settled(async (lat: number, lng: number) => {
     await waitForMap();
+    await waitForStillMap();
     const point = await page.evaluate(
       ([lat, lng, message]) => {
         const map = (window as any).__routeEditorMap;
@@ -289,12 +395,16 @@ const mapSteps: MapSteps = {
     );
     await mouse.click(point.x, point.y);
   }, () => "map.click"),
-  drag: settled(async (path: [number, number, number][]) => {
+  drag: settled(async (path: [number, number, number][], anchor?: { at: [number, number]; zoom: number }) => {
     const corner = await mapCorner();
-    const [[startX, startY], ...rest] = path;
+    await waitForStillMap();
+    const points = await anchoredPath(path, anchor);
+    const [[startX, startY], ...rest] = points;
     await mouse.move(corner.x + startX, corner.y + startY);
     await mouse.down();
     for (const [x, y, ms] of rest) {
+      // Played at the recorded speed even when fast forwarding: on the route editor's map a pan done too fast is a
+      // click, which adds a waypoint
       if (ms) await sleep(ms);
       await mouse.move(corner.x + x, corner.y + y);
     }
@@ -302,6 +412,7 @@ const mapSteps: MapSteps = {
   }, () => "map.drag"),
   wheel: settled(async (ticks: [number, number, number, number][]) => {
     const corner = await mapCorner();
+    await waitForStillMap();
     for (const [x, y, deltaY, ms] of ticks) {
       if (ms) await sleep(ms);
       await mouse.move(corner.x + x, corner.y + y);
@@ -318,7 +429,7 @@ const waitForStillPage = async () => {
   while (Date.now() - lastFrameAt < STILL_MS && Date.now() < deadline) await sleep(50);
 };
 
-const showPdfPages = (pdf: Buffer, width: number, pages: number[] | undefined) => showPdfInPage(page, pdf, { width, pages });
+const showPdfPages = (pdf: Buffer, width: number | "page", pages: number[] | undefined) => showPdfInPage(page, pdf, { width, pages });
 
 const holdStill = async (ms: number) => {
   timeline.holds.push({ t: now(), durationMs: ms });
@@ -352,7 +463,19 @@ const tutorialContext: TutorialContext = {
   camera(mode) {
     timeline.camera.push({ t: now(), mode });
   },
-  chapter(title) {
+  async chapter(title) {
+    if (!keeping && title === fromChapter) {
+      checkPlayedSteps();
+      // What was played before is not kept: the recording starts here, at 0
+      keeping = true;
+      for (const list of [timeline.frames, timeline.actions, timeline.highlights, timeline.steps, timeline.says,
+        timeline.camera, timeline.holds, timeline.chapters!, timeline.hidden!]) {
+        list.length = 0;
+      }
+      hiddenSince = null;
+      startedAt = Date.now();
+      console.log(`  recording from "${title}"`);
+    }
     timeline.chapters!.push({ t: now(), title });
     // The same title twice: the steps of the second are named "<title> (2) #<n>"
     let count = 1;
@@ -385,6 +508,15 @@ const tutorialContext: TutorialContext = {
         })()
       : readFileSync(source);
     await showPdfPages(bytes, options.width ?? 0.7, options.pages);
+    // Until the recording has the drawn pages too: a line said right after would otherwise hold an empty frame
+    await waitForStillPage();
+  },
+  async zoomPdf(number, band, options = {}) {
+    recordStep(call("zoomPdf", [number, band]));
+    await zoomPdfInPage(page, number, band, options.durationMs ?? 1800);
+  },
+  nextDialog(answer) {
+    nextDialogAnswer = answer;
   },
   pdfPage(number) {
     return page.locator(`[data-pdf-page="${number}"]`);
@@ -411,29 +543,46 @@ const tutorialContext: TutorialContext = {
   map: mapSteps,
 };
 
-console.log(`Recording ${name}: ${tutorial.title}`);
+console.log(`Recording ${name}: ${tutorial.title}${fromChapter ? `, from "${fromChapter}"` : ""}`);
+if (fromChapter) console.log("  playing the steps before it as when recording, without keeping them");
 let failure: unknown = null;
 try {
   await holdStill(800);
   // Also as globals, so pasted steps work whether or not run() lists the names it uses
   Object.assign(globalThis, tutorialContext);
   await tutorial.run(tutorialContext);
+  if (!keeping) throw new Error(`The script has no chapter("${fromChapter}") to record from`);
   await tutorialContext.endHidden();
   await holdStill(1200);
 } catch (error) {
   failure = error;
+  // The page as it is now: frames are not captured while fast forwarding, and the last one may be some time back
+  await page.screenshot({ path: path.join(outputDir, "stopped.png") }).catch(() => undefined);
 } finally {
   await cdp.send("Page.stopScreencast").catch(() => undefined);
-  timeline.durationMs = now();
-  writeFileSync(path.join(outputDir, "timeline.json"), JSON.stringify(timeline, null, 1));
+  timeline.durationMs = startedAt ? now() : 0;
+  // --from: after the kept recording up to the chapter (unless the recording never got there)
+  const result = earlier && keeping ? joinRecordings(earlier, timeline) : earlier ? earlier.full : timeline;
+  writeFileSync(path.join(outputDir, "timeline.json"), JSON.stringify(result, null, 1));
+  Object.assign(timeline, result);
   await browser.close();
 }
 // Reported here, not left uncaught: the voice library's handler for uncaught errors prints its whole minified source
 // in front of the message
 if (failure) {
   console.error(`\nThe recording stopped: ${failure instanceof Error ? failure.stack : failure}`);
-  console.error(`What was recorded until then is kept in public/recordings/${name}/.`);
+  console.error(`What was recorded until then is kept in public/recordings/${name}/, with its narration so far.`);
+  // What the page showed when it stopped: usually says why (a dialog, a page that did not load, a moved button)
+  console.error(`The page as it was when it stopped: public/recordings/${name}/stopped.png`);
+  // The voice for what was recorded, so it can be watched in Studio
+  await narrate(name).catch((error) => console.error(`No narration made: ${error instanceof Error ? error.message : error}`));
   process.exit(1);
+}
+if (byPosition.length > 0) {
+  console.warn(
+    `${byPosition.length} step(s) pick an element by position (${byPosition.join(", ")}): if they ever pick the wrong ` +
+      "one, use a name or text only that element has",
+  );
 }
 console.log(
   `Recorded ${(timeline.durationMs / 1000).toFixed(1)} s: ${timeline.frames.length} frames, ` +

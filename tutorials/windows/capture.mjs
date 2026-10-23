@@ -78,7 +78,12 @@ const PAGE_SCRIPT = `(() => {
     if (isOurs(event)) return;
     flushTyping();
     const map = mapOf(event.target);
-    press = { x: event.clientX, y: event.clientY, target: event.target, map, at: performance.now(),
+    // Where on the map a drag starts, and the zoom: the replay starts it there however the map lies
+    const anchor = map && leaflet()
+      ? { at: [fixed(leaflet().mouseEventToLatLng(event).lat, 7), fixed(leaflet().mouseEventToLatLng(event).lng, 7)],
+          zoom: leaflet().getZoom() }
+      : null;
+    press = { x: event.clientX, y: event.clientY, target: event.target, map, anchor, at: performance.now(),
       locator: locatorOf(event.target), path: map ? [[...relative(map, event), 0]] : [] };
   }, true);
   window.addEventListener("pointermove", (event) => {
@@ -91,13 +96,13 @@ const PAGE_SCRIPT = `(() => {
   window.addEventListener("pointerup", (event) => {
     if (isOurs(event)) return;
     if (!press) return;
-    const { x, y, target, map, locator, path, at } = press;
+    const { x, y, target, map, anchor, locator, path, at } = press;
     press = null;
     const moved = Math.hypot(event.clientX - x, event.clientY - y) > 6;
     if (map && moved) {
       // Panning, or dragging a point: the whole path with its timing, relative to the map
       path.push([...relative(map, event), round(performance.now() - at)]);
-      emit("await map.drag(" + JSON.stringify(path) + ");");
+      emit("await map.drag(" + JSON.stringify(path) + (anchor ? ", " + JSON.stringify(anchor) : "") + ");");
       pendingView();
     } else if (moved) {
       emit("await page.mouse.move(" + round(x) + ", " + round(y) + ");");
@@ -121,6 +126,10 @@ const PAGE_SCRIPT = `(() => {
     const element = event.target;
     if (element instanceof HTMLSelectElement) {
       emit("await page." + locatorOf(element) + ".selectOption(" + quote(element.value) + ");");
+    } else if (element instanceof HTMLInputElement &&
+      ["date", "datetime-local", "time", "month", "week", "color", "range"].includes(element.type)) {
+      // Chosen in the browser's own picker, which the clicks do not show: the value it ended with
+      emit("await page." + locatorOf(element) + ".fill(" + quote(element.value) + ");");
     } else if (isTextField(element)) {
       flushTyping();
     }
@@ -319,10 +328,18 @@ export async function startCapture({
   );
   // While paused (F10, or while the steps before a chapter are replayed) nothing is written
   let recording = !paused;
+  // A step that picks an element by its position among those that match: another match before it, on a later day,
+  // changes which one is used
+  const BY_POSITION = /\.(nth\(\d+\)|first\(\)|last\(\))/;
   const write = (line) => {
     if (!recording) return;
     appendFileSync(output, line + "\n");
     onStep(line);
+    if (/^await page\./.test(line) && BY_POSITION.test(line)) {
+      const warning = "// ↑ Picks by position: if it may pick the wrong one later, use a name or text only it has";
+      appendFileSync(output, warning + "\n");
+      onStep(warning);
+    }
   };
   await context.exposeBinding("__captureStep", (_source, line) => write(line));
   // A badge says when nothing is being recorded
@@ -364,9 +381,21 @@ export async function startCapture({
     await context.addInitScript(`window.__captureStart = ${JSON.stringify({ lat: latitude, lng: longitude })};`);
   }
   await context.addInitScript(PAGE_SCRIPT);
+  // Links and windows that would open a new tab (the live map) open in this one, as when the video is recorded
+  await context.addInitScript(`(() => {
+    document.addEventListener("click", (event) => {
+      const link = event.target && event.target.closest && event.target.closest("a[target]");
+      if (link && link.target !== "_self") link.target = "_self";
+    }, true);
+    window.open = (url) => { if (url) window.location.assign(url); return window; };
+  })();`);
   const page = await context.newPage();
-  // Playwright dismisses dialogs (confirm, alert) when nothing handles them, while recording and while replaying
-  page.on("dialog", (dialog) => write(`// A dialog was dismissed: ${JSON.stringify(dialog.message())}`));
+  // The browser Playwright drives shows no dialogs (confirm, alert, "leave this page?"): they are accepted, here and when
+  // the video is recorded, so "Save anyway?" saves. nextDialog("dismiss") before the step declines one instead.
+  page.on("dialog", (dialog) => {
+    write(`// A dialog was accepted: ${JSON.stringify(dialog.message())} (nextDialog("dismiss") before the step declines it)`);
+    dialog.accept().catch(() => undefined);
+  });
   page.on("domcontentloaded", () => showRecordingState(page));
   await page.goto(url);
   // Where a new route's map opens: say what the page sees, so a location that does not get through is noticed
@@ -429,6 +458,27 @@ export async function replaySteps(page, steps) {
         [lat, lng, zoom],
       ),
     click: async (lat, lng) => {
+      // Not while the map still moves (a zoom animation, the glide after a pan): the point would land off
+      await mapCall(
+        () =>
+          new Promise((resolve) => {
+            const map = window.__routeEditorMap;
+            const deadline = Date.now() + 4000;
+            let last = "";
+            let stillSince = Date.now();
+            const check = () => {
+              const center = map.getCenter();
+              const now = `${center.lat.toFixed(8)},${center.lng.toFixed(8)},${map.getZoom()}`;
+              if (now !== last) {
+                last = now;
+                stillSince = Date.now();
+              }
+              if (Date.now() - stillSince >= 200 || Date.now() > deadline) resolve();
+              else setTimeout(check, 40);
+            };
+            check();
+          }),
+      );
       const point = await mapCall(
         ([lat, lng]) => {
           const leaflet = window.__routeEditorMap;
@@ -441,11 +491,21 @@ export async function replaySteps(page, steps) {
       await page.mouse.click(point.x, point.y);
       await page.waitForTimeout(150);
     },
-    drag: async (path) => {
+    drag: async (path, anchor) => {
       const { x, y } = await corner();
-      await page.mouse.move(x + path[0][0], y + path[0][1]);
+      // Recorded with where it started on the map: start there however the map lies, scaled to the zoom
+      let points = path;
+      if (anchor) {
+        const now = await mapCall(([lat, lng]) => {
+          const point = window.__routeEditorMap.latLngToContainerPoint([lat, lng]);
+          return { x: point.x, y: point.y, zoom: window.__routeEditorMap.getZoom() };
+        }, anchor.at);
+        const scale = 2 ** (now.zoom - anchor.zoom);
+        points = path.map(([px, py, ms]) => [now.x + (px - path[0][0]) * scale, now.y + (py - path[0][1]) * scale, ms]);
+      }
+      await page.mouse.move(x + points[0][0], y + points[0][1]);
       await page.mouse.down();
-      for (const [px, py] of path.slice(1)) await page.mouse.move(x + px, y + py);
+      for (const [px, py] of points.slice(1)) await page.mouse.move(x + px, y + py);
       await page.mouse.up();
     },
     wheel: async (ticks) => {
@@ -470,6 +530,8 @@ export async function replaySteps(page, steps) {
     startHidden: skip,
     endHidden: skip,
     showPdf: async () => console.log("  (a showPdf step is not replayed here)"),
+    zoomPdf: skip,
+    nextDialog: () => {},
     pdfPage: () => page.locator("body"),
     pdfRegion: async () => page.locator("body"),
   };

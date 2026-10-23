@@ -68,11 +68,8 @@ export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; e
     `translate(${-(cx - viewport.width / (2 * zoom))}px, ${-(cy - viewport.height / (2 * zoom))}px)`;
 
   const shownFrame: Frame | undefined = lastAtOrBefore(timeline.frames, srcMs) ?? timeline.frames[0];
-  const chapters = useMemo(
-    () => (timeline.chapters ?? []).map((chapter) => ({ ...chapter, t: edit.toOut(chapter.t) })),
-    [timeline, edit],
-  );
-  const chapter = lastAtOrBefore(chapters, outMs);
+  // Recorded and added in the timing file, in video time
+  const chapter = lastAtOrBefore(edit.chapters, outMs);
 
   return (
     <AbsoluteFill style={{ background: theme.background, fontFamily: theme.font }}>

@@ -96,6 +96,7 @@ What you can use in a script:
 | `await pause(2000)` | Keeps a still moment of 2 seconds, for example to let something sink in |
 | `await startHidden()` … `await endHidden()` | The steps in between are performed but cut from the video (F9 writes these) |
 | `await showPdf("pdfs/flight-order-2a3.pdf")` | Shows a PDF's pages, for example a flight order (see below) |
+| `await zoomPdf(4, { y: 0.31, height: 0.36 })` | Zooms in on part of a shown PDF page, to the full width (see below) |
 | `await highlight(await pdfRegion(2, { x: 0.55, y: 0.54, width: 0.3, height: 0.14 }))` | Points out an area of a PDF page (see below) |
 | `camera("wide")` … `camera("auto")` | Shows the whole page instead of zooming in, for example while working on the map |
 
@@ -117,6 +118,20 @@ await page.goto("/");             // back to the site
 ```
 
 Only some pages: `showPdf("pdfs/flight-order-2a3.pdf", { pages: [2] })`.
+
+**Zooming in on the map.** Show the map page whole, then zoom in so the map fills the video's width, cropped above and
+below to the route. The numbers are fractions of the page, read from `npm run pdf-grid` (see below):
+
+```ts
+await showPdf("pdfs/flight-order-2a5.pdf", { pages: [4], width: "page" });   // the whole page
+await say("This is the navigation map the contestants fly with.", { wait: false });
+await pause(1200);
+await zoomPdf(4, { y: 0.31, height: 0.36, x: 0.048, width: 0.904 });
+```
+
+`y` and `height` are the part of the page from top to bottom that should be in the middle (the route), `x` and
+`width` the part from left to right that fills the width (here the map without the page's white margins; leave
+them out for the whole page width).
 
 **Pointing out part of a PDF page.** `highlight` dims everything else, outlines what it is given, adds an optional
 label and lets the camera zoom in on it, for as long as `durationMs` (2.5 seconds by default). On a web page you give
@@ -203,8 +218,24 @@ of the script. This is the only part that clicks through the site. It does not w
 quicker than the video. At the end it generates the narration (sentences that did not change are reused), and the
 first time it creates the timing file `scripts/my-tutorial.timing.ts` for step 4.
 
-If the script stops with an error, the message says which line; often a button was renamed, or the page was not
-ready yet.
+If the script stops with an error, the message says which line, and where to find a picture of the page as it was
+then: often a button was renamed, the page was not ready yet, or a panel was closed. Fix the script, then record again
+**from the chapter that failed** instead of from the start:
+
+```
+npm run record -- my-tutorial --from "Save"
+```
+
+The steps before that chapter are played as when recording, so the site is where the chapter starts, but not
+recorded: that takes as long as before, but the recording keeps its earlier part and only replaces the rest. That only works while the steps before the chapter are the
+same as in the last recording (it says so if they are not: then record the whole tutorial).
+
+While recording, the script warns about steps that pick something by its position, such as
+`getByRole('button', { name: 'Create task' }).first()`: the first of several that match. If another one turns up
+before it, the step picks the wrong one. Where you can, change it to a name or text only that element has.
+
+Dialogs ("Route has validation errors. Save anyway?", "Leave this page?") are answered OK, both while recording the
+clicks and while recording the video. To answer Cancel, put `nextDialog("dismiss");` before the step that opens one.
 
 ## Step 4: Watch it
 
@@ -218,10 +249,40 @@ where the zoom is distracting.
 
 Studio shows the latest recording. After changing the script, record again (step 3) and reload the page.
 
-**Changing the timing without recording again.** The top left of the picture in Studio (not in the video) shows
-the name of the step being shown, such as `Backbone creation #3`: the third step since `chapter("Backbone
-creation")`. `npm run steps -- my-tutorial` lists all of them with their times. Write the changes into
-`scripts/my-tutorial.timing.ts`, and Studio shows them as soon as you save:
+**Changing the timing without recording again: the timing editor.** In WSL:
+
+```
+npm run timing -- my-tutorial
+```
+
+and open http://localhost:3100 in your browser. The video plays on the left, with every step of the recording on the
+right, grouped by phase. Click a step: the video jumps to it, and below the video you can hold the picture longer or
+shorter before it, play a stretch faster or slower (up to a later step), start a sentence earlier or later, choose
+whether the next step waits for it, and change what is said. The video shows every change at once. **Save**
+(Ctrl+S) writes them to `scripts/my-tutorial.timing.ts`, which every render uses; **Make voice** makes the voice for
+changed sentences, which until then are shown as captions only. Saving rewrites the timing file, so comments written
+in it by hand are not kept (the file as it was is kept as `my-tutorial.timing.ts.bak`).
+
+**Adding chapters and sentences without recording again.** Recorded one long session? Choose a step and press **New
+chapter here** or **New line here**: the chapter or sentence starts as the camera moves to that step, just as a
+`chapter("...")` or `await say("...")` line before that step in the script would. Added chapters show in the list in
+blue, with **rename** and **delete**; added sentences show as their own rows, with the same settings as the others
+and **Delete line**. They are saved in the timing file:
+
+```ts
+chapters: [{ at: "Start #14", title: "Placing the points" }],
+lines: [{ at: "Start #14", text: "Now click on the map where the start point should be." }],
+```
+
+The steps keep the names the recording gave them, even inside an added chapter. Once you are happy, it is best to
+write the chapters and sentences into the script before you next record (they then become part of the recording, and
+the timing file's entries for them can go), since recording again with new chapter lines renames the steps after
+them.
+
+**Or by hand.** The top left of the picture in Studio (not in the video) shows the name of the step being shown, such
+as `Backbone creation #3`: the third step since `chapter("Backbone creation")`. `npm run steps -- my-tutorial` lists
+all of them with their times. Write the changes into `scripts/my-tutorial.timing.ts`, and Studio shows them as soon
+as you save:
 
 | In the timing file | What it does |
 | --- | --- |
@@ -267,7 +328,7 @@ first (trimming a moment is `holdMs` with a minus, see step 4) and keep Resolve 
 | You want to change | Where | Then |
 |---|---|---|
 | Clicks, typing, narration text, highlights, pauses | `scripts/<name>.ts` | `npm run record -- <name>`, then render |
-| Faster or slower parts, longer or shorter waits, when a sentence starts, a sentence's text | `scripts/<name>.timing.ts` | render (Studio shows it live; a new text needs `npm run narrate -- <name>` first) |
+| Faster or slower parts, longer or shorter waits, when a sentence starts, a sentence's text | `npm run timing -- <name>` (the timing editor), or `scripts/<name>.timing.ts` by hand | render (both show it live; a new text needs Make voice, or `npm run narrate -- <name>`) |
 | Phases and their names | `chapter(...)` lines in `scripts/<name>.ts` | record again |
 | What is cut from the video | `startHidden()` … `endHidden()` in `scripts/<name>.ts` (F9 when recording the clicks) | record again |
 | What is deleted before each recording | `cleanUp` in `scripts/<name>.ts` | record again |
@@ -303,10 +364,11 @@ sentence's text in the timing file, pronunciations, the voice itself): run `npm 
 | The timing file "names a step the recording does not have" | A line of that chapter was added or removed: find the new name with `npm run steps -- <name>` |
 | The map starts in the wrong place | Set `TUTORIAL_GEOLOCATION` in `tutorials/.env` (it is used for both recordings) |
 | A click lands in the wrong place on the map | Record the clicks again with the latest recorder: map clicks should appear as `map.click(...)` lines |
-| A step fails because something is not found | The page changed (a button renamed or moved): re-record that chapter (`-Chapter "..."`, see "Re-recording one chapter") |
+| A step fails because something is not found | Look at the picture of the page the message names. The page changed (a button renamed or moved): re-record that chapter's clicks (`-Chapter "..."`, see "Re-recording one chapter"), then `npm run record -- <name> --from "<chapter>"` |
+| A recording stopped half way | Fix the step, then `npm run record -- <name> --from "<chapter it stopped in>"`: only that chapter and the rest are recorded again |
 | A step fails because it finds two of something ("strict mode violation") | An earlier recording left it behind: add it to `cleanUp` in the script, or run `npm run cleanup -- <name>` |
 | The narration sounds wrong | Rephrase the sentence (in the script, or with `text` in the timing file to skip recording again), or add the word to `pronunciations.json` |
 | A render stops saying the music is missing | Fetch it: `npm run fetch-assets` |
 | A sentence is missing from the video | It was spoken inside a hidden part, which is cut with it (the recording, Studio and `npm run steps` warn about this): move the `say` after `endHidden()` |
 | A PDF does not show | PDFs opened by clicking cannot be shown: save the PDF in `tutorials/pdfs/` and use `showPdf("pdfs/<file>.pdf")` |
-| A step fails with "... is not defined" | Check the spelling: `page`, `say`, `map`, `chapter`, `highlight`, `pause`, `camera`, `startHidden`, `endHidden` and `showPdf` are available as they are |
+| A step fails with "... is not defined" | Check the spelling: `page`, `say`, `map`, `chapter`, `highlight`, `pause`, `camera`, `startHidden`, `endHidden`, `showPdf`, `zoomPdf`, `pdfPage` and `pdfRegion` are available as they are |
