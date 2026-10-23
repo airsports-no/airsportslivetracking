@@ -28,12 +28,54 @@ const PAGE_SCRIPT = `(() => {
   const quote = (value) => JSON.stringify(String(value));
   // always: written while recording is paused (F10) too, as a phase marked then (F8) starts what comes after it
   const emit = (line, always = false) => window.__captureStep && window.__captureStep(line, always);
+  // A locator that picks by position (a CSS path with nth-child, .nth(), .first()) depends on the order of what is on
+  // the page: one more route in a list, and it picks another. Such a button or link is written instead by a text only
+  // its surroundings have: "the Create task button in the card with Task 2.A5 Unknown legs".
+  const POSITIONAL = /nth-child|nth-of-type|\\.nth\\(|\\.first\\(\\)|\\.last\\(\\)/;
+  const squash = (text) => (text || "").trim().replace(/\\s+/g, " ");
+  const nameOf = (element) => squash(element.getAttribute("aria-label") || element.innerText || element.value);
+  const xpathString = (text) => (text.includes('"') ? "'" + text + "'" : '"' + text + '"');
+  const byItsSurroundings = (element) => {
+    const target = element.closest("button, a, [role=button], [role=link]");
+    if (!target) return null;
+    const role = target.tagName === "A" || target.getAttribute("role") === "link" ? "link" : "button";
+    const name = nameOf(target);
+    if (!name || name.length > 60 || (name.includes('"') && name.includes("'"))) return null;
+    const kind = role === "link" ? "a, [role=link]" : "button, [role=button]";
+    const sameIn = (root) => [...root.querySelectorAll(kind)].filter((item) => nameOf(item) === name).length;
+    // Texts to name the surroundings by: headings (a card's title) first, then other texts with words in them (not
+    // "22.82 NM", which changes with the route)
+    const texts = (root) => {
+      const headings = [...root.querySelectorAll("h1, h2, h3, h4, h5, h6, [role=heading]")];
+      const leaves = [...root.querySelectorAll("*")].filter((item) => item.children.length === 0);
+      return [...headings, ...leaves]
+        .filter((item) => !item.closest(kind))
+        .map((item) => squash(item.textContent))
+        .filter((text) => text.length >= 3 && text.length <= 80 && /[A-Za-zÆØÅæøå]{3}/.test(text));
+    };
+    const onPage = texts(document.body);
+    for (let box = target.parentElement, depth = 0; box && depth < 12; box = box.parentElement, depth++) {
+      const same = sameIn(box);
+      if (same > 1) break;
+      if (same !== 1) continue;
+      const text = texts(box).find((candidate) => onPage.filter((other) => other === candidate).length === 1);
+      if (!text) continue;
+      const self = role === "link" ? "self::a or @role='link'" : "self::button or @role='button'";
+      const ancestor = "xpath=ancestor::*[.//*[" + self + "][normalize-space(.)=" + xpathString(name) + " or @aria-label=" +
+        xpathString(name) + "]][1]";
+      return "getByText(" + quote(text) + ", { exact: true }).locator(" + quote(ancestor) + ").getByRole(" + quote(role) +
+        ", { name: " + quote(name) + ", exact: true })";
+    }
+    return null;
+  };
   const locatorOf = (element) => {
+    let generated;
     try {
-      return window.playwright.generateLocator(element, "javascript");
+      generated = window.playwright.generateLocator(element, "javascript");
     } catch (error) {
       return "locator(" + quote(element.tagName.toLowerCase()) + ")";
     }
+    return POSITIONAL.test(generated) ? byItsSurroundings(element) || generated : generated;
   };
   const mapOf = (element) => {
     if (!element.closest || element.closest(".leaflet-control")) return null;
@@ -127,8 +169,18 @@ const PAGE_SCRIPT = `(() => {
     const element = event.target;
     if (element instanceof HTMLSelectElement) {
       emit("await page." + locatorOf(element) + ".selectOption(" + quote(element.value) + ");");
-    } else if (element instanceof HTMLInputElement &&
-      ["date", "datetime-local", "time", "month", "week", "color", "range"].includes(element.type)) {
+    } else if (element instanceof HTMLInputElement && ["date", "datetime-local"].includes(element.type) && element.value) {
+      // Chosen in the browser's own picker, which the clicks do not show. The date is written as so many days from the
+      // day it is recorded (day(0) is that day): the replay uses the day it runs, so it is never in the past
+      const [date, time] = element.value.split("T");
+      const midnight = (value) => new Date(value + "T00:00").getTime();
+      const recordedOn = new Date();
+      const pad = (number) => String(number).padStart(2, "0");
+      const today = recordedOn.getFullYear() + "-" + pad(recordedOn.getMonth() + 1) + "-" + pad(recordedOn.getDate());
+      const offset = Math.round((midnight(date) - midnight(today)) / 86400000);
+      const value = time ? "\`" + "$" + "{day(" + offset + ")}T" + time + "\`" : "day(" + offset + ")";
+      emit("await page." + locatorOf(element) + ".fill(" + value + ");");
+    } else if (element instanceof HTMLInputElement && ["time", "month", "week", "color", "range"].includes(element.type)) {
       // Chosen in the browser's own picker, which the clicks do not show: the value it ended with
       emit("await page." + locatorOf(element) + ".fill(" + quote(element.value) + ");");
     } else if (isTextField(element)) {
@@ -163,7 +215,11 @@ const PAGE_SCRIPT = `(() => {
   // F9 starts and ends a hidden part: what you do in between is performed when the video is recorded, but cut from it
   // (setting something up the tutorial is not about). A badge shows while it is on, and stays on across pages.
   const HIDDEN_KEY = "__captureHidden";
+  const PENDING_PHASE_KEY = "__capturePendingPhase";
   const showHiddenBadge = () => {
+    // Not before the page has a body (a page loading during a hidden part): an error here would stop the rest of this
+    // script, F8 and the map recording with it. DOMContentLoaded shows it then.
+    if (!document.body) return;
     if (sessionStorage.getItem(HIDDEN_KEY) !== "on" || document.querySelector("[data-capture-badge]")) return;
     const badge = document.createElement("div");
     badge.setAttribute("data-capture-ui", "");
@@ -172,7 +228,7 @@ const PAGE_SCRIPT = `(() => {
     badge.style.cssText = "position:fixed;top:12px;right:12px;z-index:2147483647;background:#e11d24;color:white;" +
       "font:600 13px system-ui,sans-serif;padding:6px 12px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,0.35);" +
       "pointer-events:none";
-    (document.body || document.documentElement).append(badge);
+    document.body.append(badge);
   };
   const toggleHidden = () => {
     flushTyping();
@@ -181,6 +237,9 @@ const PAGE_SCRIPT = `(() => {
       document.querySelectorAll("[data-capture-badge]").forEach((badge) => badge.remove());
       emit("await endHidden();");
       emit("// ── Shown again ──");
+      // A phase marked during the hidden part starts here, where the video comes back (its narration would be cut)
+      for (const line of JSON.parse(sessionStorage.getItem(PENDING_PHASE_KEY) || "[]")) emit(line, true);
+      sessionStorage.removeItem(PENDING_PHASE_KEY);
     } else {
       sessionStorage.setItem(HIDDEN_KEY, "on");
       emit("");
@@ -231,10 +290,15 @@ const PAGE_SCRIPT = `(() => {
     const submit = () => {
       const name = title.value.trim();
       const text = narration.value.trim().replace(/\\s+/g, " ");
-      emit("", true);
-      emit("// ── Phase" + (name ? ": " + name : "") + " ──", true);
-      if (name) emit("await chapter(" + quote(name) + ");", true);
-      emit(text ? "await say(" + quote(text) + ", { wait: false });" : "// await say(\\"\\", { wait: false });", true);
+      const lines = ["", "// ── Phase" + (name ? ": " + name : "") + " ──"];
+      if (name) lines.push("await chapter(" + quote(name) + ");");
+      lines.push(text ? "await say(" + quote(text) + ", { wait: false });" : "// await say(\\"\\", { wait: false });");
+      // During a hidden part: written when it ends (F9), so the phase starts where the video comes back
+      if (sessionStorage.getItem(HIDDEN_KEY) === "on") {
+        sessionStorage.setItem(PENDING_PHASE_KEY, JSON.stringify([...JSON.parse(sessionStorage.getItem(PENDING_PHASE_KEY) || "[]"), ...lines]));
+      } else {
+        for (const line of lines) emit(line, true);
+      }
       close();
     };
     form.addEventListener("submit", (event) => { event.preventDefault(); submit(); });
@@ -537,6 +601,11 @@ export async function replaySteps(page, steps) {
     showPdf: async () => console.log("  (a showPdf step is not replayed here)"),
     zoomPdf: skip,
     nextDialog: () => {},
+    day: (offset = 0) => {
+      const date = new Date(Date.now() + offset * 86400000);
+      const pad = (number) => String(number).padStart(2, "0");
+      return date.getFullYear() + "-" + pad(date.getMonth() + 1) + "-" + pad(date.getDate());
+    },
     pdfPage: () => page.locator("body"),
     pdfRegion: async () => page.locator("body"),
   };

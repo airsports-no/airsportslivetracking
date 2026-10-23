@@ -56,8 +56,15 @@ A browser opens on the site. Click through the task calmly, as in the finished v
   video crossfades straight from where you were to where you end up. A red badge shows while hiding is on.
 - **Zoom and pan freely on the map.** Zooming, panning and the points you place are recorded exactly.
 - **Typing is fine.** Text you type into fields is typed out again, letter by letter, in the video.
+- **Dates are kept relative.** A date you pick in a date field is written as so many days from the day you record it
+  (`day(0)` is that day, `day(7)` a week later): the video uses the day it is recorded, so what the tutorial creates is
+  never in the past.
+- **Buttons in lists are found by their card.** A button that is one of many alike (the **Create task** of each route)
+  is written as the button in the card with that route's name, not as "the 28th", so it is still found when the list
+  changes.
 - **Pause with F10.** F10 stops recording until you press it again, for example while you look something up. F8
-  works while paused too: the phase you mark then starts with what you do after you press F10 again.
+  works while paused too: the phase you mark then starts with what you do after you press F10 again. During a hidden
+  part (F9) it starts where the video comes back, when you press F9 again.
 - **Close the browser** when you are done. The steps are in `tutorials/recorded/my-tutorial.js`.
 
 The first time, log in in that browser window; the login is remembered from then on.

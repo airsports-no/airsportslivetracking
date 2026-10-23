@@ -567,6 +567,10 @@ const tutorialContext: TutorialContext = {
   nextDialog(answer) {
     nextDialogAnswer = answer;
   },
+  day(offset = 0) {
+    const date = new Date(Date.now() + offset * 86400000);
+    return date.toLocaleDateString("sv-SE");
+  },
   pdfPage(number) {
     return page.locator(`[data-pdf-page="${number}"]`);
   },

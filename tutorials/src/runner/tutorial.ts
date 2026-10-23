@@ -65,6 +65,9 @@ export type TutorialContext = {
   pdfRegion(number: number, region: { x: number; y: number; width: number; height: number }): Promise<Locator>;
   // Dialogs (confirm, alert, "leave this page?") are accepted; "dismiss" declines the next one instead
   nextDialog(answer: "accept" | "dismiss"): void;
+  // The date offset days from the day it runs, as YYYY-MM-DD: for date fields, so what the tutorial creates is never
+  // in the past (the recorder writes fill(`${day(7)}T18:00`) for a date picked a week after the day it recorded)
+  day(offset?: number): string;
   map: MapSteps;
 };
 
@@ -112,5 +115,6 @@ declare global {
   const pdfPage: TutorialContext["pdfPage"];
   const pdfRegion: TutorialContext["pdfRegion"];
   const nextDialog: TutorialContext["nextDialog"];
+  const day: TutorialContext["day"];
   const map: TutorialContext["map"];
 }
