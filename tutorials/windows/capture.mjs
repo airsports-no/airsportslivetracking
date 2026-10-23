@@ -310,7 +310,8 @@ const PAGE_SCRIPT = `(() => {
     title.focus();
   };
 
-  // Wheel zooming: every tick with its timing, relative to the map
+  // Wheel zooming: every tick with its timing, relative to the map, and the zoom it came to (to): Leaflet's zoom depends
+  // on the ticks' timing to the millisecond, so the replay zooms to where it came to instead of repeating the ticks
   let wheel = null;
   window.addEventListener("wheel", (event) => {
     if (isOurs(event)) return;
@@ -322,7 +323,9 @@ const PAGE_SCRIPT = `(() => {
     wheel.ticks.push([...relative(map, event), round(event.deltaY), round(now - wheel.at)]);
     wheel.at = now;
     wheel.timer = setTimeout(() => {
-      emit("await map.wheel(" + JSON.stringify(wheel.ticks) + ");");
+      const leafletMap = leaflet();
+      const to = leafletMap ? (leafletMap._animatingZoom ? leafletMap._animateToZoom : leafletMap.getZoom()) : null;
+      emit("await map.wheel(" + JSON.stringify(wheel.ticks) + (to === null ? "" : ", { to: " + to + " }") + ");");
       wheel = null;
       pendingView();
     }, 400);
@@ -577,7 +580,23 @@ export async function replaySteps(page, steps) {
       for (const [px, py] of points.slice(1)) await page.mouse.move(x + px, y + py);
       await page.mouse.up();
     },
-    wheel: async (ticks) => {
+    wheel: async (ticks, options) => {
+      if (options && options.to !== undefined) {
+        // To the zoom the gesture came to, around where it was made
+        const [px, py] = ticks[ticks.length - 1];
+        await mapCall(
+          ([px, py, to]) =>
+            new Promise((resolve) => {
+              const map = window.__routeEditorMap;
+              if (Math.abs(map.getZoom() - to) < 1e-3) return resolve();
+              map.once("zoomend", () => resolve());
+              map.setZoomAround([px, py], to);
+              setTimeout(resolve, 1500);
+            }),
+          [px, py, options.to],
+        );
+        return;
+      }
       const { x, y } = await corner();
       for (const [px, py, deltaY] of ticks) {
         await page.mouse.move(x + px, y + py);

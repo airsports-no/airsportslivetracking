@@ -26,7 +26,9 @@ export type MapSteps = {
   // the zoom then (the recorder writes it), so it starts there however the map lies
   drag(path: [number, number, number][], anchor?: { at: [number, number]; zoom: number }): Promise<void>;
   // Wheel zooming: [x, y, deltaY, ms] for each tick
-  wheel(ticks: [number, number, number, number][]): Promise<void>;
+  // to: the zoom it came to (the recorder writes it): played as a zoom to there, around where it was made, as the
+  // ticks' effect depends on their timing to the millisecond
+  wheel(ticks: [number, number, number, number][], options?: { to?: number }): Promise<void>;
 };
 
 export type TutorialContext = {

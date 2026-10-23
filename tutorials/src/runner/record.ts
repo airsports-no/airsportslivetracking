@@ -407,6 +407,20 @@ const anchoredPath = async (path: [number, number, number][], anchor?: { at: [nu
   ]);
 };
 
+// The zoom of the map.view the script has right after a wheel step (more wheel steps and comments may come between):
+// what the wheel came to, for scripts recorded before the recorder wrote it into the wheel step
+const scriptSource = readFileSync(path.join(SCRIPTS_DIR, `${name}.ts`), "utf8").split(/\r?\n/);
+const zoomOfNextView = (line: number | undefined) => {
+  if (line === undefined) return undefined;
+  for (let index = line; index < scriptSource.length; index++) {
+    const text = scriptSource[index].trim();
+    const view = text.match(/^await map\.view\(\s*[-\d.]+\s*,\s*[-\d.]+\s*,\s*([-\d.]+)\s*\)/);
+    if (view) return Number(view[1]);
+    if (text && !text.startsWith("//") && !text.startsWith("await map.wheel(")) return undefined;
+  }
+  return undefined;
+};
+
 const mapSteps: MapSteps = {
   async view(lat, lng, zoom) {
     recordStep(call("map.view", [lat, lng, zoom]));
@@ -458,14 +472,36 @@ const mapSteps: MapSteps = {
     }
     await mouse.up();
   }, () => "map.drag"),
-  wheel: settled(async (ticks: [number, number, number, number][]) => {
+  wheel: settled(async (ticks: [number, number, number, number][], options?: { to?: number }) => {
     const corner = await mapCorner();
     await waitForStillMap();
-    for (const [x, y, deltaY, ms] of ticks) {
-      if (ms) await sleep(ms);
-      await mouse.move(corner.x + x, corner.y + y);
-      await mouse.wheel(0, deltaY);
+    // Where it came to: written by the recorder, or (scripts recorded before that) the map.view right after it
+    const to = options?.to ?? zoomOfNextView(scriptLine());
+    if (to === undefined) {
+      for (const [x, y, deltaY, ms] of ticks) {
+        if (ms) await sleep(ms);
+        await mouse.move(corner.x + x, corner.y + y);
+        await mouse.wheel(0, deltaY);
+      }
+      return;
     }
+    // Leaflet's zoom for a series of ticks depends on their timing to the millisecond (ticks during its zoom animation
+    // count for nothing), so played ticks zoom further than the recorded ones did: a zoom to where they came to
+    // instead, around where the mouse was, as a wheel zoom
+    const [x, y] = ticks[ticks.length - 1];
+    await mouse.move(corner.x + x, corner.y + y, { steps: 8 });
+    await page.evaluate(
+      ([x, y, to]) =>
+        new Promise<void>((resolve) => {
+          const map = (window as any).__routeEditorMap;
+          if (Math.abs(map.getZoom() - to) < 1e-3) return resolve();
+          map.once("zoomend", () => resolve());
+          map.setZoomAround([x, y], to);
+          setTimeout(() => resolve(), 1500);
+        }),
+      [x, y, to] as const,
+    );
+    await waitForStillMap();
   }, () => "map.wheel"),
 };
 

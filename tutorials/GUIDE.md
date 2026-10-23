@@ -167,7 +167,8 @@ Tips for the narration:
 - Say **why** as well as what: "Place the start point where the pilots enter the route" rather than "Click here".
 - Keep sentences short. One idea per sentence.
 - If a word is pronounced wrongly, add it to `tutorials/pronunciations.json` with how it should sound
-  (`"2.A3": "two A three"`). The captions keep the written form.
+  (`"2.A3": "two point eh three"`). The captions keep the written form. A lone "A" is read as the word "a" and
+  swallowed: write the letter as "eh".
 - If a sentence is longer than what happens on screen, the picture is held still until it is finished, and the next
   sentence waits for it: nothing is cut off.
 
