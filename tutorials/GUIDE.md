@@ -56,7 +56,8 @@ A browser opens on the site. Click through the task calmly, as in the finished v
   video crossfades straight from where you were to where you end up. A red badge shows while hiding is on.
 - **Zoom and pan freely on the map.** Zooming, panning and the points you place are recorded exactly.
 - **Typing is fine.** Text you type into fields is typed out again, letter by letter, in the video.
-- **Pause with F10.** F10 stops recording until you press it again, for example while you look something up.
+- **Pause with F10.** F10 stops recording until you press it again, for example while you look something up. F8
+  works while paused too: the phase you mark then starts with what you do after you press F10 again.
 - **Close the browser** when you are done. The steps are in `tutorials/recorded/my-tutorial.js`.
 
 The first time, log in in that browser window; the login is remembered from then on.

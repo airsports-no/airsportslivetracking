@@ -26,7 +26,8 @@ const option = (name, fallback) => {
 const PAGE_SCRIPT = `(() => {
   const MAP = ".leaflet-container";
   const quote = (value) => JSON.stringify(String(value));
-  const emit = (line) => window.__captureStep && window.__captureStep(line);
+  // always: written while recording is paused (F10) too, as a phase marked then (F8) starts what comes after it
+  const emit = (line, always = false) => window.__captureStep && window.__captureStep(line, always);
   const locatorOf = (element) => {
     try {
       return window.playwright.generateLocator(element, "javascript");
@@ -194,10 +195,12 @@ const PAGE_SCRIPT = `(() => {
   // F8 marks the start of a new phase of the tutorial: a box asks for its name and, optionally, the narration to speak
   // while it happens. Written as a chapter() and a say() that does not wait, so the voice runs alongside the clicks.
   const openPhaseBox = () => {
-    if (document.querySelector("[data-capture-ui]")) return;
+    // Only one box at a time (the badges for a pause or a hidden part are ours too, but do not stop it)
+    if (document.querySelector("[data-capture-phase-box]")) return;
     flushTyping();
     const host = document.createElement("div");
     host.setAttribute("data-capture-ui", "");
+    host.setAttribute("data-capture-phase-box", "");
     host.style.cssText = "position:fixed;inset:0;z-index:2147483647;display:flex;align-items:flex-start;" +
       "justify-content:center;padding-top:80px;background:rgba(0,0,0,0.35)";
     const root = host.attachShadow({ mode: "open" });
@@ -228,10 +231,10 @@ const PAGE_SCRIPT = `(() => {
     const submit = () => {
       const name = title.value.trim();
       const text = narration.value.trim().replace(/\\s+/g, " ");
-      emit("");
-      emit("// ── Phase" + (name ? ": " + name : "") + " ──");
-      if (name) emit("await chapter(" + quote(name) + ");");
-      emit(text ? "await say(" + quote(text) + ", { wait: false });" : "// await say(\\"\\", { wait: false });");
+      emit("", true);
+      emit("// ── Phase" + (name ? ": " + name : "") + " ──", true);
+      if (name) emit("await chapter(" + quote(name) + ");", true);
+      emit(text ? "await say(" + quote(text) + ", { wait: false });" : "// await say(\\"\\", { wait: false });", true);
       close();
     };
     form.addEventListener("submit", (event) => { event.preventDefault(); submit(); });
@@ -309,11 +312,13 @@ export async function startCapture({
   geolocation,
   paused = false,
   onStep = () => {},
+  // For testing the recorder itself; recording the clicks needs the window
+  headless = false,
 }) {
   const [width, height] = viewport.split(",").map(Number);
   // Where the browser says it is (the route editor opens a new route's map there): must match TUTORIAL_GEOLOCATION
   const [latitude, longitude] = geolocation ? geolocation.split(",").map(Number) : [];
-  const browser = await chromium.launch({ headless: false });
+  const browser = await chromium.launch({ headless });
   const context = await browser.newContext({
     // Steps replayed from a script go to paths on the site ("/...")
     baseURL: new URL(url).origin,
@@ -331,8 +336,8 @@ export async function startCapture({
   // A step that picks an element by its position among those that match: another match before it, on a later day,
   // changes which one is used
   const BY_POSITION = /\.(nth\(\d+\)|first\(\)|last\(\))/;
-  const write = (line) => {
-    if (!recording) return;
+  const write = (line, always = false) => {
+    if (!recording && !always) return;
     appendFileSync(output, line + "\n");
     onStep(line);
     if (/^await page\./.test(line) && BY_POSITION.test(line)) {
@@ -341,7 +346,7 @@ export async function startCapture({
       onStep(warning);
     }
   };
-  await context.exposeBinding("__captureStep", (_source, line) => write(line));
+  await context.exposeBinding("__captureStep", (_source, line, always) => write(line, Boolean(always)));
   // A badge says when nothing is being recorded
   const showRecordingState = (target) =>
     target
