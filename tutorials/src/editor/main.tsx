@@ -12,6 +12,13 @@ import { addedLineKeys, type AddedLine, type StepTiming, type Timing, type Voice
 // plays at once.
 
 type Data = { name: string; timeline: Timeline; voice: Voice; timing: Timing };
+// A recording, a chapter's clicks recorded again, or putting them into the script (server.ts)
+type Job = { kind: "record" | "clicks" | "replace"; chapter?: string; log: string[]; running: boolean; code: number | null };
+const JOB_TITLES = {
+  record: (chapter?: string) => (chapter ? `Recording from "${chapter}"` : "Recording all of it"),
+  clicks: (chapter?: string) => `Recording the clicks of "${chapter}" on Windows: close the browser when done`,
+  replace: (chapter?: string) => `Putting the new clicks of "${chapter}" into the script`,
+};
 
 // Where the tutorial starts in the video: after the title screen, less the crossfade
 const OFFSET_MS = INTRO_MS - TRANSITION_MS;
@@ -67,6 +74,7 @@ function App() {
   const [frame, setFrame] = useState(0);
   const [busy, setBusy] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [job, setJob] = useState<Job | null>(null);
   const player = useRef<PlayerRef>(null);
   const stepList = useRef<HTMLDivElement>(null);
 
@@ -82,6 +90,35 @@ function App() {
       })
       .catch((error) => setMessage(`Could not load the recording: ${error}`));
   }, []);
+
+  // A job's progress, while it runs; a recording that has finished is loaded again
+  const reload = useCallback(async () => {
+    const loaded: Data = await (await fetch("/api/data")).json();
+    setData((before) => (before ? { ...before, timeline: loaded.timeline } : loaded));
+    setVoice(loaded.voice);
+  }, []);
+  const startJob = async (kind: Job["kind"], chapter?: string) => {
+    if (dirty && !window.confirm("The timing has unsaved changes. Start anyway? (They stay in the editor.)")) return;
+    const response = await fetch(`/api/job/${kind}`, { method: "POST", body: JSON.stringify({ chapter }) });
+    const result = await response.json();
+    if (!response.ok) setMessage(result.error);
+    else setJob(result);
+  };
+  useEffect(() => {
+    if (!job?.running) return;
+    const timer = setInterval(async () => {
+      const now: Job | null = await (await fetch("/api/job")).json();
+      setJob(now);
+      if (now && !now.running) {
+        clearInterval(timer);
+        if (now.kind === "record") await reload();
+        // The new clicks are in the script: record the chapter with them
+        if (now.kind === "replace" && now.code === 0) void startJob("record", now.chapter);
+      }
+    }, 1000);
+    return () => clearInterval(timer);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [job?.running]);
 
   const timeline = data?.timeline;
   const tidied = useMemo(() => (timeline ? tidy(timing, timeline.steps) : timing), [timing, timeline]);
@@ -264,6 +301,9 @@ function App() {
         <div className="actions">
           {message && <span className="message">{message}</span>}
           {busy && <span className="message">{busy}…</span>}
+          <button type="button" onClick={() => startJob("record")} disabled={job?.running}>
+            Record all
+          </button>
           <button type="button" onClick={() => setTiming(JSON.parse(saved))} disabled={!dirty || busy !== null}>
             Undo changes
           </button>
@@ -349,6 +389,14 @@ function App() {
               ms
             </label>
           </fieldset>
+          {job && (
+            <JobPanel
+              job={job}
+              onStop={() => fetch("/api/job/stop", { method: "POST", body: "{}" })}
+              onUseClicks={() => startJob("replace", job.chapter)}
+              onClose={() => setJob(null)}
+            />
+          )}
           {edit.warnings.length > 0 && (
             <ul className="warnings">
               {edit.warnings.map((warning) => (
@@ -371,6 +419,26 @@ function App() {
                 {headings.map((heading) => (
                   <h2 key={`${heading.title}-${heading.t}`} className={heading.added >= 0 ? "added" : undefined}>
                     {heading.title}
+                    {heading.added < 0 && (
+                      <>
+                        <button
+                          type="button"
+                          disabled={job?.running}
+                          title="Record the video again from this chapter, keeping what comes before it"
+                          onClick={() => startJob("record", heading.title)}
+                        >
+                          record from here
+                        </button>
+                        <button
+                          type="button"
+                          disabled={job?.running}
+                          title="Record this chapter's clicks again on Windows (the steps before it are replayed first)"
+                          onClick={() => startJob("clicks", heading.title)}
+                        >
+                          redo clicks
+                        </button>
+                      </>
+                    )}
                     {heading.added >= 0 && (
                       <>
                         <button type="button" onClick={() => renameChapter(heading.added)}>
@@ -577,6 +645,54 @@ function Inspector({
   );
 }
 
+// What a job does, as it goes
+function JobPanel({
+  job,
+  onStop,
+  onUseClicks,
+  onClose,
+}: {
+  job: Job;
+  onStop: () => void;
+  onUseClicks: () => void;
+  onClose: () => void;
+}) {
+  const log = useRef<HTMLPreElement>(null);
+  useEffect(() => {
+    log.current?.scrollTo({ top: log.current.scrollHeight });
+  }, [job.log.length]);
+  return (
+    <div className="job">
+      <div className="title">
+        <strong>{JOB_TITLES[job.kind](job.chapter)}</strong>
+        <span>{job.running ? "running…" : job.code === 0 ? "done" : "stopped"}</span>
+        {job.running ? (
+          <button type="button" onClick={onStop}>
+            Stop
+          </button>
+        ) : (
+          <>
+            {job.kind === "clicks" && job.code === 0 && (
+              <button
+                type="button"
+                className="primary"
+                title="Replaces the chapter's steps in the script (the old script goes to .bak), then records from it"
+                onClick={onUseClicks}
+              >
+                Use the new clicks
+              </button>
+            )}
+            <button type="button" onClick={onClose}>
+              Close
+            </button>
+          </>
+        )}
+      </div>
+      <pre ref={log}>{job.log.join("\n")}</pre>
+    </div>
+  );
+}
+
 // A narration line added in the timing file, before the step `at`
 function LineInspector({
   name,
@@ -673,6 +789,10 @@ style.textContent = `
   aside h2 button { font-size: 11px; padding: 0 6px; text-transform: none; letter-spacing: 0; }
   .step.added .label { color: #93c5fd; }
   .inspector .add { display: flex; gap: 8px; align-items: center; color: var(--muted); }
+  .job { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 12px; }
+  .job .title { display: flex; gap: 10px; align-items: baseline; margin-bottom: 8px; }
+  .job .title span { flex: 1; color: var(--muted); }
+  .job pre { margin: 0; max-height: 260px; overflow: auto; font-size: 12px; color: var(--muted); white-space: pre-wrap; }
   .step { display: grid; grid-template-columns: 52px 32px minmax(0, 1fr); gap: 2px 6px; width: 100%; text-align: left;
     background: none; border: 1px solid transparent; padding: 5px 6px; }
   .step.current { background: var(--current); }

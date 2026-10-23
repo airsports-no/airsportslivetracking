@@ -1,3 +1,4 @@
+import { execFileSync, spawn, type ChildProcess } from "node:child_process";
 import { copyFileSync, createReadStream, existsSync, statSync, writeFileSync } from "node:fs";
 import { createServer, type IncomingMessage, type ServerResponse } from "node:http";
 import path from "node:path";
@@ -11,7 +12,8 @@ import { loadTimeline, loadTiming, loadVoice, narrate, timingFile } from "../run
 // The timing editor: the video in a player beside the steps of the recording, with the timing file's changes for the
 // chosen step (hold, speed, when a line starts, whether the next step waits for it, its text). Every change shows in
 // the player straight away; Save writes scripts/<tutorial>.timing.ts, which render uses as before, and "Make voice"
-// makes the voice for changed texts. Nothing is recorded again.
+// makes the voice for changed texts. Nothing is recorded again, unless asked: the page can also start recording again
+// (all of it, or from a chapter), recording a chapter's clicks again on Windows and putting them into the script.
 
 const name = tutorialName(process.argv.slice(2).find((argument) => !argument.startsWith("--")));
 if (!name) {
@@ -75,6 +77,39 @@ const readBody = (request: IncomingMessage) =>
     request.on("error", reject);
   });
 
+// One job at a time: recording, recording a chapter's clicks (on Windows), putting them into the script
+type Job = { kind: string; chapter?: string; log: string[]; running: boolean; code: number | null };
+let job: Job | null = null;
+let jobProcess: ChildProcess | null = null;
+const startJob = (kind: string, chapter: string | undefined, command: string, args: string[]) => {
+  if (job?.running) throw new Error(`Something is running already: ${job.kind}`);
+  const started: Job = { kind, chapter, log: [`$ ${[command, ...args].join(" ")}`], running: true, code: null };
+  job = started;
+  const child = spawn(command, args, { cwd: ROOT, env: process.env });
+  jobProcess = child;
+  const add = (chunk: Buffer) => {
+    // Without the terminal colours, and only the last lines
+    for (const line of chunk.toString().replace(/\x1b\[[0-9;]*m/g, "").split(/\r?\n/)) {
+      if (line.trim()) started.log.push(line);
+    }
+    if (started.log.length > 400) started.log.splice(0, started.log.length - 400);
+  };
+  child.stdout.on("data", add);
+  child.stderr.on("data", add);
+  child.on("error", (error) => {
+    started.log.push(String(error));
+    started.running = false;
+  });
+  child.on("close", (code) => {
+    started.code = code;
+    started.running = false;
+    started.log.push(code === 0 ? "Done." : `Stopped (${code}).`);
+  });
+};
+const tsx = (script: string, args: string[]) => ["tsx", path.join(ROOT, "src", "runner", script), name, ...args];
+// The click recorder runs on Windows (codegen.ps1), from WSL through powershell.exe
+const windowsPath = (file: string) => execFileSync("wslpath", ["-w", file]).toString().trim();
+
 let backedUp = false;
 const saveTiming = (timing: Timing) => {
   const file = timingFile(name);
@@ -101,6 +136,26 @@ createServer(async (request, response) => {
     if (url.pathname === "/api/timing" && request.method === "POST") {
       saveTiming(JSON.parse(await readBody(request)));
       return send(response, 200, JSON.stringify({ ok: true }));
+    }
+    if (url.pathname === "/api/job") return send(response, 200, JSON.stringify(job));
+    if (url.pathname.startsWith("/api/job/") && request.method === "POST") {
+      const { chapter } = JSON.parse((await readBody(request)) || "{}") as { chapter?: string };
+      const kind = url.pathname.slice("/api/job/".length);
+      if (kind === "record") startJob(kind, chapter, "npx", tsx("record.ts", chapter ? ["--from", chapter] : []));
+      else if (kind === "clicks" && chapter) {
+        startJob(kind, chapter, "powershell.exe", [
+          "-ExecutionPolicy",
+          "Bypass",
+          "-File",
+          windowsPath(path.join(ROOT, "windows", "codegen.ps1")),
+          name,
+          "-Chapter",
+          chapter,
+        ]);
+      } else if (kind === "replace" && chapter) startJob(kind, chapter, "npx", tsx("replace-chapter.ts", [chapter]));
+      else if (kind === "stop") jobProcess?.kill();
+      else return send(response, 400, JSON.stringify({ error: `Unknown job ${kind}` }));
+      return send(response, 200, JSON.stringify(job));
     }
     if (url.pathname === "/api/narrate" && request.method === "POST") {
       // The texts come from the timing file: the page saves first

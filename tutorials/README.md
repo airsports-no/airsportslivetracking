@@ -171,7 +171,10 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    writes the timing file (rewriting it: comments are not kept, the old file goes to `.bak`), Make voice runs
    `npm run narrate` for changed texts. "New chapter here" and "New line here" add a chapter or a narration line
    before the chosen step, without recording again (`chapters` and `lines` in the timing file, each `at` a step;
-   added lines are named `<step> +<n>` for their voice). Or change the timing in `scripts/<name>.timing.ts` (in git)
+   added lines are named `<step> +<n>` for their voice). It also starts recording again: "Record all", and on each
+   recorded chapter "record from here" (`record --from`) and "redo clicks" (`codegen.ps1 -Chapter` on Windows through
+   `powershell.exe`, then "Use the new clicks": `replace-chapter`, then `record --from`), one job at a time, with its
+   output shown. Or change the timing in `scripts/<name>.timing.ts` (in git)
    by hand; Studio shows a saved change straight away:
 
    ```ts

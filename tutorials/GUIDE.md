@@ -263,6 +263,17 @@ whether the next step waits for it, and change what is said. The video shows eve
 changed sentences, which until then are shown as captions only. Saving rewrites the timing file, so comments written
 in it by hand are not kept (the file as it was is kept as `my-tutorial.timing.ts.bak`).
 
+**Recording again from the editor.** Each chapter's heading in the list has two buttons:
+
+- **record from here** records the video again from that chapter (as `npm run record -- my-tutorial --from "..."`):
+  for after you changed that chapter's steps in the script, or when a recording stopped there.
+- **redo clicks** opens the click recorder on Windows for that chapter (as `codegen.ps1 ... -Chapter "..."`): the
+  steps before it are played first, then you click through the chapter again and close the browser. **Use the new
+  clicks** then puts them into the script (the old one is kept as `.bak`) and records the video from that chapter.
+
+**Record all** at the top records the whole tutorial again. What a recording prints shows below the video, with
+**Stop**; the editor loads the new recording when it is done.
+
 **Adding chapters and sentences without recording again.** Recorded one long session? Choose a step and press **New
 chapter here** or **New line here**: the chapter or sentence starts as the camera moves to that step, just as a
 `chapter("...")` or `await say("...")` line before that step in the script would. Added chapters show in the list in

@@ -107,6 +107,9 @@ let keeping = !fromChapter;
 await page.exposeBinding("__tutorialAction", (_source, action) => {
   if (startedAt) timeline.actions.push({ ...action, t: now() });
 });
+// Code passed to page.evaluate() is compiled by tsx, which wraps named inner functions in a __name() helper that does
+// not exist in the page: without it they fail there (and a .catch() hides that)
+await context.addInitScript("window.__name = window.__name || ((target) => target);");
 // A string, not a function: tsx adds helpers to compiled functions that do not exist inside the page
 await context.addInitScript(`(() => {
   const interactive =
@@ -195,6 +198,43 @@ const call = (name: string, args: unknown[]) => {
   return text.length > 140 ? `${text.slice(0, 137)}...` : text;
 };
 
+// An element out of view is scrolled to smoothly before the step, as a person scrolls to it: Playwright's own scrolling
+// jumps there between two frames, so the video never shows the list moving. Centred in the list where it can be;
+// nothing moves when it is in view already. Waits until the scrolling has stopped.
+const scrollToSmoothly = async (locator: Locator) => {
+  const handle = await locator.elementHandle({ timeout: 30000 }).catch(() => null);
+  if (!handle) return;
+  await handle
+    .evaluate(
+      (element) =>
+        new Promise<void>((resolve) => {
+          const rect = element.getBoundingClientRect();
+          const inView = (box: { top: number; bottom: number; left: number; right: number }) =>
+            rect.top >= box.top && rect.bottom <= box.bottom && rect.left >= box.left && rect.right <= box.right;
+          let visible = inView({ top: 0, bottom: window.innerHeight, left: 0, right: window.innerWidth });
+          for (let parent = element.parentElement; parent && visible; parent = parent.parentElement) {
+            const style = getComputedStyle(parent);
+            if (/(auto|scroll)/.test(style.overflowY + style.overflowX)) visible = inView(parent.getBoundingClientRect());
+          }
+          if (visible) return resolve();
+          let last = Date.now();
+          const onScroll = () => (last = Date.now());
+          document.addEventListener("scroll", onScroll, true);
+          element.scrollIntoView({ behavior: "smooth", block: "center", inline: "nearest" });
+          const started = Date.now();
+          const check = () => {
+            if ((Date.now() - last > 200 && Date.now() - started > 300) || Date.now() - started > 3000) {
+              document.removeEventListener("scroll", onScroll, true);
+              resolve();
+            } else setTimeout(check, 50);
+          };
+          check();
+        }),
+    )
+    .catch(() => undefined);
+  await handle.dispose();
+};
+
 // Steps made of other steps (fill() clicks, then types) settle once, before the first
 let inStep = false;
 const settled =
@@ -203,6 +243,8 @@ const settled =
     if (inStep) return action.apply(this, args);
     inStep = true;
     try {
+      // A locator's element: brought into view visibly first
+      if (this && typeof (this as Locator).elementHandle === "function") await scrollToSmoothly(this as Locator);
       await settle();
       recordStep(call(name(this), args));
       const result = await action.apply(this, args);
@@ -447,7 +489,7 @@ const tutorialContext: TutorialContext = {
   },
   async highlight(target, options = {}) {
     const locator = typeof target === "string" ? page.locator(target) : target;
-    await locator.scrollIntoViewIfNeeded();
+    await scrollToSmoothly(locator);
     await settle();
     recordStep(`highlight(${typeof target === "string" ? JSON.stringify(target) : String(target)})`);
     const box = await locator.boundingBox();
