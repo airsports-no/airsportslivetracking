@@ -461,6 +461,8 @@ class PhotoSerialiser(serializers.ModelSerializer):
     class Meta:
         model = Photo
         fields = "__all__"
+        # Set when a picture is uploaded, cleared when it is reverted to the satellite image
+        read_only_fields = ["uploaded"]
 
     def validate(self, attrs):
         attrs = super().validate(attrs)

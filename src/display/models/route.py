@@ -155,6 +155,13 @@ class Photo(models.Model):
     longitude = models.FloatField()
     _leg = MyPickledObjectField(default=None, null=True)
     file = models.ImageField(upload_to="photos/", null=True, blank=True)
+    # The manager's own picture rather than the generated satellite image. Generated images are made for every photo,
+    # so file alone does not tell them apart; the flight order uses an uploaded picture where it would otherwise
+    # generate one (the unknown-leg photos).
+    uploaded = models.BooleanField(
+        default=False,
+        help_text="If true, file is a picture uploaded by the organiser, not the generated satellite image.",
+    )
     # Decoy photos (2.A5 unknown legs) are not tied to any real route
     # feature - they exist purely to add difficulty by mixing false leads
     # in among the genuine unknown-leg photos in the flight order. Since

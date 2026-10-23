@@ -79,7 +79,7 @@ class PhotoManagementPageTargetsTest(TestCase):
         self.assertIs(reverted, photo)
         self.assertTrue(dummy_file.deleted)
         self.assertFalse(bool(photo.file))
-        mock_save.assert_called_once_with(update_fields=["file"])
+        mock_save.assert_called_once_with(update_fields=["file", "uploaded"])
         mock_generate.assert_called_once_with(force=True)
         mock_refresh.assert_called_once_with()
 

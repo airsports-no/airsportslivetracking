@@ -689,9 +689,10 @@ class ObservationPhotoSelectionTest(PhotoObservationApiTest):
     def test_flight_order_photo_pages_do_not_mix_in_the_waypoint_photos(self):
         from display.flight_order_and_maps.generate_flight_orders import _route_photos
 
+        # Decoys only go among the unknown-leg photos
         Photo.objects.create(name="DECOY", route=self.route, latitude=60, longitude=11, is_decoy=True)
-        self.assertEqual(sorted(p.name for p in _route_photos(self.contestant)), ["A", "DECOY"])
-        # A route without editable-route features cannot tell them apart and keeps everything
+        self.assertEqual(sorted(p.name for p in _route_photos(self.contestant)), ["A"])
+        # A route without editable-route features cannot tell the waypoint photos apart and keeps them
         NavigationTask.objects.filter(pk=self.navigation_task.pk).update(editable_route=None)
         self.contestant.navigation_task.refresh_from_db()
-        self.assertEqual(sorted(p.name for p in _route_photos(self.contestant)), ["A", "DECOY", "TP 1"])
+        self.assertEqual(sorted(p.name for p in _route_photos(self.contestant)), ["A", "TP 1"])
