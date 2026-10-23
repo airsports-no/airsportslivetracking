@@ -1,13 +1,17 @@
 import { spawnSync } from "node:child_process";
-import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
+import { existsSync, mkdirSync, writeFileSync } from "node:fs";
 import path from "node:path";
+import { captionCues } from "../shared/captions";
 import { computeEdit } from "../shared/edit";
-import type { Timeline } from "../shared/timeline";
 import { compositionId, INTRO_MS, TRANSITION_MS } from "../shared/layout";
 import { brand } from "../remotion/brand";
-import { OUT_DIR, RECORDINGS_DIR, ROOT, tutorialName } from "./config";
+import { OUT_DIR, ROOT, tutorialName } from "./config";
+import { loadTiming, loadTimeline, narrate } from "./narrate";
 
 // npm run render -- <tutorial>
+//
+// Makes the video from the recording (npm run record), with the narration (made here when it is new or changed) and
+// the timing file's changes (scripts/<tutorial>.timing.ts): changing either needs no new recording.
 //
 // out/<tutorial>.mp4          the finished video with voice and music
 // out/<tutorial>-picture.mp4  the same picture without sound   } for fine tuning in DaVinci Resolve:
@@ -24,8 +28,12 @@ if (!name) {
 mkdirSync(OUT_DIR, { recursive: true });
 const video = path.join(OUT_DIR, `${name}.mp4`);
 
+const timeline = loadTimeline(name);
+const voice = await narrate(name);
+const edit = computeEdit(timeline, voice, await loadTiming(name));
+for (const warning of edit.warnings) console.warn(`  ${warning}`);
+
 // The music is not in git: without it Remotion fails with a bare "404"
-const timeline: Timeline = JSON.parse(readFileSync(path.join(RECORDINGS_DIR, name, "timeline.json"), "utf8"));
 if (timeline.music !== false) {
   const musicFile = path.join(ROOT, "public", timeline.music ?? brand.music.file);
   if (!existsSync(musicFile)) {
@@ -53,21 +61,24 @@ run("ffmpeg", ["-y", "-loglevel", "error", "-i", video, "-an", "-c:v", "copy", p
 const stem = (audio: "voice" | "music") =>
   run("npx", ["remotion", "render", compositionId(name), path.join(OUT_DIR, `${name}-${audio}.wav`), "--codec=wav",
     `--props=${JSON.stringify({ audio })}`, "--log=error"]);
-if (timeline.narration.length > 0) stem("voice");
+if (edit.narration.length > 0) stem("voice");
 if (timeline.music !== false) stem("music");
 
-// Subtitles, on the video's own timeline (after the cuts and the title card)
-const edit = computeEdit(timeline);
 const offset = INTRO_MS - TRANSITION_MS;
 const stamp = (ms: number) => {
   const date = new Date(Math.max(0, Math.round(ms)));
   return `${date.toISOString().slice(11, 19)},${String(date.getUTCMilliseconds()).padStart(3, "0")}`;
 };
-const srt = timeline.narration
-  .map((item, index) => {
-    const start = offset + edit.toOut(item.t);
-    return `${index + 1}\n${stamp(start)} --> ${stamp(start + item.durationMs)}\n${item.text}\n`;
-  })
+// Subtitles, on the video's own timeline (after the cuts and the title card), at most two lines at a time like the
+// captions in the picture
+const srt = edit.narration
+  .flatMap((line) =>
+    captionCues(line).map((cue) => {
+      const start = offset + line.start;
+      return `${stamp(start + cue.start)} --> ${stamp(start + cue.end)}\n${cue.lines.join("\n")}\n`;
+    }),
+  )
+  .map((cue, index) => `${index + 1}\n${cue}`)
   .join("\n");
 writeFileSync(path.join(OUT_DIR, `${name}.srt`), srt);
 

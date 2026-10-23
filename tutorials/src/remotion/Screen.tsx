@@ -1,7 +1,18 @@
 import { useMemo } from "react";
-import { AbsoluteFill, Audio, Img, interpolate, Sequence, staticFile, useCurrentFrame, useVideoConfig } from "remotion";
+import {
+  AbsoluteFill,
+  Audio,
+  getRemotionEnvironment,
+  Img,
+  interpolate,
+  Sequence,
+  staticFile,
+  useCurrentFrame,
+  useVideoConfig,
+} from "remotion";
 import { planCamera } from "../shared/camera";
-import type { Edit } from "../shared/edit";
+import { captionCues } from "../shared/captions";
+import { STEP_LEAD_MS, type Edit } from "../shared/edit";
 import { HEADER_HEIGHT, VIDEO, WINDOW_MARGIN } from "../shared/layout";
 import { isHidden, type Action, type Box, type Frame, type Timeline } from "../shared/timeline";
 import { brand } from "./brand";
@@ -116,7 +127,7 @@ export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; e
               box={item.box}
               label={item.label}
               startMs={edit.toOut(item.t)}
-              durationMs={item.durationMs}
+              durationMs={edit.toOut(item.t + item.durationMs) - edit.toOut(item.t)}
               outMs={outMs}
               viewportHeight={viewport.height}
               zoom={zoom}
@@ -125,11 +136,15 @@ export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; e
           <Cursor actions={pointerActions} outMs={outMs} viewport={viewport} zoom={zoom} />
         </div>
       </div>
-      {voice && timeline.narration.map((item, index) => (
-        <Sequence key={index} from={Math.round((edit.toOut(item.t) / 1000) * fps)}>
-          <Audio src={staticFile(item.file)} />
-        </Sequence>
-      ))}
+      {voice &&
+        edit.narration.map(
+          (line) =>
+            line.file && (
+              <Sequence key={line.step} from={Math.round((line.start / 1000) * fps)}>
+                <Audio src={staticFile(line.file)} />
+              </Sequence>
+            ),
+        )}
       {chapter && (
         <ChapterLabel
           title={chapter.title}
@@ -138,7 +153,8 @@ export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; e
           bottom={WINDOW_MARGIN.bottom + 150}
         />
       )}
-      {timeline.captions && <Captions timeline={timeline} edit={edit} outMs={outMs} />}
+      {timeline.captions && <Captions edit={edit} outMs={outMs} />}
+      {getRemotionEnvironment().isStudio && <StepBadge timeline={timeline} edit={edit} srcMs={srcMs} />}
     </AbsoluteFill>
   );
 };
@@ -302,11 +318,16 @@ const HighlightBox = ({
   );
 };
 
-const Captions = ({ timeline, edit, outMs }: { timeline: Timeline; edit: Edit; outMs: number }) => {
-  const current = timeline.narration.find((item) => {
-    const start = edit.toOut(item.t);
-    return outMs >= start && outMs <= start + item.durationMs;
-  });
+// At most two lines at a time: a long narration line is shown in parts, in step with the voice
+const Captions = ({ edit, outMs }: { edit: Edit; outMs: number }) => {
+  const cues = useMemo(
+    () =>
+      edit.narration.flatMap((line) =>
+        captionCues(line).map((cue) => ({ ...cue, start: line.start + cue.start, end: line.start + cue.end })),
+      ),
+    [edit],
+  );
+  const current = cues.find((cue) => outMs >= cue.start && outMs <= cue.end);
   if (!current) return null;
   return (
     <div
@@ -332,8 +353,43 @@ const Captions = ({ timeline, edit, outMs }: { timeline: Timeline; edit: Edit; o
           textAlign: "center",
         }}
       >
-        {current.text}
+        {current.lines.map((line, index) => (
+          <div key={index} style={{ whiteSpace: "nowrap" }}>
+            {line}
+          </div>
+        ))}
       </div>
+    </div>
+  );
+};
+
+// Only in Remotion Studio, never in the video: the step being shown, by the name the timing file uses
+// (scripts/<name>.timing.ts), and what the edit warns about
+const StepBadge = ({ timeline, edit, srcMs }: { timeline: Timeline; edit: Edit; srcMs: number }) => {
+  const step = lastAtOrBefore(timeline.steps, srcMs + STEP_LEAD_MS);
+  return (
+    <div
+      style={{
+        position: "absolute",
+        left: 12,
+        top: 12,
+        maxWidth: 900,
+        background: "rgba(2,6,23,0.85)",
+        color: "white",
+        fontFamily: "monospace",
+        fontSize: 18,
+        padding: "8px 12px",
+        borderRadius: 8,
+        pointerEvents: "none",
+      }}
+    >
+      <div style={{ fontWeight: 700 }}>{step ? step.id : "before the first step"}</div>
+      {step && <div style={{ opacity: 0.75, whiteSpace: "nowrap", overflow: "hidden", textOverflow: "ellipsis" }}>{step.label}</div>}
+      {edit.warnings.map((warning) => (
+        <div key={warning} style={{ color: "#fbbf24", marginTop: 4 }}>
+          {warning}
+        </div>
+      ))}
     </div>
   );
 };

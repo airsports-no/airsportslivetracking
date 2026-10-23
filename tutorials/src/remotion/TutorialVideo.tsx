@@ -5,18 +5,26 @@ import { AbsoluteFill, Audio, Img, interpolate, staticFile, useCurrentFrame, use
 import { computeEdit, type Edit } from "../shared/edit";
 import { INTRO_MS, OUTRO_MS, TRANSITION_MS } from "../shared/layout";
 import type { Timeline } from "../shared/timeline";
+import type { Timing, Voice } from "../shared/timing";
 import { brand } from "./brand";
 import { Screen } from "./Screen";
 import { theme } from "./theme";
 
 // audio: "voice" or "music" renders only that, for the separate tracks npm run render exports
-export type TutorialProps = { name: string; timeline: Timeline; audio?: "all" | "voice" | "music" };
+// voice and timing: the narration made for the recording, and the timing file's changes (scripts/<name>.timing.ts)
+export type TutorialProps = {
+  name: string;
+  timeline: Timeline;
+  voice: Voice;
+  timing: Timing;
+  audio?: "all" | "voice" | "music";
+};
 
 const frames = (ms: number, fps: number) => Math.round((ms / 1000) * fps);
 
-export const TutorialVideo = ({ timeline, audio = "all" }: TutorialProps) => {
+export const TutorialVideo = ({ timeline, voice, timing, audio = "all" }: TutorialProps) => {
   const { fps } = useVideoConfig();
-  const edit = useMemo(() => computeEdit(timeline), [timeline]);
+  const edit = useMemo(() => computeEdit(timeline, voice, timing), [timeline, voice, timing]);
   const transition = linearTiming({ durationInFrames: frames(TRANSITION_MS, fps) });
   return (
     <AbsoluteFill style={{ background: theme.background }}>
@@ -52,11 +60,11 @@ const Music = ({ timeline, edit, file }: { timeline: Timeline; edit: Edit; file:
   const endScreenStart = totalMs - OUTRO_MS;
   const lines = useMemo(
     () =>
-      timeline.narration.map((item) => {
-        const start = tutorialStart + edit.toOut(item.t);
-        return [start, start + item.durationMs] as const;
+      edit.narration.map((line) => {
+        const start = tutorialStart + line.start;
+        return [start, start + line.durationMs] as const;
       }),
-    [timeline, edit, tutorialStart],
+    [edit, tutorialStart],
   );
   const volume = (frame: number) => {
     const t = (frame / fps) * 1000;

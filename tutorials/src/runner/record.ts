@@ -7,16 +7,17 @@ import type { Timeline } from "../shared/timeline";
 import { AUTH_FILE, RECORDINGS_DIR, SCRIPTS_DIR, settings, tutorialName } from "./config";
 import { cleanUp } from "./cleanup";
 import { showPdfInPage } from "./pdf-viewer";
-import { synthesise } from "./narration";
+import { narrate, writeTimingTemplate } from "./narrate";
 import type { MapSteps, Tutorial, TutorialContext } from "./tutorial";
 
 // npm run record -- <tutorial> [--headed]
 //
 // Plays scripts/<tutorial>.ts in a browser and records what the screen shows (every change, as sharp JPEG frames from
-// the browser itself), where each click and keystroke lands, and when each narration line and highlight happens. The
-// video is made from this by `npm run render`.
+// the browser itself), where each click and keystroke lands, and when each step, narration line and highlight happens.
+// The narration is only marked: its voice is made afterwards (npm run narrate, which this runs at the end), and the
+// video makes room for it. The video is made from this by `npm run render`, with the timing file's changes
+// (scripts/<tutorial>.timing.ts, started here when there is none).
 
-const NARRATION_GAP_MS = 300;
 const TYPING_DELAY_MS = 55;
 // Before each step the page is left still: first until it has stopped changing, then long enough for the video's
 // camera to move to the next target (STEP_LEAD_MS), so nothing happens while the view moves. After each step the
@@ -39,7 +40,6 @@ await cleanUp(tutorial.cleanUp);
 const outputDir = path.join(RECORDINGS_DIR, name);
 rmSync(outputDir, { recursive: true, force: true });
 mkdirSync(path.join(outputDir, "frames"), { recursive: true });
-mkdirSync(path.join(outputDir, "narration"), { recursive: true });
 
 const browser = await chromium.launch({ headless: !headed, slowMo: Number(process.env.TUTORIAL_SLOWMO || 0) });
 const context = await browser.newContext({
@@ -71,7 +71,8 @@ const timeline: Timeline = {
   frames: [],
   actions: [],
   highlights: [],
-  narration: [],
+  steps: [],
+  says: [],
   camera: [],
   holds: [],
   chapters: [],
@@ -135,15 +136,31 @@ const settle = async () => {
   while (Date.now() - lastFrameAt < STILL_MS && Date.now() < deadline) await sleep(50);
   await sleep(STEP_LEAD_MS);
 };
+// Each step of the script, named after the chapter it is in (see Step in timeline.ts)
+let chapterName = "Start";
+let stepInChapter = 0;
+const usedChapterNames = new Set<string>();
+const recordStep = (label: string) => {
+  const id = `${chapterName} #${++stepInChapter}`;
+  if (startedAt) timeline.steps.push({ t: now(), id, label });
+  return id;
+};
+const describe = (value: unknown) => (typeof value === "string" ? JSON.stringify(value) : JSON.stringify(value) ?? "");
+const call = (name: string, args: unknown[]) => {
+  const text = `${name}(${args.map(describe).join(", ")})`;
+  return text.length > 140 ? `${text.slice(0, 137)}...` : text;
+};
+
 // Steps made of other steps (fill() clicks, then types) settle once, before the first
 let inStep = false;
 const settled =
-  <T extends unknown[], R>(action: (...args: T) => Promise<R>) =>
+  <T extends unknown[], R>(action: (...args: T) => Promise<R>, name: (self: unknown) => string) =>
   async function (this: unknown, ...args: T): Promise<R> {
     if (inStep) return action.apply(this, args);
     inStep = true;
     try {
       await settle();
+      recordStep(call(name(this), args));
       const result = await action.apply(this, args);
       await sleep(STEP_PAUSE_AFTER_MS);
       return result;
@@ -176,7 +193,7 @@ locatorPrototype.selectOption = async function (this: Locator, ...args: unknown[
   return originalSelectOption.apply(this, args);
 };
 for (const method of ["click", "dblclick", "fill", "selectOption", "check", "uncheck", "setChecked", "hover", "tap", "dragTo"]) {
-  locatorPrototype[method] = settled(locatorPrototype[method]);
+  locatorPrototype[method] = settled(locatorPrototype[method], (locator) => `${locator}.${method}`);
 }
 // The map steps from the recorder: mouse.down starts a drag, wheel zooms the map
 // The map steps replay their gestures with the plain mouse: the pause comes once, before the whole gesture
@@ -189,7 +206,7 @@ const mouse = {
 };
 for (const method of ["click", "dblclick", "down", "wheel"] as const) {
   const original = page.mouse[method].bind(page.mouse) as (...args: unknown[]) => Promise<void>;
-  (page.mouse as unknown as Record<string, unknown>)[method] = settled(original);
+  (page.mouse as unknown as Record<string, unknown>)[method] = settled(original, () => `page.mouse.${method}`);
 }
 
 await page.goto(tutorial.startUrl ?? "/");
@@ -219,12 +236,6 @@ await cdp.send("Page.startScreencast", {
 });
 while (!startedAt) await new Promise((resolve) => setTimeout(resolve, 20));
 
-let narrationEndsAt = 0;
-const waitUntil = async (t: number) => {
-  const remaining = t - now();
-  if (remaining > 0) await page.waitForTimeout(remaining);
-};
-
 // The route editor's map (window.__routeEditorMap, set by its useMapInit): where its top left corner is on the page
 const NO_MAP = "The route editor's map is not on this page (window.__routeEditorMap)";
 // A map step may come right after the step that opens the route editor: wait for its map
@@ -246,6 +257,7 @@ const mapCorner = async () => {
 
 const mapSteps: MapSteps = {
   async view(lat, lng, zoom) {
+    recordStep(call("map.view", [lat, lng, zoom]));
     await waitForMap();
     await page.evaluate(
       ([lat, lng, zoom, message]) =>
@@ -276,7 +288,7 @@ const mapSteps: MapSteps = {
       [lat, lng, NO_MAP] as const,
     );
     await mouse.click(point.x, point.y);
-  }),
+  }, () => "map.click"),
   drag: settled(async (path: [number, number, number][]) => {
     const corner = await mapCorner();
     const [[startX, startY], ...rest] = path;
@@ -287,7 +299,7 @@ const mapSteps: MapSteps = {
       await mouse.move(corner.x + x, corner.y + y);
     }
     await mouse.up();
-  }),
+  }, () => "map.drag"),
   wheel: settled(async (ticks: [number, number, number, number][]) => {
     const corner = await mapCorner();
     for (const [x, y, deltaY, ms] of ticks) {
@@ -295,7 +307,7 @@ const mapSteps: MapSteps = {
       await mouse.move(corner.x + x, corner.y + y);
       await mouse.wheel(0, deltaY);
     }
-  }),
+  }, () => "map.wheel"),
 };
 
 let hiddenSince: number | null = null;
@@ -308,26 +320,25 @@ const waitForStillPage = async () => {
 
 const showPdfPages = (pdf: Buffer, width: number, pages: number[] | undefined) => showPdfInPage(page, pdf, { width, pages });
 
+const holdStill = async (ms: number) => {
+  timeline.holds.push({ t: now(), durationMs: ms });
+  await page.waitForTimeout(ms);
+};
+
 const tutorialContext: TutorialContext = {
   page,
   async say(text, options = {}) {
     if (hiddenSince !== null) console.warn(`  say inside a hidden part, cut from the video with it: ${text}`);
-    // Lines never overlap
-    await waitUntil(narrationEndsAt);
-    // Generating the voice may take a moment: that still stretch is cut from the video
-    const speech = await synthesise(text, options.spoken);
-    const file = `narration/${String(timeline.narration.length + 1).padStart(3, "0")}.wav`;
-    writeFileSync(path.join(outputDir, file), speech.wav);
-    const t = now();
-    timeline.narration.push({ t, durationMs: speech.durationMs, file: `recordings/${name}/${file}`, text });
-    narrationEndsAt = t + speech.durationMs + NARRATION_GAP_MS;
-    console.log(`  say: ${text}`);
-    if (options.wait ?? true) await waitUntil(narrationEndsAt);
+    // Only marked: the video waits for the line when it is to be waited for, and keeps lines from overlapping
+    const step = recordStep(`say(${JSON.stringify(text.length > 100 ? `${text.slice(0, 97)}...` : text)})`);
+    timeline.says.push({ t: now(), step, text, spoken: options.spoken, wait: options.wait ?? true });
+    console.log(`  ${step} say: ${text}`);
   },
   async highlight(target, options = {}) {
     const locator = typeof target === "string" ? page.locator(target) : target;
     await locator.scrollIntoViewIfNeeded();
     await settle();
+    recordStep(`highlight(${typeof target === "string" ? JSON.stringify(target) : String(target)})`);
     const box = await locator.boundingBox();
     if (!box) throw new Error(`Nothing to highlight: ${target}`);
     const durationMs = options.durationMs ?? 2500;
@@ -335,20 +346,24 @@ const tutorialContext: TutorialContext = {
     if (options.wait ?? true) await page.waitForTimeout(durationMs);
   },
   async pause(ms) {
-    timeline.holds.push({ t: now(), durationMs: ms });
-    await page.waitForTimeout(ms);
+    recordStep(`pause(${ms})`);
+    await holdStill(ms);
   },
   camera(mode) {
     timeline.camera.push({ t: now(), mode });
   },
   chapter(title) {
     timeline.chapters!.push({ t: now(), title });
+    // The same title twice: the steps of the second are named "<title> (2) #<n>"
+    let count = 1;
+    while (usedChapterNames.has(count === 1 ? title : `${title} (${count})`)) count++;
+    chapterName = count === 1 ? title : `${title} (${count})`;
+    usedChapterNames.add(chapterName);
+    stepInChapter = 0;
     console.log(`  chapter: ${title}`);
   },
   async startHidden() {
     if (hiddenSince !== null) return;
-    // A line still being spoken would be cut off with the hidden part
-    await waitUntil(narrationEndsAt);
     hiddenSince = now();
     console.log("  hidden part starts");
   },
@@ -361,6 +376,7 @@ const tutorialContext: TutorialContext = {
     console.log("  hidden part ends");
   },
   async showPdf(source, options = {}) {
+    recordStep(call("showPdf", [source, ...(Object.keys(options).length ? [options] : [])]));
     const bytes = /^(https?:)?\//.test(source)
       ? await (async () => {
           const response = await context.request.get(source);
@@ -398,13 +414,12 @@ const tutorialContext: TutorialContext = {
 console.log(`Recording ${name}: ${tutorial.title}`);
 let failure: unknown = null;
 try {
-  await tutorialContext.pause(800);
+  await holdStill(800);
   // Also as globals, so pasted steps work whether or not run() lists the names it uses
   Object.assign(globalThis, tutorialContext);
   await tutorial.run(tutorialContext);
-  await waitUntil(narrationEndsAt);
   await tutorialContext.endHidden();
-  await tutorialContext.pause(1200);
+  await holdStill(1200);
 } catch (error) {
   failure = error;
 } finally {
@@ -422,6 +437,12 @@ if (failure) {
 }
 console.log(
   `Recorded ${(timeline.durationMs / 1000).toFixed(1)} s: ${timeline.frames.length} frames, ` +
-    `${timeline.actions.length} actions, ${timeline.narration.length} narration lines. ` +
-    `Preview with npm run studio, render with npm run render -- ${name}`,
+    `${timeline.actions.length} actions, ${timeline.steps.length} steps, ${timeline.says.length} narration lines.`,
+);
+// The voice now, so Studio has it straight away (only new or changed lines take time)
+await narrate(name);
+const template = writeTimingTemplate(name);
+console.log(
+  `${template ? `Started the timing file ${template}. ` : ""}Preview with npm run studio, list the steps with ` +
+    `npm run steps -- ${name}, render with npm run render -- ${name}`,
 );

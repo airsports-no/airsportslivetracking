@@ -14,7 +14,15 @@ export type Action = {
 
 export type Highlight = { t: number; durationMs: number; box: Box; label?: string };
 
-export type Narration = { t: number; durationMs: number; file: string; text: string };
+// Every line of the script that does something (a click, typing, a map gesture, say, highlight, pause, showPdf), named
+// "<chapter> #<n>": the n-th such line since the chapter("...") line ("Start #<n>" before the first chapter). The
+// timing file (scripts/<name>.timing.ts) refers to steps by these names, which stay the same when the script is
+// recorded again, as long as the chapter's own lines are not changed.
+export type Step = { t: number; id: string; label: string };
+
+// From say(): where a narration line belongs. The voice is made afterwards (npm run narrate), and the video makes
+// room for it, so the recording does not wait for it.
+export type Say = { t: number; step: string; text: string; spoken?: string; wait: boolean };
 
 // From camera(): "wide" shows the whole page until the next "auto"
 export type CameraDirective = { t: number; mode: "wide" | "auto" };
@@ -31,7 +39,7 @@ export type Chapter = { t: number; title: string };
 export type HiddenPart = { start: number; end: number };
 
 export type EditSettings = {
-  // A stretch without anything happening (no screen change, action, narration, highlight or pause) longer than this
+  // A stretch without anything happening (no screen change, action, highlight or pause) longer than this
   // is shortened to keepGapMs
   minGapMs: number;
   keepGapMs: number;
@@ -50,7 +58,9 @@ export type Timeline = {
   frames: Frame[];
   actions: Action[];
   highlights: Highlight[];
-  narration: Narration[];
+  // Missing in recordings made before narration was added afterwards: those are recorded again
+  steps: Step[];
+  says: Say[];
   camera: CameraDirective[];
   holds: Hold[];
   // Missing in recordings made before chapters existed

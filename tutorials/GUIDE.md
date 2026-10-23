@@ -17,11 +17,13 @@ npm run fetch-assets
 ## The idea in short
 
 You click through the task once, the way you would show it to someone. The clicks are saved as a script. You add
-what should be said, and the toolset does the rest: it plays the clicks back in a browser, records the screen,
-generates the voice, cuts out the dead time, zooms in on what matters and puts it all together with title screen,
-logo, music and end screen.
+what should be said, and the toolset does the rest in two steps. First it plays the clicks back in a browser and
+records the site. Then, as often as you like and without touching the site again, it generates the voice, cuts out
+the dead time, zooms in on what matters and puts it all together with title screen, logo, music and end screen.
 
-Because the video is made from the script, you can fix a sentence or a click and simply make the video again.
+Because the video is made from the script, you can fix a sentence or a click and simply make the video again. The
+timing (what goes faster or slower, how long a moment is held, when a sentence starts) is in a separate timing file,
+which you can change and try without recording again.
 
 ## Before you start
 
@@ -87,7 +89,7 @@ What you can use in a script:
 
 | Line | What it does |
 |---|---|
-| `await say("...")` | Speaks a sentence and waits until it is finished before the next step |
+| `await say("...")` | Speaks a sentence, and the next step waits until it is finished (in the video: the recording only marks it) |
 | `await say("...", { wait: false })` | Speaks while the next steps happen (most narration should be like this) |
 | `await chapter("...")` | Starts a new phase: its name appears in the video and becomes a chapter |
 | `await highlight(page.getByText("Save Route"), { label: "Save when done" })` | Dims the page around something and points it out |
@@ -143,7 +145,8 @@ Tips for the narration:
 - Keep sentences short. One idea per sentence.
 - If a word is pronounced wrongly, add it to `tutorials/pronunciations.json` with how it should sound
   (`"2.A3": "two A three"`). The captions keep the written form.
-- If a sentence is longer than what happens on screen, the next sentence simply waits for it: nothing is cut off.
+- If a sentence is longer than what happens on screen, the picture is held still until it is finished, and the next
+  sentence waits for it: nothing is cut off.
 
 ### Tutorials that create things
 
@@ -195,8 +198,10 @@ cd tutorials
 npm run record -- my-tutorial
 ```
 
-The script plays in a browser in the background while everything is recorded. It takes as long as the tutorial
-itself, plus a little time to generate new narration (sentences that did not change are reused).
+The script plays in a browser in the background while the site is recorded: the screen, the clicks and each step
+of the script. This is the only part that clicks through the site. It does not wait for the narration, so it is
+quicker than the video. At the end it generates the narration (sentences that did not change are reused), and the
+first time it creates the timing file `scripts/my-tutorial.timing.ts` for step 4.
 
 If the script stops with an error, the message says which line; often a button was renamed, or the page was not
 ready yet.
@@ -213,6 +218,25 @@ where the zoom is distracting.
 
 Studio shows the latest recording. After changing the script, record again (step 3) and reload the page.
 
+**Changing the timing without recording again.** The top left of the picture in Studio (not in the video) shows
+the name of the step being shown, such as `Backbone creation #3`: the third step since `chapter("Backbone
+creation")`. `npm run steps -- my-tutorial` lists all of them with their times. Write the changes into
+`scripts/my-tutorial.timing.ts`, and Studio shows them as soon as you save:
+
+| In the timing file | What it does |
+| --- | --- |
+| `"Backbone creation #3": { speed: 2 }` | Plays that step twice as fast, up to the next step (`until: "Backbone creation #12"`: up to that step). `0.5` is half speed |
+| `"Backbone creation #12": { holdMs: 1500 }` | Holds the picture 1.5 seconds longer before the step |
+| `"Backbone creation #14": { holdMs: -800 }` | Takes 0.8 seconds off the wait before the step |
+| `"Select unknown waypoint #1": { delayMs: -500 }` | A sentence (`say`) starts 0.5 seconds earlier (positive: later) |
+| `"Select unknown waypoint #1": { wait: true }` | The next step waits until the sentence is finished (`false`: it carries on while it is spoken) |
+| `"Select unknown waypoint #1": { text: "..." }` | Says something else. Run `npm run narrate -- my-tutorial` to hear it in Studio |
+| `edit: { minGapMs: 700, keepGapMs: 250 }` | How much stillness is cut (see the table under "What to change where") |
+
+The timing file is in git and is used by every render, also after recording again: the steps keep their names as long
+as the chapter's own lines stay the same. If you change a line in a chapter, check the names of the steps after it
+in that chapter; Studio, `npm run steps` and the render warn about names the recording no longer has.
+
 ## Step 5: Make the video
 
 ```
@@ -224,35 +248,36 @@ In `tutorials/out/` you get:
 - `my-tutorial.mp4`: the finished video with voice and music, ready to publish
 - `my-tutorial-chapters.txt`: the chapters with their times, to paste into the YouTube description (when the script
   has phases)
-- `my-tutorial.srt`: subtitles
+- `my-tutorial.srt`: subtitles (a long line is split into parts of at most two lines, timed to the voice)
 - `my-tutorial-picture.mp4`, `my-tutorial-voice.wav` and `my-tutorial-music.wav`: picture, voice and music
   separately, for fine tuning
 
-Rendering does not click through the site again: it makes the video from the last recording, so you can render as
-often as you like.
+Rendering does not click through the site again: it makes the video from the last recording, the narration and the
+timing file, so you can render as often as you like.
 
 ## Step 6 (optional): Fine tuning in DaVinci Resolve
 
 Import the picture, voice and music files; they all start at the same moment and line up. Use Resolve for touches
 the toolset cannot do, such as trimming a moment, adding a sound or adjusting the music by hand. Anything done in
-Resolve is lost when the video is made again from the script, so fix what you can in the script first and keep
-Resolve for the very last step.
+Resolve is lost when the video is made again from the script, so fix what you can in the script and the timing file
+first (trimming a moment is `holdMs` with a minus, see step 4) and keep Resolve for the very last step.
 
 ## Where to make which change
 
 | You want to change | Where | Then |
 |---|---|---|
 | Clicks, typing, narration text, highlights, pauses | `scripts/<name>.ts` | `npm run record -- <name>`, then render |
+| Faster or slower parts, longer or shorter waits, when a sentence starts, a sentence's text | `scripts/<name>.timing.ts` | render (Studio shows it live; a new text needs `npm run narrate -- <name>` first) |
 | Phases and their names | `chapter(...)` lines in `scripts/<name>.ts` | record again |
 | What is cut from the video | `startHidden()` … `endHidden()` in `scripts/<name>.ts` (F9 when recording the clicks) | record again |
 | What is deleted before each recording | `cleanUp` in `scripts/<name>.ts` | record again |
 | Title, subtitle, series, next tutorial | top of `scripts/<name>.ts` | record again (they are saved with the recording) |
 | Captions on or off | `captions: false` in the script | record again |
-| How much stillness is cut, for one tutorial | `edit: { minGapMs, keepGapMs }` in the script | record again |
+| How much stillness is cut, for one tutorial | `edit: { minGapMs, keepGapMs }` in the timing file | render |
 | How much stillness is cut, for all tutorials | `DEFAULT_EDIT` in `src/shared/timeline.ts` | render |
 | Music on or off, or another track for one video | `music: false` or `music: "..."` in the script | record again |
-| Pronunciation of a word | `pronunciations.json` | record again (only the affected sentences are regenerated) |
-| Voice | `.env` (`TTS_PROVIDER`, `TTS_VOICE`) | record again |
+| Pronunciation of a word | `pronunciations.json` | render (only the affected sentences are regenerated; `npm run narrate -- <name>` to hear it in Studio) |
+| Voice | `.env` (`TTS_PROVIDER`, `TTS_VOICE`) | render (`npm run narrate -- <name>` to hear it in Studio) |
 | Where a new route's map starts | `TUTORIAL_GEOLOCATION` in `.env` | record the clicks and the video again |
 | Page size (room on screen) | `TUTORIAL_WIDTH`, `TUTORIAL_HEIGHT` in `.env` | record the clicks and the video again |
 | Pace: pause before and after each step | `STEP_LEAD_MS`, `STEP_PAUSE_AFTER_MS` in `src/shared/edit.ts` | record again |
@@ -263,20 +288,25 @@ Resolve for the very last step.
 | Font and background | `src/remotion/theme.ts` | render |
 | Title and end screen layout | `src/remotion/TutorialVideo.tsx` | render |
 | Cursor, highlight style, chapter label, captions style | `src/remotion/Screen.tsx` | render |
+| Caption line length (at most two lines are shown at a time) | `CAPTION_LINE_CHARS` in `src/shared/captions.ts` | render |
 
-Changes that only need a render show up live in Studio (step 4) while you edit.
+Changes that only need a render show up live in Studio (step 4) while you edit, except changes to the voice (a
+sentence's text in the timing file, pronunciations, the voice itself): run `npm run narrate -- <name>` for those.
 
 ## When something goes wrong
 
 | What you see | What to do |
 |---|---|
 | Studio shows an old version | Record again (`npm run record -- <name>`) and reload Studio; restart it if a new tutorial does not appear |
+| Studio or the render says a tutorial "was recorded before narration was added afterwards" | Record it again: recordings from before the timing file cannot be used |
+| A sentence shows as a caption but is not heard in Studio | Its text was changed in the timing file: `npm run narrate -- <name>` |
+| The timing file "names a step the recording does not have" | A line of that chapter was added or removed: find the new name with `npm run steps -- <name>` |
 | The map starts in the wrong place | Set `TUTORIAL_GEOLOCATION` in `tutorials/.env` (it is used for both recordings) |
 | A click lands in the wrong place on the map | Record the clicks again with the latest recorder: map clicks should appear as `map.click(...)` lines |
 | A step fails because something is not found | The page changed (a button renamed or moved): re-record that chapter (`-Chapter "..."`, see "Re-recording one chapter") |
 | A step fails because it finds two of something ("strict mode violation") | An earlier recording left it behind: add it to `cleanUp` in the script, or run `npm run cleanup -- <name>` |
-| The narration sounds wrong | Rephrase the sentence, or add the word to `pronunciations.json` |
+| The narration sounds wrong | Rephrase the sentence (in the script, or with `text` in the timing file to skip recording again), or add the word to `pronunciations.json` |
 | A render stops saying the music is missing | Fetch it: `npm run fetch-assets` |
-| A sentence is missing from the video | It was spoken inside a hidden part, which is cut with it (the recording warns about this): move the `say` after `endHidden()` |
+| A sentence is missing from the video | It was spoken inside a hidden part, which is cut with it (the recording, Studio and `npm run steps` warn about this): move the `say` after `endHidden()` |
 | A PDF does not show | PDFs opened by clicking cannot be shown: save the PDF in `tutorials/pdfs/` and use `showPdf("pdfs/<file>.pdf")` |
 | A step fails with "... is not defined" | Check the spelling: `page`, `say`, `map`, `chapter`, `highlight`, `pause`, `camera`, `startHidden`, `endHidden` and `showPdf` are available as they are |

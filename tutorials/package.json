@@ -6,6 +6,8 @@
     "login": "tsx src/runner/login.ts",
     "codegen": "tsx src/runner/codegen.ts",
     "record": "tsx src/runner/record.ts",
+    "narrate": "tsx src/runner/narrate.ts",
+    "steps": "tsx src/runner/steps.ts",
     "studio": "remotion studio src/remotion/index.ts",
     "render": "tsx src/runner/render.ts",
     "music": "tsx src/runner/music.ts",

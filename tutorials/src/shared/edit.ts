@@ -1,18 +1,39 @@
 import { CAMERA } from "./camera";
-import { DEFAULT_EDIT, type Timeline } from "./timeline";
+import { DEFAULT_EDIT, isHidden, type Timeline } from "./timeline";
+import type { Pause } from "./captions";
+import type { Timing, Voice } from "./timing";
 
-// Which parts of the recording make it into the video. Anything happening (the screen changing, an action, a
-// narration, a highlight, a pause) keeps a stretch; the still stretches between them are shortened, so loading pages,
-// voice generation and hesitation disappear.
+// Which parts of the recording make it into the video, at what speed, and where the narration goes. Anything
+// happening (the screen changing, an action, a highlight, a pause) keeps a stretch; the still stretches between them
+// are shortened, so loading pages and hesitation disappear. The timing file (timing.ts) then speeds stretches up or
+// down and holds or shortens the picture before steps. Last, the narration is placed at its say() steps, and the
+// picture is held still where a line needs more time than the recording gives it: before the next step when the line
+// is waited for, and before the next line, so lines never overlap.
 
-export type Segment = { srcStart: number; srcEnd: number; outStart: number };
+// A stretch of the recording shown from outStart to outEnd (at another speed when the lengths differ), or a hold: the
+// picture at srcStart (= srcEnd) held still, for something at holdAt in the recording
+export type Segment = { srcStart: number; srcEnd: number; outStart: number; outEnd: number; holdAt?: number };
+
+// A narration line where it is in the video
+export type PlacedLine = {
+  step: string;
+  start: number;
+  durationMs: number;
+  text: string;
+  // Missing until the line's voice has been made (npm run narrate): then its length is estimated
+  file?: string;
+  pauses: Pause[];
+};
 
 export type Edit = {
   segments: Segment[];
   durationMs: number;
   // Where a hidden part was cut out (video time): the picture crossfades there
   jumps: { outMs: number; fromSrcMs: number }[];
-  // Recording time to video time, and back
+  narration: PlacedLine[];
+  // Steps in the timing file that the recording does not have, and say() lines without a voice yet
+  warnings: string[];
+  // Recording time to video time (something at a held moment shows after the hold), and back
   toOut: (srcMs: number) => number;
   toSrc: (outMs: number) => number;
 };
@@ -25,6 +46,10 @@ export const STEP_LEAD_MS = CAMERA.transitionMs + 150;
 export const STEP_PAUSE_AFTER_MS = 900;
 const ACTION_BEFORE_MS = STEP_LEAD_MS;
 const ACTION_AFTER_MS = STEP_PAUSE_AFTER_MS;
+// Silence between two narration lines
+export const NARRATION_GAP_MS = 300;
+// The length of a line whose voice has not been made yet
+const ESTIMATED_MS_PER_CHAR = 65;
 
 type Interval = [number, number];
 
@@ -39,25 +64,38 @@ function merge(intervals: Interval[]): Interval[] {
   return merged;
 }
 
+const subtract = (pieces: Interval[], [cutStart, cutEnd]: Interval): Interval[] =>
+  pieces.flatMap(([a, b]): Interval[] =>
+    cutEnd <= a || cutStart >= b ? [[a, b]] : ([[a, cutStart], [cutEnd, b]] as Interval[]).filter(([x, y]) => y > x),
+  );
+
 export function activeIntervals(timeline: Timeline): Interval[] {
   const intervals: Interval[] = [
     ...timeline.frames.map((frame): Interval => [frame.t, frame.t + SCREEN_CHANGE_AFTER_MS]),
     ...timeline.actions.map((action): Interval => [action.t - ACTION_BEFORE_MS, action.t + ACTION_AFTER_MS]),
-    ...timeline.narration.map((item): Interval => [item.t, item.t + item.durationMs]),
     ...timeline.highlights.map((item): Interval => [item.t, item.t + item.durationMs]),
     ...timeline.holds.map((item): Interval => [item.t, item.t + item.durationMs]),
   ];
   return merge(intervals.map(([a, b]): Interval => [Math.max(0, a), Math.min(timeline.durationMs, b)]));
 }
 
-export function computeEdit(timeline: Timeline): Edit {
-  const { minGapMs, keepGapMs } = { ...DEFAULT_EDIT, ...timeline.edit };
-  const active = activeIntervals(timeline);
+export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, timing: Timing = {}): Edit {
+  if (!timeline.steps) throw new Error(`${timeline.name} was recorded before narration was added afterwards: record it again`);
+  const { minGapMs, keepGapMs } = { ...DEFAULT_EDIT, ...timeline.edit, ...timing.edit };
+  const warnings: string[] = [];
+  const steps = new Map(timeline.steps.map((step, index) => [step.id, { ...step, index }]));
+  const changes = Object.entries(timing.steps ?? {}).filter(([id]) => {
+    if (!steps.has(id)) warnings.push(`The timing file names a step the recording does not have: ${id}`);
+    return steps.has(id);
+  });
+  // Where the camera starts moving to a step: the page is still from there on
+  const leadOf = (id: string) => Math.max(0, steps.get(id)!.t - STEP_LEAD_MS);
+
   // Kept stretches: the active ones, plus each gap in full if short or shortened to keepGapMs (half on each side, so
   // the cut falls in the middle of the stillness)
   const kept: Interval[] = [];
   let cursor = 0;
-  for (const [start, end] of [...active, [timeline.durationMs, timeline.durationMs] as Interval]) {
+  for (const [start, end] of [...activeIntervals(timeline), [timeline.durationMs, timeline.durationMs] as Interval]) {
     const gap = start - cursor;
     if (gap > minGapMs) {
       kept.push([cursor, cursor + keepGapMs / 2], [start - keepGapMs / 2, start]);
@@ -69,46 +107,138 @@ export function computeEdit(timeline: Timeline): Edit {
   }
   // Hidden parts (startHidden/endHidden) go entirely, whatever happens in them
   const hidden = merge((timeline.hidden ?? []).map((part): Interval => [part.start, part.end]));
-  const visible = merge(kept).flatMap(([start, end]) => {
-    let pieces: Interval[] = [[start, end]];
-    for (const [hiddenStart, hiddenEnd] of hidden) {
-      pieces = pieces.flatMap(([a, b]): Interval[] =>
-        hiddenEnd <= a || hiddenStart >= b ? [[a, b]] : ([[a, hiddenStart], [hiddenEnd, b]] as Interval[]).filter(([x, y]) => y > x),
-      );
+  let pieces = hidden.reduce(subtract, merge(kept));
+  // Shortened waits: the last |holdMs| of what is kept before the step's lead
+  for (const [id, change] of changes) {
+    let remaining = -(change.holdMs ?? 0);
+    const lead = leadOf(id);
+    for (const [a, b] of [...pieces].reverse()) {
+      if (remaining <= 0) break;
+      if (a >= lead) continue;
+      const end = Math.min(b, lead);
+      const cut = Math.min(remaining, end - a);
+      pieces = subtract(pieces, [end - cut, end]);
+      remaining -= cut;
     }
-    return pieces;
-  });
-  const segments: Segment[] = [];
-  let out = 0;
-  for (const [srcStart, srcEnd] of visible) {
-    segments.push({ srcStart, srcEnd, outStart: out });
-    out += srcEnd - srcStart;
   }
-  const durationMs = out;
+
+  // Speeds: each change from its step's lead to the lead of its `until` step (the next step by default)
+  const speeds = changes
+    .filter(([, change]) => change.speed && change.speed > 0 && change.speed !== 1)
+    .map(([id, change]) => {
+      const until = change.until ?? timeline.steps[steps.get(id)!.index + 1]?.id;
+      if (change.until && !steps.has(change.until)) warnings.push(`${id}: speed until a step the recording does not have: ${change.until}`);
+      const end = until && steps.has(until) ? leadOf(until) : timeline.durationMs;
+      return { start: leadOf(id), end, speed: change.speed! };
+    });
+  const boundaries = speeds.flatMap(({ start, end }) => [start, end]);
+  const speedAt = (src: number) => speeds.filter(({ start, end }) => src >= start && src < end).pop()?.speed ?? 1;
+  const runs = pieces.flatMap(([a, b]) => {
+    const cuts = [a, ...boundaries.filter((point) => point > a && point < b).sort((x, y) => x - y), b];
+    return cuts.slice(0, -1).map((start, index) => ({ start, end: cuts[index + 1], speed: speedAt(start) }));
+  });
+
+  // Held moments: the picture stops at `at` (in the recording) for ms. Anything at or after `at` shows after the hold.
+  const holds: { at: number; ms: number }[] = [];
+  let segments: Segment[] = [];
+  const layOut = () => {
+    const sorted = holds.map((item, index) => ({ ...item, index })).sort((x, y) => x.at - y.at || x.index - y.index);
+    segments = [];
+    let out = 0;
+    let next = 0;
+    // A hold in a cut stretch shows the picture the video jumps to
+    const pushHold = (frame: number) => {
+      const { at, ms } = sorted[next++];
+      segments.push({ srcStart: frame, srcEnd: frame, outStart: out, outEnd: (out += ms), holdAt: at });
+    };
+    for (const run of runs) {
+      while (next < sorted.length && sorted[next].at < run.start) pushHold(run.start);
+      let cursor = run.start;
+      while (next < sorted.length && sorted[next].at < run.end) {
+        const at = sorted[next].at;
+        if (at > cursor) {
+          segments.push({ srcStart: cursor, srcEnd: at, outStart: out, outEnd: (out += (at - cursor) / run.speed) });
+          cursor = at;
+        }
+        pushHold(at);
+      }
+      segments.push({ srcStart: cursor, srcEnd: run.end, outStart: out, outEnd: (out += (run.end - cursor) / run.speed) });
+    }
+    const last = runs.length ? runs[runs.length - 1].end : 0;
+    while (next < sorted.length) pushHold(last);
+  };
+  layOut();
 
   const toOut = (srcMs: number) => {
-    let previous = segments[0];
     for (const segment of segments) {
-      if (srcMs < segment.srcStart) {
-        // In a cut stretch: where the video jumps over it
-        return previous === segment ? segment.outStart : previous.outStart + (previous.srcEnd - previous.srcStart);
+      if (segment.holdAt !== undefined) {
+        if (srcMs < segment.holdAt) return segment.outStart;
+        continue;
       }
-      if (srcMs <= segment.srcEnd) return segment.outStart + (srcMs - segment.srcStart);
-      previous = segment;
+      // In a cut stretch: where the video jumps over it
+      if (srcMs < segment.srcStart) return segment.outStart;
+      if (srcMs < segment.srcEnd) {
+        const rate = (segment.outEnd - segment.outStart) / (segment.srcEnd - segment.srcStart);
+        return segment.outStart + (srcMs - segment.srcStart) * rate;
+      }
     }
-    return durationMs;
+    return segments.length ? segments[segments.length - 1].outEnd : 0;
   };
   const toSrc = (outMs: number) => {
     for (const segment of segments) {
-      if (outMs <= segment.outStart + (segment.srcEnd - segment.srcStart)) {
-        return segment.srcStart + Math.max(0, outMs - segment.outStart);
+      if (outMs < segment.outEnd) {
+        if (segment.holdAt !== undefined) return segment.srcStart;
+        const rate = (segment.srcEnd - segment.srcStart) / (segment.outEnd - segment.outStart);
+        return segment.srcStart + Math.max(0, outMs - segment.outStart) * rate;
       }
     }
-    const last = segments[segments.length - 1];
-    return last ? last.srcEnd : 0;
+    return segments.length ? segments[segments.length - 1].srcEnd : 0;
   };
+  const hold = (at: number, ms: number) => {
+    if (ms <= 0) return;
+    holds.push({ at, ms });
+    layOut();
+  };
+  for (const [id, change] of changes) hold(leadOf(id), change.holdMs ?? 0);
+
+  // The narration, step by step as the script ran: a line starts once the one before has been said, and after a line
+  // that is waited for, the next step (its camera move) starts only once it has been said
+  const narration: PlacedLine[] = [];
+  const says = new Map(timeline.says.map((say) => [say.step, say]));
+  let previousEnd = -Infinity;
+  let waitedFor: number | null = null;
+  timeline.steps.forEach((step, index) => {
+    const say = says.get(step.id);
+    if (!say && waitedFor !== null) {
+      const lead = Math.max(timeline.steps[index - 1]?.t ?? 0, step.t - STEP_LEAD_MS);
+      hold(lead, waitedFor + NARRATION_GAP_MS - toOut(lead));
+    }
+    waitedFor = null;
+    if (!say) return;
+    if (isHidden(timeline, say.t)) {
+      warnings.push(`${say.step} is in a hidden part, so it is not said: ${say.text}`);
+      return;
+    }
+    const change = timing.steps?.[say.step] ?? {};
+    const text = change.text ?? say.text;
+    const line = voice.lines[say.step];
+    const voiced = line && line.text === text ? line : undefined;
+    if (!voiced) warnings.push(`${say.step} has no voice yet (npm run narrate -- ${timeline.name}): ${text}`);
+    const durationMs = voiced?.durationMs ?? text.length * ESTIMATED_MS_PER_CHAR;
+    const delay = change.delayMs ?? 0;
+    hold(say.t, previousEnd + NARRATION_GAP_MS - (toOut(say.t) + delay));
+    const start = toOut(say.t) + delay;
+    narration.push({ step: say.step, start, durationMs, text, file: voiced?.file, pauses: voiced?.pauses ?? [] });
+    previousEnd = start + durationMs;
+    if (change.wait ?? say.wait) waitedFor = previousEnd;
+  });
+  // The video lasts until the last line has been said
+  const end = segments.length ? segments[segments.length - 1].outEnd : 0;
+  if (previousEnd + NARRATION_GAP_MS > end) hold(timeline.durationMs, previousEnd + NARRATION_GAP_MS - end);
+
+  const durationMs = segments.length ? segments[segments.length - 1].outEnd : 0;
   const jumps = hidden
     .filter(([start]) => start > 0 && start < timeline.durationMs)
     .map(([start, end]) => ({ outMs: toOut(end), fromSrcMs: start }));
-  return { segments, durationMs, jumps, toOut, toSrc };
+  return { segments, durationMs, jumps, narration, warnings, toOut, toSrc };
 }
