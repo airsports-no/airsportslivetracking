@@ -13,8 +13,8 @@ export default defineTutorial({
     camera("wide");
     await say("Welcome to Air Sports Live Tracking. This short tour shows where to find your contests.");
     camera("auto");
-    await highlight(page.locator("nav").first(), { label: "The main menu" });
+    await highlight(page.locator("#main-menu"), { label: "The main menu" });
     await say("Everything you manage starts from the menu at the top.", { wait: false });
-    await page.locator("nav a").first().click();
+    await page.getByRole("link", { name: "My contests" }).click();
   },
 });
