@@ -49,6 +49,9 @@ export type EditSettings = {
   // is shortened to keepGapMs
   minGapMs: number;
   keepGapMs: number;
+  // How long the picture stays as it was at a click on the page (not on the map), with the cursor pressing: the page
+  // often changes at once (a panel opening moves what was clicked), and the click would not be seen
+  clickHoldMs: number;
 };
 
 export type Timeline = {
@@ -78,7 +81,7 @@ export type Timeline = {
   captions: boolean;
 };
 
-export const DEFAULT_EDIT: EditSettings = { minGapMs: 700, keepGapMs: 250 };
+export const DEFAULT_EDIT: EditSettings = { minGapMs: 700, keepGapMs: 250, clickHoldMs: 400 };
 
 // Whether something at recording time t happened in a hidden part (it is cut from the video)
 // The end is where the video comes back: what happens right then (the next chapter's first line) is shown

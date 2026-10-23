@@ -490,14 +490,36 @@ const mapSteps: MapSteps = {
     // instead, around where the mouse was, as a wheel zoom
     const [x, y] = ticks[ticks.length - 1];
     await mouse.move(corner.x + x, corner.y + y, { steps: 8 });
+    // One level at a time, each once its map tiles have loaded: a jump of several levels shrinks the old tiles to a
+    // corner and shows the empty background until the new ones are there
     await page.evaluate(
       ([x, y, to]) =>
         new Promise<void>((resolve) => {
           const map = (window as any).__routeEditorMap;
-          if (Math.abs(map.getZoom() - to) < 1e-3) return resolve();
-          map.once("zoomend", () => resolve());
-          map.setZoomAround([x, y], to);
-          setTimeout(() => resolve(), 1500);
+          const giveUp = setTimeout(() => resolve(), 10000);
+          const loading = () => {
+            let busy = false;
+            map.eachLayer((layer: any) => {
+              if (typeof layer.isLoading === "function" && layer.isLoading()) busy = true;
+            });
+            return busy;
+          };
+          const next = () => {
+            const now = map.getZoom();
+            if (Math.abs(to - now) < 1e-3) {
+              clearTimeout(giveUp);
+              return resolve();
+            }
+            const started = Date.now();
+            const whenLoaded = () => {
+              if (loading() && Date.now() - started < 1500) setTimeout(whenLoaded, 50);
+              else setTimeout(next, 150);
+            };
+            map.once("zoomend", () => setTimeout(whenLoaded, 50));
+            // Around the map position under the mouse: a plain [x, y] would be read as a latitude and longitude
+            map.setZoomAround(map.containerPointToLatLng([x, y]), Math.abs(to - now) <= 1 ? to : now + Math.sign(to - now));
+          };
+          next();
         }),
       [x, y, to] as const,
     );

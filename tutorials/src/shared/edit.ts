@@ -106,7 +106,7 @@ export function addedSays(timeline: Timeline, timing: Timing): (Say & { delayMs?
 
 export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, timing: Timing = {}): Edit {
   if (!timeline.steps) throw new Error(`${timeline.name} was recorded before narration was added afterwards: record it again`);
-  const { minGapMs, keepGapMs } = { ...DEFAULT_EDIT, ...timeline.edit, ...timing.edit };
+  const { minGapMs, keepGapMs, clickHoldMs } = { ...DEFAULT_EDIT, ...timeline.edit, ...timing.edit };
   const warnings: string[] = [];
   const steps = new Map(timeline.steps.map((step, index) => [step.id, { ...step, index }]));
   const changes = Object.entries(timing.steps ?? {}).filter(([id]) => {
@@ -225,6 +225,13 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
     layOut();
   };
   for (const [id, change] of changes) hold(leadOf(id), change.holdMs ?? 0);
+  // A click on the page is held for a moment as it was clicked: the page's reaction (a panel opening, a list moving)
+  // shows a moment later, so the click is seen on what was clicked. Not on the map (its box is the whole map), where
+  // the site marks a click itself. Just after the click, so the cursor presses at the start of the hold.
+  for (const action of timeline.actions) {
+    const onMap = action.box !== undefined && action.box.width * action.box.height > 250000;
+    if (action.kind === "click" && !onMap && !isHidden(timeline, action.t)) hold(action.t + 1, clickHoldMs);
+  }
 
   // The narration, step by step as the script ran: a line starts once the one before has been said, and after a line
   // that is waited for, the next step (its camera move) starts only once it has been said

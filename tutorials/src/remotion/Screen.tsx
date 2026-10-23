@@ -164,6 +164,9 @@ export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; e
 
 const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x + 2, 3) / 2);
 
+// How long a click's ripple lasts (the picture is held for the first part of it: clickHoldMs, edit.ts)
+const CLICK_RIPPLE_MS = 700;
+
 // A drawn cursor gliding between the clicks on a slight curve, pressing and rippling on each click
 const Cursor = ({
   actions,
@@ -200,12 +203,13 @@ const Cursor = ({
   }
   const lastClick = [...moves].reverse().find((action) => action.kind === "click" && action.t <= outMs + 120);
   const sinceClick = lastClick ? outMs - lastClick.t : Infinity;
-  const press = sinceClick > -60 && sinceClick < 140 ? 0.82 : 1;
+  // Pressed while the picture is held at the click (clickHoldMs, edit.ts), so it is seen what is clicked
+  const press = sinceClick > -60 && sinceClick < 380 ? 0.82 : 1;
   // Keeps a steady size on screen as the camera zooms
   const size = 30 / Math.sqrt(zoom);
   return (
     <>
-      {sinceClick >= 0 && sinceClick < 500 && lastClick && (
+      {sinceClick >= 0 && sinceClick < CLICK_RIPPLE_MS && lastClick && (
         <div
           style={{
             position: "absolute",
@@ -215,16 +219,29 @@ const Cursor = ({
             height: 0,
           }}
         >
+          {/* A soft disc where it was clicked, and a ring spreading from it: clear on a small button too */}
           <div
             style={{
               position: "absolute",
-              left: -interpolate(sinceClick, [0, 500], [6, 34]),
-              top: -interpolate(sinceClick, [0, 500], [6, 34]),
-              width: 2 * interpolate(sinceClick, [0, 500], [6, 34]),
-              height: 2 * interpolate(sinceClick, [0, 500], [6, 34]),
+              left: -14,
+              top: -14,
+              width: 28,
+              height: 28,
               borderRadius: "50%",
-              border: `3px solid ${theme.accent}`,
-              opacity: interpolate(sinceClick, [0, 500], [0.9, 0]),
+              background: theme.accent,
+              opacity: interpolate(sinceClick, [0, CLICK_RIPPLE_MS], [0.35, 0]),
+            }}
+          />
+          <div
+            style={{
+              position: "absolute",
+              left: -interpolate(sinceClick, [0, CLICK_RIPPLE_MS], [8, 44]),
+              top: -interpolate(sinceClick, [0, CLICK_RIPPLE_MS], [8, 44]),
+              width: 2 * interpolate(sinceClick, [0, CLICK_RIPPLE_MS], [8, 44]),
+              height: 2 * interpolate(sinceClick, [0, CLICK_RIPPLE_MS], [8, 44]),
+              borderRadius: "50%",
+              border: `4px solid ${theme.accent}`,
+              opacity: interpolate(sinceClick, [0, CLICK_RIPPLE_MS], [0.95, 0]),
             }}
           />
         </div>

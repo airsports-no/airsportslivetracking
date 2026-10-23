@@ -404,7 +404,7 @@ function App() {
             <p className="hint">Choose a step in the list to change its timing. The video jumps to it.</p>
           )}
           <fieldset className="global">
-            <legend>Cutting still stretches, for the whole video</legend>
+            <legend>For the whole video</legend>
             <label>
               Longer than
               <NumberInput
@@ -422,6 +422,16 @@ function App() {
                 placeholder={editSettings.keepGapMs}
                 step={50}
                 onChange={(keepGapMs) => changeEdit({ keepGapMs })}
+              />
+              ms
+            </label>
+            <label>
+              Hold the picture at a click on the page for
+              <NumberInput
+                value={tidied.edit?.clickHoldMs}
+                placeholder={editSettings.clickHoldMs}
+                step={50}
+                onChange={(clickHoldMs) => changeEdit({ clickHoldMs })}
               />
               ms
             </label>

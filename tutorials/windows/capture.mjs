@@ -590,7 +590,8 @@ export async function replaySteps(page, steps) {
               const map = window.__routeEditorMap;
               if (Math.abs(map.getZoom() - to) < 1e-3) return resolve();
               map.once("zoomend", () => resolve());
-              map.setZoomAround([px, py], to);
+              // Around the map position under the mouse: a plain [x, y] would be read as a latitude and longitude
+              map.setZoomAround(map.containerPointToLatLng([px, py]), to);
               setTimeout(resolve, 1500);
             }),
           [px, py, options.to],
