@@ -150,6 +150,43 @@ class TestUnknownLegPhotos(TestCase):
         self.assertEqual(by_name["Unknown leg 1"]["target_kind"], "unknown_leg")
         self.assertFalse(by_name["Unknown leg 1"]["uploaded"])
 
+    def _photos_others_may_not_see(self):
+        self.client.force_login(self.manager)
+        self.client.get(self.photos_url)
+        Photo.objects.create(name="Decoy 1", route=self.route, latitude=60.03, longitude=11.03, is_decoy=True)
+        # Left from an older photo list, which had the hidden gates
+        Photo.objects.create(name="Secret 1", route=self.route, latitude=60.07, longitude=11.07)
+        self.client.logout()
+        return {"Unknown leg 1", "Decoy 1", "Secret 1"}
+
+    def test_the_route_of_a_task_has_only_its_public_photos(self, _generate_image):
+        from display.serialisers import RouteSerialiser
+
+        hidden = self._photos_others_may_not_see()
+        public = {item["name"] for item in RouteSerialiser(self.route).data["photo_set"]}
+        self.assertEqual(public & hidden, set())
+        self.assertIn("SP", public)
+
+        request = SimpleNamespace(user=self.manager)
+        organiser = {item["name"] for item in RouteSerialiser(self.route, context={"request": request}).data["photo_set"]}
+        self.assertTrue(hidden <= organiser, "the organisers see everything")
+
+    def test_the_photos_api_gives_others_only_the_public_photos(self, _generate_image):
+        hidden = self._photos_others_may_not_see()
+        other = get_user_model().objects.create(email="other@example.com")
+        self.client.force_login(other)
+        response = self.client.get("/api/v1/photos/", {"route": self.route.pk})
+        self.assertEqual(response.status_code, 200, response.content)
+        listed = {item["name"] for item in response.json()}
+        self.assertEqual(listed & hidden, set())
+        self.assertIn("SP", listed)
+        unknown_leg = Photo.objects.get(route=self.route, name="Unknown leg 1")
+        self.assertEqual(self.client.get(f"/api/v1/photos/{unknown_leg.pk}/").status_code, 404)
+
+        self.client.force_login(self.manager)
+        response = self.client.get("/api/v1/photos/", {"route": self.route.pk})
+        self.assertTrue(hidden <= {item["name"] for item in response.json()}, "the organisers see everything")
+
     def test_an_uploaded_picture_is_marked_until_it_is_reverted(self, _generate_image):
         self.client.force_login(self.manager)
         self.client.get(self.photos_url)

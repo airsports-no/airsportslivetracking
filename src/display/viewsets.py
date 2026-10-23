@@ -222,7 +222,9 @@ from display.services.photo_observations import (
 from display.services.photo_management import (
     get_navigation_task_photo_targets,
     get_observation_photo_names,
+    get_public_photo_names,
     get_unknown_leg_photo_names,
+    photos_visible_to,
     revert_photo_to_satellite,
     sync_navigation_task_photo_targets,
 )
@@ -2223,16 +2225,15 @@ class NavigationTaskViewSet(ModelViewSet):
         navigation_task = self.get_object()
         photos = sync_navigation_task_photo_targets(navigation_task)
         is_organiser = navigation_task.user_has_change_permissions(request.user)
-        # The unknown-leg photos show where the unknown legs are: only the organisers' own list has them (the crews
-        # see them in the flight order), not a contestant's view, even an organiser's
-        hidden = set()
-        if not is_organiser or request.query_params.get("contestant"):
-            hidden |= get_unknown_leg_photo_names(navigation_task)
-        if not navigation_task.allow_observation_registration and not is_organiser:
-            # Observation photos are the answer key and only belong to tasks that use observation registration: hide
-            # them from everyone but the organizers (the route's waypoint photos stay).
-            hidden |= get_observation_photo_names(navigation_task)
-        photos = [photo for photo in photos if photo.name not in hidden]
+        if not is_organiser:
+            # No unknown-leg photos, and no observation photos unless the task uses observation registration
+            public_names = get_public_photo_names(navigation_task)
+            photos = [photo for photo in photos if photo.name in public_names]
+        elif request.query_params.get("contestant"):
+            # The unknown-leg photos show where the unknown legs are: only the organisers' own list has them (the
+            # crews see them in the flight order), not a contestant's view, even an organiser's
+            hidden = get_unknown_leg_photo_names(navigation_task)
+            photos = [photo for photo in photos if photo.name not in hidden]
         if request.query_params.get("kind") == "observation":
             # Only the observation photos, not those of the route's waypoints (what the live map shows)
             names = get_observation_photo_names(navigation_task)
@@ -2852,7 +2853,13 @@ class PhotoViewSet(ModelViewSet):
         user = self.request.user
         if user.is_superuser:
             return queryset
-        return queryset.filter(visible_navigation_tasks_q(user, prefix="route__navigationtask__")).distinct()
+        queryset = queryset.filter(visible_navigation_tasks_q(user, prefix="route__navigationtask__")).distinct()
+        # On a task the user does not organise, only its public photos: not the unknown-leg photos, decoys or (when
+        # the task does not use observation registration) the observation photos
+        if pk := self.kwargs.get("pk"):
+            queryset = queryset.filter(pk=pk)
+        visible = photos_visible_to(user, queryset.select_related("route__navigationtask__contest"))
+        return queryset.filter(pk__in=[photo.pk for photo in visible])
 
     @action(detail=True, methods=["post"], permission_classes=[permissions.IsAuthenticated & PhotoPermissions])
     def revert(self, request, pk=None):

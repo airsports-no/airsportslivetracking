@@ -76,6 +76,38 @@ def get_navigation_task_photo_targets(navigation_task) -> list[dict[str, Any]]:
     return targets
 
 
+def get_public_photo_names(navigation_task) -> set[str]:
+    """
+    Names of the photos everyone who may see the task may see: its photo targets, except the unknown-leg photos (they
+    give the unknown legs away) and, when the task does not use observation registration, the observation photos (the
+    answer key). Decoys are never among them, nor photos of points that are no longer photo targets (the hidden gates
+    of older photo lists).
+    """
+    names = {target["name"] for target in get_navigation_task_photo_targets(navigation_task)}
+    names -= get_unknown_leg_photo_names(navigation_task)
+    if not navigation_task.allow_observation_registration:
+        names -= get_observation_photo_names(navigation_task)
+    return names
+
+
+def photos_visible_to(user, photos) -> list[Photo]:
+    """The photos the user may see: all of them on the tasks the user organises, the public ones on others"""
+    visible: list[Photo] = []
+    public_names_by_route: dict[int, set[str] | None] = {}
+    for photo in photos:
+        if photo.route_id not in public_names_by_route:
+            navigation_task = getattr(photo.route, "navigationtask", None)
+            # A route not yet in a task has nothing to give away
+            organiser = navigation_task is None or (
+                user is not None and user.is_authenticated and navigation_task.user_has_change_permissions(user)
+            )
+            public_names_by_route[photo.route_id] = None if organiser else get_public_photo_names(navigation_task)
+        public_names = public_names_by_route[photo.route_id]
+        if public_names is None or photo.name in public_names:
+            visible.append(photo)
+    return visible
+
+
 def sync_navigation_task_photo_targets(navigation_task) -> list[Photo]:
     targets = get_navigation_task_photo_targets(navigation_task)
     ordered_photos: list[Photo] = []
