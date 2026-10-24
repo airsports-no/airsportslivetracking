@@ -20,7 +20,7 @@ cd tutorials
 npm ci
 npx playwright install chromium
 cp .env.example .env       # site address, page size, start location, voice (see the comments in it)
-npm run fetch-assets       # the background music, from the team's private bucket (needs gcloud auth login)
+npm run fetch-assets       # the background music and the PDFs the scripts show, from the team's private bucket (needs gcloud auth login)
 ```
 
 **On Windows**, once:
