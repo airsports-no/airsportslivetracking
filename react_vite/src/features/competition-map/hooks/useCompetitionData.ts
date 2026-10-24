@@ -259,6 +259,10 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 if (payload.progress !== undefined) {
                     update.progress = payload.progress;
                 }
+                // An adaptive start moves the gate times when the starting point is crossed; the server sends them along.
+                if (payload.gate_times) {
+                    update.gate_times = payload.gate_times;
+                }
                 updateContestant(contestantId, update);
             }
             if (msg.type === "annotations" && payload.annotations) {

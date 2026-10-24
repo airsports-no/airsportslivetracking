@@ -17,6 +17,7 @@ import Disclaimer from './components/Disclaimer';
 import SidePanel, { PanelTab } from './components/hud/SidePanel';
 import RankingList from './components/hud/RankingList';
 import NavLog from './components/hud/NavLog';
+import FlightTimeline from './components/hud/FlightTimeline';
 import FollowBar from './components/hud/FollowBar';
 import ReplayBar, { ReplayEvent } from './components/hud/ReplayBar';
 import TaskInfoModal from './TaskInfoModal';
@@ -24,7 +25,7 @@ import { Trophy, Info, Settings, Calendar, Sliders, Route } from 'lucide-react';
 import { generatePath } from '../../urls';
 import './CompetitionMap.css';
 import './components/hud/hud.css';
-import { NavigationTask, PhotoObservation, ScoreLogEntry } from './types';
+import { NavigationTask, PhotoObservation, ScoreAnnotation, ScoreLogEntry } from './types';
 
 // From this width the page is treated as an event display: following someone folds the panel (FollowBar grows too).
 const BIG_SCREEN_WIDTH = 1600;
@@ -672,7 +673,16 @@ export default function CompetitionMapPage() {
    */
   const jumpToLogEntry = (entry: ScoreLogEntry) => {
     setActiveLogId(entry.id);
-    const ann = annotationByLogId.get(entry.id);
+    showMoment(annotationByLogId.get(entry.id), entry.time);
+  };
+
+  /** The same for an annotation without a log entry the map has (a crossing without a time check, a miss). */
+  const jumpToAnnotation = (ann: ScoreAnnotation) => {
+    setActiveLogId(ann.score_log_entry);
+    showMoment(ann, ann.time);
+  };
+
+  const showMoment = (ann: { id: number; latitude: number; longitude: number } | undefined, time: string) => {
     const map = mapRef.current;
     if (ann && map) {
       map.flyTo([ann.latitude, ann.longitude], Math.max(map.getZoom(), 12), { duration: 0.6 });
@@ -680,7 +690,7 @@ export default function CompetitionMapPage() {
     }
     if (view !== 'debrief') return;
     // At the entry's own time: its annotation shows (annotations appear once their time has come) and opens.
-    const target = new Date(entry.time);
+    const target = new Date(time);
     if (mode === 'playback') {
       setPlaybackTime(target);
     } else {
@@ -891,7 +901,7 @@ export default function CompetitionMapPage() {
         onClearSelection={() => selectContestant(null)}
         footer={
           <div className="flex items-end justify-between gap-3">
-            {contestDetails?.logo && view === 'overview' ? (
+            {contestDetails?.logo ? (
               <img src={contestDetails.logo} alt={`${contestDetails.name} logo`} className="max-h-16 max-w-[11rem] object-contain" />
             ) : <span />}
             <Disclaimer className="hud-label hover:underline flex-none" />
@@ -917,12 +927,47 @@ export default function CompetitionMapPage() {
             locatableIds={locatableLogIds}
             onSelect={jumpToLogEntry}
           />
+        ) : selectedContestant && staticNavTaskData ? (
+          // Following someone: the ranking (only as tall as its rows) with their flight under it, so the panel shows both
+          // where they stand and how the flight is going. On a phone the panel is too small for both: ranking only.
+          <div className="flex flex-col h-full">
+            <div className="flex-none max-h-[45%] sm:max-h-[40%] overflow-y-auto hud-scroll">
+              <RankingList
+                rows={standings}
+                selectedId={selectedContestantId}
+                dividerIndex={firstWaitingIndex}
+                compact
+                onSelect={(id) => selectContestant(id)}
+              />
+            </div>
+            <div className="hidden sm:flex flex-col flex-1 min-h-0 border-t hud-divider">
+              <h2 className="hud-label px-4 pt-2 pb-1">Flight of {selectedName}</h2>
+              <div className="flex-1 min-h-0 overflow-y-auto hud-scroll">
+                <FlightTimeline
+                  waypoints={staticNavTaskData.route.waypoints}
+                  gateTimes={selectedContestant.gate_times}
+                  timesKnown={!selectedContestant.adaptive_start || selectedContestant.has_crossed_starting_line
+                    || (annotationsByContestant[selectedContestant.id] ?? []).some(a => /adaptive start set/i.test(a.message))}
+                  entries={visibleLogEntries.filter(e => mode !== 'playback' || new Date(e.time) <= currentTime)}
+                  annotations={(annotationsByContestant[selectedContestant.id] ?? []).filter(a =>
+                    (mode !== 'playback' || new Date(a.time) <= currentTime)
+                    && ((a.gate_type !== 'secret' && a.gate_type !== 'ul') || (staticNavTaskData.display_secrets && userShowSecrets)))}
+                  onSelectAnnotation={jumpToAnnotation}
+                  showSecrets={!!(staticNavTaskData.display_secrets && userShowSecrets)}
+                  now={currentTime}
+                  timeZone={staticNavTaskData.time_zone}
+                  pointsArePenalties={pointsArePenalties}
+                  onSelectEntry={jumpToLogEntry}
+                  onSelectGate={(wp) => mapRef.current?.flyTo([wp.latitude, wp.longitude], Math.max(mapRef.current.getZoom(), 12), { duration: 0.6 })}
+                />
+              </div>
+            </div>
+          </div>
         ) : (
           <RankingList
             rows={standings}
             selectedId={selectedContestantId}
             dividerIndex={firstWaitingIndex}
-            compact={view === 'follow'}
             onSelect={(id) => selectContestant(id)}
           />
         )}
