@@ -16,6 +16,8 @@ interface Props {
     live: boolean;
     /** One slim row above the replay bar: crew, score and place at the replay's time. */
     slim?: boolean;
+    /** The contestants just above and below in the ranking, by name, with the points between. */
+    neighbours?: { above: { name: string; points: number } | null; below: { name: string; points: number } | null };
 }
 
 /** Room for the pilot and the navigator side by side: a tablet or wider, not a phone on its side. */
@@ -104,7 +106,7 @@ function CrewMember({ person, club, slim = false }: { person: Member; club?: str
  * max-height:500px classes) it keeps to one row, without photos, so the map keeps most of the height. On a big screen
  * (100rem, 1600 px, and wider: the event display) everything is larger and the arrow takes the rest of the width.
  */
-export default function FollowBar({ contestant, navigationTask, score, rank, rankOf, gateArrowData, dangerData, live, slim = false }: Props) {
+export default function FollowBar({ contestant, navigationTask, score, rank, rankOf, gateArrowData, dangerData, live, slim = false, neighbours }: Props) {
     const crew = contestant.team?.crew;
     if (!crew?.member1) return null;
     const isPoker = navigationTask.scorecard.task_type.includes('poker');
@@ -134,6 +136,13 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
                         <div className="leading-none text-right">
                             <div className={`hud-figure hud-muted ${slim ? 'text-xl min-[100rem]:text-3xl' : 'text-2xl sm:text-3xl min-[100rem]:text-5xl'}`}>{rank}<span className="text-base min-[100rem]:text-2xl">/{rankOf}</span></div>
                             <div className="hud-label min-[100rem]:text-base mt-1">Place</div>
+                        </div>
+                    )}
+                    {/* The race around them, where there is room. */}
+                    {(neighbours?.above || neighbours?.below) && (
+                        <div className="hidden md:flex flex-col gap-0.5 leading-tight hud-label min-[100rem]:text-base self-center [@media(max-height:500px)]:hidden">
+                            {neighbours.above && <span><span className="hud-figure" style={{ color: 'var(--hud-text)' }}>{neighbours.above.points}</span> behind {neighbours.above.name}</span>}
+                            {neighbours.below && <span><span className="hud-figure" style={{ color: 'var(--hud-text)' }}>{neighbours.below.points}</span> ahead of {neighbours.below.name}</span>}
                         </div>
                     )}
                 </div>

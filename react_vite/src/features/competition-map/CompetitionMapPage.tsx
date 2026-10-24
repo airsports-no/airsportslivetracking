@@ -13,6 +13,7 @@ import { useFollowCamera } from './hooks/useFollowCamera';
 import { useCrossingNotices } from './hooks/useCrossingNotices';
 import { useDisplayRotation } from './hooks/useDisplayRotation';
 import { useDisplayKeys } from './hooks/useDisplayKeys';
+import { neighbourGaps } from './utils/neighbours';
 import { stepThrough } from './utils/displayKeys';
 import DisplayKeysHelp from './components/hud/DisplayKeysHelp';
 import { useToast } from './hooks/useToast'; // Import useToast
@@ -880,6 +881,13 @@ export default function CompetitionMapPage() {
     : null;
   const selectedStanding = selectedContestant ? standings.findIndex(r => r.id === selectedContestant.id) : -1;
   const startedCount = firstWaitingIndex === -1 ? standings.length : firstWaitingIndex;
+  // The race around the followed contestant: who is just above and below, and by how many points.
+  const gaps = neighbourGaps(standings, selectedStanding, startedCount);
+  const lastName = (id: number) => contestantsById[id]?.team?.crew?.member1?.last_name ?? '';
+  const neighbours = {
+    above: gaps.above && { name: lastName(gaps.above.id), points: gaps.above.points },
+    below: gaps.below && { name: lastName(gaps.below.id), points: gaps.below.points },
+  };
 
   const toolbar = (
     <>
@@ -1175,6 +1183,7 @@ export default function CompetitionMapPage() {
                 score={standings[selectedStanding]?.score ?? 0}
                 rank={selectedStanding >= 0 && selectedStanding < startedCount ? selectedStanding + 1 : null}
                 rankOf={startedCount}
+                neighbours={neighbours}
                 live={false}
                 slim
               />
@@ -1206,6 +1215,7 @@ export default function CompetitionMapPage() {
             score={standings[selectedStanding]?.score ?? 0}
             rank={selectedStanding >= 0 && selectedStanding < startedCount ? selectedStanding + 1 : null}
             rankOf={startedCount}
+            neighbours={neighbours}
             gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
             dangerData={dangerDataByContestant[selectedContestant.id]}
             live={view === 'follow'}
