@@ -180,6 +180,8 @@ export interface Contestant {
   wind_speed: number;
   wind_direction: number;
   gate_times?: Record<string, string>;
+  /** Each gate of the route and how it went (the score data's gate_results, kept up to date by score_log messages). */
+  gate_results?: GateResult[];
   default_map_url?: string;
   tracker_id_display?: TrackerDisplay[];
   playing_cards?: { card?: string; rank?: string; suit?: string; id?: number; waypoint?: string; card_string?: string; card_value?: string; card_suit?: string }[];
@@ -329,12 +331,28 @@ export interface ScoreLogEntry {
   contestant: number;
 }
 
+/** One gate of a contestant's route and how it went (display/services/gate_results.py). */
+export interface GateResult {
+  gate: string;
+  type: string;
+  time_check: boolean;
+  /** A secret or unknown-leg gate: shown only where the task shows secrets and the viewer has them on. */
+  hidden: boolean;
+  planned: string | null;
+  actual: string | null;
+  /** Crossing minus required time at a gate with a time check, in seconds (positive is late). */
+  offset_seconds: number | null;
+  missed: boolean;
+  points: number;
+}
+
 export interface ContestantScoreData {
   contestant_id: number;
   positions: TrackPosition[];
   annotations: ScoreAnnotation[];
   score_log_entries: ScoreLogEntry[];
   gate_scores: { id: number; gate: string; points: number; contestant: number }[];
+  gate_results?: GateResult[];
   contestant_track: ContestantTrackSummary;
   playing_cards?: { card?: string; rank?: string; suit?: string; id?: number; waypoint?: string; card_string?: string; card_value?: string; card_suit?: string }[];
 }

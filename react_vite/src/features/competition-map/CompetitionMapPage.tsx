@@ -490,12 +490,11 @@ export default function CompetitionMapPage() {
 
         return allContestantsData.map((c, index) => { // Updated
           const logsForTime = (scoreLogByContestant[c.id] ?? []).filter(log => new Date(log.time) <= currentTime);
-          // The map's log only has entries with points, so a crossing without a timing result (an adaptive start, a
-          // gate without a time check) is only in the annotations: either counts.
-          const annotationsForTime = (annotationsByContestant[c.id] ?? []).filter(a => new Date(a.time) <= currentTime);
+          // A gate counts as crossed once its actual crossing time (gate_results) has come; the map's log only has
+          // entries with points, so it misses a crossing without a timing result (an adaptive start, no time check).
           const crossed = (gate?: string) => !!gate && (
             logsForTime.some(log => log.gate === gate)
-            || annotationsForTime.some(a => a.gate === gate && /passing gate|adaptive start set/i.test(a.message)));
+            || !!c.gate_results?.some(r => r.gate === gate && r.actual !== null && new Date(r.actual) <= currentTime));
           const hasStarted = crossed(startGateName);
           const hasFinished = crossed(finishGateName);
 
@@ -647,7 +646,7 @@ export default function CompetitionMapPage() {
     active.sort(sortFn);
     waiting.sort(sortFn);
     return [...active, ...waiting];
-  }, [staticNavTaskData, sortedContestants, mode, currentScores, currentTime, scoreLogByContestant, annotationsByContestant]);
+  }, [staticNavTaskData, sortedContestants, mode, currentScores, currentTime, scoreLogByContestant]);
 
 
 
@@ -983,9 +982,9 @@ export default function CompetitionMapPage() {
               <div className="flex-1 min-h-0 overflow-y-auto hud-scroll">
                 <FlightTimeline
                   waypoints={staticNavTaskData.route.waypoints}
-                  gateTimes={selectedContestant.gate_times}
+                  gateResults={selectedContestant.gate_results ?? []}
                   timesKnown={!selectedContestant.adaptive_start || selectedContestant.has_crossed_starting_line
-                    || (annotationsByContestant[selectedContestant.id] ?? []).some(a => /adaptive start set/i.test(a.message))}
+                    || !!selectedContestant.gate_results?.find(r => r.type === 'sp')?.actual}
                   entries={visibleLogEntries.filter(e => mode !== 'playback' || new Date(e.time) <= currentTime)}
                   annotations={(annotationsByContestant[selectedContestant.id] ?? []).filter(a =>
                     (mode !== 'playback' || new Date(a.time) <= currentTime)
@@ -993,6 +992,7 @@ export default function CompetitionMapPage() {
                   onSelectAnnotation={jumpToAnnotation}
                   showSecrets={!!(staticNavTaskData.display_secrets && userShowSecrets)}
                   now={currentTime}
+                  missesKnown={mode === 'realtime' || (!!playbackTimeInfo && currentTime >= playbackTimeInfo.end)}
                   timeZone={staticNavTaskData.time_zone}
                   pointsArePenalties={pointsArePenalties}
                   onSelectEntry={jumpToLogEntry}

@@ -316,7 +316,9 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 });
                 updateContestant(contestantId, {
                     track_version: payload.track_version,
-                    score_version: payload.score_version
+                    score_version: payload.score_version,
+                    // The gates' results come with every new entry, a crossing without a time check too.
+                    ...(payload.gate_results ? { gate_results: payload.gate_results } : {}),
                 });
             }
             if (msg.type === "gate_score" && payload.gate_scores) {
@@ -443,7 +445,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
                 const allPositions: TrackPosition[] = sliceResults.flat();
                 return {
-                    contestant: { ...c, contestanttrack: scoreData.contestant_track, playing_cards: scoreData.playing_cards },
+                    contestant: { ...c, contestanttrack: scoreData.contestant_track, playing_cards: scoreData.playing_cards, gate_results: scoreData.gate_results },
                     positions: allPositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     annotations: scoreData.annotations.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     scoreLogs: scoreData.score_log_entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),

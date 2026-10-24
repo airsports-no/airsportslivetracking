@@ -333,8 +333,12 @@ class WebsocketFacade:
 
     def transmit_score_log_entry(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
+        from display.services.gate_results import gate_results_for
+
         log_entries = [serialize_score_log_entry(e) for e in contestant.scorelogentry_set.filter(type=ANOMALY)]
         channel_data = generate_contestant_data_block(contestant, log_entries=log_entries)
+        # Every new entry (a crossing without a time check too) brings the gates' results up to date on the map.
+        channel_data["gate_results"] = gate_results_for(contestant)
         self._safe_group_send(
             group_key,
             {

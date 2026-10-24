@@ -41,6 +41,7 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelV
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.filters import ContestFilter, NavigationTaskFilter
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
+from display.services.gate_results import gate_results_for
 from display.flight_order_and_maps.map_plotter import build_effective_route_distance
 from display.flight_order_and_maps.map_constants import LANDSCAPE
 from display.flight_order_and_maps.map_plotter_shared_utilities import (
@@ -3162,6 +3163,7 @@ def generate_score_data(contestant_pk):
         gate_times=contestant.gate_times,
     )
     data["administrative_penalties"] = administrative_penalties
+    data["gate_results"] = gate_results_for(contestant)
     if hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
         payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
         data["compiled_effective_route_payload"] = payload
