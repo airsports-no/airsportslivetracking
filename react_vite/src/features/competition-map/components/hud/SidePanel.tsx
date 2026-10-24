@@ -1,7 +1,7 @@
 import React from 'react';
 import { Activity, PanelLeftClose, PanelLeftOpen, PlayCircle } from 'lucide-react';
 
-export type PanelTab = 'ranking' | 'log';
+export type PanelTab = 'ranking' | 'flight' | 'log';
 
 interface Props {
     title: string;
@@ -21,6 +21,8 @@ interface Props {
     tab: PanelTab;
     onTabChange: (tab: PanelTab) => void;
     onClearSelection?: () => void;
+    /** The task has a flight list (not a poker run or landing task): phones get a Flight tab for it. */
+    showFlightTab?: boolean;
     children: React.ReactNode;
     footer?: React.ReactNode;
 }
@@ -50,7 +52,7 @@ function LiveOrReplay({ mode, onModeChange }: { mode: 'realtime' | 'playback'; o
  */
 export default function SidePanel({
     title, time, timeZone, mode, onModeChange, collapsed, onToggleCollapsed, toolbar, notice,
-    selectedName, tab, onTabChange, onClearSelection, children, footer,
+    selectedName, tab, onTabChange, onClearSelection, showFlightTab = false, children, footer,
 }: Props) {
     const { clock, zone } = formatClock(time, timeZone);
 
@@ -98,8 +100,15 @@ export default function SidePanel({
                         <button role="tab" className="hud-button flex-1" aria-pressed={tab === 'ranking'} aria-selected={tab === 'ranking'} onClick={() => onTabChange('ranking')}>
                             Ranking
                         </button>
+                        {/* On a phone the flight list does not fit under the ranking: it gets a tab of its own. */}
+                        {showFlightTab && (
+                            <button role="tab" className="hud-button flex-1 sm:hidden" aria-pressed={tab === 'flight'} aria-selected={tab === 'flight'} onClick={() => onTabChange('flight')}>
+                                Flight
+                            </button>
+                        )}
                         <button role="tab" className="hud-button flex-1 min-w-0" aria-pressed={tab === 'log'} aria-selected={tab === 'log'} onClick={() => onTabChange('log')}>
-                            <span className="truncate">Log: {selectedName}</span>
+                            <span className="sm:hidden">Log</span>
+                            <span className="hidden sm:inline truncate">Log: {selectedName}</span>
                         </button>
                     </div>
                     {onClearSelection && (

@@ -1022,6 +1022,29 @@ export default function CompetitionMapPage() {
     </>
   );
 
+  // The followed contestant's flight: under the ranking, or on a phone in its own tab.
+  const flightTimeline = selectedContestant && staticNavTaskData ? (
+    <FlightTimeline
+      waypoints={staticNavTaskData.route.waypoints}
+      gateResults={selectedContestant.gate_results ?? []}
+      timesKnown={!selectedContestant.adaptive_start || selectedContestant.has_crossed_starting_line
+        || !!selectedContestant.gate_results?.find(r => r.type === 'sp')?.actual}
+      entries={visibleLogEntries.filter(e => mode !== 'playback' || new Date(e.time) <= currentTime)}
+      annotations={(annotationsByContestant[selectedContestant.id] ?? []).filter(a =>
+        (mode !== 'playback' || new Date(a.time) <= currentTime)
+        && ((a.gate_type !== 'secret' && a.gate_type !== 'ul') || (staticNavTaskData.display_secrets && userShowSecrets)))}
+      onSelectAnnotation={jumpToAnnotation}
+      showSecrets={!!(staticNavTaskData.display_secrets && userShowSecrets)}
+      now={currentTime}
+      missesKnown={mode === 'realtime' || (!!playbackTimeInfo && currentTime >= playbackTimeInfo.end)}
+      crossingOrder={staticNavTaskData.task_subtype === 'turnpoint_hunt'}
+      timeZone={staticNavTaskData.time_zone}
+      pointsArePenalties={pointsArePenalties}
+      onSelectEntry={jumpToLogEntry}
+      onSelectGate={(wp) => mapRef.current?.flyTo([wp.latitude, wp.longitude], Math.max(mapRef.current.getZoom(), 12), { duration: 0.6 })}
+    />
+  ) : null;
+
   return (
     // data-hud picks the panel's light or dark tokens (components/hud/hud.css) for everything inside, the map's labels too.
     <div className="flex flex-col sm:flex-row h-full overflow-hidden" data-hud={hudTheme} data-display={display ?? undefined}>
@@ -1047,6 +1070,7 @@ export default function CompetitionMapPage() {
         tab={panelTab}
         onTabChange={setPanelTab}
         onClearSelection={() => selectContestant(null)}
+        showFlightTab={hasFlightList}
         footer={
           <div className="flex items-end justify-between gap-3">
             {contestDetails?.logo ? (
@@ -1084,6 +1108,8 @@ export default function CompetitionMapPage() {
               onSelect={jumpToLogEntry}
             />
           </>
+        ) : selectedContestant && panelTab === 'flight' && hasFlightList ? (
+          flightTimeline
         ) : selectedContestant && staticNavTaskData && hasFlightList ? (
           // Following someone: the ranking (only as tall as its rows) with their flight under it, so the panel shows both
           // where they stand and how the flight is going. On a phone the panel is too small for both: ranking only.
@@ -1101,25 +1127,7 @@ export default function CompetitionMapPage() {
             <div className="hidden sm:flex flex-col flex-1 min-h-0 border-t hud-divider">
               <h2 className="hud-label px-4 pt-2 pb-1">Flight of {selectedName}</h2>
               <div className="flex-1 min-h-0 overflow-y-auto hud-scroll">
-                <FlightTimeline
-                  waypoints={staticNavTaskData.route.waypoints}
-                  gateResults={selectedContestant.gate_results ?? []}
-                  timesKnown={!selectedContestant.adaptive_start || selectedContestant.has_crossed_starting_line
-                    || !!selectedContestant.gate_results?.find(r => r.type === 'sp')?.actual}
-                  entries={visibleLogEntries.filter(e => mode !== 'playback' || new Date(e.time) <= currentTime)}
-                  annotations={(annotationsByContestant[selectedContestant.id] ?? []).filter(a =>
-                    (mode !== 'playback' || new Date(a.time) <= currentTime)
-                    && ((a.gate_type !== 'secret' && a.gate_type !== 'ul') || (staticNavTaskData.display_secrets && userShowSecrets)))}
-                  onSelectAnnotation={jumpToAnnotation}
-                  showSecrets={!!(staticNavTaskData.display_secrets && userShowSecrets)}
-                  now={currentTime}
-                  missesKnown={mode === 'realtime' || (!!playbackTimeInfo && currentTime >= playbackTimeInfo.end)}
-                  crossingOrder={staticNavTaskData.task_subtype === 'turnpoint_hunt'}
-                  timeZone={staticNavTaskData.time_zone}
-                  pointsArePenalties={pointsArePenalties}
-                  onSelectEntry={jumpToLogEntry}
-                  onSelectGate={(wp) => mapRef.current?.flyTo([wp.latitude, wp.longitude], Math.max(mapRef.current.getZoom(), 12), { duration: 0.6 })}
-                />
+                {flightTimeline}
               </div>
             </div>
           </div>
