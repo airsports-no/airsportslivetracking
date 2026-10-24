@@ -101,10 +101,13 @@ export default function SidePanel({
                             Ranking
                         </button>
                         {/* On a phone the flight list does not fit under the ranking: it gets a tab of its own. */}
+                        {/* The wrapper hides it from tablet width up: .hud-button's own display would win over sm:hidden. */}
                         {showFlightTab && (
-                            <button role="tab" className="hud-button flex-1 sm:hidden" aria-pressed={tab === 'flight'} aria-selected={tab === 'flight'} onClick={() => onTabChange('flight')}>
-                                Flight
-                            </button>
+                            <span className="contents sm:hidden">
+                                <button role="tab" className="hud-button flex-1" aria-pressed={tab === 'flight'} aria-selected={tab === 'flight'} onClick={() => onTabChange('flight')}>
+                                    Flight
+                                </button>
+                            </span>
                         )}
                         <button role="tab" className="hud-button flex-1 min-w-0" aria-pressed={tab === 'log'} aria-selected={tab === 'log'} onClick={() => onTabChange('log')}>
                             <span className="sm:hidden">Log</span>

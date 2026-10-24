@@ -288,10 +288,17 @@ export default function CompetitionMapPage() {
   
   // A replay of one contestant spans their own flight, unless the viewer asks for the whole day.
   const [replayWholeDay, setReplayWholeDay] = useState(false);
-  const ownFlightSpan = useMemo(
-    () => (selectedContestantId !== null ? flightSpan(positionsByContestant[selectedContestantId]) : null),
-    [selectedContestantId, positionsByContestant],
-  );
+  // A second contestant compared with the selected one (the debrief's gates table); it belongs to that selection.
+  const [compare, setCompare] = useState<{ forId: number; id: number } | null>(null);
+  const compareId = compare && compare.forId === selectedContestantId ? compare.id : null;
+  const ownFlightSpan = useMemo(() => {
+    if (selectedContestantId === null) return null;
+    const own = flightSpan(positionsByContestant[selectedContestantId]);
+    const other = compareId !== null ? flightSpan(positionsByContestant[compareId]) : null;
+    // Compared, the replay covers both flights.
+    if (!own || !other) return own ?? other;
+    return { start: own.start < other.start ? own.start : other.start, end: own.end > other.end ? own.end : other.end };
+  }, [selectedContestantId, compareId, positionsByContestant]);
   const {
     playbackSpeed,
     setPlaybackSpeed,
@@ -394,6 +401,7 @@ export default function CompetitionMapPage() {
   const handleContestantSelect = (id: number | null, showLog: boolean) => selectContestant(id, showLog);
 
   const { openAnnotation } = useMapLayers({
+    compareContestantId: compareId,
     mapRef,
     navTask: staticNavTaskData,
     contestants: sortedContestants, // Pass the sorted dynamic contestants
@@ -1096,6 +1104,16 @@ export default function CompetitionMapPage() {
               timeZone={staticNavTaskData?.time_zone}
               pointsArePenalties={pointsArePenalties}
               onSelect={jumpToGate}
+              // Anyone who flew (has a track), whatever the replay's time.
+              compareOptions={allSortedContestants
+                .filter(c => c.id !== selectedContestant.id && (positionsByContestant[c.id]?.length ?? 0) > 0)
+                .map(c => ({ id: c.id, name: `#${c.contestant_number} ${c.team?.crew?.member1?.first_name ?? ''} ${c.team?.crew?.member1?.last_name ?? ''}`.trim() }))}
+              compare={compareId !== null && contestantsById[compareId] ? {
+                id: compareId,
+                name: contestantsById[compareId].team?.crew?.member1?.last_name ?? `#${contestantsById[compareId].contestant_number}`,
+                results: (contestantsById[compareId].gate_results ?? []).filter(r => !r.hidden || (staticNavTaskData?.display_secrets && userShowSecrets)),
+              } : null}
+              onCompare={(id) => setCompare(id === null ? null : { forId: selectedContestant.id, id })}
             />
             <NavLog
               entries={visibleLogEntries}

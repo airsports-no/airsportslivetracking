@@ -21,6 +21,8 @@ interface MapLayersProps {
     currentTime: Date;
     mode: 'realtime' | 'playback';
     selectedContestantId: number | null;
+    /** A second contestant compared with the selected one: shown too, with their whole track. */
+    compareContestantId?: number | null;
     onContestantSelect: (id: number | null, showLog: boolean) => void;
     annotationsByContestant: Record<number, any[]>;
     scoreLogByContestant: Record<number, any[]>;
@@ -58,6 +60,7 @@ export function useMapLayers({
     currentTime,
     mode,
     selectedContestantId,
+    compareContestantId = null,
     onContestantSelect,
     annotationsByContestant,
     scoreLogByContestant,
@@ -179,7 +182,7 @@ export function useMapLayers({
             if (!contestant) return; // Should have been handled by Effect 1 cleanup
 
             const positions = currentPositions[id] ?? [];
-            const isSelected = selectedContestantId === id;
+            const isSelected = selectedContestantId === id || compareContestantId === id;
             const isAnySelected = selectedContestantId !== null;
             const shouldBeVisible = !(isAnySelected && !isSelected);
 
@@ -351,7 +354,7 @@ export function useMapLayers({
             }
         }
 
-    }, [mapRef, navTask, contestants, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, annotationsByContestant, scoreLogByContestant, userShowSecrets, permanentAnnotations, clickedAnnotationId, showPenaltiesOnly]);
+    }, [mapRef, navTask, contestants, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, compareContestantId, annotationsByContestant, scoreLogByContestant, userShowSecrets, permanentAnnotations, clickedAnnotationId, showPenaltiesOnly]);
 
     // Opens an annotation's label as if it was clicked (the navigation log uses it to show where an entry happened).
     return { openAnnotation: setClickedAnnotationId };
