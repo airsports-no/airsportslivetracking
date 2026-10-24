@@ -34,8 +34,8 @@ export default function NavLog({ entries, timeZone, pointsArePenalties, activeId
                 return (
                     <li
                         key={e.id}
-                        role="option"
-                        aria-selected={activeId === e.id}
+                        role="button"
+                        aria-current={activeId === e.id ? 'true' : undefined}
                         tabIndex={0}
                         onClick={() => onSelect(e)}
                         onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onSelect(e); } }}

@@ -144,7 +144,8 @@
 }
 .hud-row:hover { background: var(--hud-hover); }
 .hud-row:focus-visible { outline: 2px solid var(--hud-accent); outline-offset: -2px; }
-.hud-row[aria-selected="true"] { background: var(--hud-raised); border-left-color: var(--hud-accent); }
+/* The selected contestant, the log entry last jumped to, the next gate (aria-current: the rows are buttons, not options). */
+.hud-row[aria-current]:not([aria-current="false"]) { background: var(--hud-raised); border-left-color: var(--hud-accent); }
 
 .hud-scroll { scrollbar-width: thin; scrollbar-color: var(--hud-line) transparent; }
 

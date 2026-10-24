@@ -111,7 +111,7 @@ export default function FlightTimeline({
                 if (r.kind === 'event') {
                     const penalty = pointsArePenalties ? r.entry.points > 0 : r.entry.points < 0;
                     return (
-                        <li key={`e${r.entry.id}`} tabIndex={0} role="option" aria-selected={false}
+                        <li key={`e${r.entry.id}`} tabIndex={0} role="button"
                             onClick={() => onSelectEntry(r.entry)}
                             onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onSelectEntry(r.entry); } }}
                             className="hud-row grid grid-cols-[1.25rem_1fr_auto] gap-x-2 pl-9 pr-3 py-1 items-baseline">
@@ -130,7 +130,7 @@ export default function FlightTimeline({
                 const select = () => (timing ? onSelectEntry(timing) : passed ? onSelectAnnotation(passed)
                     : missed ? onSelectAnnotation(missed) : onSelectGate(waypoint));
                 return (
-                    <li key={`g${waypoint.name}${i}`} ref={next ? nextRef : undefined} tabIndex={0} role="option" aria-selected={next}
+                    <li key={`g${waypoint.name}${i}`} ref={next ? nextRef : undefined} tabIndex={0} role="button" aria-current={next ? 'step' : undefined}
                         onClick={select}
                         onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(); } }}
                         className={`hud-row grid grid-cols-[1.25rem_1fr_auto] gap-x-2 px-3 py-1.5 items-center ${!crossed && !missed && !next ? 'opacity-70' : ''}`}>

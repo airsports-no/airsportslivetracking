@@ -65,8 +65,8 @@ export default function RankingList({ rows, selectedId, onSelect, dividerIndex =
                         )}
                         <li
                             ref={selectedId === r.id ? selectedRef : undefined}
-                            role="option"
-                            aria-selected={selectedId === r.id}
+                            role="button"
+                            aria-current={selectedId === r.id ? 'true' : undefined}
                             tabIndex={0}
                             onClick={() => onSelect(r.id)}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(r.id); } }}
