@@ -19,6 +19,7 @@ import Disclaimer from './components/Disclaimer';
 import SidePanel, { PanelTab } from './components/hud/SidePanel';
 import RankingList from './components/hud/RankingList';
 import NavLog from './components/hud/NavLog';
+import GatesTable from './components/hud/GatesTable';
 import FlightTimeline from './components/hud/FlightTimeline';
 import FollowBar from './components/hud/FollowBar';
 import ReplayBar, { ReplayEvent } from './components/hud/ReplayBar';
@@ -27,7 +28,7 @@ import { Trophy, Info, Settings, Calendar, Sliders, Route } from 'lucide-react';
 import { generatePath } from '../../urls';
 import './CompetitionMap.css';
 import './components/hud/hud.css';
-import { NavigationTask, PhotoObservation, ScoreAnnotation, ScoreLogEntry } from './types';
+import { GateResult, NavigationTask, PhotoObservation, ScoreAnnotation, ScoreLogEntry } from './types';
 
 // From this width the page is treated as an event display: following someone folds the panel (FollowBar grows too).
 const BIG_SCREEN_WIDTH = 1600;
@@ -713,6 +714,17 @@ export default function CompetitionMapPage() {
     showMoment(annotationByLogId.get(entry.id), entry.time);
   };
 
+  /** A gate of the gates table: its timing result where it has one, else its crossing's note, else the gate itself. */
+  const jumpToGate = (result: GateResult) => {
+    const timing = visibleLogEntries.find(e => e.gate === result.gate && e.planned && e.actual);
+    if (timing) return jumpToLogEntry(timing);
+    const note = selectedContestantId !== null
+      ? (annotationsByContestant[selectedContestantId] ?? []).find(a => a.gate === result.gate) : undefined;
+    if (note) return jumpToAnnotation(note);
+    const wp = staticNavTaskData?.route.waypoints.find(w => w.name === result.gate);
+    if (wp) mapRef.current?.flyTo([wp.latitude, wp.longitude], Math.max(mapRef.current.getZoom(), 12), { duration: 0.6 });
+  };
+
   /** The same for an annotation without a log entry the map has (a crossing without a time check, a miss). */
   const jumpToAnnotation = (ann: ScoreAnnotation) => {
     setActiveLogId(ann.score_log_entry);
@@ -954,16 +966,25 @@ export default function CompetitionMapPage() {
           </div>
         )}
         {selectedContestant && panelTab === 'log' ? (
-          <NavLog
-            entries={visibleLogEntries}
-            // A replay lists the whole flight, what is still ahead dimmed, so any entry can be jumped to.
-            dimAfter={mode === 'playback' ? currentTime : undefined}
-            timeZone={staticNavTaskData?.time_zone}
-            pointsArePenalties={pointsArePenalties}
-            activeId={activeLogId}
-            locatableIds={locatableLogIds}
-            onSelect={jumpToLogEntry}
-          />
+          <>
+            <GatesTable
+              gateResults={(selectedContestant.gate_results ?? []).filter(r => !r.hidden || (staticNavTaskData?.display_secrets && userShowSecrets))}
+              entries={visibleLogEntries}
+              timeZone={staticNavTaskData?.time_zone}
+              pointsArePenalties={pointsArePenalties}
+              onSelect={jumpToGate}
+            />
+            <NavLog
+              entries={visibleLogEntries}
+              // A replay lists the whole flight, what is still ahead dimmed, so any entry can be jumped to.
+              dimAfter={mode === 'playback' ? currentTime : undefined}
+              timeZone={staticNavTaskData?.time_zone}
+              pointsArePenalties={pointsArePenalties}
+              activeId={activeLogId}
+              locatableIds={locatableLogIds}
+              onSelect={jumpToLogEntry}
+            />
+          </>
         ) : selectedContestant && staticNavTaskData ? (
           // Following someone: the ranking (only as tall as its rows) with their flight under it, so the panel shows both
           // where they stand and how the flight is going. On a phone the panel is too small for both: ranking only.
