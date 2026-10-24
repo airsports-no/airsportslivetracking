@@ -22,6 +22,8 @@ interface Props {
     /** The selected contestant's scored events, marked on the timeline; clicking one jumps there. */
     events?: ReplayEvent[];
     onEventSelect?: (id: number) => void;
+    /** With one contestant selected: whether the replay spans the whole day or only their flight, and the switch. */
+    spanChoice?: { wholeDay: boolean; onToggle: () => void };
 }
 
 const SPEEDS = [1, 2, 5, 10, 25, 50, 100];
@@ -33,7 +35,7 @@ function clock(t: Date, timeZone?: string) {
 /** Replay along the bottom edge of the map: play, the timeline with the selected contestant's events, and the speed. */
 export default function ReplayBar({
     currentTime, startTime, endTime, timeZone, isPlaying, playbackSpeed,
-    onTimeChange, onPlayPause, onJumpToStart, onSpeedChange, events = [], onEventSelect,
+    onTimeChange, onPlayPause, onJumpToStart, onSpeedChange, events = [], onEventSelect, spanChoice,
 }: Props) {
     const min = startTime.getTime();
     const max = Math.max(endTime.getTime(), min + 1);
@@ -74,6 +76,12 @@ export default function ReplayBar({
                 </div>
 
                 <span className="hud-label hidden md:inline">{clock(startTime, timeZone)} to {clock(endTime, timeZone)}</span>
+                {spanChoice && (
+                    <button className="hud-button flex-none" aria-pressed={spanChoice.wholeDay} onClick={spanChoice.onToggle}
+                        title={spanChoice.wholeDay ? 'Replay only this flight' : 'Replay the whole day, all contestants'}>
+                        Whole day
+                    </button>
+                )}
                 <label className="flex items-center gap-1.5 flex-none">
                     <span className="hud-label hidden sm:inline">Speed</span>
                     <select

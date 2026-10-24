@@ -1,12 +1,18 @@
 import { useState, useEffect, useRef } from 'react';
 import { TrackPosition } from '../types';
+import { ReplaySpan } from '../utils/replaySpan';
 
+/**
+ * The replay's clock. Its span is every contestant's positions, unless `span` narrows it (one contestant's own flight):
+ * then playing stops at that span's end and `playbackTimeInfo` is that span; `wholeSpan` is always the full one.
+ */
 export function usePlayback(
     mode: 'realtime' | 'playback',
     positionsByContestant: Record<number, TrackPosition[]>,
     initialTime?: Date | null,
     initialSpeed?: number,
-    initialIsPlaying?: boolean
+    initialIsPlaying?: boolean,
+    span?: ReplaySpan | null,
 ) {
     const [playbackSpeed, setPlaybackSpeed] = useState(initialSpeed ?? 1);
     const [isPlaying, setIsPlaying] = useState(initialIsPlaying ?? false);
@@ -14,6 +20,7 @@ export function usePlayback(
     const [playbackTimeInfo, setPlaybackTimeInfo] = useState<{start: Date, end: Date} | null>(null);
     const playbackTimerRef = useRef<number | null>(null);
     const hasInitializedRef = useRef(false);
+    const activeSpan = span ?? playbackTimeInfo;
 
     // Playback mode setup
     useEffect(() => {
@@ -41,7 +48,7 @@ export function usePlayback(
 
     // Playback timer
     useEffect(() => {
-        if (mode !== 'playback' || !playbackTimeInfo || !isPlaying) {
+        if (mode !== 'playback' || !activeSpan || !isPlaying) {
             if (playbackTimerRef.current) {
                 window.clearInterval(playbackTimerRef.current);
                 playbackTimerRef.current = null;
@@ -55,10 +62,10 @@ export function usePlayback(
         playbackTimerRef.current = window.setInterval(() => {
             setPlaybackTime(prevTime => {
                 const newTime = new Date(prevTime.getTime() + timeStepMs);
-                if (newTime >= playbackTimeInfo.end) {
+                if (newTime >= activeSpan.end) {
                     if(playbackTimerRef.current) clearInterval(playbackTimerRef.current);
                     setIsPlaying(false);
-                    return playbackTimeInfo.end;
+                    return activeSpan.end;
                 }
                 return newTime;
             });
@@ -70,7 +77,7 @@ export function usePlayback(
                 playbackTimerRef.current = null;
             }
         };
-    }, [mode, playbackSpeed, playbackTimeInfo, isPlaying]);
+    }, [mode, playbackSpeed, activeSpan, isPlaying]);
 
     const handleTimeChange = (time: Date) => {
         setIsPlaying(false);
@@ -84,6 +91,7 @@ export function usePlayback(
         setIsPlaying,
         playbackTime,
         setPlaybackTime: handleTimeChange,
-        playbackTimeInfo
+        playbackTimeInfo: activeSpan,
+        wholeSpan: playbackTimeInfo,
     };
 }

@@ -8,6 +8,7 @@ import { usePlayback } from './hooks/usePlayback';
 import { useMapLayers } from './hooks/useMapLayers';
 import { usePhotoLayers, TargetPhoto } from './hooks/usePhotoLayers';
 import { useMapAppearance, MapAppearance } from './hooks/useMapAppearance';
+import { clampToSpan, flightSpan } from './utils/replaySpan';
 import { useToast } from './hooks/useToast'; // Import useToast
 import { fetchContestDetails, fetchPhotoObservations, fetchPhotos } from './api';
 
@@ -269,6 +270,12 @@ export default function CompetitionMapPage() {
   }, [staticNavTaskData, mapRef, userShowBackgroundMap]);
 
   
+  // A replay of one contestant spans their own flight, unless the viewer asks for the whole day.
+  const [replayWholeDay, setReplayWholeDay] = useState(false);
+  const ownFlightSpan = useMemo(
+    () => (selectedContestantId !== null ? flightSpan(positionsByContestant[selectedContestantId]) : null),
+    [selectedContestantId, positionsByContestant],
+  );
   const {
     playbackSpeed,
     setPlaybackSpeed,
@@ -277,7 +284,7 @@ export default function CompetitionMapPage() {
     playbackTime,
     setPlaybackTime,
     playbackTimeInfo
-  } = usePlayback(mode, positionsByContestant, initialTime, initialSpeed, autoPlay);
+  } = usePlayback(mode, positionsByContestant, initialTime, initialSpeed, autoPlay, replayWholeDay ? null : ownFlightSpan);
 
   const [now, setNow] = useState(new Date());
   useEffect(() => {
@@ -294,6 +301,13 @@ export default function CompetitionMapPage() {
   }, [now, staticNavTaskData]);
 
   const currentTime = mode === 'playback' ? playbackTime : realtimeTime;
+
+  // When the replay's span changes (another contestant, or back from the whole day), its time moves inside it.
+  useEffect(() => {
+    if (mode !== 'playback' || !playbackTimeInfo) return;
+    const clamped = clampToSpan(playbackTime, playbackTimeInfo);
+    if (clamped !== playbackTime) setPlaybackTime(clamped);
+  }, [mode, playbackTimeInfo, playbackTime, setPlaybackTime]);
 
   // Default to full trails if task is over or no one is running
   useEffect(() => {
@@ -1032,6 +1046,7 @@ export default function CompetitionMapPage() {
               onTimeChange={setPlaybackTime}
               onSpeedChange={setPlaybackSpeed}
               events={replayEvents}
+            spanChoice={ownFlightSpan ? { wholeDay: replayWholeDay, onToggle: () => setReplayWholeDay(w => !w) } : undefined}
               onEventSelect={(id) => {
                 const entry = visibleLogEntries.find(e => e.id === id);
                 if (entry) { setPanelTab('log'); jumpToLogEntry(entry); }
