@@ -1112,7 +1112,7 @@ export default function CompetitionMapPage() {
               onTimeChange={setPlaybackTime}
               onSpeedChange={setPlaybackSpeed}
               events={replayEvents}
-            spanChoice={ownFlightSpan ? { wholeDay: replayWholeDay, onToggle: () => setReplayWholeDay(w => !w) } : undefined}
+              spanChoice={ownFlightSpan ? { wholeDay: replayWholeDay, onToggle: () => setReplayWholeDay(w => !w) } : undefined}
               onEventSelect={(id) => {
                 const entry = visibleLogEntries.find(e => e.id === id);
                 if (entry) { setPanelTab('log'); jumpToLogEntry(entry); }

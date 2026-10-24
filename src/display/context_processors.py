@@ -31,5 +31,14 @@ def sentry_settings(request):
 
 
 def embed_mode(request):
-    """Hides the website's navigation bar when a page is embedded in the mobile apps (EmbedModeMiddleware)."""
-    return {"skip_nav": getattr(request, "embed_app", False), "embed_client": getattr(request, "embed_client", None) or ""}
+    """
+    Hides the website's navigation bar when a page is embedded in the mobile apps (EmbedModeMiddleware), and for the
+    live map's broadcast display (?display=broadcast), which shows only the map and the follow bar.
+    """
+    embed_app = getattr(request, "embed_app", False)
+    broadcast = request.GET.get("display") == "broadcast"
+    return {
+        "skip_nav": embed_app or broadcast,
+        "embed_app": embed_app,
+        "embed_client": getattr(request, "embed_client", None) or "",
+    }
