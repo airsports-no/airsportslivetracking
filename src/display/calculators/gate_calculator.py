@@ -452,7 +452,9 @@ class GateCalculator(Calculator):
         starting point is crossed (on_adaptive_start moves them), and the starting point itself has no time to count down
         to: its time is set by the crossing.
         """
-        if self.contestant.adaptive_start and not (self.starting_line and self.starting_line.has_infinite_been_passed()):
+        # The crossing itself, not has_infinite_been_passed(), which is also true for a missed starting point: the gate
+        # times only move when the line is actually crossed.
+        if self.contestant.adaptive_start and not (self.starting_line and self.starting_line.infinite_passing_time is not None):
             return None
         for gate in self.outstanding_gates:
             if self.contestant.adaptive_start and gate is self.starting_line:
@@ -553,6 +555,8 @@ class GateCalculator(Calculator):
                 gate.missed = True
                 self.on_gate_missed(GateMissedEvent(None, gate, track[-1] if track else None))
         self.outstanding_gates = []
+        # The flight is over: no next gate for the app's countdown any more.
+        self.publish_next_timed_gate()
         # After the sweep above, so a gate missed only because it's swept here (rather than
         # actually passed) correctly breaks turnpoint_hunt_actual_order's equality check.
         self._score_turnpoint_hunt_sequence_bonus(track)

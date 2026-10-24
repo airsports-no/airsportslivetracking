@@ -27,7 +27,7 @@ def calculator(gates, adaptive_start=False, starting_line_crossed=False, live_pr
     calc = GateCalculator.__new__(GateCalculator)
     calc.contestant = MagicMock(adaptive_start=adaptive_start)
     calc.outstanding_gates = list(gates)
-    calc.starting_line = SimpleNamespace(has_infinite_been_passed=lambda: starting_line_crossed)
+    calc.starting_line = SimpleNamespace(infinite_passing_time=T0 if starting_line_crossed else None)
     calc.live_processing = live_processing
     calc._published_next_timed_gate = None
     return calc
@@ -50,8 +50,27 @@ class TestNextTimedGate(TestCase):
         self.assertIsNone(calculator(gates, adaptive_start=True)._next_timed_gate())
         crossed = calculator(gates, adaptive_start=True, starting_line_crossed=True)
         crossed.starting_line = gates[0]
-        gates[0].has_infinite_been_passed = lambda: True
+        gates[0].infinite_passing_time = T0
         self.assertEqual(crossed._next_timed_gate().name, "TP1")
+
+    def test_a_missed_starting_point_is_not_an_adaptive_start(self):
+        # has_infinite_been_passed() is also true for a missed gate; the gate times have not moved without a crossing.
+        sp = gate("SP", 0)
+        sp.missed = True
+        sp.infinite_passing_time = None
+        calc = calculator([sp, gate("TP1", 3)], adaptive_start=True)
+        calc.starting_line = sp
+        self.assertIsNone(calc._next_timed_gate())
+
+    def test_finalising_clears_the_published_gate(self):
+        calc = calculator([gate("SP", 0), gate("TP1", 3)])
+        calc.gates = []
+        calc.scored_gates = set()
+        calc._score_turnpoint_hunt_sequence_bonus = lambda track: None
+        track = calc.contestant.contestanttrack
+        calc.publish_next_timed_gate()
+        calc.finalise([])
+        track.update_next_timed_gate.assert_called_with("", None)
 
     def test_a_fixed_start_counts_down_to_the_starting_point(self):
         gates = [gate("SP", 0), gate("TP1", 3)]

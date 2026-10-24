@@ -24,6 +24,12 @@ import { generatePath } from '../../urls';
 import './CompetitionMap.css';
 import { NavigationTask, PhotoObservation } from './types';
 
+/** The contestant a contestantIds parameter names when it names exactly one, otherwise null. */
+function singleContestantId(param: string | null): number | null {
+  const ids = (param ?? '').split(',').filter(s => s !== '').map(Number);
+  return ids.length === 1 && Number.isFinite(ids[0]) ? ids[0] : null;
+}
+
 // Stable empty values: a fresh [] each render would make the photo layers redraw on every tick and close hover tooltips
 const NO_PHOTOS: TargetPhoto[] = [];
 const NO_OBSERVATIONS: PhotoObservation[] = [];
@@ -58,11 +64,16 @@ export default function CompetitionMapPage() {
   const [mode, setMode] = useState<'realtime' | 'playback'>(initialMode);
   const [showFullTrails, setShowFullTrails] = useState(false);
   // A link to one contestant's flight (contestantIds with a single id, as the apps' "View your flight" sends) opens
-  // with that contestant selected, so their team panel and gate countdown show at once.
-  const [selectedContestantId, setSelectedContestantId] = useState<number | null>(() => {
-    const ids = (searchParams.get('contestantIds') ?? '').split(',').filter(s => s !== '').map(Number);
-    return ids.length === 1 && Number.isFinite(ids[0]) ? ids[0] : null;
-  });
+  // with that contestant selected, so their team panel and gate countdown show at once; so does a later change of the
+  // link to another single contestant (the page is not reloaded when only the query changes).
+  const contestantIdsParam = searchParams.get('contestantIds');
+  const [selectedContestantId, setSelectedContestantId] = useState<number | null>(() => singleContestantId(contestantIdsParam));
+  const [selectionParam, setSelectionParam] = useState(contestantIdsParam);
+  if (contestantIdsParam !== selectionParam) {
+    setSelectionParam(contestantIdsParam);
+    const single = singleContestantId(contestantIdsParam);
+    if (single !== null) setSelectedContestantId(single);
+  }
   const [showScoreLog, setShowScoreLog] = useState(false);
   const [userShowBackgroundMap, setUserShowBackgroundMap] = useState(true);
   const [userShowSecrets, setUserShowSecrets] = useState(true);
