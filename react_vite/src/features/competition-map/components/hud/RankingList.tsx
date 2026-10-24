@@ -22,6 +22,8 @@ interface Props {
     dividerIndex?: number;
     /** Only rank, name and score: used while following one contestant, so the map stays in view. */
     compact?: boolean;
+    /** Keep the leaders in view instead of scrolling to the selected contestant (an airfield screen). */
+    keepTop?: boolean;
 }
 
 
@@ -37,12 +39,12 @@ function statusLine(r: RankingRow): string | null {
  * The standings as a rack of flight strips, the same way the apps list flights. On a phone each contestant takes one
  * line (rank, colour, name, score), so twice as many fit; the status line shows from tablet width up.
  */
-export default function RankingList({ rows, selectedId, onSelect, dividerIndex = -1, compact = false }: Props) {
+export default function RankingList({ rows, selectedId, onSelect, dividerIndex = -1, compact = false, keepTop = false }: Props) {
     // Opening the list while following someone shows their row, however long the list is.
     const selectedRef = useRef<HTMLLIElement>(null);
     useEffect(() => {
-        selectedRef.current?.scrollIntoView({ block: 'nearest' });
-    }, [selectedId]);
+        if (!keepTop) selectedRef.current?.scrollIntoView({ block: 'nearest' });
+    }, [selectedId, keepTop]);
 
     if (rows.length === 0) {
         return <p className="hud-muted text-sm px-4 py-6">No contestants have been added to this task yet.</p>;

@@ -11,6 +11,7 @@ import { useMapAppearance, MapAppearance } from './hooks/useMapAppearance';
 import { clampToSpan, flightSpan } from './utils/replaySpan';
 import { useFollowCamera } from './hooks/useFollowCamera';
 import { useCrossingNotices } from './hooks/useCrossingNotices';
+import { useDisplayRotation } from './hooks/useDisplayRotation';
 import { useToast } from './hooks/useToast'; // Import useToast
 import { fetchContestDetails, fetchPhotoObservations, fetchPhotos } from './api';
 
@@ -101,6 +102,7 @@ export default function CompetitionMapPage() {
   const [isRankingCollapsed, setIsRankingCollapsed] = useState(() => {
     if (rankingExpandedParam === 'true') return false;
     if (rankingExpandedParam === 'false') return true;
+    if (display === 'screen') return false; // the standings are half of what a screen is for
     // A phone, upright or on its side, starts with the map in view; so does a big screen opened to follow one contestant.
     if (window.innerWidth >= BIG_SCREEN_WIDTH && selectedContestantId !== null && initialMode === 'realtime') return true;
     return window.innerWidth < 640 || window.innerHeight < 500;
@@ -383,7 +385,7 @@ export default function CompetitionMapPage() {
     setPanelTab(showLog || mode === 'playback' || finished ? 'log' : 'ranking');
     // On a big screen (the event display), following someone live gives the map and the follow bar the whole width;
     // the panel folds to its rail and comes back with one click.
-    if (!finished && mode === 'realtime' && window.innerWidth >= BIG_SCREEN_WIDTH) setIsRankingCollapsed(true);
+    if (!finished && mode === 'realtime' && window.innerWidth >= BIG_SCREEN_WIDTH && display !== 'screen') setIsRankingCollapsed(true);
   };
   const handleContestantSelect = (id: number | null, showLog: boolean) => selectContestant(id, showLog);
 
@@ -686,6 +688,24 @@ export default function CompetitionMapPage() {
 
 
   const firstWaitingIndex = standings.findIndex(s => s.state === 'Waiting...');
+
+  // An unattended screen (?display=screen) goes round by itself: the whole field, then each flying contestant in turn.
+  const flyingIds = useMemo(() => standings.filter(r => r.is_active_flight).map(r => r.id as number), [standings]);
+  useDisplayRotation({
+    enabled: display === 'screen' && mode === 'realtime',
+    flyingIds,
+    onStep: (step) => {
+      setActiveLogId(null);
+      setPanelTab('ranking');
+      if (step.kind === 'follow') {
+        setSelectedContestantId(step.id);
+      } else {
+        setSelectedContestantId(null);
+        fitRoute();
+      }
+    },
+  });
+
 
   // Collapse ranking on mobile when a contestant is selected to show the map/details
   useEffect(() => {
@@ -1035,6 +1055,7 @@ export default function CompetitionMapPage() {
                 selectedId={selectedContestantId}
                 dividerIndex={firstWaitingIndex}
                 compact
+                keepTop={display === 'screen'}
                 onSelect={(id) => selectContestant(id)}
               />
             </div>

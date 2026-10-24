@@ -183,5 +183,8 @@
     .hud-notice { animation: none; }
 }
 
+/* An airfield screen (?display=screen) is read from a few metres: the panel, its type and its clock, 1.4 times larger. */
+[data-display="screen"] aside.hud { zoom: 1.4; }
+
 /* On air (?display=broadcast): the map's attribution stays, as OpenStreetMap requires, but small. */
 [data-display="broadcast"] .leaflet-control-attribution { font-size: 10px; opacity: 0.75; }
