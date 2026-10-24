@@ -110,8 +110,22 @@ const saveTiming = (timing: Timing) => {
   writeFileSync(file, timingFileSource(name, timing));
 };
 
+// The editor writes files and starts recordings, so only this computer's browser, on the editor's own address, may use
+// it: it listens on the loopback address only (Windows reaches it through WSL's localhost forwarding), and a request
+// naming another host (DNS rebinding) or sent from another site's page (a cross-origin POST) is refused.
+const ownHosts = new Set([`localhost:${port}`, `127.0.0.1:${port}`]);
+const ownOrigins = new Set([...ownHosts].map((host) => `http://${host}`));
+const isOwnRequest = (request: IncomingMessage) => {
+  if (!ownHosts.has(request.headers.host ?? "")) return false;
+  const origin = request.headers.origin;
+  return request.method === "GET" || origin === undefined || ownOrigins.has(origin);
+};
+
 createServer(async (request, response) => {
   try {
+    if (!isOwnRequest(request)) {
+      return send(response, 403, JSON.stringify({ error: `Only http://localhost:${port}/ on this computer may use the editor` }));
+    }
     const url = new URL(request.url ?? "/", "http://localhost");
     if (url.pathname === "/") return send(response, 200, page, "text/html; charset=utf-8");
     if (url.pathname === "/editor.js") return send(response, 200, editorScript, "text/javascript");
@@ -184,7 +198,7 @@ createServer(async (request, response) => {
     console.error(error);
     send(response, 500, JSON.stringify({ error: error instanceof Error ? error.message : String(error) }));
   }
-}).listen(port, () => {
+}).listen(port, "127.0.0.1", () => {
   console.log(`Timing editor for ${name}: http://localhost:${port}/ (Ctrl+C to stop)`);
 });
 console.log(`Editing ${path.relative(ROOT, timingFile(name))}${existsSync(timingFile(name)) ? "" : " (Save makes it)"}`);

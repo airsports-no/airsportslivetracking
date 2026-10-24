@@ -6,3 +6,6 @@ out/
 public/recordings/
 recorded/
 public/brand/music/
+pdfs/
+# The timing editor's backups when it writes into a script
+*.bak
