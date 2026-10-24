@@ -1,6 +1,7 @@
 import React, { useEffect, useMemo, useRef } from 'react';
 import { Check, X } from 'lucide-react';
 import { ScoreAnnotation, ScoreLogEntry, Waypoint } from '../../types';
+import { shortScoreText } from '../../utils/scoreText';
 
 interface Props {
     waypoints: Waypoint[];
@@ -116,7 +117,7 @@ export default function FlightTimeline({
                             onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onSelectEntry(r.entry); } }}
                             className="hud-row grid grid-cols-[1.25rem_1fr_auto] gap-x-2 pl-9 pr-3 py-1 items-baseline">
                             <span aria-hidden="true" />
-                            <span className="text-xs hud-muted truncate" title={r.entry.message}>{r.entry.message}</span>
+                            <span className="text-xs hud-muted truncate" title={r.entry.message}>{shortScoreText(r.entry.message)}</span>
                             <span className="hud-figure text-sm" style={{ color: penalty ? 'var(--hud-red)' : 'var(--hud-ok)' }}>
                                 {r.entry.points > 0 ? '+' : ''}{r.entry.points.toFixed(0)}
                             </span>

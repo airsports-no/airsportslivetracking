@@ -1,6 +1,7 @@
 import React from 'react';
 import { Crosshair } from 'lucide-react';
 import { ScoreLogEntry } from '../../types';
+import { shortScoreText } from '../../utils/scoreText';
 
 interface Props {
     entries: ScoreLogEntry[];
@@ -48,7 +49,10 @@ export default function NavLog({ entries, timeZone, pointsArePenalties, activeId
                                 <span className="font-semibold text-sm truncate">{e.gate}</span>
                                 {locatable && <Crosshair size={12} className="hud-muted flex-none" aria-hidden="true" />}
                             </span>
-                            <span className="block text-xs leading-snug hud-muted break-words">{e.message}</span>
+                            {/* In a few words; the entry last jumped to shows the whole message. */}
+                            <span className="block text-xs leading-snug hud-muted break-words" title={e.message}>
+                                {activeId === e.id ? e.message : shortScoreText(e.message)}
+                            </span>
                         </span>
                         <span
                             className="hud-figure text-base text-right"
