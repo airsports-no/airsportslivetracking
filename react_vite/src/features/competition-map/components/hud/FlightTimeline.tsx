@@ -96,6 +96,7 @@ export default function FlightTimeline({
                 return (
                     <React.Fragment key={`${result.gate}${i}`}>
                         <li ref={next ? nextRef : undefined} tabIndex={0} role="button" aria-current={next ? 'step' : undefined}
+                            title={crossed || missed ? `Show ${result.gate} on the map and in the replay` : `Show ${result.gate} on the map`}
                             onClick={select}
                             onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); select(); } }}
                             className={`hud-row grid grid-cols-[1.25rem_1fr_auto] gap-x-2 px-3 py-1.5 items-center ${state === 'ahead' ? 'opacity-70' : ''}`}>

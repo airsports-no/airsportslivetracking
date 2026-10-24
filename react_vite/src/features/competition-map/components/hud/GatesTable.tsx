@@ -37,8 +37,9 @@ export default function GatesTable({
     const colour = (points: number) =>
         points === 0 ? 'var(--hud-muted)' : (pointsArePenalties ? points > 0 : points < 0) ? 'var(--hud-red)' : 'var(--hud-ok)';
     const signed = (points: number) => `${points > 0 ? '+' : ''}${points.toFixed(0)}`;
-    const offsetText = (r: GateResult | undefined) => r?.missed
-        ? <span style={{ color: 'var(--hud-red)' }}>Missed</span>
+    // "Missed" is said once: in the Actual column, or (side by side, where there is none) in the offset's place.
+    const offsetText = (r: GateResult | undefined, sayMissed: boolean) => r?.missed
+        ? (sayMissed ? <span style={{ color: 'var(--hud-red)' }}>Missed</span> : null)
         : r?.offset_seconds !== null && r?.offset_seconds !== undefined
             ? <span style={{ color: Math.abs(r.offset_seconds) <= 2 ? 'var(--hud-ok)' : 'var(--hud-warn)' }}>{r.offset_seconds > 0 ? '+' : ''}{r.offset_seconds} s</span>
             : null;
@@ -93,15 +94,15 @@ export default function GatesTable({
                 </thead>
                 <tbody>
                     {gateResults.map((r, i) => (
-                        <tr key={`${r.gate}${i}`} className="hud-row" tabIndex={0} role="button"
+                        <tr key={`${r.gate}${i}`} className="hud-row" tabIndex={0} role="button" title={`Show ${r.gate} on the map and in the replay`}
                             onClick={() => onSelect(r)}
                             onKeyDown={(ev) => { if (ev.key === 'Enter' || ev.key === ' ') { ev.preventDefault(); onSelect(r); } }}>
                             <td className="py-1 pr-2 font-semibold truncate max-w-[5rem]">{r.gate}</td>
                             {compare ? (
                                 <>
-                                    <td className="py-1 pr-1 hud-figure text-right">{offsetText(r)}</td>
+                                    <td className="py-1 pr-1 hud-figure text-right">{offsetText(r, true)}</td>
                                     <td className="py-1 pr-2 hud-figure text-right" style={{ color: colour(r.points) }}>{r.points ? signed(r.points) : ''}</td>
-                                    <td className="py-1 pr-1 hud-figure text-right">{offsetText(otherBy.get(r.gate))}</td>
+                                    <td className="py-1 pr-1 hud-figure text-right">{offsetText(otherBy.get(r.gate), true)}</td>
                                     <td className="py-1 hud-figure text-right" style={{ color: colour(otherBy.get(r.gate)?.points ?? 0) }}>
                                         {otherBy.get(r.gate)?.points ? signed(otherBy.get(r.gate)!.points) : ''}
                                     </td>
@@ -112,7 +113,7 @@ export default function GatesTable({
                                     <td className="py-1 pr-2 hud-figure font-semibold">
                                         {r.missed ? <span style={{ color: 'var(--hud-red)' }}>Missed</span> : clock(r.actual, timeZone)}
                                     </td>
-                                    <td className="py-1 pr-1 hud-figure text-right">{offsetText(r)}</td>
+                                    <td className="py-1 pr-1 hud-figure text-right">{offsetText(r, false)}</td>
                                     <td className="py-1 hud-figure text-right" style={{ color: colour(r.points) }}>{r.points ? signed(r.points) : ''}</td>
                                 </>
                             )}

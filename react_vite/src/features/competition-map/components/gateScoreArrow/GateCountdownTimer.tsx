@@ -28,7 +28,8 @@ const GateCountdownTimer: React.FC<GateCountdownTimerProps> = ({
     const offsetColour = offsetWithinGrace ? "var(--hud-ok)" : "var(--hud-red)";
     const late = secondsToRequiredTime < 0;
     return (
-        <div className="flex items-end justify-between gap-4 w-full">
+        <div className="flex items-end justify-between gap-4 w-full"
+            title="The big figure counts down to the gate's required time. The smaller one is how many seconds early (-) or late (+) the contestant is predicted to cross.">
             <div className="leading-tight min-w-0">
                 <div className="hud-label min-[100rem]:text-base">{final || missed ? "Gate" : "Next gate"}</div>
                 <div className="hud-figure text-2xl min-[100rem]:text-4xl truncate">{waypointName}</div>

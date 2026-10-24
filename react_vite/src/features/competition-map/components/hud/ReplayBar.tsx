@@ -60,7 +60,7 @@ export default function ReplayBar({
                         ))}
                     </div>
                     <input
-                        type="range" min={min} max={max} value={Math.min(max, Math.max(min, currentTime.getTime()))}
+                        title="Drag to any moment of the replay; the red marks are penalties" type="range" min={min} max={max} value={Math.min(max, Math.max(min, currentTime.getTime()))}
                         onChange={e => onTimeChange(new Date(Number(e.target.value)))}
                         className="w-full" aria-label="Replay time"
                     />
@@ -88,6 +88,7 @@ export default function ReplayBar({
                         value={playbackSpeed}
                         onChange={e => onSpeedChange(Number(e.target.value))}
                         className="hud-figure text-base rounded-md px-1.5 h-8"
+                        title="How fast the replay plays: 1× is real time" aria-label="Replay speed"
                         style={{ background: 'var(--hud-raised)', color: 'var(--hud-text)', border: '1px solid var(--hud-line)' }}
                     >
                         {(SPEEDS.includes(playbackSpeed) ? SPEEDS : [...SPEEDS, playbackSpeed].sort((a, b) => a - b)).map(s => (

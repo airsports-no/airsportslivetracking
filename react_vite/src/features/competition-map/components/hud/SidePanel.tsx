@@ -36,10 +36,12 @@ function formatClock(time: Date, timeZone?: string): { clock: string; zone?: str
 function LiveOrReplay({ mode, onModeChange }: { mode: 'realtime' | 'playback'; onModeChange: (mode: 'realtime' | 'playback') => void }) {
     return (
         <div className="hud-segmented" role="group" aria-label="Live or replay">
-            <button className="hud-button" aria-pressed={mode === 'realtime'} onClick={() => onModeChange('realtime')}>
+            <button className="hud-button" aria-pressed={mode === 'realtime'} onClick={() => onModeChange('realtime')}
+                title="Live: the flights as they happen">
                 <Activity size={14} /> Live
             </button>
-            <button className="hud-button" aria-pressed={mode === 'playback'} onClick={() => onModeChange('playback')}>
+            <button className="hud-button" aria-pressed={mode === 'playback'} onClick={() => onModeChange('playback')}
+                title="Replay: play the flights back from the recorded tracks">
                 <PlayCircle size={14} /> Replay
             </button>
         </div>
@@ -97,19 +99,22 @@ export default function SidePanel({
             {selectedName && (
                 <div className="px-4 pb-2 flex items-center gap-2 border-b hud-divider">
                     <div className="hud-segmented flex-1" role="tablist" aria-label="Ranking or navigation log">
-                        <button role="tab" className="hud-button flex-1" aria-pressed={tab === 'ranking'} aria-selected={tab === 'ranking'} onClick={() => onTabChange('ranking')}>
+                        <button role="tab" className="hud-button flex-1" aria-pressed={tab === 'ranking'} aria-selected={tab === 'ranking'} onClick={() => onTabChange('ranking')}
+                            title="The ranking of everyone in the task">
                             Ranking
                         </button>
                         {/* On a phone the flight list does not fit under the ranking: it gets a tab of its own. */}
                         {/* The wrapper hides it from tablet width up: .hud-button's own display would win over sm:hidden. */}
                         {showFlightTab && (
                             <span className="contents sm:hidden">
-                                <button role="tab" className="hud-button flex-1" aria-pressed={tab === 'flight'} aria-selected={tab === 'flight'} onClick={() => onTabChange('flight')}>
+                                <button role="tab" className="hud-button flex-1" aria-pressed={tab === 'flight'} aria-selected={tab === 'flight'} onClick={() => onTabChange('flight')}
+                                    title={`The gates of ${selectedName}'s flight, one by one`}>
                                     Flight
                                 </button>
                             </span>
                         )}
-                        <button role="tab" className="hud-button flex-1 min-w-0" aria-pressed={tab === 'log'} aria-selected={tab === 'log'} onClick={() => onTabChange('log')}>
+                        <button role="tab" className="hud-button flex-1 min-w-0" aria-pressed={tab === 'log'} aria-selected={tab === 'log'} onClick={() => onTabChange('log')}
+                            title={`${selectedName}'s navigation log: every result and penalty, to click through`}>
                             <span className="sm:hidden">Log</span>
                             <span className="hidden sm:inline truncate">Log: {selectedName}</span>
                         </button>

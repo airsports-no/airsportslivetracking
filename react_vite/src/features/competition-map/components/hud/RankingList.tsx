@@ -65,6 +65,7 @@ export default function RankingList({ rows, selectedId, onSelect, dividerIndex =
                             aria-current={selectedId === r.id ? 'true' : undefined}
                             tabIndex={0}
                             onClick={() => onSelect(r.id)}
+                            title={selectedId === r.id ? `${r.name}: click to see everyone again` : `Follow ${r.name}`}
                             onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onSelect(r.id); } }}
                             className={`hud-row grid grid-cols-[1.75rem_0.625rem_1fr_auto] items-center gap-x-2 px-3 py-1.5 ${compact ? '' : 'sm:py-2'} ${waiting ? 'opacity-60' : ''}`}
                         >

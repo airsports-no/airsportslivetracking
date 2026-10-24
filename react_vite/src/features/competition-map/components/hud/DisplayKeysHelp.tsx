@@ -1,5 +1,6 @@
 import React from 'react';
 import { DISPLAY_KEYS } from '../../utils/displayKeys';
+import { guideUrl } from '../../utils/helpLink';
 
 /** The display's keys, over the map until "?" or Esc is pressed again. */
 export default function DisplayKeysHelp({ onClose }: { onClose: () => void }) {
@@ -17,6 +18,9 @@ export default function DisplayKeysHelp({ onClose }: { onClose: () => void }) {
                     </React.Fragment>
                 ))}
             </dl>
+            <a className="hud-label underline mt-3 inline-block" href={guideUrl('broadcast')} target="_blank" rel="noreferrer">
+                More in the guide to the live map
+            </a>
         </div>
     );
 }

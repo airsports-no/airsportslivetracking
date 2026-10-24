@@ -29,9 +29,11 @@ import GatesTable from './components/hud/GatesTable';
 import FlightTimeline from './components/hud/FlightTimeline';
 import FollowBar from './components/hud/FollowBar';
 import MapControls from './components/hud/MapControls';
+import SettingToggle from './components/hud/SettingToggle';
+import { guideUrl } from './utils/helpLink';
 import ReplayBar, { ReplayEvent } from './components/hud/ReplayBar';
 import TaskInfoModal from './TaskInfoModal';
-import { Trophy, Info, Settings, Calendar, Sliders, Route } from 'lucide-react';
+import { Trophy, Info, Settings, Calendar, Sliders, Route, CircleHelp } from 'lucide-react';
 import { generatePath } from '../../urls';
 import './CompetitionMap.css';
 import './components/hud/hud.css';
@@ -919,7 +921,7 @@ export default function CompetitionMapPage() {
     <>
           {/* Settings Dropdown */}
           <div className="dropdown">
-            <div tabIndex={0} role="button" className="hud-button" title="Map settings" aria-label="Map settings">
+            <div tabIndex={0} role="button" className="hud-button" title="Map settings: appearance, display, and what is shown on the map" aria-label="Map settings">
               <Sliders size={16} />
             </div>
             <ul tabIndex={0} className="dropdown-content hud-theme z-[1200] menu p-2 shadow-xl border border-base-300 rounded-box w-64 max-h-[65vh] overflow-y-auto flex-nowrap">
@@ -934,7 +936,7 @@ export default function CompetitionMapPage() {
                       type="button"
                       className={`join-item btn btn-xs flex-1 ${appearance === value ? 'btn-primary' : 'btn-ghost border-base-300'}`}
                       aria-pressed={appearance === value}
-                      title={value === 'device' ? "Follow this device's light or dark mode" : undefined}
+                      title={value === 'device' ? "Follow this device's light or dark mode, as the rest of the site does" : value === 'light' ? 'Always light' : 'Always dark'}
                       onClick={() => setAppearance(value)}
                     >
                       {label}
@@ -962,59 +964,42 @@ export default function CompetitionMapPage() {
                 </div>
               </li>
               <div className="divider my-1"></div>
-              <li>
-                <label className="label cursor-pointer py-1">
-                  <span className="label-text text-xs text-left">Show Background Map</span>
-                  <input 
-                    type="checkbox" 
-                    className="toggle toggle-primary toggle-xs" 
-                    checked={userShowBackgroundMap} 
-                    onChange={(e) => setUserShowBackgroundMap(e.target.checked)}
-                    disabled={!staticNavTaskData?.display_background_map}
-                  />
-                </label>
-              </li>
-              <li>
-                <label className="label cursor-pointer py-1">
-                  <span className="label-text text-xs text-left">Show Secret Gates</span>
-                  <input 
-                    type="checkbox" 
-                    className="toggle toggle-primary toggle-xs" 
-                    checked={userShowSecrets} 
-                    onChange={(e) => setUserShowSecrets(e.target.checked)}
-                    disabled={!staticNavTaskData?.display_secrets}
-                  />
-                </label>
-              </li>
-              <li>
-                <label className="label cursor-pointer py-1">
-                  <span className="label-text text-xs text-left">Show Penalties Only</span>
-                  <input
-                    type="checkbox"
-                    className="toggle toggle-primary toggle-xs"
-                    checked={showPenaltiesOnly}
-                    onChange={(e) => setShowPenaltiesOnly(e.target.checked)}
-                  />
-                </label>
-              </li>
-              <li>
-                <label className="label cursor-pointer py-1">
-                  <span className="label-text text-xs text-left">Permanent Annotations</span>
-                  <input
-                    type="checkbox"
-                    className="toggle toggle-primary toggle-xs"
-                    checked={permanentAnnotations}
-                    onChange={(e) => setPermanentAnnotations(e.target.checked)}
-                  />
-                </label>
-              </li>
+              <SettingToggle
+                label="Background map"
+                hint="Draw the route on top of a street and terrain map. Off gives a plain background."
+                checked={userShowBackgroundMap}
+                onChange={setUserShowBackgroundMap}
+                disabledReason={staticNavTaskData?.display_background_map ? undefined : 'The organizer has turned the background map off for this task.'}
+              />
+              <SettingToggle
+                label="Secret gates"
+                hint="Show the secret gates, unknown legs and observation photos on the map and in the lists."
+                checked={userShowSecrets}
+                onChange={setUserShowSecrets}
+                disabledReason={staticNavTaskData?.display_secrets ? undefined : 'The organizer keeps the secret gates hidden for this task.'}
+              />
+              <SettingToggle
+                label="Penalties only"
+                hint="For the followed contestant, label only the penalties on the map, not every gate passed."
+                checked={showPenaltiesOnly}
+                onChange={setShowPenaltiesOnly}
+              />
+              <SettingToggle
+                label="Labels always open"
+                hint="Keep every label of the followed contestant open on the map, instead of one at a time when clicked."
+                checked={permanentAnnotations}
+                onChange={setPermanentAnnotations}
+              />
               <div className="divider my-1"></div>
-              <div className="px-2 pb-1 flex justify-between items-center">
-                  <span className="text-[10px] font-bold uppercase opacity-50">Filter Contestants</span>
-                  <div className="flex gap-2">
-                      <button onClick={selectAllContestants} className="text-[10px] link">All</button>
-                      <button onClick={selectNoneContestants} className="text-[10px] link">None</button>
+              <div className="px-2 pb-1" title="Untick a contestant to leave them out of the map and the ranking.">
+                  <div className="flex justify-between items-center">
+                      <span className="text-xs">Contestants shown</span>
+                      <div className="flex gap-2">
+                          <button onClick={selectAllContestants} className="text-[10px] link" title="Show every contestant">All</button>
+                          <button onClick={selectNoneContestants} className="text-[10px] link" title="Hide every contestant">None</button>
+                      </div>
                   </div>
+                  <p className="text-[10px] leading-snug opacity-70">Untick a contestant to leave them out of the map and the ranking.</p>
               </div>
               <div className="px-1">
                   {allSortedContestants.map(c => (
@@ -1043,24 +1028,32 @@ export default function CompetitionMapPage() {
           setShowFullTrails(!showFullTrails);
           hasAutoEnabledTrailsRef.current = true;
         }}
-        title="Show the whole track of every contestant"
+        title="Show the whole track of every contestant, not only the last minutes"
         aria-label="Full trails"
       >
         <Route size={16} />
       </button>
-      <button onClick={() => setIsInfoModalOpen(true)} className="hud-button" title="Task information" aria-label="Task information">
+      <button onClick={() => setIsInfoModalOpen(true)} className="hud-button" title="About this task: the rules and what is scored" aria-label="Task information">
         <Info size={16} />
       </button>
-      <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="hud-button" title="Contest results" aria-label="Contest results">
+      <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="hud-button" title="The results of the whole contest" aria-label="Contest results">
         <Trophy size={16} />
       </Link>
+      {/* Where in the guide depends on what is on screen. */}
+      <a
+        href={guideUrl(display === 'screen' ? 'screen' : view === 'debrief' ? 'debrief' : view === 'follow' ? 'following' : 'spectators')}
+        target="_blank" rel="noreferrer" className="hud-button"
+        title="How to use the map: following, replaying, displays (opens the guide)" aria-label="How to use the map"
+      >
+        <CircleHelp size={16} />
+      </a>
       {(staticNavTaskData?.user_has_change_permission || document.configuration.is_superuser) && (
-        <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestIdNum, navigationTaskId: navigationTaskIdNum })} className="hud-button" title="Manage the task" aria-label="Manage the task">
+        <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestIdNum, navigationTaskId: navigationTaskIdNum })} className="hud-button" title="Manage this task: contestants, times, scores (organizers)" aria-label="Manage the task">
           <Settings size={16} />
         </Link>
       )}
       {staticNavTaskData?.allow_self_management && (
-        <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="hud-button" title="Book a flight" aria-label="Book a flight">
+        <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="hud-button" title="Book a flight in this task" aria-label="Book a flight">
           <Calendar size={16} />
         </Link>
       )}
@@ -1219,6 +1212,7 @@ export default function CompetitionMapPage() {
           {keysHelpOpen && <DisplayKeysHelp onClose={() => setKeysHelpOpen(false)} />}
           {camera.paused && (
             <button
+              title="The map was moved by hand; this makes it follow the aircraft again"
               className={`hud hud-button absolute ${display === 'broadcast' ? 'top-3' : 'bottom-3'} left-1/2 -translate-x-1/2 z-[1100] px-4 h-10 rounded-full border hud-divider shadow-lg`}
               onClick={camera.resume}
             >
