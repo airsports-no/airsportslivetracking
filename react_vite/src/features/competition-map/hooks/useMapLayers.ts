@@ -29,6 +29,26 @@ interface MapLayersProps {
     showPenaltiesOnly: boolean;
 }
 
+function escapeHtml(text: string): string {
+    return text.replace(/[&<>"']/g, c => ({ '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#39;' }[c]!));
+}
+
+/** An annotation's label on the map, in the panel's style (hud-tooltip in components/hud/hud.css). */
+function annotationLabel(
+    ann: { gate: string; message: string; time: string },
+    scoreLog: { points: number } | null | undefined,
+    timeZone: string | undefined,
+    pointsArePenalties: boolean,
+): string {
+    const points = scoreLog?.points ?? 0;
+    const colour = points === 0 ? 'var(--hud-muted)' : (pointsArePenalties ? points > 0 : points < 0) ? 'var(--hud-red)' : 'var(--hud-ok)';
+    const time = new Date(ann.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone });
+    return `<div class="hud-tip-head"><span class="hud-tip-gate">${escapeHtml(ann.gate)}</span>`
+        + (scoreLog ? `<span class="hud-tip-points" style="color:${colour}">${points > 0 ? '+' : ''}${Math.round(points)}</span>` : '')
+        + `</div><div class="hud-tip-message">${escapeHtml(ann.message).replace(/\n/g, '<br/>')}</div>`
+        + `<div class="hud-tip-time">${time}</div>`;
+}
+
 export function useMapLayers({
     mapRef,
     navTask,
@@ -254,12 +274,7 @@ export function useMapLayers({
 
                 visibleAnnotationIds.add(ann.id);
                 
-                const content = `
-                    <b>${ann.gate} (${ann.type})</b><br/>
-                    ${ann.message.replace(/\n/g, '<br/>')}<br/>
-                    <small>${new Date(ann.time).toLocaleString()}</small>
-                    ${scoreLog ? `<br/><b>Score: ${scoreLog.points}</b>` : ''}
-                `;
+                const content = annotationLabel(ann, scoreLog, navTask.time_zone, navTask.score_sorting_direction === 'asc');
 
                 const shouldExpand = permanentAnnotations || (clickedAnnotationId === ann.id);
 
@@ -274,7 +289,7 @@ export function useMapLayers({
                         setClickedAnnotationId(ann.id);
                     });
                     
-                    marker.bindTooltip(content, { permanent: shouldExpand, direction: 'top' });
+                    marker.bindTooltip(content, { permanent: shouldExpand, direction: 'top', className: 'hud-tooltip' });
                     if (shouldExpand) {
                         marker.openTooltip();
                     }
@@ -294,7 +309,7 @@ export function useMapLayers({
 
                     if (lastState?.isExpanded !== shouldExpand) {
                         marker.unbindTooltip();
-                        marker.bindTooltip(content, { permanent: shouldExpand, direction: 'top' });
+                        marker.bindTooltip(content, { permanent: shouldExpand, direction: 'top', className: 'hud-tooltip' });
                         if (shouldExpand) {
                             marker.openTooltip();
                         }
@@ -337,4 +352,7 @@ export function useMapLayers({
         }
 
     }, [mapRef, navTask, contestants, currentPositions, showFullTrails, currentTime, mode, selectedContestantId, annotationsByContestant, scoreLogByContestant, userShowSecrets, permanentAnnotations, clickedAnnotationId, showPenaltiesOnly]);
+
+    // Opens an annotation's label as if it was clicked (the navigation log uses it to show where an entry happened).
+    return { openAnnotation: setClickedAnnotationId };
 }

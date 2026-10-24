@@ -10,19 +10,23 @@ import { usePhotoLayers, TargetPhoto } from './hooks/usePhotoLayers';
 import { useToast } from './hooks/useToast'; // Import useToast
 import { fetchContestDetails, fetchPhotoObservations, fetchPhotos } from './api';
 
-import ResultsTable from './components/ResultsTable';
-import ScoreLogTable from './components/ScoreLogTable';
 import ProhibitedRenderer from "./components/track-renderers/ProhibitedRenderer";
 import RouteRenderer from "./components/track-renderers/RouteRenderer";
-import TimelineControls from "./components/TimelineControls";
-import TeamPresentation from './components/TeamPresentation';
-import ClockDisplay from './components/ClockDisplay';
 import Disclaimer from './components/Disclaimer';
+import SidePanel, { PanelTab } from './components/hud/SidePanel';
+import RankingList from './components/hud/RankingList';
+import NavLog from './components/hud/NavLog';
+import FollowBar from './components/hud/FollowBar';
+import ReplayBar, { ReplayEvent } from './components/hud/ReplayBar';
 import TaskInfoModal from './TaskInfoModal';
-import { ChevronUp, ChevronDown, Trophy, Info, Settings, Calendar, Sliders, Activity, PlayCircle, Route } from 'lucide-react';
+import { Trophy, Info, Settings, Calendar, Sliders, Route } from 'lucide-react';
 import { generatePath } from '../../urls';
 import './CompetitionMap.css';
-import { NavigationTask, PhotoObservation } from './types';
+import './components/hud/hud.css';
+import { NavigationTask, PhotoObservation, ScoreLogEntry } from './types';
+
+// From this width the page is treated as an event display: following someone folds the panel (FollowBar grows too).
+const BIG_SCREEN_WIDTH = 1600;
 
 /** The contestant a contestantIds parameter names when it names exactly one, otherwise null. */
 function singleContestantId(param: string | null): number | null {
@@ -74,7 +78,11 @@ export default function CompetitionMapPage() {
     const single = singleContestantId(contestantIdsParam);
     if (single !== null) setSelectedContestantId(single);
   }
-  const [showScoreLog, setShowScoreLog] = useState(false);
+  // What the side panel shows while a contestant is selected: the ranking, or their navigation log.
+  // A replay link to one contestant opens on their log.
+  const [panelTab, setPanelTab] = useState<PanelTab>(() => (selectedContestantId !== null && initialMode === 'playback' ? 'log' : 'ranking'));
+  // The navigation log entry last jumped to, highlighted in the log.
+  const [activeLogId, setActiveLogId] = useState<number | null>(null);
   const [userShowBackgroundMap, setUserShowBackgroundMap] = useState(true);
   const [userShowSecrets, setUserShowSecrets] = useState(true);
   const [showPenaltiesOnly, setShowPenaltiesOnly] = useState(false);
@@ -82,7 +90,9 @@ export default function CompetitionMapPage() {
   const [isRankingCollapsed, setIsRankingCollapsed] = useState(() => {
     if (rankingExpandedParam === 'true') return false;
     if (rankingExpandedParam === 'false') return true;
-    return window.innerWidth < 640;
+    // A phone, upright or on its side, starts with the map in view; so does a big screen opened to follow one contestant.
+    if (window.innerWidth >= BIG_SCREEN_WIDTH && selectedContestantId !== null && initialMode === 'realtime') return true;
+    return window.innerWidth < 640 || window.innerHeight < 500;
   });
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
   const [permanentAnnotations, setPermanentAnnotations] = useState(false);
@@ -109,8 +119,6 @@ export default function CompetitionMapPage() {
 
 
 
-  const teamPresentationContainerRef = useRef<HTMLDivElement>(null);
-  const [teamPresentationScale, setTeamPresentationScale] = useState(1);
 
     const { toasts, showToast, removeToast, ToastContainer } = useToast(); // Initialize toast hook
 
@@ -152,29 +160,11 @@ export default function CompetitionMapPage() {
     return contestantsById[selectedContestantId]; // Updated
   }, [selectedContestantId, staticNavTaskData, contestantsById]);
 
-  useEffect(() => {
-    const element = teamPresentationContainerRef.current;
-    if (!element) return;
-
-    const observer = new ResizeObserver(entries => {
-      if (entries[0]) {
-        const width = entries[0].contentRect.width;
-        // This is the ideal width of the TeamPresentation component at scale=1.
-        // It's used as a baseline to calculate the scale factor.
-        // On mobile (< 640px), the component stacks vertically, so the design width is smaller (~600px).
-        // On desktop, it's side-by-side (~1000px).
-        const isStacked = window.innerWidth < 640;
-        const designWidth = isStacked ? 600 : 1000;
-        
-        if (width > 0) {
-          setTeamPresentationScale(width / designWidth);
-        }
-      }
-    });
-
-    observer.observe(element);
-    return () => observer.disconnect();
-  }, [selectedContestant]);
+  // The three ways the map is used: an overview of everyone, following one contestant while they fly, and a debrief
+  // of one contestant's flight (in replay, or live once their flight has been scored to the end).
+  const view: 'overview' | 'follow' | 'debrief' = !selectedContestant
+    ? 'overview'
+    : mode === 'playback' || selectedContestant.contestanttrack?.calculator_finished ? 'debrief' : 'follow';
 
 
   const mapRef = useMapInit();
@@ -350,17 +340,27 @@ export default function CompetitionMapPage() {
     setCurrentScores(scores);
   }, [mode, currentTime, positionsByContestant, scoreLogByContestant, staticNavTaskData, contestantsById]);
 
-  const handleContestantSelect = (id: number | null, showLog: boolean) => {
-    if (selectedContestantId === id && id !== null) {
-        setSelectedContestantId(null);
-        setShowScoreLog(false);
-    } else {
-        setSelectedContestantId(id);
-        setShowScoreLog(showLog);
+  /**
+   * Selects a contestant (or clears the selection when they are selected already). A finished flight opens on its
+   * navigation log, for the debrief; a flight in progress keeps the ranking in the panel while the follow bar shows them.
+   */
+  const selectContestant = (id: number | null, showLog = false) => {
+    setActiveLogId(null);
+    if (id === null || selectedContestantId === id) {
+      setSelectedContestantId(null);
+      setPanelTab('ranking');
+      return;
     }
+    setSelectedContestantId(id);
+    const finished = !!contestantsById[id]?.contestanttrack?.calculator_finished;
+    setPanelTab(showLog || mode === 'playback' || finished ? 'log' : 'ranking');
+    // On a big screen (the event display), following someone live gives the map and the follow bar the whole width;
+    // the panel folds to its rail and comes back with one click.
+    if (!finished && mode === 'realtime' && window.innerWidth >= BIG_SCREEN_WIDTH) setIsRankingCollapsed(true);
   };
+  const handleContestantSelect = (id: number | null, showLog: boolean) => selectContestant(id, showLog);
 
-  useMapLayers({
+  const { openAnnotation } = useMapLayers({
     mapRef,
     navTask: staticNavTaskData,
     contestants: sortedContestants, // Pass the sorted dynamic contestants
@@ -619,31 +619,91 @@ export default function CompetitionMapPage() {
     }
   }, [selectedContestantId]);
 
-  const filteredScoreLog = useMemo(() => {
+  // The selected contestant's log, without the gates the viewer may not see (secret and unknown-leg gates).
+  const visibleLogEntries = useMemo<ScoreLogEntry[]>(() => {
     if (!selectedContestantId || !scoreLogByContestant[selectedContestantId]) return [];
-    
     const showSecrets = !!(staticNavTaskData?.display_secrets && userShowSecrets);
-    const logEntries = scoreLogByContestant[selectedContestantId];
-
-    return logEntries.filter(log => {
-      // 1. Time filtering for playback
-      if (mode === 'playback' && new Date(log.time) > currentTime) {
-        return false;
-      }
-
-      // 2. Secret/unknown-leg-trigger gate filtering - a 'ul' gate is scored normally and
-      // logged under its real name, but its position must stay hidden from the contestant
-      // just like a secret gate until secrets are shown.
+    return scoreLogByContestant[selectedContestantId].filter(log => {
+      // A 'ul' gate is scored normally and logged under its real name, but its position must stay hidden from the
+      // contestant just like a secret gate until secrets are shown.
       if (!showSecrets && staticNavTaskData) {
         const waypoint = staticNavTaskData.route.waypoints.find(wp => wp.name === log.gate);
-        if (waypoint && (waypoint.type === 'secret' || waypoint.type === 'ul')) {
-          return false;
-        }
+        if (waypoint && (waypoint.type === 'secret' || waypoint.type === 'ul')) return false;
       }
-
       return true;
     });
-  }, [selectedContestantId, scoreLogByContestant, mode, currentTime, staticNavTaskData, userShowSecrets]);
+  }, [selectedContestantId, scoreLogByContestant, staticNavTaskData, userShowSecrets]);
+
+  const pointsArePenalties = staticNavTaskData?.score_sorting_direction === 'asc';
+
+  // Log entries with a place on the map (an annotation): those a click can show.
+  const annotationByLogId = useMemo(() => {
+    const byLog = new Map<number, { id: number; latitude: number; longitude: number }>();
+    if (!selectedContestantId) return byLog;
+    for (const ann of annotationsByContestant[selectedContestantId] ?? []) {
+      if (ann.score_log_entry) byLog.set(ann.score_log_entry, ann);
+    }
+    return byLog;
+  }, [selectedContestantId, annotationsByContestant]);
+  const locatableLogIds = useMemo(() => new Set(annotationByLogId.keys()), [annotationByLogId]);
+
+  const replayEvents = useMemo<ReplayEvent[]>(() => visibleLogEntries.map(log => ({
+    id: log.id,
+    time: new Date(log.time),
+    label: `${log.gate}: ${log.message}`,
+    penalty: pointsArePenalties ? log.points > 0 : log.points < 0,
+  })), [visibleLogEntries, pointsArePenalties]);
+
+  // A replay time to go to once the replay has started (switching to replay first sets it to the start).
+  const pendingSeekRef = useRef<Date | null>(null);
+  useEffect(() => {
+    if (mode === 'playback' && playbackTimeInfo && pendingSeekRef.current) {
+      const seek = pendingSeekRef.current;
+      pendingSeekRef.current = null;
+      setPlaybackTime(seek);
+    }
+  }, [mode, playbackTimeInfo, setPlaybackTime]);
+
+  /**
+   * Shows where a log entry happened: the map moves to its annotation and opens it. In a debrief the replay also goes
+   * to that moment (switching to replay first if needed), so the flight can be played on from there.
+   */
+  const jumpToLogEntry = (entry: ScoreLogEntry) => {
+    setActiveLogId(entry.id);
+    const ann = annotationByLogId.get(entry.id);
+    const map = mapRef.current;
+    if (ann && map) {
+      map.flyTo([ann.latitude, ann.longitude], Math.max(map.getZoom(), 12), { duration: 0.6 });
+      openAnnotation(ann.id);
+    }
+    if (view !== 'debrief') return;
+    // At the entry's own time: its annotation shows (annotations appear once their time has come) and opens.
+    const target = new Date(entry.time);
+    if (mode === 'playback') {
+      setPlaybackTime(target);
+    } else {
+      pendingSeekRef.current = target;
+      setMode('playback');
+    }
+  };
+
+  const changeMode = (next: 'realtime' | 'playback') => {
+    if (next === mode) return;
+    setMode(next);
+    if (next === 'realtime') setPlaybackTime(new Date());
+    // A replay of the selected contestant is a debrief: their log. Back to live, the log stays for a finished flight.
+    if (selectedContestant) setPanelTab(next === 'playback' || selectedContestant.contestanttrack?.calculator_finished ? 'log' : 'ranking');
+  };
+
+  // The map fills what the panel and the bottom bar leave; Leaflet must be told when that changes.
+  useEffect(() => {
+    const map = mapRef.current;
+    const element = document.getElementById('map-container');
+    if (!map || !element) return;
+    const observer = new ResizeObserver(() => map.invalidateSize());
+    observer.observe(element);
+    return () => observer.disconnect();
+  }, [mapRef]);
 
    if (navTaskError?.status === 404) {
     return (
@@ -664,281 +724,244 @@ export default function CompetitionMapPage() {
       </div>
     );
   }
-  return (
-    <div className="flex flex-col h-full overflow-hidden">
-      <TaskInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
-      <ToastContainer toasts={toasts} removeToast={removeToast} /> {/* Render ToastContainer */}
-      <div className="flex-1 relative">
-        <div id="map-container" className="h-full w-full" />
-        <Disclaimer />
-        <ProhibitedRenderer map={mapRef.current} navTask={staticNavTaskData} />
-        <RouteRenderer
-          map={mapRef.current}
-          route={staticNavTaskData?.route ?? null}
-          taskCatalogueTargets={staticNavTaskData?.task_catalogue_targets ?? []}
-          scorecard={staticNavTaskData?.scorecard}
-          taskType={staticNavTaskData?.scorecard?.task_type ?? null}
-          taskSubtype={staticNavTaskData?.task_subtype ?? null}
-          navTaskDisplaySecrets={staticNavTaskData?.display_secrets ?? false}
-          displaySecrets={userShowSecrets}
-          contestants={contestantsById}
-          selectedContestantId={selectedContestantId}
-          isInitialLoad={!hasMapBeenFitted}
-          onMapFit={setHasMapBeenFitted}
-        />
+  const selectedName = selectedContestant
+    ? `#${selectedContestant.contestant_number} ${selectedContestant.team?.crew?.member1?.first_name ?? ''}`.trim()
+    : null;
+  const selectedStanding = selectedContestant ? standings.findIndex(r => r.id === selectedContestant.id) : -1;
+  const startedCount = firstWaitingIndex === -1 ? standings.length : firstWaitingIndex;
 
-        <div className="absolute top-2 right-2 sm:top-4 sm:right-4 z-[1100]">
-          <ClockDisplay time={currentTime} timeZone={staticNavTaskData?.time_zone} />
-        </div>
-        
-        {mode === 'realtime' && wsStatus === 'disconnected' && (
-            <div className="absolute top-2 left-1/2 -translate-x-1/2 z-[1100] bg-error text-error-content p-2 rounded-lg shadow-md text-center max-w-xs">
-                <h3 className="font-bold text-base">Offline</h3>
-                <p className="text-sm">Connection lost. Attempting to reconnect...</p>
+  const toolbar = (
+    <>
+          {/* Settings Dropdown */}
+          <div className="dropdown">
+            <div tabIndex={0} role="button" className="hud-button" title="Map settings" aria-label="Map settings">
+              <Sliders size={16} />
             </div>
-        )}
-
-        {/* The toast display will now be placed relative to this flex-1 relative container */}
-
-
-        <div className="ranking-container absolute top-2 left-2 sm:top-4 sm:left-4 z-[1100] bg-base-100/80 backdrop-blur-sm border border-base-300 rounded-lg shadow-lg w-56 sm:w-80 md:w-96 max-w-[calc(100vw-2rem)]">
-          <div className="p-1 sm:p-2 border-b border-base-300">
-            <div className="flex justify-between items-center">
-              <h2 className="font-bold text-sm sm:text-lg truncate" title={staticNavTaskData?.name}>{staticNavTaskData?.name ?? 'Loading...'}</h2>
-              <button onClick={() => setIsRankingCollapsed(!isRankingCollapsed)} className="btn btn-ghost btn-xs sm:btn-sm btn-square">
-                {isRankingCollapsed ? <ChevronDown size={16} /> : <ChevronUp size={16} />}
-              </button>
-            </div>
-
-
-            <div className="flex items-center flex-wrap gap-0.5 sm:gap-2 mt-1 sm:mt-2">
-                {/* Settings Dropdown */}
-                <div className="dropdown">
-                  <div tabIndex={0} role="button" className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Settings">
-                    <Sliders size={12} />
-                    <span className="hidden sm:inline">Settings</span>
+            <ul tabIndex={0} className="dropdown-content hud-theme z-[1200] menu p-2 shadow-xl border border-base-300 rounded-box w-64 max-h-[65vh] overflow-y-auto flex-nowrap">
+              <li>
+                <label className="label cursor-pointer py-1">
+                  <span className="label-text text-xs text-left">Show Background Map</span>
+                  <input 
+                    type="checkbox" 
+                    className="toggle toggle-primary toggle-xs" 
+                    checked={userShowBackgroundMap} 
+                    onChange={(e) => setUserShowBackgroundMap(e.target.checked)}
+                    disabled={!staticNavTaskData?.display_background_map}
+                  />
+                </label>
+              </li>
+              <li>
+                <label className="label cursor-pointer py-1">
+                  <span className="label-text text-xs text-left">Show Secret Gates</span>
+                  <input 
+                    type="checkbox" 
+                    className="toggle toggle-primary toggle-xs" 
+                    checked={userShowSecrets} 
+                    onChange={(e) => setUserShowSecrets(e.target.checked)}
+                    disabled={!staticNavTaskData?.display_secrets}
+                  />
+                </label>
+              </li>
+              <li>
+                <label className="label cursor-pointer py-1">
+                  <span className="label-text text-xs text-left">Show Penalties Only</span>
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-primary toggle-xs"
+                    checked={showPenaltiesOnly}
+                    onChange={(e) => setShowPenaltiesOnly(e.target.checked)}
+                  />
+                </label>
+              </li>
+              <li>
+                <label className="label cursor-pointer py-1">
+                  <span className="label-text text-xs text-left">Permanent Annotations</span>
+                  <input
+                    type="checkbox"
+                    className="toggle toggle-primary toggle-xs"
+                    checked={permanentAnnotations}
+                    onChange={(e) => setPermanentAnnotations(e.target.checked)}
+                  />
+                </label>
+              </li>
+              <div className="divider my-1"></div>
+              <div className="px-2 pb-1 flex justify-between items-center">
+                  <span className="text-[10px] font-bold uppercase opacity-50">Filter Contestants</span>
+                  <div className="flex gap-2">
+                      <button onClick={selectAllContestants} className="text-[10px] link">All</button>
+                      <button onClick={selectNoneContestants} className="text-[10px] link">None</button>
                   </div>
-                  <ul tabIndex={0} className="dropdown-content z-[50] menu p-2 shadow bg-base-100 rounded-box w-64 max-h-[65vh] overflow-y-auto flex-nowrap">
-                    <li>
-                      <label className="label cursor-pointer py-1">
-                        <span className="label-text text-xs text-left">Show Background Map</span>
-                        <input 
-                          type="checkbox" 
-                          className="toggle toggle-primary toggle-xs" 
-                          checked={userShowBackgroundMap} 
-                          onChange={(e) => setUserShowBackgroundMap(e.target.checked)}
-                          disabled={!staticNavTaskData?.display_background_map}
-                        />
-                      </label>
-                    </li>
-                    <li>
-                      <label className="label cursor-pointer py-1">
-                        <span className="label-text text-xs text-left">Show Secret Gates</span>
-                        <input 
-                          type="checkbox" 
-                          className="toggle toggle-primary toggle-xs" 
-                          checked={userShowSecrets} 
-                          onChange={(e) => setUserShowSecrets(e.target.checked)}
-                          disabled={!staticNavTaskData?.display_secrets}
-                        />
-                      </label>
-                    </li>
-                    <li>
-                      <label className="label cursor-pointer py-1">
-                        <span className="label-text text-xs text-left">Show Penalties Only</span>
-                        <input
-                          type="checkbox"
-                          className="toggle toggle-primary toggle-xs"
-                          checked={showPenaltiesOnly}
-                          onChange={(e) => setShowPenaltiesOnly(e.target.checked)}
-                        />
-                      </label>
-                    </li>
-                    <li>
-                      <label className="label cursor-pointer py-1">
-                        <span className="label-text text-xs text-left">Permanent Annotations</span>
-                        <input
-                          type="checkbox"
-                          className="toggle toggle-primary toggle-xs"
-                          checked={permanentAnnotations}
-                          onChange={(e) => setPermanentAnnotations(e.target.checked)}
-                        />
-                      </label>
-                    </li>
-                    <div className="divider my-1"></div>
-                    <div className="px-2 pb-1 flex justify-between items-center">
-                        <span className="text-[10px] font-bold uppercase opacity-50">Filter Contestants</span>
-                        <div className="flex gap-2">
-                            <button onClick={selectAllContestants} className="text-[10px] link">All</button>
-                            <button onClick={selectNoneContestants} className="text-[10px] link">None</button>
-                        </div>
-                    </div>
-                    <div className="px-1">
-                        {allSortedContestants.map(c => (
-                            <li key={c.id}>
-                                <label className="label cursor-pointer py-0.5 justify-start gap-2">
-                                    <input 
-                                        type="checkbox" 
-                                        className="checkbox checkbox-primary checkbox-xs" 
-                                        checked={!selectedIds || selectedIds.has(c.id)}
-                                        onChange={() => toggleContestantFilter(c.id)}
-                                    />
-                                    <span className="label-text text-[10px] truncate">
-                                        #{c.contestant_number} {c.team?.crew?.member1?.first_name} {c.team?.crew?.member1?.last_name}
-                                    </span>
-                                </label>
-                            </li>
-                        ))}
-                    </div>
-                  </ul>
-                </div>
-
-                <button 
-                  className={`btn btn-xs ${mode === 'realtime' ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
-                  onClick={() => { if (mode !== 'realtime') { setMode('realtime'); setSelectedContestantId(null); setPlaybackTime(new Date()); } }}
-                  title="Realtime"
-                >
-                  <Activity size={12} />
-                  <span className="hidden sm:inline">Realtime</span>
-                </button>
-                <button 
-                  className={`btn btn-xs ${mode === 'playback' ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
-                  onClick={() => { if (mode !== 'playback') { setMode('playback'); setSelectedContestantId(null); } }}
-                  title="Playback"
-                >
-                  <PlayCircle size={12} />
-                  <span className="hidden sm:inline">Playback</span>
-                </button>
-
-                <button 
-                  className={`btn btn-xs ${showFullTrails ? 'btn-primary' : 'btn-outline'} px-1 sm:px-2 gap-1`}
-                  onClick={() => {
-                    setShowFullTrails(!showFullTrails);
-                    hasAutoEnabledTrailsRef.current = true;
-                  }}
-                  title="Full Trails"
-                >
-                  <Route size={12} />
-                  <span className="full-trails-text hidden sm:inline">Full Trails</span>
-                </button>
-
-                <button onClick={() => setIsInfoModalOpen(true)} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Task Info">
-                  <Info size={12} />
-                  <span className="hidden sm:inline">Task Info</span>
-                </button>
-                <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Contest">
-                  <Trophy size={12} />
-                  <span className="hidden sm:inline">Contest</span>
-                </Link>
-                {(staticNavTaskData?.user_has_change_permission || document.configuration.is_superuser)&& (
-                  <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestIdNum, navigationTaskId: navigationTaskIdNum })} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Manage">
-                    <Settings size={12} />
-                    <span className="hidden sm:inline">Manage</span>
-                  </Link>
-                )}
-                {staticNavTaskData?.allow_self_management && (
-                  <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="btn btn-xs btn-outline px-1 sm:px-2 gap-1" title="Schedule">
-                    <Calendar size={12} />
-                    <span className="hidden sm:inline">Schedule</span>
-                  </Link>
-                )}
-            </div>
-
-            {mode === 'realtime' && staticNavTaskData?.calculation_delay_minutes !== undefined && staticNavTaskData.calculation_delay_minutes > 0 && (
-              <div className="text-xs text-warning-content bg-warning rounded-md px-2 py-1 mt-2 text-center">
-                Live data is delayed by {staticNavTaskData.calculation_delay_minutes} minute(s).
               </div>
-            )}
-
-            {selectedContestant && (
-              <div className="flex justify-between items-center mt-2 pt-2 border-t border-base-200 gap-2">
-                <span className="text-xs font-bold truncate flex-1" title={`${selectedContestant?.team?.crew?.member1?.first_name ?? ''} ${selectedContestant?.team?.crew?.member1?.last_name ?? ''}`}>
-                  Selected: #{selectedContestant?.contestant_number} {selectedContestant?.team?.crew?.member1?.first_name ?? ''}
-                </span>
-                <div className="flex-none">
-                  <button className="btn btn-xs btn-info mr-1" onClick={() => { setShowScoreLog(!showScoreLog); setIsRankingCollapsed(false); }}>{showScoreLog ? 'Rank' : 'Log'}</button>
-                  <button className="btn btn-xs btn-ghost" onClick={() => { setSelectedContestantId(null); setShowScoreLog(false); if (window.innerWidth < 640) setIsRankingCollapsed(false); }}>Clear</button>
-                </div>
+              <div className="px-1">
+                  {allSortedContestants.map(c => (
+                      <li key={c.id}>
+                          <label className="label cursor-pointer py-0.5 justify-start gap-2">
+                              <input 
+                                  type="checkbox" 
+                                  className="checkbox checkbox-primary checkbox-xs" 
+                                  checked={!selectedIds || selectedIds.has(c.id)}
+                                  onChange={() => toggleContestantFilter(c.id)}
+                              />
+                              <span className="label-text text-[10px] truncate">
+                                  #{c.contestant_number} {c.team?.crew?.member1?.first_name} {c.team?.crew?.member1?.last_name}
+                              </span>
+                          </label>
+                      </li>
+                  ))}
               </div>
-            )}
+            </ul>
           </div>
 
-          {!isRankingCollapsed && (
-            <>
-              {progress.total > 0 && progress.loaded < progress.total && (
-                <div className="p-2 border-b border-base-300">
-                    <div className="text-xs font-bold">{progress.message || 'Loading Contestant Data...'}</div>
-                    <progress 
-                        className="progress progress-primary w-full" 
-                        value={progress.loaded} 
-                        max={progress.total}
-                    ></progress>
-                    <div className="text-xs text-right">{progress.loaded}%</div>
-                </div>
-              )}
+      <button
+        className="hud-button"
+        aria-pressed={showFullTrails}
+        onClick={() => {
+          setShowFullTrails(!showFullTrails);
+          hasAutoEnabledTrailsRef.current = true;
+        }}
+        title="Show the whole track of every contestant"
+        aria-label="Full trails"
+      >
+        <Route size={16} />
+      </button>
+      <button onClick={() => setIsInfoModalOpen(true)} className="hud-button" title="Task information" aria-label="Task information">
+        <Info size={16} />
+      </button>
+      <Link to={generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contestIdNum })} className="hud-button" title="Contest results" aria-label="Contest results">
+        <Trophy size={16} />
+      </Link>
+      {(staticNavTaskData?.user_has_change_permission || document.configuration.is_superuser) && (
+        <Link to={generatePath('NAVIGATION_TASK_DETAIL', { contestId: contestIdNum, navigationTaskId: navigationTaskIdNum })} className="hud-button" title="Manage the task" aria-label="Manage the task">
+          <Settings size={16} />
+        </Link>
+      )}
+      {staticNavTaskData?.allow_self_management && (
+        <Link to={`/schedule-flight?contestId=${contestIdNum}&navigationTaskId=${navigationTaskIdNum}`} className="hud-button" title="Book a flight" aria-label="Book a flight">
+          <Calendar size={16} />
+        </Link>
+      )}
+    </>
+  );
 
-              {showScoreLog && selectedContestantId ? (
-                <ScoreLogTable
-                  scoreLog={filteredScoreLog}
-                  contestantName={`#${selectedContestant?.contestant_number} ${selectedContestant?.team?.crew?.member1?.first_name ?? ''}`}
-                  onClose={() => setShowScoreLog(false)}
-                />
-              ) : (
-                <ResultsTable
-                  rows={standings}
-                  selectedId={selectedContestantId}
-                  dividerIndex={firstWaitingIndex}
-                  onRowClick={(id) => {
-                    if (selectedContestantId === id) {
-                        setSelectedContestantId(null);
-                    } else {
-                        setSelectedContestantId(id);
-                    }
-                    setShowScoreLog(false);
-                  }}
-                />
-              )}
-            </>
+  return (
+    <div className="flex flex-col sm:flex-row h-full overflow-hidden">
+      <TaskInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
+      <ToastContainer toasts={toasts} removeToast={removeToast} />
+
+      <SidePanel
+        title={staticNavTaskData?.name ?? 'Loading the task'}
+        time={currentTime}
+        timeZone={staticNavTaskData?.time_zone}
+        mode={mode}
+        onModeChange={changeMode}
+        collapsed={isRankingCollapsed}
+        onToggleCollapsed={() => setIsRankingCollapsed(c => !c)}
+        toolbar={toolbar}
+        notice={mode === 'realtime' && (staticNavTaskData?.calculation_delay_minutes ?? 0) > 0 ? (
+          <p className="text-xs rounded-md px-2 py-1" style={{ background: 'var(--hud-raised)', color: 'var(--hud-warn)' }}>
+            Live data is {staticNavTaskData!.calculation_delay_minutes} min behind, as the organizer has set.
+          </p>
+        ) : undefined}
+        selectedName={selectedName}
+        tab={panelTab}
+        onTabChange={setPanelTab}
+        onClearSelection={() => selectContestant(null)}
+        footer={
+          <div className="flex items-end justify-between gap-3">
+            {contestDetails?.logo && view === 'overview' ? (
+              <img src={contestDetails.logo} alt={`${contestDetails.name} logo`} className="max-h-16 max-w-[11rem] object-contain" />
+            ) : <span />}
+            <Disclaimer className="hud-label hover:underline flex-none" />
+          </div>
+        }
+      >
+        {progress.total > 0 && progress.loaded < progress.total && (
+          <div className="px-4 py-2">
+            <div className="hud-label">{progress.message || 'Loading the contestants'}</div>
+            <div className="h-1 mt-1 rounded-full overflow-hidden" style={{ background: 'var(--hud-raised)' }}>
+              <div className="h-full" style={{ width: `${progress.loaded}%`, background: 'var(--hud-accent)' }} />
+            </div>
+          </div>
+        )}
+        {selectedContestant && panelTab === 'log' ? (
+          <NavLog
+            entries={visibleLogEntries}
+            // A replay lists the whole flight, what is still ahead dimmed, so any entry can be jumped to.
+            dimAfter={mode === 'playback' ? currentTime : undefined}
+            timeZone={staticNavTaskData?.time_zone}
+            pointsArePenalties={pointsArePenalties}
+            activeId={activeLogId}
+            locatableIds={locatableLogIds}
+            onSelect={jumpToLogEntry}
+          />
+        ) : (
+          <RankingList
+            rows={standings}
+            selectedId={selectedContestantId}
+            dividerIndex={firstWaitingIndex}
+            compact={view === 'follow'}
+            onSelect={(id) => selectContestant(id)}
+          />
+        )}
+      </SidePanel>
+
+      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+        <div className="relative flex-1 min-h-0">
+          <div id="map-container" className="h-full w-full" />
+          <ProhibitedRenderer map={mapRef.current} navTask={staticNavTaskData} />
+          <RouteRenderer
+            map={mapRef.current}
+            route={staticNavTaskData?.route ?? null}
+            taskCatalogueTargets={staticNavTaskData?.task_catalogue_targets ?? []}
+            scorecard={staticNavTaskData?.scorecard}
+            taskType={staticNavTaskData?.scorecard?.task_type ?? null}
+            taskSubtype={staticNavTaskData?.task_subtype ?? null}
+            navTaskDisplaySecrets={staticNavTaskData?.display_secrets ?? false}
+            displaySecrets={userShowSecrets}
+            contestants={contestantsById}
+            selectedContestantId={selectedContestantId}
+            isInitialLoad={!hasMapBeenFitted}
+            onMapFit={setHasMapBeenFitted}
+          />
+          {mode === 'realtime' && wsStatus === 'disconnected' && (
+            <div className="hud absolute top-3 left-1/2 -translate-x-1/2 z-[1100] rounded-lg px-3 py-2 text-center max-w-xs border hud-divider">
+              <p className="font-semibold text-sm" style={{ color: 'var(--hud-red)' }}>Connection lost</p>
+              <p className="hud-label">Reconnecting to the live data.</p>
+            </div>
           )}
         </div>
 
-        {selectedContestant ? (
-          // Container for TeamPresentation and GateScoreArrowV2
-          <div ref={teamPresentationContainerRef} className={`team-presentation-container absolute right-4 z-[1100] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-24 sm:bottom-20' : 'bottom-2'} w-11/12 md:w-3/4 lg:w-2/3 max-w-5xl pointer-events-none`}> {/* Responsive container */}
-            <div className="flex items-end gap-4 justify-end pointer-events-none">
-              <TeamPresentation
-                key={selectedContestant.id}
-                scale={teamPresentationScale}
-                contestant={selectedContestant}
-                dangerData={dangerDataByContestant[selectedContestant.id]}
-                gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
-                score={standings.find(s => s.id === selectedContestant.id)?.score ?? 0}
-                navigationTask={staticNavTaskData}
-              />
-            </div>
-          </div>
-        ) : (
-          contestDetails?.logo && (
-            <div className={`absolute right-4 z-[1100] transition-all duration-300 ${(mode === 'playback' && playbackTimeInfo) ? 'bottom-28 sm:bottom-24' : 'bottom-5'} pointer-events-none`}>
-                <div className="bg-base-100/80 backdrop-blur-sm p-1 sm:p-2 rounded-lg shadow-lg pointer-events-auto">
-                    <img src={contestDetails.logo} alt={`${contestDetails.name} logo`} className="max-h-16 sm:max-h-32 max-w-[120px] sm:max-w-xs object-contain" />
-                </div>
-            </div>
-          )
-        )}
-        {mode === 'playback' && playbackTimeInfo && (
-          <TimelineControls
+        {mode === 'playback' && playbackTimeInfo ? (
+          <ReplayBar
             currentTime={currentTime}
             startTime={playbackTimeInfo.start}
             endTime={playbackTimeInfo.end}
+            timeZone={staticNavTaskData?.time_zone}
             isPlaying={isPlaying}
             playbackSpeed={playbackSpeed}
             onPlayPause={() => setIsPlaying(p => !p)}
             onJumpToStart={() => setPlaybackTime(playbackTimeInfo.start)}
             onTimeChange={setPlaybackTime}
             onSpeedChange={setPlaybackSpeed}
+            events={replayEvents}
+            onEventSelect={(id) => {
+              const entry = visibleLogEntries.find(e => e.id === id);
+              if (entry) { setPanelTab('log'); jumpToLogEntry(entry); }
+            }}
           />
-        )}
+        ) : selectedContestant && staticNavTaskData ? (
+          <FollowBar
+            key={selectedContestant.id}
+            contestant={selectedContestant}
+            navigationTask={staticNavTaskData}
+            score={standings[selectedStanding]?.score ?? 0}
+            rank={selectedStanding >= 0 && selectedStanding < startedCount ? selectedStanding + 1 : null}
+            rankOf={startedCount}
+            gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
+            dangerData={dangerDataByContestant[selectedContestant.id]}
+            live={view === 'follow'}
+          />
+        ) : null}
       </div>
     </div>
   );

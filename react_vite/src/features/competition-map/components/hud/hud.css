@@ -1,0 +1,132 @@
+/*
+ * The live map's overlay (side panel, follow bar, replay bar): one dark instrument-panel surface docked to the edges of
+ * the map, so the ranking, the crew and the gate countdown read as one display instead of separate floating boxes.
+ *
+ * Barlow and Barlow Condensed are the phone app's and the MSFS client's typefaces (SIL Open Font License 1.1,
+ * Copyright 2017 The Barlow Project Authors, https://github.com/jpt/barlow; see fonts/OFL.txt).
+ */
+@font-face { font-family: "Barlow"; src: url("./fonts/barlow_regular.ttf") format("truetype"); font-weight: 400; font-display: swap; }
+@font-face { font-family: "Barlow"; src: url("./fonts/barlow_semibold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow Condensed"; src: url("./fonts/barlowcondensed_semibold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
+@font-face { font-family: "Barlow Condensed"; src: url("./fonts/barlowcondensed_bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
+
+/* The panel's tokens, shared by the panel, the menus and dialogs opened from it, and the annotation labels on the map. */
+.hud, .hud-theme, .leaflet-tooltip.hud-tooltip {
+    --hud-bg: rgb(17 24 36 / 0.94);
+    --hud-raised: #1c2636;
+    --hud-hover: #243045;
+    --hud-line: #2d394c;
+    --hud-text: #e9eef5;
+    --hud-muted: #93a1b5;
+    --hud-accent: #7b7bf2; /* the apps' indigo, lifted for a dark surface */
+    --hud-red: #e8434f; /* the logo's red */
+    --hud-ok: #3ccb7f;
+    --hud-warn: #f2a93b;
+}
+
+.hud {
+    font-family: "Barlow", system-ui, sans-serif;
+    color: var(--hud-text);
+    background: var(--hud-bg);
+    backdrop-filter: blur(8px);
+}
+
+/* DaisyUI components (the settings menu, the task information and terms dialogs) in the panel's colours. */
+.hud-theme {
+    --color-base-100: #1c2636;
+    --color-base-200: #172030;
+    --color-base-300: #2d394c;
+    --color-base-content: #e9eef5;
+    --color-primary: #7b7bf2;
+    --color-primary-content: #ffffff;
+    --color-secondary: #93a1b5;
+    --color-secondary-content: #111824;
+    font-family: "Barlow", system-ui, sans-serif;
+    color: var(--hud-text);
+    background-color: var(--color-base-100);
+}
+
+/* Annotation labels on the map (useMapLayers). */
+.leaflet-tooltip.hud-tooltip {
+    font-family: "Barlow", system-ui, sans-serif;
+    background: #111824;
+    color: var(--hud-text);
+    border: 1px solid var(--hud-line);
+    border-radius: 0.5rem;
+    box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+    padding: 0.5rem 0.625rem;
+    width: max-content;
+    max-width: 18rem;
+    white-space: normal;
+}
+.leaflet-tooltip-top.hud-tooltip::before { border-top-color: #111824; }
+.leaflet-tooltip-bottom.hud-tooltip::before { border-bottom-color: #111824; }
+.leaflet-tooltip-left.hud-tooltip::before { border-left-color: #111824; }
+.leaflet-tooltip-right.hud-tooltip::before { border-right-color: #111824; }
+.hud-tooltip .hud-tip-head { display: flex; justify-content: space-between; gap: 0.75rem; align-items: baseline; }
+.hud-tooltip .hud-tip-gate { font-family: "Barlow Condensed", "Barlow", sans-serif; font-weight: 700; font-size: 1.05rem; }
+.hud-tooltip .hud-tip-points { font-family: "Barlow Condensed", "Barlow", sans-serif; font-weight: 700; font-size: 1.05rem; font-variant-numeric: tabular-nums; }
+.hud-tooltip .hud-tip-message { font-size: 0.8125rem; line-height: 1.3; margin-top: 0.125rem; }
+.hud-tooltip .hud-tip-time { color: var(--hud-muted); font-size: 0.75rem; margin-top: 0.25rem; font-variant-numeric: tabular-nums; }
+
+/* Figures that change while you watch (times, scores, countdowns) are condensed and tabular, as on the apps. */
+.hud-figure {
+    font-family: "Barlow Condensed", "Barlow", system-ui, sans-serif;
+    font-variant-numeric: tabular-nums;
+    font-weight: 700;
+    letter-spacing: 0.01em;
+}
+
+.hud-muted { color: var(--hud-muted); }
+
+.hud-label {
+    color: var(--hud-muted);
+    font-size: 0.75rem;
+    line-height: 1rem;
+}
+
+.hud-divider { border-color: var(--hud-line); }
+
+.hud-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: 0.375rem;
+    height: 2rem;
+    min-width: 2rem;
+    padding: 0 0.5rem;
+    border-radius: 0.375rem;
+    color: var(--hud-text);
+    font-size: 0.8125rem;
+    font-weight: 600;
+    transition: background-color 120ms;
+}
+.hud-button:hover { background: var(--hud-hover); }
+.hud-button:focus-visible { outline: 2px solid var(--hud-accent); outline-offset: 1px; }
+.hud-button[aria-pressed="true"] { background: var(--hud-accent); color: #fff; }
+
+/* Live / Replay */
+.hud-segmented {
+    display: inline-flex;
+    padding: 2px;
+    border-radius: 0.5rem;
+    background: var(--hud-raised);
+}
+.hud-segmented .hud-button { height: 1.75rem; }
+
+.hud-row {
+    cursor: pointer;
+    border-left: 3px solid transparent;
+    transition: background-color 120ms;
+}
+.hud-row:hover { background: var(--hud-hover); }
+.hud-row:focus-visible { outline: 2px solid var(--hud-accent); outline-offset: -2px; }
+.hud-row[aria-selected="true"] { background: var(--hud-raised); border-left-color: var(--hud-accent); }
+
+.hud-scroll { scrollbar-width: thin; scrollbar-color: var(--hud-line) transparent; }
+
+.hud input[type="range"] { accent-color: var(--hud-accent); }
+
+@media (prefers-reduced-motion: reduce) {
+    .hud, .hud * { transition: none !important; }
+}

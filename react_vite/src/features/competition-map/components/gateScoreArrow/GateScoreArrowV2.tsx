@@ -19,7 +19,9 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     gateArrowData,
 }) => {
     const containerRef = useRef<HTMLDivElement>(null);
-    const [size, setSize] = useState({ width: 512, height: 90 }); // Default aspect ratio
+    // The scale has a set height rather than growing with its width as it used to: taller as it gets wider (an event
+    // display), so its labels stay readable from a distance.
+    const [size, setSize] = useState({ width: 512, height: 76 });
 
     useEffect(() => {
         const element = containerRef.current;
@@ -29,7 +31,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
             if (entries[0]) {
                 const { width } = entries[0].contentRect;
                 if (width > 0) {
-                    setSize({ width, height: (width * 90) / 512 });
+                    setSize({ width, height: width >= 1000 ? 112 : width >= 700 ? 96 : 76 });
                 }
             }
         });
@@ -153,8 +155,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
 
     return (
         <div className={"gate-score-arrow"} ref={containerRef}>
-            {/* Its own backdrop, like the crew card beside it: map labels would otherwise show through the text. */}
-            <div className="flex items-end px-3 py-1 mb-1 bg-base-100/80 backdrop-blur-md rounded-lg shadow-lg">
+            <div className="flex items-end pb-1.5">
                 <GateCountdownTimer
                     waypointName={displayData.waypoint_name}
                     secondsToRequiredTime={secondsLeft}
@@ -168,21 +169,19 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                     missed={displayData.missed}
                 />
             </div>
-            <div className={"gate-arrow-shadow"}>
-                <GateScoreArrowRenderer
-                    width={size.width}
-                    height={size.height}
-                    pointsPerSecond={getPointsPerSecond()}
-                    maximumTimingPenalty={getMaximumTimingPenalty()}
-                    gracePeriodBefore={getGracePeriodBefore()}
-                    gracePeriodAfter={getGracePeriodAfter()}
-                    crossingOffsetEstimate={displayData.estimated_crossing_offset}
-                    estimatedScore={displayData.estimated_score}
-                    contestantId={contestant.id}
-                    final={displayData.final}
-                    missed={displayData.missed}
-                />
-            </div>
+            <GateScoreArrowRenderer
+                width={size.width}
+                height={size.height}
+                pointsPerSecond={getPointsPerSecond()}
+                maximumTimingPenalty={getMaximumTimingPenalty()}
+                gracePeriodBefore={getGracePeriodBefore()}
+                gracePeriodAfter={getGracePeriodAfter()}
+                crossingOffsetEstimate={displayData.estimated_crossing_offset}
+                estimatedScore={displayData.estimated_score}
+                contestantId={contestant.id}
+                final={displayData.final}
+                missed={displayData.missed}
+            />
         </div>
     );
 };
