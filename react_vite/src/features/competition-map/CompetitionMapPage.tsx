@@ -450,6 +450,24 @@ export default function CompetitionMapPage() {
   });
 
   const overlayBarsRef = useRef<HTMLDivElement>(null);
+
+  /** Switches the display (the link's ?display=...), keeping the rest of the link; standard has no option. */
+  const changeDisplay = (next: 'standard' | 'screen' | 'broadcast') => {
+    const params = new URLSearchParams(searchParams);
+    if (next === 'standard') params.delete('display'); else params.set('display', next);
+    setSearchParams(params, { replace: true });
+    // The airfield screen is the standings and the map together: the panel opens.
+    if (next === 'screen') setIsRankingCollapsed(false);
+  };
+
+  // The site's header is drawn by the server, which leaves it out of a broadcast link; switching display here hides or
+  // shows it again.
+  useEffect(() => {
+    const header = document.querySelector<HTMLElement>('body > header');
+    if (!header) return;
+    header.style.display = display === 'broadcast' ? 'none' : '';
+    return () => { header.style.display = ''; };
+  }, [display]);
   /** The whole route in view; the follow camera waits until "Follow again". */
   const fitRoute = () => {
     const map = mapRef.current;
@@ -924,6 +942,25 @@ export default function CompetitionMapPage() {
                   ))}
                 </div>
               </li>
+              <li className="menu-title px-2 pb-1 pt-0.5">
+                <span className="text-xs font-normal opacity-70">Display</span>
+              </li>
+              <li className="pb-1">
+                <div className="join w-full p-0 hover:bg-transparent" role="group" aria-label="Display">
+                  {([['standard', 'Standard', 'The usual page'], ['screen', 'Screen', 'An airfield screen: larger type, goes round the contestants by itself'], ['broadcast', 'Broadcast', 'Only the map and the lower third, for a broadcast']] as ['standard' | 'screen' | 'broadcast', string, string][]).map(([value, label, hint]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`join-item btn btn-xs flex-1 ${(display ?? 'standard') === value ? 'btn-primary' : 'btn-ghost border-base-300'}`}
+                      aria-pressed={(display ?? 'standard') === value}
+                      title={hint}
+                      onClick={() => changeDisplay(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </li>
               <div className="divider my-1"></div>
               <li>
                 <label className="label cursor-pointer py-1">
@@ -1178,7 +1215,7 @@ export default function CompetitionMapPage() {
             isInitialLoad={!hasMapBeenFitted}
             onMapFit={setHasMapBeenFitted}
           />
-          <MapControls onFitRoute={fitRoute} hideWhenIdle={display === 'broadcast'} />
+          <MapControls display={display ?? 'standard'} onLeaveBroadcast={() => changeDisplay('standard')} onFitRoute={fitRoute} />
           {keysHelpOpen && <DisplayKeysHelp onClose={() => setKeysHelpOpen(false)} />}
           {camera.paused && (
             <button
