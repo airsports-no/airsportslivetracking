@@ -12,6 +12,9 @@ import { clampToSpan, flightSpan } from './utils/replaySpan';
 import { useFollowCamera } from './hooks/useFollowCamera';
 import { useCrossingNotices } from './hooks/useCrossingNotices';
 import { useDisplayRotation } from './hooks/useDisplayRotation';
+import { useDisplayKeys } from './hooks/useDisplayKeys';
+import { stepThrough } from './utils/displayKeys';
+import DisplayKeysHelp from './components/hud/DisplayKeysHelp';
 import { useToast } from './hooks/useToast'; // Import useToast
 import { fetchContestDetails, fetchPhotoObservations, fetchPhotos } from './api';
 
@@ -449,6 +452,34 @@ export default function CompetitionMapPage() {
     map.fitBounds(L.latLngBounds(points), { paddingTopLeft: [48, 48], paddingBottomRight: [48, 48 + covered], animate: true });
   };
 
+  // The displays' keys: follow by place or step through those in the air, the camera on or off, back to the field.
+  const [keysHelpOpen, setKeysHelpOpen] = useState(false);
+  const followFromKeys = (id: number | null) => {
+    setActiveLogId(null);
+    setPanelTab('ranking');
+    setSelectedContestantId(id);
+  };
+  useDisplayKeys({
+    enabled: display !== null,
+    onAction: (action) => {
+      if (action.kind === 'place') {
+        const row = action.place <= startedCount ? standings[action.place - 1] : undefined;
+        if (row) followFromKeys(row.id);
+      } else if (action.kind === 'step') {
+        const next = stepThrough(flyingIds, selectedContestantId, action.by);
+        if (next !== null) followFromKeys(next);
+      } else if (action.kind === 'camera') {
+        if (camera.paused) camera.resume(); else camera.pause();
+      } else if (action.kind === 'overview') {
+        if (keysHelpOpen) return setKeysHelpOpen(false);
+        followFromKeys(null);
+        fitRoute();
+      } else {
+        setKeysHelpOpen(open => !open);
+      }
+    },
+  });
+
   // Observation photo targets (task level, independent of any selected contestant) and the selected contestant's
   // registered observations. Both reveal where the targets are, so both follow the same rule as secret gates: the
   // task must display secrets and the viewer's own "show secrets" toggle must be on.
@@ -690,7 +721,7 @@ export default function CompetitionMapPage() {
   const firstWaitingIndex = standings.findIndex(s => s.state === 'Waiting...');
 
   // An unattended screen (?display=screen) goes round by itself: the whole field, then each flying contestant in turn.
-  const flyingIds = useMemo(() => standings.filter(r => r.is_active_flight).map(r => r.id as number), [standings]);
+  const flyingIds: number[] = standings.filter(r => r.is_active_flight).map(r => r.id as number);
   useDisplayRotation({
     enabled: display === 'screen' && mode === 'realtime',
     flyingIds,
@@ -1114,6 +1145,7 @@ export default function CompetitionMapPage() {
             onMapFit={setHasMapBeenFitted}
           />
           <MapControls onFitRoute={fitRoute} hideWhenIdle={display === 'broadcast'} />
+          {keysHelpOpen && <DisplayKeysHelp onClose={() => setKeysHelpOpen(false)} />}
           {camera.paused && (
             <button
               className={`hud hud-button absolute ${display === 'broadcast' ? 'top-3' : 'bottom-3'} left-1/2 -translate-x-1/2 z-[1100] px-4 h-10 rounded-full border hud-divider shadow-lg`}
