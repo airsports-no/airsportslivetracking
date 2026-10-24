@@ -7,6 +7,12 @@ function inField(target: EventTarget | null): boolean {
     return !!el && (el.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(el.tagName));
 }
 
+/** Whether the focus is on a control that uses the arrow keys itself (a button, a link, a slider, a menu). */
+function usesArrows(target: EventTarget | null): boolean {
+    const el = target as HTMLElement | null;
+    return !!el && (['BUTTON', 'A', 'SUMMARY'].includes(el.tagName) || !!el.closest?.('[role="slider"], [role="tablist"], [role="menu"], .leaflet-control'));
+}
+
 /** The display's keys (see displayKeyAction), while `enabled`. */
 export function useDisplayKeys({ enabled, onAction }: { enabled: boolean; onAction: (action: DisplayKeyAction) => void }) {
     const onActionRef = useRef(onAction);
@@ -19,6 +25,7 @@ export function useDisplayKeys({ enabled, onAction }: { enabled: boolean; onActi
             if (inField(e.target)) return;
             const action = displayKeyAction(e);
             if (!action) return;
+            if (action.kind === 'step' && usesArrows(e.target)) return;
             e.preventDefault();
             onActionRef.current(action);
         };

@@ -21,6 +21,9 @@ export function usePlayback(
     const playbackTimerRef = useRef<number | null>(null);
     const hasInitializedRef = useRef(false);
     const activeSpan = span ?? playbackTimeInfo;
+    // The span is a new object whenever the positions change: the timer depends on its ends only.
+    const spanStart = activeSpan?.start.getTime();
+    const spanEnd = activeSpan?.end.getTime();
 
     // Playback mode setup
     useEffect(() => {
@@ -48,7 +51,7 @@ export function usePlayback(
 
     // Playback timer
     useEffect(() => {
-        if (mode !== 'playback' || !activeSpan || !isPlaying) {
+        if (mode !== 'playback' || spanStart === undefined || spanEnd === undefined || !isPlaying) {
             if (playbackTimerRef.current) {
                 window.clearInterval(playbackTimerRef.current);
                 playbackTimerRef.current = null;
@@ -62,10 +65,10 @@ export function usePlayback(
         playbackTimerRef.current = window.setInterval(() => {
             setPlaybackTime(prevTime => {
                 const newTime = new Date(prevTime.getTime() + timeStepMs);
-                if (newTime >= activeSpan.end) {
+                if (newTime.getTime() >= spanEnd) {
                     if(playbackTimerRef.current) clearInterval(playbackTimerRef.current);
                     setIsPlaying(false);
-                    return activeSpan.end;
+                    return new Date(spanEnd);
                 }
                 return newTime;
             });
@@ -77,7 +80,7 @@ export function usePlayback(
                 playbackTimerRef.current = null;
             }
         };
-    }, [mode, playbackSpeed, activeSpan, isPlaying]);
+    }, [mode, playbackSpeed, spanStart, spanEnd, isPlaying]);
 
     const handleTimeChange = (time: Date) => {
         setIsPlaying(false);

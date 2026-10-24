@@ -239,7 +239,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 // Update gateArrowDataByContestant with the gate_distance_and_estimate from the crossing_time message
                 setGateArrowDataByContestant(prev => ({ ...prev, [crossingContestantId]: gateData }));
                 if (gateData.final) {
-                    const key = `${crossingContestantId}-${gateData.waypoint_name}`;
+                    // The position time tells a gate crossed again (a procedure turn, a restart) from the same message twice.
+                    const key = `${crossingContestantId}-${gateData.waypoint_name}-${gateData.position_time ?? gateData.received_at}`;
                     setLiveCrossings(prev => prev.some(c => c.key === key) ? prev : [...prev.slice(-50), {
                         key,
                         contestantId: crossingContestantId,

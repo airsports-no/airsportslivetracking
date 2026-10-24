@@ -16,7 +16,7 @@ function escapeHtml(text: string): string {
  * the gate's grace period and red outside it, fading after a few seconds: live from the server's crossing messages,
  * in a replay from the gate results as the replay passes them. Secret and unknown-leg gates only where secrets show.
  */
-export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCrossings, currentTime, showSecrets }: {
+export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCrossings, currentTime, showSecrets, playbackSpeed = 1 }: {
     mapRef: RefObject<L.Map | null>;
     mode: 'realtime' | 'playback';
     navTask: NavigationTask | null;
@@ -24,17 +24,21 @@ export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCro
     liveCrossings: CrossingEvent[];
     currentTime: Date;
     showSecrets: boolean;
+    playbackSpeed?: number;
 }) {
     const shownRef = useRef<{ marker: L.Marker; timer: number }[]>([]);
     const seenLiveRef = useRef(new Set<string>());
     const lastReplayTimeRef = useRef<Date | null>(null);
 
-    const show = useCallback((event: CrossingEvent) => {
+    /** 'wait' when the map or the data is not there yet (try again later); 'skip' when it is not to be shown. */
+    const show = useCallback((event: CrossingEvent): 'shown' | 'wait' | 'skip' => {
         const map = mapRef.current;
-        const waypoint = navTask?.route.waypoints.find(w => w.name === event.gate);
-        if (!map || !navTask || !waypoint) return;
-        if ((waypoint.type === 'secret' || waypoint.type === 'ul') && !showSecrets) return;
+        if (!map || !navTask) return 'wait';
+        const waypoint = navTask.route.waypoints.find(w => w.name === event.gate);
+        if (!waypoint) return 'skip';
+        if ((waypoint.type === 'secret' || waypoint.type === 'ul') && !showSecrets) return 'skip';
         const contestant = contestants.find(c => c.id === event.contestantId);
+        if (!contestant) return 'wait';
         const name = contestant?.team?.crew?.member1?.last_name ?? `#${contestant?.contestant_number ?? ''}`;
         const rule = navTask.scorecard?.gatescore_set?.find(g => g.gate_type === waypoint.type);
         const offset = Math.round(event.offsetSeconds);
@@ -60,6 +64,7 @@ export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCro
             window.clearTimeout(oldest.timer);
             oldest.marker.remove();
         }
+        return 'shown';
     }, [mapRef, navTask, contestants, showSecrets]);
 
     // Live: each crossing once, as it arrives.
@@ -67,8 +72,8 @@ export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCro
         if (mode !== 'realtime') return;
         for (const event of liveCrossings) {
             if (seenLiveRef.current.has(event.key)) continue;
-            seenLiveRef.current.add(event.key);
-            show(event);
+            // One that has to wait is tried again when the map or the contestants have arrived.
+            if (show(event) !== 'wait') seenLiveRef.current.add(event.key);
         }
     }, [mode, liveCrossings, show]);
 
@@ -81,8 +86,8 @@ export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCro
         const from = lastReplayTimeRef.current;
         lastReplayTimeRef.current = currentTime;
         if (!from) return;
-        for (const event of replayCrossings(contestants, from, currentTime)) show(event);
-    }, [mode, currentTime, contestants, show]);
+        for (const event of replayCrossings(contestants, from, currentTime, playbackSpeed)) show(event);
+    }, [mode, currentTime, contestants, show, playbackSpeed]);
 
     // Nothing is left behind when the page goes.
     useEffect(() => () => {

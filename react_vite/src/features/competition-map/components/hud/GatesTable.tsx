@@ -29,10 +29,13 @@ export default function GatesTable({
 }: Props) {
     if (gateResults.length === 0) return null;
     const timing = gateResults.reduce((sum, r) => sum + r.points, 0);
-    const timingEntries = new Set(entries.filter(e => e.planned && e.actual).map(e => e.id));
-    // "missing gate" entries are already in the gates' points.
+    // Only the gates shown count as gate timing: a hidden gate's points stay in the other penalties, so the two add up
+    // to the whole score.
+    const shown = new Set(gateResults.map(r => r.gate));
+    const inGates = (e: ScoreLogEntry) =>
+        shown.has(e.gate) && ((e.planned && e.actual) || e.message.startsWith('missing gate'));
     const other = entries
-        .filter(e => !timingEntries.has(e.id) && !e.message.startsWith('missing gate'))
+        .filter(e => !inGates(e))
         .reduce((sum, e) => sum + e.points, 0);
     const colour = (points: number) =>
         points === 0 ? 'var(--hud-muted)' : (pointsArePenalties ? points > 0 : points < 0) ? 'var(--hud-red)' : 'var(--hud-ok)';

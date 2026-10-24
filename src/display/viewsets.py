@@ -41,7 +41,6 @@ from rest_framework.viewsets import GenericViewSet, ModelViewSet, ReadOnlyModelV
 from display.contestant_scheduling.schedule_contestants import schedule_and_create_contestants
 from display.filters import ContestFilter, NavigationTaskFilter
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
-from display.services.gate_results import gate_results_for
 from display.flight_order_and_maps.map_plotter import build_effective_route_distance
 from display.flight_order_and_maps.map_constants import LANDSCAPE
 from display.flight_order_and_maps.map_plotter_shared_utilities import (
@@ -172,6 +171,7 @@ from display.serialisers import (
     TodaysNavigationSerialiser,
     TrackAnnotationSerialiser,
 )
+from display.services.gate_results import gate_results_for
 from display.services.map_access import can_view_task_map, map_path_for
 from display.services.people_search import user_identities
 from display.services.access_resolver import resolve_contest_access
@@ -3061,7 +3061,8 @@ SCORE_DATA_FORMAT = 2
 
 def score_data_version(contestant) -> str:
     """The version in the score data's URL: the contestant's track and score versions and the data's format."""
-    return f"{contestant.track_version}-{contestant.score_version}-f{SCORE_DATA_FORMAT}"
+    secrets = int(contestant.navigation_task.display_secrets)
+    return f"{contestant.track_version}-{contestant.score_version}-f{SCORE_DATA_FORMAT}s{secrets}"
 
 
 def generate_score_data(contestant_pk):

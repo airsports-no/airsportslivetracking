@@ -453,6 +453,7 @@ export default function CompetitionMapPage() {
     liveCrossings,
     currentTime,
     showSecrets: !!(staticNavTaskData?.display_secrets && userShowSecrets),
+    playbackSpeed,
   });
 
   const overlayBarsRef = useRef<HTMLDivElement>(null);
