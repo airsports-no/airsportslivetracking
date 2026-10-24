@@ -109,6 +109,8 @@ For a task that contestants fly on their own at different times, for example one
 *   **When a contestant starts the task:** an e-mail with a link to the live map as soon as scoring of their flight starts.
 *   **When a contestant has finished, with their score:** an e-mail about a minute after the flight ends, saying whether they crossed the finish line or their tracking window ran out, with the score calculated from the track.
 
+For a screen at the airfield, or the map on air in a broadcast, the live map has two displays, chosen under *Display* in its settings or with `?display=screen` and `?display=broadcast` in the address: see [The Live Map](/docs/15_Live_Map#airfield-screens).
+
 Everybody who can manage the contest gets the e-mails, except a manager who is flying the task themselves. Each contestant triggers each e-mail once: recalculating a track later does not send it again. Both are off by default.
 
 ---

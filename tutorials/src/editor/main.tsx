@@ -2,7 +2,7 @@ import { Player, type PlayerRef } from "@remotion/player";
 import { useCallback, useEffect, useMemo, useRef, useState } from "react";
 import { createRoot } from "react-dom/client";
 import { TutorialVideo } from "../remotion/TutorialVideo";
-import { computeEdit, STEP_LEAD_MS, stepAnchor } from "../shared/edit";
+import { computeEdit, STEP_LEAD_MS, stepAnchor, stepOrder } from "../shared/edit";
 import { INTRO_MS, OUTRO_MS, TRANSITION_MS, VIDEO } from "../shared/layout";
 import { DEFAULT_EDIT, type EditSettings, type Step, type Timeline } from "../shared/timeline";
 import { addedLineKeys, type AddedLine, type StepTiming, type Timing, type Voice } from "../shared/timing";
@@ -225,15 +225,19 @@ function App() {
     setSelected(null);
   };
 
-  const save = useCallback(async () => {
+  // Whether it was saved: what builds on the saved timing file (writing into the script, the voice) stops when it was not,
+  // or it would work from the old file and the additions would be lost.
+  const save = useCallback(async (): Promise<boolean> => {
     setBusy("Saving");
     try {
       const response = await fetch("/api/timing", { method: "POST", body: JSON.stringify(tidied) });
       if (!response.ok) throw new Error((await response.json()).error);
       setSaved(JSON.stringify(tidied));
       setMessage(`Saved scripts/${data?.name}.timing.ts`);
+      return true;
     } catch (error) {
       setMessage(`Not saved: ${error}`);
+      return false;
     } finally {
       setBusy(null);
     }
@@ -249,7 +253,7 @@ function App() {
     ) {
       return;
     }
-    await save();
+    if (!(await save())) return;
     const response = await fetch("/api/write-script", { method: "POST" });
     const result = await response.json();
     if (!response.ok) {
@@ -267,7 +271,7 @@ function App() {
   };
 
   const makeVoice = async () => {
-    await save();
+    if (!(await save())) return;
     setBusy("Making the voice");
     try {
       const response = await fetch("/api/narrate", { method: "POST" });
@@ -309,14 +313,15 @@ function App() {
   const selectedStep = timeline.steps.find((step) => step.id === selected);
   const lineKeys = addedLineKeys(tidied.lines ?? []);
   const selectedLine = lineKeys.indexOf(selected ?? "");
-  // The chapters in the recording's time, recorded and added (with their index in the timing file), for the list
+  // The chapters in the recording's time, recorded and added (with their index in the timing file), for the list; an
+  // added chapter is shown just before its own step, after the step ahead even when stepAnchor puts both at one moment
   const chapterStarts = [
-    ...(timeline.chapters ?? []).map((chapter) => ({ t: chapter.t, title: chapter.title, added: -1 })),
+    ...(timeline.chapters ?? []).map((chapter) => ({ t: chapter.t, title: chapter.title, added: -1, order: -Infinity })),
     ...(tidied.chapters ?? []).flatMap((chapter, index) => {
       const t = stepAnchor(timeline, chapter.at);
-      return t === undefined ? [] : [{ t, title: chapter.title, added: index }];
+      return t === undefined ? [] : [{ t, title: chapter.title, added: index, order: stepOrder(timeline, chapter.at) }];
     }),
-  ].sort((a, b) => a.t - b.t);
+  ].sort((a, b) => a.t - b.t || a.order - b.order);
   let shownChapter = 0;
 
   return (
@@ -453,10 +458,15 @@ function App() {
           )}
         </section>
         <aside ref={stepList}>
-          {timeline.steps.map((step) => {
-            // The chapters that start before this step, and the lines added before it
+          {timeline.steps.map((step, index) => {
+            // The chapters that start before this step, and the lines added before it (an added chapter at the same
+            // moment as this step belongs to a later step: see chapterStarts)
             const headings = [];
-            while (shownChapter < chapterStarts.length && chapterStarts[shownChapter].t <= step.t) {
+            while (
+              shownChapter < chapterStarts.length &&
+              (chapterStarts[shownChapter].t < step.t ||
+                (chapterStarts[shownChapter].t === step.t && chapterStarts[shownChapter].order < index))
+            ) {
               headings.push(chapterStarts[shownChapter++]);
             }
             const lines = (tidied.lines ?? []).flatMap((line, index) => (line.at === step.id ? [{ line, index }] : []));

@@ -91,16 +91,30 @@ export function stepAnchor(timeline: Timeline, id: string): number | undefined {
   return Math.max(timeline.steps[index - 1]?.t ?? 0, timeline.steps[index].t - STEP_LEAD_MS);
 }
 
+// Where something added before a step comes in the order of the steps: just before that step, so it stays after the
+// step ahead even when stepAnchor puts both at the same moment (steps closer together than STEP_LEAD_MS)
+export function stepOrder(timeline: Timeline, id: string): number {
+  return timeline.steps.findIndex((step) => step.id === id) - 0.5;
+}
+
 // The timing file's added narration lines as say() lines at their steps (named by addedLineKeys), with what the
-// timing file says about each
-export function addedSays(timeline: Timeline, timing: Timing): (Say & { delayMs?: number })[] {
+// timing file says about each, the step they are added before (at) and their place among the steps (order)
+export function addedSays(timeline: Timeline, timing: Timing): (Say & { delayMs?: number; at: string; order: number })[] {
   const lines = timing.lines ?? [];
   const keys = addedLineKeys(lines);
   return lines.flatMap((line, index) => {
     const t = stepAnchor(timeline, line.at);
     return t === undefined
       ? []
-      : [{ t, step: keys[index], text: line.text, wait: line.wait ?? true, delayMs: line.delayMs }];
+      : [{
+          t,
+          step: keys[index],
+          text: line.text,
+          wait: line.wait ?? true,
+          delayMs: line.delayMs,
+          at: line.at,
+          order: stepOrder(timeline, line.at),
+        }];
   });
 }
 
@@ -242,17 +256,20 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
   }
   const afterLineOf = (step: { id: string; label: string }) =>
     timing.steps?.[step.id]?.afterLine ?? step.label.startsWith("showPdf(");
-  // The recorded steps and the added lines, in the order they happen: an added line comes before its step
+  // The recorded steps and the added lines, in the order they happen: an added line comes before its step, and after
+  // the step ahead of it even when both are at the same moment
   const added = addedSays(timeline, timing);
   const events = [
-    ...timeline.steps.map((step) => ({ t: step.t, before: 1, step, added: undefined })),
-    ...added.map((line) => ({ t: line.t, before: 0, step: undefined, added: line })),
-  ].sort((a, b) => a.t - b.t || a.before - b.before);
+    ...timeline.steps.map((step, index) => ({ t: step.t, order: index, step, added: undefined })),
+    ...added.map((line) => ({ t: line.t, order: line.order, step: undefined, added: line })),
+  ].sort((a, b) => a.t - b.t || a.order - b.order);
   let previousEnd = -Infinity;
   let waitedFor: number | null = null;
   let previousT = 0;
-  // Where the first line at each moment of the recording starts: a chapter there starts with it
+  // Where the first recorded line at each moment of the recording starts, and the first added line before each step: a
+  // chapter there starts with it
   const lineStarts = new Map<number, number>();
+  const addedLineStarts = new Map<string, number>();
   for (const event of events) {
     const say = event.added ?? (event.step && says.get(event.step.id));
     // A step that waits for the line before: after one that is waited for, or that is set to (afterLine; showPdf by
@@ -280,7 +297,9 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
     hold(say.t, previousEnd + NARRATION_GAP_MS - (toOut(say.t) + delay));
     const start = toOut(say.t) + delay;
     narration.push({ step: say.step, start, durationMs, text, file: voiced?.file, pauses: voiced?.pauses ?? [] });
-    if (!lineStarts.has(say.t)) lineStarts.set(say.t, start);
+    if (event.added) {
+      if (!addedLineStarts.has(event.added.at)) addedLineStarts.set(event.added.at, start);
+    } else if (!lineStarts.has(say.t)) lineStarts.set(say.t, start);
     previousEnd = start + durationMs;
     if ((event.added ? undefined : timing.steps?.[say.step]?.wait) ?? say.wait) waitedFor = previousEnd;
   }
@@ -293,15 +312,18 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
     .filter(([start]) => start > 0 && start < timeline.durationMs)
     .map(([start, end]) => ({ outMs: toOut(end), fromSrcMs: start }));
   // The chapters, recorded and added, where they start in the video
+  // An added chapter starts with the first line added before its step (not with one of the step ahead, which can be at
+  // the same moment); a recorded one with the first line at its moment
   const addedChapters = (timing.chapters ?? []).flatMap((chapter) => {
     const t = stepAnchor(timeline, chapter.at);
     if (t === undefined) warnings.push(`The timing file adds a chapter at a step the recording does not have: ${chapter.at}`);
-    return t === undefined ? [] : [{ src: t, title: chapter.title }];
+    return t === undefined ? [] : [{ t: addedLineStarts.get(chapter.at) ?? toOut(t), title: chapter.title }];
   });
-  const recordedChapters = (timeline.chapters ?? []).map((chapter) => ({ src: chapter.t, title: chapter.title }));
-  const chapters = [...recordedChapters, ...addedChapters]
-    .sort((a, b) => a.src - b.src)
+  const recordedChapters = (timeline.chapters ?? []).map((chapter) => ({
     // Not after the picture held for its first line, which is at the same moment
-    .map((chapter) => ({ t: lineStarts.get(chapter.src) ?? toOut(chapter.src), title: chapter.title }));
+    t: lineStarts.get(chapter.t) ?? toOut(chapter.t),
+    title: chapter.title,
+  }));
+  const chapters = [...recordedChapters, ...addedChapters].sort((a, b) => a.t - b.t);
   return { segments, durationMs, jumps, narration, chapters, warnings, toOut, toSrc };
 }

@@ -1,7 +1,8 @@
 import React, { useState, useEffect } from 'react';
 import { fetchDisclaimerHtml } from '../api'; // Import new API function
 
-const Disclaimer = () => {
+/** The "Terms and conditions" link and its dialog; [className] places the link (by default over the map's corner). */
+const Disclaimer = ({ className = "absolute bottom-4 left-4 z-[1100] text-xs link link-hover" }: { className?: string }) => {
     const [isOpen, setIsOpen] = useState(false);
     const [disclaimer, setDisclaimer] = useState('');
 
@@ -22,20 +23,20 @@ const Disclaimer = () => {
 
     return (
         <>
-            <a href="#" className="absolute bottom-4 left-4 z-[1100] text-xs link link-hover" onClick={openModal}>
+            <a href="#" className={className} onClick={openModal}>
                 Terms and Conditions
             </a>
 
             {isOpen && (
                 <dialog id="disclaimer_modal" className="modal modal-open z-[6000]" onClick={closeModal}>
-                    <div className="modal-box w-11/12 max-w-5xl relative my-8" onClick={e => e.stopPropagation()}>
+                    <div className="modal-box hud-theme w-11/12 max-w-5xl relative my-8" onClick={e => e.stopPropagation()}>
                         {/* Top close button */}
                         <form method="dialog">
                             <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onClick={closeModal}>✕</button>
                         </form>
                         
                         <h3 className="font-bold text-lg mt-4">Terms and Conditions</h3>
-                        <div className="py-4 prose max-w-none" dangerouslySetInnerHTML={{ __html: disclaimer }} />
+                        <div className="py-4 prose prose-invert max-w-none" dangerouslySetInnerHTML={{ __html: disclaimer }} />
                         <div className="modal-action">
                             <button className="btn" onClick={closeModal}>Close</button>
                         </div>
