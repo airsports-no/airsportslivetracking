@@ -153,7 +153,8 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
 
     return (
         <div className={"gate-score-arrow"} ref={containerRef}>
-            <div className="flex items-end p-1">
+            {/* Its own backdrop, like the crew card beside it: map labels would otherwise show through the text. */}
+            <div className="flex items-end px-3 py-1 mb-1 bg-base-100/80 backdrop-blur-md rounded-lg shadow-lg">
                 <GateCountdownTimer
                     waypointName={displayData.waypoint_name}
                     secondsToRequiredTime={secondsLeft}

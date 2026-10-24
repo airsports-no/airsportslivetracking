@@ -29,7 +29,7 @@ const TeamPresentation = ({ contestant, score, dangerData, gateArrowData, naviga
                 )
             ) : (
                 navigationTask && (
-                    <div className="flex-shrink-0 hidden sm:block pointer-events-auto" style={{ width: '512px' }}>
+                    <div className="flex-shrink-0 pointer-events-auto" style={{ width: '512px' }}>
                         <GateScoreArrowV2
                             contestant={contestant}
                             navigationTask={navigationTask}
