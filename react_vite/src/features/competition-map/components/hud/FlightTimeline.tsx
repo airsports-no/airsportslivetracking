@@ -2,7 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Check, X } from 'lucide-react';
 import { GateResult, ScoreAnnotation, ScoreLogEntry, Waypoint } from '../../types';
 import { shortScoreText } from '../../utils/scoreText';
-import { gateStates } from '../../utils/gateStates';
+import { gateStates, inCrossingOrder } from '../../utils/gateStates';
 
 interface Props {
     /** Each gate of the route and how it went (the score data's gate_results). */
@@ -20,6 +20,8 @@ interface Props {
     now: Date;
     /** Misses count as soon as the server reports them: live, and at the end of a replay (see gateStates). */
     missesKnown: boolean;
+    /** The pilot chooses the order (turnpoint hunt): gates in the order crossed, none marked next. */
+    crossingOrder?: boolean;
     timeZone?: string;
     pointsArePenalties: boolean;
     onSelectEntry: (entry: ScoreLogEntry) => void;
@@ -43,22 +45,25 @@ function inMinutes(seconds: number) {
  * map on it.
  */
 export default function FlightTimeline({
-    gateResults, waypoints, timesKnown, entries, annotations, showSecrets, now, missesKnown, timeZone, pointsArePenalties,
+    gateResults, waypoints, timesKnown, entries, annotations, showSecrets, now, missesKnown, crossingOrder = false, timeZone, pointsArePenalties,
     onSelectEntry, onSelectAnnotation, onSelectGate,
 }: Props) {
     const rows = useMemo(() => {
         const visible = gateResults.filter(r => showSecrets || !r.hidden);
-        const states = gateStates(visible, now, missesKnown);
+        const ordered = crossingOrder
+            ? inCrossingOrder(visible, now, missesKnown)
+            : gateStates(visible, now, missesKnown).map((state, i) => ({ result: visible[i], state }));
         // Penalties that are not a gate's own timing result (corridor, prohibited areas, ...) under the gate they belong to.
         const penaltiesBy = new Map<string, ScoreLogEntry[]>();
         for (const e of entries) {
-            if (e.points === 0 || (e.planned && e.actual)) continue;
+            // A gate's own timing result and its miss show on the gate's row.
+            if (e.points === 0 || (e.planned && e.actual) || e.message.startsWith('missing gate')) continue;
             const list = penaltiesBy.get(e.gate) ?? [];
             list.push(e);
             penaltiesBy.set(e.gate, list);
         }
-        return visible.map((result, index) => ({ result, state: states[index], penalties: penaltiesBy.get(result.gate) ?? [] }));
-    }, [gateResults, entries, showSecrets, now, missesKnown]);
+        return ordered.map(({ result, state }) => ({ result, state, penalties: penaltiesBy.get(result.gate) ?? [] }));
+    }, [gateResults, entries, showSecrets, now, missesKnown, crossingOrder]);
 
     // Keep the next gate in view as the flight moves on.
     const nextRef = useRef<HTMLLIElement>(null);
@@ -104,7 +109,7 @@ export default function FlightTimeline({
                                 {required && <span className="hud-figure hud-muted text-sm font-semibold">{clock(required, timeZone)}</span>}
                             </span>
                             <span className="hud-figure text-sm text-right">
-                                {missed ? <span style={{ color: 'var(--hud-red)' }}>Missed</span>
+                                {missed ? <span style={{ color: 'var(--hud-red)' }}>Missed{result.points ? ` +${result.points.toFixed(0)}` : ''}</span>
                                     // Green within 2 s, the apps' "on time"; the points, if any, are in the log.
                                     : offset !== null ? <span style={{ color: Math.abs(offset) <= 2 ? 'var(--hud-ok)' : 'var(--hud-warn)' }}>{offset > 0 ? '+' : ''}{offset} s</span>
                                     : next && required ? <span style={{ color: 'var(--hud-accent)' }}>{required > now ? `in ${inMinutes((required.getTime() - now.getTime()) / 1000)}` : 'now'}</span>

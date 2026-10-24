@@ -690,6 +690,11 @@ export default function CompetitionMapPage() {
 
   const pointsArePenalties = staticNavTaskData?.score_sorting_direction === 'asc';
 
+  // A flight list under the ranking only where gates make the flight: not for a poker run (its gates deal cards, and
+  // the follow bar shows them) or a landing task, whose crossings the gate results do not record.
+  const taskTypes = staticNavTaskData?.scorecard?.task_type ?? [];
+  const hasFlightList = !taskTypes.some(t => t.includes('poker') || t.includes('landing'));
+
   // Log entries with a place on the map (an annotation): those a click can show.
   const annotationByLogId = useMemo(() => {
     const byLog = new Map<number, { id: number; latitude: number; longitude: number }>();
@@ -998,7 +1003,7 @@ export default function CompetitionMapPage() {
               onSelect={jumpToLogEntry}
             />
           </>
-        ) : selectedContestant && staticNavTaskData ? (
+        ) : selectedContestant && staticNavTaskData && hasFlightList ? (
           // Following someone: the ranking (only as tall as its rows) with their flight under it, so the panel shows both
           // where they stand and how the flight is going. On a phone the panel is too small for both: ranking only.
           <div className="flex flex-col h-full">
@@ -1027,6 +1032,7 @@ export default function CompetitionMapPage() {
                   showSecrets={!!(staticNavTaskData.display_secrets && userShowSecrets)}
                   now={currentTime}
                   missesKnown={mode === 'realtime' || (!!playbackTimeInfo && currentTime >= playbackTimeInfo.end)}
+                  crossingOrder={staticNavTaskData.task_subtype === 'turnpoint_hunt'}
                   timeZone={staticNavTaskData.time_zone}
                   pointsArePenalties={pointsArePenalties}
                   onSelectEntry={jumpToLogEntry}

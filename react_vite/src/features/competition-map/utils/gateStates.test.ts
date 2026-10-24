@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { GateResult } from '../types';
-import { gateStates } from './gateStates';
+import { gateStates, inCrossingOrder } from './gateStates';
 
 const gate = (name: string, actual: string | null, missed = false): GateResult => ({
     gate: name, type: 'tp', time_check: true, hidden: false, planned: null, actual, offset_seconds: null, missed, points: 0,
@@ -28,6 +28,12 @@ describe('gateStates', () => {
         const unfinished = [gate('SP', '2026-10-24T10:00:00Z'), gate('TP1', null, true), gate('FP', null)];
         expect(gateStates(unfinished, new Date('2026-10-24T11:00:00Z'))).toEqual(['crossed', 'next', 'ahead']);
         expect(gateStates(unfinished, new Date('2026-10-24T11:00:00Z'), true)).toEqual(['crossed', 'missed', 'next']);
+    });
+
+    it('lists gates in crossing order where the pilot chooses the order', () => {
+        const hunt = [gate('A', '2026-10-24T10:20:00Z'), gate('B', null), gate('C', '2026-10-24T10:10:00Z')];
+        expect(inCrossingOrder(hunt, new Date('2026-10-24T11:00:00Z')).map(r => `${r.result.gate} ${r.state}`))
+            .toEqual(['C crossed', 'A crossed', 'B ahead']);
     });
 
     it('has the starting point next before anything is crossed', () => {

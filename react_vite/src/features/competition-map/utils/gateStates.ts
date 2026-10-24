@@ -10,6 +10,22 @@ export type GateState = 'crossed' | 'missed' | 'next' | 'ahead';
  * The next gate is the first after the last crossed or missed one.
  */
 export function gateStates(results: GateResult[], now: Date, missesKnown = false): GateState[] {
+    return gateStatesIn(results, now, missesKnown, true);
+}
+
+/**
+ * The gates in the order they were crossed, for tasks where the pilot chooses the order (turnpoint hunt): crossed ones
+ * by their time, then the rest in route order. No gate is "next", as the route does not say which one comes next.
+ */
+export function inCrossingOrder(results: GateResult[], now: Date, missesKnown = false): { result: GateResult; state: GateState }[] {
+    const states = gateStatesIn(results, now, missesKnown, false);
+    const rows = results.map((result, i) => ({ result, state: states[i], i }));
+    const crossedAt = (r: { result: GateResult; state: GateState }) =>
+        r.state === 'crossed' ? new Date(r.result.actual!).getTime() : Infinity;
+    return rows.sort((a, b) => crossedAt(a) - crossedAt(b) || a.i - b.i).map(({ result, state }) => ({ result, state }));
+}
+
+function gateStatesIn(results: GateResult[], now: Date, missesKnown: boolean, routeOrder: boolean): GateState[] {
     const crossed = results.map(r => r.actual !== null && new Date(r.actual) <= now);
     const lastCrossed = crossed.lastIndexOf(true);
     const states: GateState[] = results.map((r, i) => {
@@ -17,6 +33,7 @@ export function gateStates(results: GateResult[], now: Date, missesKnown = false
         if (r.missed && (missesKnown || i < lastCrossed)) return 'missed';
         return 'ahead';
     });
+    if (!routeOrder) return states;
     const lastDone = Math.max(lastCrossed, states.lastIndexOf('missed'));
     const next = states.findIndex((s, i) => s === 'ahead' && i > lastDone);
     if (next >= 0) states[next] = 'next';
