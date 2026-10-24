@@ -10,10 +10,16 @@
 @font-face { font-family: "Barlow Condensed"; src: url("./fonts/barlowcondensed_semibold.ttf") format("truetype"); font-weight: 600; font-display: swap; }
 @font-face { font-family: "Barlow Condensed"; src: url("./fonts/barlowcondensed_bold.ttf") format("truetype"); font-weight: 700; font-display: swap; }
 
-/* The panel's tokens, shared by the panel, the menus and dialogs opened from it, and the annotation labels on the map. */
+/*
+ * The panel's tokens, shared by the panel, the menus and dialogs opened from it, and the annotation labels on the map.
+ * Dark by default; the page root's data-hud="light" (useMapAppearance: the device's setting, or the viewer's choice in
+ * the settings menu) switches them to light.
+ */
 .hud, .hud-theme, .leaflet-tooltip.hud-tooltip {
     --hud-bg: rgb(17 24 36 / 0.94);
+    --hud-surface: #111824; /* solid: labels, the pointer's label */
     --hud-raised: #1c2636;
+    --hud-sunken: #172030;
     --hud-hover: #243045;
     --hud-line: #2d394c;
     --hud-text: #e9eef5;
@@ -22,6 +28,23 @@
     --hud-red: #e8434f; /* the logo's red */
     --hud-ok: #3ccb7f;
     --hud-warn: #f2a93b;
+    --hud-shadow: rgb(0 0 0 / 0.35);
+}
+
+[data-hud="light"] :is(.hud, .hud-theme, .leaflet-tooltip.hud-tooltip) {
+    --hud-bg: rgb(250 251 253 / 0.95);
+    --hud-surface: #ffffff;
+    --hud-raised: #edf0f5;
+    --hud-sunken: #f4f6f9;
+    --hud-hover: #e2e7ef;
+    --hud-line: #d2d9e3;
+    --hud-text: #16202d;
+    --hud-muted: #5a6a7e;
+    --hud-accent: #4b4bd0; /* deeper, for contrast on white */
+    --hud-red: #cc2b38;
+    --hud-ok: #17864e;
+    --hud-warn: #a86d10;
+    --hud-shadow: rgb(15 23 42 / 0.18);
 }
 
 .hud {
@@ -33,14 +56,14 @@
 
 /* DaisyUI components (the settings menu, the task information and terms dialogs) in the panel's colours. */
 .hud-theme {
-    --color-base-100: #1c2636;
-    --color-base-200: #172030;
-    --color-base-300: #2d394c;
-    --color-base-content: #e9eef5;
-    --color-primary: #7b7bf2;
+    --color-base-100: var(--hud-raised);
+    --color-base-200: var(--hud-sunken);
+    --color-base-300: var(--hud-line);
+    --color-base-content: var(--hud-text);
+    --color-primary: var(--hud-accent);
     --color-primary-content: #ffffff;
-    --color-secondary: #93a1b5;
-    --color-secondary-content: #111824;
+    --color-secondary: var(--hud-muted);
+    --color-secondary-content: var(--hud-surface);
     font-family: "Barlow", system-ui, sans-serif;
     color: var(--hud-text);
     background-color: var(--color-base-100);
@@ -49,20 +72,20 @@
 /* Annotation labels on the map (useMapLayers). */
 .leaflet-tooltip.hud-tooltip {
     font-family: "Barlow", system-ui, sans-serif;
-    background: #111824;
+    background: var(--hud-surface);
     color: var(--hud-text);
     border: 1px solid var(--hud-line);
     border-radius: 0.5rem;
-    box-shadow: 0 6px 18px rgb(0 0 0 / 0.35);
+    box-shadow: 0 6px 18px var(--hud-shadow);
     padding: 0.5rem 0.625rem;
     width: max-content;
     max-width: 18rem;
     white-space: normal;
 }
-.leaflet-tooltip-top.hud-tooltip::before { border-top-color: #111824; }
-.leaflet-tooltip-bottom.hud-tooltip::before { border-bottom-color: #111824; }
-.leaflet-tooltip-left.hud-tooltip::before { border-left-color: #111824; }
-.leaflet-tooltip-right.hud-tooltip::before { border-right-color: #111824; }
+.leaflet-tooltip-top.hud-tooltip::before { border-top-color: var(--hud-surface); }
+.leaflet-tooltip-bottom.hud-tooltip::before { border-bottom-color: var(--hud-surface); }
+.leaflet-tooltip-left.hud-tooltip::before { border-left-color: var(--hud-surface); }
+.leaflet-tooltip-right.hud-tooltip::before { border-right-color: var(--hud-surface); }
 .hud-tooltip .hud-tip-head { display: flex; justify-content: space-between; gap: 0.75rem; align-items: baseline; }
 .hud-tooltip .hud-tip-gate { font-family: "Barlow Condensed", "Barlow", sans-serif; font-weight: 700; font-size: 1.05rem; }
 .hud-tooltip .hud-tip-points { font-family: "Barlow Condensed", "Barlow", sans-serif; font-weight: 700; font-size: 1.05rem; font-variant-numeric: tabular-nums; }

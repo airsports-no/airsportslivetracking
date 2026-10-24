@@ -7,6 +7,7 @@ import { useCompetitionData } from './hooks/useCompetitionData';
 import { usePlayback } from './hooks/usePlayback';
 import { useMapLayers } from './hooks/useMapLayers';
 import { usePhotoLayers, TargetPhoto } from './hooks/usePhotoLayers';
+import { useMapAppearance, MapAppearance } from './hooks/useMapAppearance';
 import { useToast } from './hooks/useToast'; // Import useToast
 import { fetchContestDetails, fetchPhotoObservations, fetchPhotos } from './api';
 
@@ -95,6 +96,7 @@ export default function CompetitionMapPage() {
     return window.innerWidth < 640 || window.innerHeight < 500;
   });
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
+  const { appearance, setAppearance, resolved: hudTheme } = useMapAppearance();
   const [permanentAnnotations, setPermanentAnnotations] = useState(false);
   const [contestDetails, setContestDetails] = useState<any | null>(null);
   const hasAutoEnabledTrailsRef = useRef(false);
@@ -738,6 +740,26 @@ export default function CompetitionMapPage() {
               <Sliders size={16} />
             </div>
             <ul tabIndex={0} className="dropdown-content hud-theme z-[1200] menu p-2 shadow-xl border border-base-300 rounded-box w-64 max-h-[65vh] overflow-y-auto flex-nowrap">
+              <li className="menu-title px-2 pb-1 pt-0.5">
+                <span className="text-xs font-normal opacity-70">Appearance</span>
+              </li>
+              <li className="pb-1">
+                <div className="join w-full p-0 hover:bg-transparent" role="group" aria-label="Appearance">
+                  {([['device', 'Device'], ['light', 'Light'], ['dark', 'Dark']] as [MapAppearance, string][]).map(([value, label]) => (
+                    <button
+                      key={value}
+                      type="button"
+                      className={`join-item btn btn-xs flex-1 ${appearance === value ? 'btn-primary' : 'btn-ghost border-base-300'}`}
+                      aria-pressed={appearance === value}
+                      title={value === 'device' ? "Follow this device's light or dark mode" : undefined}
+                      onClick={() => setAppearance(value)}
+                    >
+                      {label}
+                    </button>
+                  ))}
+                </div>
+              </li>
+              <div className="divider my-1"></div>
               <li>
                 <label className="label cursor-pointer py-1">
                   <span className="label-text text-xs text-left">Show Background Map</span>
@@ -844,7 +866,8 @@ export default function CompetitionMapPage() {
   );
 
   return (
-    <div className="flex flex-col sm:flex-row h-full overflow-hidden">
+    // data-hud picks the panel's light or dark tokens (components/hud/hud.css) for everything inside, the map's labels too.
+    <div className="flex flex-col sm:flex-row h-full overflow-hidden" data-hud={hudTheme}>
       <TaskInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 

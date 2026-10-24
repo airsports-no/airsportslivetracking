@@ -112,8 +112,8 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
             {/* The pointer and its points; it glides to each new estimate. */}
             <g style={{ transform: `translateX(${pointerX}px)`, transition: `transform ${POINTER_MOVE_MS}ms ease-out` }}>
                 <rect x={-labelWidth / 2} y={2} width={labelWidth} height={24 * k} rx={6 * k}
-                    fill={final || missed ? pointerColour : "#111824"} stroke={pointerColour} strokeWidth={2 * k} />
-                <text x={0} y={2 + 18 * k} textAnchor="middle" fontSize={17 * k} fontWeight={700} fill={final || missed ? "#111824" : pointerColour}>{label}</text>
+                    fill={final || missed ? pointerColour : "var(--hud-surface)"} stroke={pointerColour} strokeWidth={2 * k} />
+                <text x={0} y={2 + 18 * k} textAnchor="middle" fontSize={17 * k} fontWeight={700} fill={final || missed ? "var(--hud-surface)" : pointerColour}>{label}</text>
                 <path d={`M ${-7 * k} ${bandTop - 6 * k} L ${7 * k} ${bandTop - 6 * k} L 0 ${trackY - 1} Z`} fill={pointerColour} />
             </g>
         </svg>
