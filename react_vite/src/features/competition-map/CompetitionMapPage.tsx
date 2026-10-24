@@ -9,6 +9,7 @@ import { useMapLayers } from './hooks/useMapLayers';
 import { usePhotoLayers, TargetPhoto } from './hooks/usePhotoLayers';
 import { useMapAppearance, MapAppearance } from './hooks/useMapAppearance';
 import { clampToSpan, flightSpan } from './utils/replaySpan';
+import { useFollowCamera } from './hooks/useFollowCamera';
 import { useToast } from './hooks/useToast'; // Import useToast
 import { fetchContestDetails, fetchPhotoObservations, fetchPhotos } from './api';
 
@@ -302,11 +303,11 @@ export default function CompetitionMapPage() {
 
   const currentTime = mode === 'playback' ? playbackTime : realtimeTime;
 
-  // When the replay's span changes (another contestant, or back from the whole day), its time moves inside it.
+  // A replay time outside the span (another contestant, back from the whole day, or the clock before the replay has
+  // started) goes to the span's start: the flight replays from takeoff.
   useEffect(() => {
     if (mode !== 'playback' || !playbackTimeInfo) return;
-    const clamped = clampToSpan(playbackTime, playbackTimeInfo);
-    if (clamped !== playbackTime) setPlaybackTime(clamped);
+    if (clampToSpan(playbackTime, playbackTimeInfo) !== playbackTime) setPlaybackTime(playbackTimeInfo.start);
   }, [mode, playbackTimeInfo, playbackTime, setPlaybackTime]);
 
   // Default to full trails if task is over or no one is running
@@ -392,6 +393,23 @@ export default function CompetitionMapPage() {
     userShowSecrets,
     permanentAnnotations,
     showPenaltiesOnly,
+  });
+
+  // The follow camera keeps the followed aircraft in view: live while following, and in a replay while it plays.
+  // Live it also shows the next gate with the aircraft when the gate changes (the gate the arrow counts down to).
+  const followedPosition = selectedContestantId !== null ? currentPositions[selectedContestantId]?.at(-1) : undefined;
+  const followedGateName = mode === 'realtime' && selectedContestantId !== null
+    ? gateArrowDataByContestant[selectedContestantId]?.waypoint_name ?? null : null;
+  const followedGate = useMemo(() => {
+    const wp = followedGateName ? staticNavTaskData?.route.waypoints.find(w => w.name === followedGateName) : undefined;
+    return wp ? { name: wp.name, position: { lat: wp.latitude, lon: wp.longitude } } : null;
+  }, [followedGateName, staticNavTaskData]);
+  const camera = useFollowCamera({
+    mapRef,
+    enabled: !!selectedContestant && ((mode === 'realtime' && view === 'follow') || (mode === 'playback' && isPlaying)),
+    followId: selectedContestantId,
+    aircraft: followedPosition ? { lat: followedPosition.latitude, lon: followedPosition.longitude } : null,
+    gate: followedGate,
   });
 
   // Observation photo targets (task level, independent of any selected contestant) and the selected contestant's
@@ -1011,6 +1029,14 @@ export default function CompetitionMapPage() {
             isInitialLoad={!hasMapBeenFitted}
             onMapFit={setHasMapBeenFitted}
           />
+          {camera.paused && (
+            <button
+              className="hud hud-button absolute bottom-3 left-1/2 -translate-x-1/2 z-[1100] px-4 h-10 rounded-full border hud-divider shadow-lg"
+              onClick={camera.resume}
+            >
+              Follow again
+            </button>
+          )}
           {mode === 'realtime' && wsStatus === 'disconnected' && (
             <div className="hud absolute top-3 left-1/2 -translate-x-1/2 z-[1100] rounded-lg px-3 py-2 text-center max-w-xs border hud-divider">
               <p className="font-semibold text-sm" style={{ color: 'var(--hud-red)' }}>Connection lost</p>
