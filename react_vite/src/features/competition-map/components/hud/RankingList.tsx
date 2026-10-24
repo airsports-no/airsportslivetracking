@@ -1,4 +1,5 @@
 import React, { useEffect, useRef } from 'react';
+import { formatStartsIn } from '../../utils/startsIn';
 
 export interface RankingRow {
     id: number;
@@ -23,13 +24,6 @@ interface Props {
     compact?: boolean;
 }
 
-function formatStartsIn(totalSeconds: number): string {
-    const s = Math.max(0, Math.floor(totalSeconds));
-    const h = Math.floor(s / 3600);
-    const m = Math.floor((s % 3600) / 60);
-    const pad = (n: number) => String(n).padStart(2, '0');
-    return h > 0 ? `${h}:${pad(m)}:${pad(s % 60)}` : `${m}:${pad(s % 60)}`;
-}
 
 /** What the contestant is doing, in a few words, under their name. */
 function statusLine(r: RankingRow): string | null {
@@ -81,6 +75,10 @@ export default function RankingList({ rows, selectedId, onSelect, dividerIndex =
                                     {r.is_receiving_data && (
                                         <span className="w-1.5 h-1.5 rounded-full flex-none" style={{ background: 'var(--hud-ok)' }} title="Receiving positions now" />
                                     )}
+                                    {/* On a phone, where the status line is left out: who is in the air. */}
+                                    {r.is_active_flight && (
+                                        <span className="sm:hidden flex-none text-[11px] font-semibold px-1.5 rounded" style={{ background: 'var(--hud-raised)', color: 'var(--hud-ok)' }}>Flying</span>
+                                    )}
                                 </span>
                                 {status && <span className="hidden sm:block hud-label truncate">{status}</span>}
                                 {!compact && r.is_active_flight && r.progress !== undefined && (
@@ -90,7 +88,13 @@ export default function RankingList({ rows, selectedId, onSelect, dividerIndex =
                                 )}
                             </span>
                             <span className={`hud-figure text-lg ${compact ? '' : 'sm:text-xl'} text-right`}>
-                                {typeof r.score === 'number' ? r.score.toFixed(0) : <span className="hud-label">{r.score}</span>}
+                                {/* On a phone, a contestant waiting to start shows when, in place of their score. */}
+                                {r.countdown && r.countdown > 0 && (
+                                    <span className="sm:hidden hud-figure text-base hud-muted">Starts {formatStartsIn(r.countdown)}</span>
+                                )}
+                                <span className={r.countdown && r.countdown > 0 ? 'hidden sm:inline' : undefined}>
+                                    {typeof r.score === 'number' ? r.score.toFixed(0) : <span className="hud-label">{r.score}</span>}
+                                </span>
                             </span>
                         </li>
                     </React.Fragment>
