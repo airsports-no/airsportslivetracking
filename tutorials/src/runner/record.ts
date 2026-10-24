@@ -189,9 +189,11 @@ const scriptLine = () => {
   const match = new Error().stack?.match(SCRIPT_LINE);
   return match ? Number(match[1]) : undefined;
 };
+// The time of the last chapter: no step after it is earlier (see chapter())
+let chapterFloor = 0;
 const recordStep = (label: string) => {
   const id = `${chapterName} #${++stepInChapter}`;
-  if (startedAt) timeline.steps.push({ t: now(), id, label, line: scriptLine() });
+  if (startedAt) timeline.steps.push({ t: Math.max(now(), chapterFloor), id, label, line: scriptLine() });
   if (BY_POSITION.test(label) && !byPosition.includes(id)) {
     byPosition.push(id);
     console.warn(`  ${id} picks by position (${label.match(BY_POSITION)![0]}): a unique name or text is safer`);
@@ -583,7 +585,10 @@ const tutorialContext: TutorialContext = {
       startedAt = Date.now();
       console.log(`  recording from "${title}"`);
     }
-    timeline.chapters!.push({ t: now(), title });
+    // Strictly after the last step and never after the next one, even within one millisecond: --from (join.ts) keeps
+    // the steps before the chapter's time, and a step at the very same time would be taken for the chapter's own
+    chapterFloor = Math.max(now(), (timeline.steps.at(-1)?.t ?? -1) + 1);
+    timeline.chapters!.push({ t: chapterFloor, title });
     // The same title twice: the steps of the second are named "<title> (2) #<n>"
     let count = 1;
     while (usedChapterNames.has(count === 1 ? title : `${title} (${count})`)) count++;
