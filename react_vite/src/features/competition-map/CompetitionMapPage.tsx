@@ -458,8 +458,14 @@ export default function CompetitionMapPage() {
 
         return allContestantsData.map((c, index) => { // Updated
           const logsForTime = (scoreLogByContestant[c.id] ?? []).filter(log => new Date(log.time) <= currentTime);
-          const hasStarted = startGateName && logsForTime.some(log => log.gate === startGateName);
-          const hasFinished = finishGateName && logsForTime.some(log => log.gate === finishGateName);
+          // The map's log only has entries with points, so a crossing without a timing result (an adaptive start, a
+          // gate without a time check) is only in the annotations: either counts.
+          const annotationsForTime = (annotationsByContestant[c.id] ?? []).filter(a => new Date(a.time) <= currentTime);
+          const crossed = (gate?: string) => !!gate && (
+            logsForTime.some(log => log.gate === gate)
+            || annotationsForTime.some(a => a.gate === gate && /passing gate|adaptive start set/i.test(a.message)));
+          const hasStarted = crossed(startGateName);
+          const hasFinished = crossed(finishGateName);
 
           let state = 'Waiting...';
           if (hasFinished) {
@@ -609,7 +615,7 @@ export default function CompetitionMapPage() {
     active.sort(sortFn);
     waiting.sort(sortFn);
     return [...active, ...waiting];
-  }, [staticNavTaskData, sortedContestants, mode, currentScores, currentTime, scoreLogByContestant]);
+  }, [staticNavTaskData, sortedContestants, mode, currentScores, currentTime, scoreLogByContestant, annotationsByContestant]);
 
 
 
@@ -1000,23 +1006,38 @@ export default function CompetitionMapPage() {
         </div>
 
         {mode === 'playback' && playbackTimeInfo ? (
-          <ReplayBar
-            currentTime={currentTime}
-            startTime={playbackTimeInfo.start}
-            endTime={playbackTimeInfo.end}
-            timeZone={staticNavTaskData?.time_zone}
-            isPlaying={isPlaying}
-            playbackSpeed={playbackSpeed}
-            onPlayPause={() => setIsPlaying(p => !p)}
-            onJumpToStart={() => setPlaybackTime(playbackTimeInfo.start)}
-            onTimeChange={setPlaybackTime}
-            onSpeedChange={setPlaybackSpeed}
-            events={replayEvents}
-            onEventSelect={(id) => {
-              const entry = visibleLogEntries.find(e => e.id === id);
-              if (entry) { setPanelTab('log'); jumpToLogEntry(entry); }
-            }}
-          />
+          <>
+            {selectedContestant && staticNavTaskData && (
+              // Who is being replayed, with their score and place at the replay's time, in one slim row above the replay bar.
+              <FollowBar
+                key={selectedContestant.id}
+                contestant={selectedContestant}
+                navigationTask={staticNavTaskData}
+                score={standings[selectedStanding]?.score ?? 0}
+                rank={selectedStanding >= 0 && selectedStanding < startedCount ? selectedStanding + 1 : null}
+                rankOf={startedCount}
+                live={false}
+                slim
+              />
+            )}
+            <ReplayBar
+              currentTime={currentTime}
+              startTime={playbackTimeInfo.start}
+              endTime={playbackTimeInfo.end}
+              timeZone={staticNavTaskData?.time_zone}
+              isPlaying={isPlaying}
+              playbackSpeed={playbackSpeed}
+              onPlayPause={() => setIsPlaying(p => !p)}
+              onJumpToStart={() => setPlaybackTime(playbackTimeInfo.start)}
+              onTimeChange={setPlaybackTime}
+              onSpeedChange={setPlaybackSpeed}
+              events={replayEvents}
+              onEventSelect={(id) => {
+                const entry = visibleLogEntries.find(e => e.id === id);
+                if (entry) { setPanelTab('log'); jumpToLogEntry(entry); }
+              }}
+            />
+          </>
         ) : selectedContestant && staticNavTaskData ? (
           <FollowBar
             key={selectedContestant.id}
