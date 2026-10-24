@@ -354,7 +354,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     }, [showToast, updateContestant]);
 
 
-    const fetchAllContestantData = useCallback(async (contestantsToFetch: Contestant[], onProgress: (p: { loaded: number, total: number, message?: string }) => void) => {
+    const fetchAllContestantData = useCallback(async (contestantsToFetch: Contestant[], onProgress: (p: { loaded: number, total: number, message?: string }) => void, displaySecrets?: boolean) => {
         const now = new Date();
         const chunkSize = 15;
 
@@ -443,7 +443,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 const { startMinute, endMinute } = contestantRequestPlans[idx];
                 
                 // Fetch score data first so it's included in the progress and available as soon as possible
-                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id, c.track_version, c.score_version).finally(() => {
+                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id, c.track_version, c.score_version, displaySecrets).finally(() => {
                     updateProgress(`Downloading track for ${c.team.crew.member1.first_name}...`);
                 });
 
@@ -503,7 +503,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         const contestantsToRefetch = Object.values(contestantsByIdRef.current).filter(c => c && !c.contestanttrack?.calculator_finished);
 
         if (contestantsToRefetch.length > 0) {
-            const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(contestantsToRefetch, setProgress);
+            const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(contestantsToRefetch, setProgress, navTaskRef.current?.display_secrets);
 
             // Seed BEFORE replaying the buffer below, so any buffered message that's actually
             // stale relative to what we just fetched gets correctly rejected instead of being
@@ -550,7 +550,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     seedVersionsFromContestants(task.contestant_set);
                     setShouldConnectWs(true);
 
-                    const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(task.contestant_set, setProgress);
+                    const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(task.contestant_set, setProgress, task.display_secrets);
                     if (!cancelled) {
                         seedVersionsFromContestants(Object.values(contestantUpdates));
                         setPositionsByContestant(positionUpdates);

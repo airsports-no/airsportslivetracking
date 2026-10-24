@@ -74,7 +74,8 @@ def gate_results_for(contestant) -> list[dict]:
         # The gate's own timing result carries its planned and actual time; a miss is logged as "missing gate", or as
         # "missed ..." where the miss itself scores nothing (a gate missed while outside the corridor).
         timings = [e for e in entries if e.planned and e.actual]
-        timing = timings[0] if timings else None
+        # The latest: the actual time reported is the last crossing (gate_times_actual), and the offset must be its.
+        timing = timings[-1] if timings else None
         miss = next((e for e in entries if e.message.startswith(("missing gate", "missed"))), None)
         planned_time = _as_datetime(planned.get(waypoint.name))
         actual_time = actual.get(waypoint.name)

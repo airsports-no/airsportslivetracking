@@ -61,7 +61,9 @@ class TestGateResults(TestCase):
             entry("SP", "passing gate (+3 s)", 3.0, planned=at(0), actual=at(3)),
             entry("SP", "passing gate (+5 s)", 5.0, planned=at(0), actual=at(5)),
         ]
-        self.assertEqual(self.results({"SP": at(0)}, {"SP": at(5)}, entries)["SP"]["points"], 8.0)
+        result = self.results({"SP": at(0)}, {"SP": at(5)}, entries)["SP"]
+        self.assertEqual(result["points"], 8.0)
+        self.assertEqual(result["offset_seconds"], 5)
 
     def test_timed_untimed_and_missed_gates(self):
         planned = {"SP": at(0), "TP1": at(300), "SC1": at(450), "TP2": at(600), "FP": at(900)}
