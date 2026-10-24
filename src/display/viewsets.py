@@ -762,15 +762,24 @@ def training_available_for(contestant):
 def training_feedback_for(contestant):
     """
     Live gate timing for the app's training mode: the last gate with a time check that the calculator passed and how far
-    from its required time (seconds, positive is late). Gates without a time check give no feedback. Only where the organizer allows live feedback (the pilot set up their own flight), and never when the
+    from its required time (seconds, positive is late), and the next such gate the pilot is shown with its required time,
+    which the app counts down to (never a secret gate, unknown leg or curve point). Gates without a time check give no
+    feedback. Only where the organizer allows live feedback (the pilot set up their own flight), and never when the
     organizer holds scores back with a calculation delay.
     """
     if not training_available_for(contestant):
         return None
     track = getattr(contestant, "contestanttrack", None)
-    if track is None or not track.last_timed_gate:
+    if track is None or not (track.last_timed_gate or track.next_timed_gate):
         return None
-    return {"last_gate": track.last_timed_gate, "last_gate_time_offset": track.last_timed_gate_time_offset}
+    return {
+        "last_gate": track.last_timed_gate or None,
+        "last_gate_time_offset": track.last_timed_gate_time_offset if track.last_timed_gate else None,
+        "next_gate": track.next_timed_gate or None,
+        "next_gate_time": track.next_timed_gate_time.isoformat()
+        if track.next_timed_gate and track.next_timed_gate_time
+        else None,
+    }
 
 
 class EditableRouteViewSet(ModelViewSet):

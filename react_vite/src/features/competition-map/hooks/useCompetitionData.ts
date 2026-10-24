@@ -226,10 +226,13 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                         waypoint_name: string;
                         final: boolean;
                         missed: boolean;
+                        expected_time?: string;
+                        position_time?: string;
                     };
                 };
                 const crossingContestantId = crossingPayload.contestant_id;
-                const gateData = crossingPayload.gate_distance_and_estimate;
+                // Stamped on arrival: the gate score arrow ticks its countdown from it (see gateCountdown.ts).
+                const gateData = { ...crossingPayload.gate_distance_and_estimate, received_at: Date.now() };
 
                 // Update gateArrowDataByContestant with the gate_distance_and_estimate from the crossing_time message
                 setGateArrowDataByContestant(prev => ({ ...prev, [crossingContestantId]: gateData }));

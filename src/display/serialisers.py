@@ -1653,6 +1653,8 @@ class GateScoreIfCrossedNowSerialiser(serializers.Serializer):
     waypoint_name = serializers.CharField()
     final = serializers.BooleanField(required=False)
     missed = serializers.BooleanField(required=False)
+    expected_time = serializers.DateTimeField(required=False)
+    position_time = serializers.DateTimeField(required=False)
 
     def create(self, validated_data):
         pass

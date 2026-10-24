@@ -332,10 +332,10 @@ class TestCalculatorStatusInNowEndpoint(TestCase):
         track.update_last_timed_gate("TP1", -4.0)
         task = self.contestant.navigation_task
         self.assertIs(self.current()["training_available"], True)  # on by default, also in a task the organizer runs
-        self.assertEqual(self.current()["training_feedback"], {"last_gate": "TP1", "last_gate_time_offset": -4.0})
+        self.assertEqual(self.current()["training_feedback"], {"last_gate": "TP1", "last_gate_time_offset": -4.0, "next_gate": None, "next_gate_time": None})
         # A gate without a time check moves last_gate only: the feedback keeps showing the last timed gate.
         track.update_last_gate("SECRET1", 30.0)
-        self.assertEqual(self.current()["training_feedback"], {"last_gate": "TP1", "last_gate_time_offset": -4.0})
+        self.assertEqual(self.current()["training_feedback"], {"last_gate": "TP1", "last_gate_time_offset": -4.0, "next_gate": None, "next_gate_time": None})
         task.show_live_score_in_app = False
         task.save()
         self.assertIs(self.current()["training_available"], False)
@@ -348,6 +348,27 @@ class TestCalculatorStatusInNowEndpoint(TestCase):
 
     def test_no_training_feedback_before_a_timed_gate_has_been_passed(self):
         self.contestant.contestanttrack.update_last_gate("SECRET1", 3.0)
+        self.assertIsNone(self.current()["training_feedback"])
+
+    def test_training_feedback_gives_the_next_timed_gate_to_count_down_to(self):
+        track = self.contestant.contestanttrack
+        required = datetime.datetime(2026, 10, 24, 12, 3, 30, tzinfo=datetime.timezone.utc)
+        track.update_next_timed_gate("SP", required)
+        feedback = self.current()["training_feedback"]
+        # Before the first timed gate there is nothing to report on, only the gate to count down to.
+        self.assertEqual(
+            feedback,
+            {"last_gate": None, "last_gate_time_offset": None, "next_gate": "SP", "next_gate_time": required.isoformat()},
+        )
+        track.update_last_timed_gate("SP", 2.0)
+        track.update_next_timed_gate("", None)  # past the last timed gate
+        self.assertEqual(
+            self.current()["training_feedback"],
+            {"last_gate": "SP", "last_gate_time_offset": 2.0, "next_gate": None, "next_gate_time": None},
+        )
+        self.contestant.navigation_task.calculation_delay_minutes = 5
+        self.contestant.navigation_task.save()
+        track.update_next_timed_gate("TP1", required)
         self.assertIsNone(self.current()["training_feedback"])
 
     def test_reports_when_the_server_last_received_a_position_independent_of_the_calculation_delay(self):

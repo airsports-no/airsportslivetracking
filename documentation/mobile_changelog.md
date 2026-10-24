@@ -13,6 +13,12 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-24
+#### Backend
+- **Training countdown to the next gate.** `training_feedback` on the Now endpoints also gives `next_gate` and `next_gate_time`: the next visible gate with a time check (never a secret gate, unknown leg or curve point) and its required time; with an adaptive start only once the starting point is crossed, with the times that crossing set. Stored by the live gate calculator on `ContestantTrack` (migration `0210`). The live map's gate score arrow now has one large countdown to the required time, ticked in the browser (corrected for the browser clock and the task's calculation delay), with the predicted offset beside it.
+#### App
+- **Gate countdown on the Timer page (phone and MSFS client).** In training mode the Timer page counts down to the next gate's required time and moves on to the next gate when the server does; it also opens for flights without an adaptive start. With an adaptive start too, the pilot chooses which timer is large by tapping the small one; the choice is kept.
+
 ### 2026-10-21
 #### Backend
 - **Flight order waits for the declaration in tasks that require one.** A pilot booking a flight in a curve navigation, precision navigation, contract navigation or turnpoint hunt task no longer gets a flight order without the declared route; it is generated and e-mailed when a valid declaration is saved (again if it is changed). Flights added by a contest manager are not e-mailed automatically. New `Contestant.self_registered` (migration `0208`).

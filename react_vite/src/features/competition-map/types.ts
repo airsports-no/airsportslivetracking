@@ -346,6 +346,9 @@ export interface GateArrowData {
   estimated_score: number;
   final: boolean;
   missed: boolean;
+  expected_time?: string; // the gate's required time (older servers: absent)
+  position_time?: string; // time of the position the estimate was made from (older servers: absent)
+  received_at?: number; // browser time (epoch ms) the message arrived, set by useCompetitionData
 }
 
 export interface DangerData {

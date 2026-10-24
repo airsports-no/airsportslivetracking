@@ -92,6 +92,8 @@ class GateCalculator(Calculator):
         # the contestant's declared_sequence at finalise() - see
         # _score_turnpoint_hunt_sequence_bonus. Empty and unused for every other subtype.
         self.turnpoint_hunt_actual_order: List[str] = []
+        # What publish_next_timed_gate last stored, so the database is only written when it changes.
+        self._published_next_timed_gate = None
 
     def create_gates(self) -> List[Gate]:
         """
@@ -207,6 +209,8 @@ class GateCalculator(Calculator):
                 score,
                 True,
                 gate.missed,
+                gate.expected_time,
+                position.time,
             )
 
     def calculate_speed(self, track: Sequence[ContestantReceivedPosition]) -> float:
@@ -316,6 +320,8 @@ class GateCalculator(Calculator):
                 score,
                 False,
                 False,
+                state.estimated_next_timed_gate.expected_time,
+                track[-1].time,
             )
         return events
 
@@ -434,8 +440,37 @@ class GateCalculator(Calculator):
                         events.append(NextGateExpectedEvent(self._get_next_gate(), track[-1]))
 
         self.check_gate_in_range(track, state, events)
+        self.publish_next_timed_gate()
 
         return events
+
+    def _next_timed_gate(self) -> Optional[Gate]:
+        """
+        The next gate the pilot may count down to in the app's training mode: the first outstanding gate that has a time
+        check and is shown to the pilot. Secret gates, unknown legs and curve points are skipped, so a countdown never
+        gives away a gate the pilot is not told about. With an adaptive start the gate times are only known once the
+        starting point is crossed (on_adaptive_start moves them), and the starting point itself has no time to count down
+        to: its time is set by the crossing.
+        """
+        if self.contestant.adaptive_start and not (self.starting_line and self.starting_line.has_infinite_been_passed()):
+            return None
+        for gate in self.outstanding_gates:
+            if self.contestant.adaptive_start and gate is self.starting_line:
+                continue
+            if gate.time_check and gate.is_visible and gate.expected_time and not gate.has_been_passed():
+                return gate
+        return None
+
+    def publish_next_timed_gate(self):
+        """Stores the next timed gate for the app's training countdown (see _next_timed_gate) whenever it or its time changes."""
+        if not self.live_processing:
+            return
+        gate = self._next_timed_gate()
+        published = (gate.name, gate.expected_time) if gate else ("", None)
+        if published == self._published_next_timed_gate:
+            return
+        self._published_next_timed_gate = published
+        self.contestant.contestanttrack.update_next_timed_gate(*published)
 
     def check_gate_in_range(
         self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState, events: List[OrchestratorEvent]
@@ -903,6 +938,8 @@ class GateCalculator(Calculator):
         for gate in self.gates:
             if gate.name in gate_times:
                 gate.expected_time = gate_times[gate.name]
+        # The app's training countdown must count to the moved times at once.
+        self.publish_next_timed_gate()
 
         if self.has_scored_adaptive_start:
             return

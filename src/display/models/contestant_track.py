@@ -25,6 +25,11 @@ class ContestantTrack(models.Model):
     # Kept apart from last_gate, which every gate updates: the app's training mode only gives feedback on timed gates.
     last_timed_gate = models.CharField(max_length=100, default="")
     last_timed_gate_time_offset = models.FloatField(default=0)
+    # The next gate the pilot may count down to in the app's training mode: the next visible gate with a time check (never
+    # a secret gate, unknown leg or curve point) and its required time. Empty until the times are known (adaptive start:
+    # once the starting point is crossed).
+    next_timed_gate = models.CharField(max_length=100, default="")
+    next_timed_gate_time = models.DateTimeField(null=True, blank=True)
     passed_starting_gate = models.BooleanField(default=False)
     passed_finish_gate = models.BooleanField(default=False)
     calculator_finished = models.BooleanField(default=False)
@@ -40,6 +45,8 @@ class ContestantTrack(models.Model):
         self.last_gate_time_offset = 0
         self.last_timed_gate = ""
         self.last_timed_gate_time_offset = 0
+        self.next_timed_gate = ""
+        self.next_timed_gate_time = None
         self.passed_starting_gate = False
         self.passed_finish_gate = False
         self.calculator_finished = False
@@ -83,6 +90,11 @@ class ContestantTrack(models.Model):
         self.last_timed_gate = gate_name
         self.last_timed_gate_time_offset = time_difference
         self.save(update_fields=["last_timed_gate", "last_timed_gate_time_offset"])
+
+    def update_next_timed_gate(self, gate_name, expected_time):
+        self.next_timed_gate = gate_name
+        self.next_timed_gate_time = expected_time
+        self.save(update_fields=["next_timed_gate", "next_timed_gate_time"])
 
     def update_score(self, score):
         from display.models import TeamTestScore

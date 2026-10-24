@@ -432,7 +432,11 @@ class WebsocketFacade:
         score: float,
         final: bool,
         missed: bool,
+        expected_time: datetime.datetime,
+        position_time: datetime.datetime,
     ):
+        # expected_time (the gate's required time) and position_time (the time of the position the estimate is made
+        # from) let the live map tick its countdown locally between messages: see GateScoreArrowV2.
         channel_data = generate_contestant_data_block(
             contestant,
             gate_distance_and_estimate={
@@ -442,6 +446,8 @@ class WebsocketFacade:
                 "final": final,
                 "missed": missed,
                 "waypoint_name": waypoint_name,
+                "expected_time": expected_time,
+                "position_time": position_time,
             },
         )
         group_key = "tracking_{}".format(contestant.navigation_task.pk)

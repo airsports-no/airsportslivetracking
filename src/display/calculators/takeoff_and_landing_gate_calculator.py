@@ -344,4 +344,6 @@ class TakeoffAndLandingGateCalculator(Calculator):
                 score,
                 True,
                 gate.missed,
+                gate.expected_time,
+                position.time,
             )
