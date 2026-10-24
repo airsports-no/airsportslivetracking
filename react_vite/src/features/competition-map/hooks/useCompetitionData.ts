@@ -1,6 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScoreData, makeWebSocket, fetchContestantSlice } from '../api';
-import type { Contestant, NavigationTask, TrackPosition, PhotoObservation, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint } from '../types';
+import type { Contestant, NavigationTask, TrackPosition, PhotoObservation, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint, CrossingEvent } from '../types';
 import { evaluateIncomingMessage, mergeAcceptedVersions, takeHigherVersion, VersionState } from './wsMessageOrdering';
 
 export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback', showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void) {
@@ -13,6 +13,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const [gateScoresByContestant, setGateScoresByContestant] = useState<Record<number, any[]>>({});
     const [dangerDataByContestant, setDangerDataByContestant] = useState<Record<number, DangerData>>({});
     const [gateArrowDataByContestant, setGateArrowDataByContestant] = useState<Record<number, GateArrowData>>({});
+    // Each timed gate crossed while watching live, by any contestant (the final crossing_time message), for the map's notices.
+    const [liveCrossings, setLiveCrossings] = useState<CrossingEvent[]>([]);
     const [progress, setProgress] = useState({ loaded: 0, total: 0, message: '' });
     const [shouldConnectWs, setShouldConnectWs] = useState(false); // New state
     const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected'>('disconnected');
@@ -236,6 +238,16 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
                 // Update gateArrowDataByContestant with the gate_distance_and_estimate from the crossing_time message
                 setGateArrowDataByContestant(prev => ({ ...prev, [crossingContestantId]: gateData }));
+                if (gateData.final) {
+                    const key = `${crossingContestantId}-${gateData.waypoint_name}`;
+                    setLiveCrossings(prev => prev.some(c => c.key === key) ? prev : [...prev.slice(-50), {
+                        key,
+                        contestantId: crossingContestantId,
+                        gate: gateData.waypoint_name,
+                        offsetSeconds: gateData.estimated_crossing_offset,
+                        missed: gateData.missed,
+                    }]);
+                }
                 updateContestant(crossingContestantId, {
                     track_version: payload.track_version,
                     score_version: payload.score_version
@@ -710,6 +722,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         gateScoresByContestant,
         dangerDataByContestant,
         gateArrowDataByContestant,
+        liveCrossings,
         progress,
         wsStatus,
         error,

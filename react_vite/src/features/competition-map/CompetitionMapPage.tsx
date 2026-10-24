@@ -10,6 +10,7 @@ import { usePhotoLayers, TargetPhoto } from './hooks/usePhotoLayers';
 import { useMapAppearance, MapAppearance } from './hooks/useMapAppearance';
 import { clampToSpan, flightSpan } from './utils/replaySpan';
 import { useFollowCamera } from './hooks/useFollowCamera';
+import { useCrossingNotices } from './hooks/useCrossingNotices';
 import { useToast } from './hooks/useToast'; // Import useToast
 import { fetchContestDetails, fetchPhotoObservations, fetchPhotos } from './api';
 
@@ -140,6 +141,7 @@ export default function CompetitionMapPage() {
     gateScoresByContestant,
     dangerDataByContestant,
     gateArrowDataByContestant,
+    liveCrossings,
     progress,
     wsStatus,
     error: navTaskError,
@@ -411,6 +413,17 @@ export default function CompetitionMapPage() {
     followId: selectedContestantId,
     aircraft: followedPosition ? { lat: followedPosition.latitude, lon: followedPosition.longitude } : null,
     gate: followedGate,
+  });
+
+  // A notice at the gate whenever a contestant crosses a timed gate, live and in a replay.
+  useCrossingNotices({
+    mapRef,
+    mode,
+    navTask: staticNavTaskData,
+    contestants: sortedContestants,
+    liveCrossings,
+    currentTime,
+    showSecrets: !!(staticNavTaskData?.display_secrets && userShowSecrets),
   });
 
   // Observation photo targets (task level, independent of any selected contestant) and the selected contestant's

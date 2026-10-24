@@ -346,6 +346,16 @@ export interface GateResult {
   points: number;
 }
 
+/** A contestant crossing (or missing) a timed gate, for the map's notice at the gate. */
+export interface CrossingEvent {
+  key: string;
+  contestantId: number;
+  gate: string;
+  /** Crossing minus required time, in seconds (positive is late). */
+  offsetSeconds: number;
+  missed: boolean;
+}
+
 export interface ContestantScoreData {
   contestant_id: number;
   positions: TrackPosition[];

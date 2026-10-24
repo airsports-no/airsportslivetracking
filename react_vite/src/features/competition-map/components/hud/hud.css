@@ -15,7 +15,7 @@
  * Dark by default; the page root's data-hud="light" (useMapAppearance: the device's setting, or the viewer's choice in
  * the settings menu) switches them to light.
  */
-.hud, .hud-theme, .leaflet-tooltip.hud-tooltip {
+.hud, .hud-theme, .leaflet-tooltip.hud-tooltip, .hud-notice {
     --hud-bg: rgb(17 24 36 / 0.94);
     --hud-surface: #111824; /* solid: labels, the pointer's label */
     --hud-raised: #1c2636;
@@ -31,7 +31,7 @@
     --hud-shadow: rgb(0 0 0 / 0.35);
 }
 
-[data-hud="light"] :is(.hud, .hud-theme, .leaflet-tooltip.hud-tooltip) {
+[data-hud="light"] :is(.hud, .hud-theme, .leaflet-tooltip.hud-tooltip, .hud-notice) {
     --hud-bg: rgb(250 251 253 / 0.95);
     --hud-surface: #ffffff;
     --hud-raised: #edf0f5;
@@ -153,4 +153,32 @@
 
 @media (prefers-reduced-motion: reduce) {
     .hud, .hud * { transition: none !important; }
+}
+
+/* A gate crossing's notice on the map (useCrossingNotices): fades in, holds, fades out over its 6 s. */
+.hud-notice-anchor { background: none; border: none; }
+.hud-notice {
+    font-family: "Barlow", system-ui, sans-serif;
+    font-size: 0.875rem;
+    white-space: nowrap;
+    width: max-content;
+    color: var(--hud-text);
+    background: var(--hud-surface);
+    border: 1px solid var(--hud-line);
+    border-radius: 0.5rem;
+    padding: 0.25rem 0.625rem;
+    box-shadow: 0 6px 18px var(--hud-shadow);
+    animation: hud-notice 6s ease-in-out forwards;
+}
+.hud-notice-gate { font-family: "Barlow Condensed", "Barlow", sans-serif; font-weight: 700; }
+.hud-notice-result { font-family: "Barlow Condensed", "Barlow", sans-serif; font-weight: 700; font-variant-numeric: tabular-nums; }
+.hud-notice-ok .hud-notice-result { color: var(--hud-ok); }
+.hud-notice-off .hud-notice-result { color: var(--hud-red); }
+@keyframes hud-notice {
+    0% { opacity: 0; transform: translateY(4px); }
+    8%, 85% { opacity: 1; transform: none; }
+    100% { opacity: 0; }
+}
+@media (prefers-reduced-motion: reduce) {
+    .hud-notice { animation: none; }
 }
