@@ -182,3 +182,6 @@
 @media (prefers-reduced-motion: reduce) {
     .hud-notice { animation: none; }
 }
+
+/* On air (?display=broadcast): the map's attribution stays, as OpenStreetMap requires, but small. */
+[data-display="broadcast"] .leaflet-control-attribution { font-size: 10px; opacity: 0.75; }

@@ -23,6 +23,7 @@ import NavLog from './components/hud/NavLog';
 import GatesTable from './components/hud/GatesTable';
 import FlightTimeline from './components/hud/FlightTimeline';
 import FollowBar from './components/hud/FollowBar';
+import MapControls from './components/hud/MapControls';
 import ReplayBar, { ReplayEvent } from './components/hud/ReplayBar';
 import TaskInfoModal from './TaskInfoModal';
 import { Trophy, Info, Settings, Calendar, Sliders, Route } from 'lucide-react';
@@ -54,6 +55,10 @@ export default function CompetitionMapPage() {
   const navigationTaskIdNum = Number(navigationTaskId ?? 2129);
 
   const initialMode = (searchParams.get('mode') as 'realtime' | 'playback') || 'realtime';
+  // The map as a display (a link option): "broadcast", a clean picture to put on air (no site header, no panel or map
+  // controls, the follow bar as a lower third), or "screen", an unattended screen at the airfield.
+  const displayParam = searchParams.get('display');
+  const display: 'broadcast' | 'screen' | null = displayParam === 'broadcast' || displayParam === 'screen' ? displayParam : null;
   const initialTimeParam = searchParams.get('time');
   const initialSpeedParam = searchParams.get('speed');
   const autoPlay = searchParams.get('autoplay') === 'true';
@@ -199,7 +204,8 @@ export default function CompetitionMapPage() {
 
   useEffect(() => {
     const map = mapRef.current;
-    if (!map) return;
+    // No scale bars on air.
+    if (!map || display === 'broadcast') return;
 
     // Standard scale control for Metric
     const scaleControl = L.control.scale({
@@ -254,7 +260,7 @@ export default function CompetitionMapPage() {
         scaleControl.remove();
         nauticalScale.remove();
     };
-  }, [mapRef]);
+  }, [mapRef, display]);
 
   useEffect(() => {
     const map = mapRef.current;
@@ -409,7 +415,10 @@ export default function CompetitionMapPage() {
   }, [followedGateName, staticNavTaskData]);
   const camera = useFollowCamera({
     mapRef,
-    enabled: !!selectedContestant && ((mode === 'realtime' && view === 'follow') || (mode === 'playback' && isPlaying)),
+    // On air the camera always follows; elsewhere while following live, and in a replay while it plays.
+    enabled: !!selectedContestant && (display === 'broadcast'
+      ? mode === 'realtime' || isPlaying
+      : (mode === 'realtime' && view === 'follow') || (mode === 'playback' && isPlaying)),
     followId: selectedContestantId,
     aircraft: followedPosition ? { lat: followedPosition.latitude, lon: followedPosition.longitude } : null,
     gate: followedGate,
@@ -425,6 +434,18 @@ export default function CompetitionMapPage() {
     currentTime,
     showSecrets: !!(staticNavTaskData?.display_secrets && userShowSecrets),
   });
+
+  const overlayBarsRef = useRef<HTMLDivElement>(null);
+  /** The whole route in view; the follow camera waits until "Follow again". */
+  const fitRoute = () => {
+    const map = mapRef.current;
+    const points = (staticNavTaskData?.route.waypoints ?? []).map(w => [w.latitude, w.longitude] as [number, number]);
+    if (!map || points.length === 0) return;
+    camera.pause();
+    // On air the bars float over the map's foot: keep the route clear of them.
+    const covered = display === 'broadcast' ? (overlayBarsRef.current?.offsetHeight ?? 0) : 0;
+    map.fitBounds(L.latLngBounds(points), { paddingTopLeft: [48, 48], paddingBottomRight: [48, 48 + covered], animate: true });
+  };
 
   // Observation photo targets (task level, independent of any selected contestant) and the selected contestant's
   // registered observations. Both reveal where the targets are, so both follow the same rule as secret gates: the
@@ -944,10 +965,11 @@ export default function CompetitionMapPage() {
 
   return (
     // data-hud picks the panel's light or dark tokens (components/hud/hud.css) for everything inside, the map's labels too.
-    <div className="flex flex-col sm:flex-row h-full overflow-hidden" data-hud={hudTheme}>
+    <div className="flex flex-col sm:flex-row h-full overflow-hidden" data-hud={hudTheme} data-display={display ?? undefined}>
       <TaskInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
       <ToastContainer toasts={toasts} removeToast={removeToast} />
 
+      {display !== 'broadcast' && (
       <SidePanel
         title={staticNavTaskData?.name ?? 'Loading the task'}
         time={currentTime}
@@ -1050,8 +1072,9 @@ export default function CompetitionMapPage() {
           />
         )}
       </SidePanel>
+      )}
 
-      <div className="flex-1 min-w-0 min-h-0 flex flex-col">
+      <div className="relative flex-1 min-w-0 min-h-0 flex flex-col">
         <div className="relative flex-1 min-h-0">
           <div id="map-container" className="h-full w-full" />
           <ProhibitedRenderer map={mapRef.current} navTask={staticNavTaskData} />
@@ -1069,9 +1092,10 @@ export default function CompetitionMapPage() {
             isInitialLoad={!hasMapBeenFitted}
             onMapFit={setHasMapBeenFitted}
           />
+          <MapControls onFitRoute={fitRoute} hideWhenIdle={display === 'broadcast'} />
           {camera.paused && (
             <button
-              className="hud hud-button absolute bottom-3 left-1/2 -translate-x-1/2 z-[1100] px-4 h-10 rounded-full border hud-divider shadow-lg"
+              className={`hud hud-button absolute ${display === 'broadcast' ? 'top-3' : 'bottom-3'} left-1/2 -translate-x-1/2 z-[1100] px-4 h-10 rounded-full border hud-divider shadow-lg`}
               onClick={camera.resume}
             >
               Follow again
@@ -1085,6 +1109,8 @@ export default function CompetitionMapPage() {
           )}
         </div>
 
+        {/* On air the bars float over the map as a lower third; elsewhere they sit under it. */}
+        <div ref={overlayBarsRef} className={display === 'broadcast' ? 'absolute inset-x-6 bottom-6 z-[1100] rounded-xl overflow-hidden shadow-2xl' : ''}>
         {mode === 'playback' && playbackTimeInfo ? (
           <>
             {selectedContestant && staticNavTaskData && (
@@ -1132,6 +1158,7 @@ export default function CompetitionMapPage() {
             live={view === 'follow'}
           />
         ) : null}
+        </div>
       </div>
     </div>
   );

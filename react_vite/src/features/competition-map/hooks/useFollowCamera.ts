@@ -83,11 +83,14 @@ export function useFollowCamera({ mapRef, enabled, followId, aircraft, gate }: {
         }
     }, [mapRef, enabled, isPaused, aLat, aLon, gName, gLat, gLon]);
 
+    // The viewer asked for another view (the whole route): stop following until "Follow again".
+    const pause = useCallback(() => setPaused({ id: followId }), [followId]);
+
     const resume = useCallback(() => {
         lastGateRef.current = null;
         startingRef.current = true;
         setPaused(null);
     }, []);
 
-    return { paused: enabled && isPaused, resume };
+    return { paused: enabled && isPaused, resume, pause };
 }
