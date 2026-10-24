@@ -1,6 +1,6 @@
 import { RefObject, useCallback, useEffect, useRef, useState } from 'react';
 import L from 'leaflet';
-import { cameraMove, LatLon } from '../utils/followCamera';
+import { cameraMove, LatLon, nextFollowSession } from '../utils/followCamera';
 
 /** The closest the camera zooms in when it shows the aircraft and its next gate. */
 const MAX_FIT_ZOOM = 13;
@@ -19,8 +19,12 @@ export function useFollowCamera({ mapRef, enabled, followId, aircraft, gate }: {
     aircraft: LatLon | null;
     gate: { name: string; position: LatLon } | null;
 }) {
-    const [paused, setPaused] = useState<{ id: number | null } | null>(null);
-    const isPaused = paused !== null && paused.id === followId;
+    // A pause belongs to one stretch of following (see nextFollowSession): it ends when nobody is followed.
+    const [session, setSession] = useState({ id: followId, n: 0 });
+    const current = nextFollowSession(session, followId);
+    if (current !== session) setSession(current);
+    const [pausedIn, setPausedIn] = useState<number | null>(null);
+    const isPaused = followId !== null && pausedIn === current.n;
     const lastGateRef = useRef<string | null>(null);
     // Whether the next move is the first since following started (or was resumed, or switched on).
     const startingRef = useRef(true);
@@ -30,7 +34,7 @@ export function useFollowCamera({ mapRef, enabled, followId, aircraft, gate }: {
     useEffect(() => {
         const map = mapRef.current;
         if (!map || !enabled) return;
-        const byViewer = () => setPaused({ id: followId });
+        const byViewer = () => setPausedIn(current.n);
         const pinch = (e: TouchEvent) => { if (e.touches.length > 1) byViewer(); };
         const container = map.getContainer();
         map.on('dragstart', byViewer);
@@ -43,7 +47,7 @@ export function useFollowCamera({ mapRef, enabled, followId, aircraft, gate }: {
             container.removeEventListener('dblclick', byViewer);
             container.removeEventListener('touchstart', pinch);
         };
-    }, [mapRef, enabled, followId]);
+    }, [mapRef, enabled, current.n]);
 
     useEffect(() => {
         // The first update for someone new, or after the camera is switched on, frames them afresh.
@@ -84,12 +88,12 @@ export function useFollowCamera({ mapRef, enabled, followId, aircraft, gate }: {
     }, [mapRef, enabled, isPaused, aLat, aLon, gName, gLat, gLon]);
 
     // The viewer asked for another view (the whole route): stop following until "Follow again".
-    const pause = useCallback(() => setPaused({ id: followId }), [followId]);
+    const pause = useCallback(() => setPausedIn(current.n), [current.n]);
 
     const resume = useCallback(() => {
         lastGateRef.current = null;
         startingRef.current = true;
-        setPaused(null);
+        setPausedIn(null);
     }, []);
 
     return { paused: enabled && isPaused, resume, pause };

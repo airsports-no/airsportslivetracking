@@ -337,8 +337,13 @@ class WebsocketFacade:
 
         log_entries = [serialize_score_log_entry(e) for e in contestant.scorelogentry_set.filter(type=ANOMALY)]
         channel_data = generate_contestant_data_block(contestant, log_entries=log_entries)
-        # Every new entry (a crossing without a time check too) brings the gates' results up to date on the map.
-        channel_data["gate_results"] = gate_results_for(contestant)
+        # Every new entry (a crossing without a time check too) brings the gates' results up to date on the map. They
+        # are only an addition: if they cannot be built, the log entries still go out, and the score update that
+        # sent them goes on.
+        try:
+            channel_data["gate_results"] = gate_results_for(contestant)
+        except Exception:
+            logger.exception("Could not build the gate results for contestant %s", contestant.pk)
         self._safe_group_send(
             group_key,
             {

@@ -8,6 +8,7 @@ Key invariants exercised here:
 - Live slices must not 304 from ETag alone, since `track_version`
   doesn't bump on every position append.
 """
+
 import datetime
 from unittest.mock import patch
 
@@ -16,6 +17,7 @@ from django.test import SimpleTestCase, TransactionTestCase
 from guardian.shortcuts import assign_perm
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
+from display.viewsets import score_data_version
 from display.models import (
     Aeroplane,
     Contest,
@@ -150,7 +152,7 @@ class CDNCacheHeadersTests(TransactionTestCase):
 
     # --- 3. ETag short-circuit only fires for finished slices ---
     def test_live_slice_can_304_if_data_unchanged(self):
-        """With data-dependent ETags (including position count), even a live 
+        """With data-dependent ETags (including position count), even a live
         slice can safely return 304 if no new positions have arrived."""
         self._make_public()
         live_index = _live_minute_index()
@@ -189,9 +191,7 @@ class CDNCacheHeadersTests(TransactionTestCase):
         self.assertEqual(first.status_code, 200)
         etag = first["ETag"]
 
-        second = self.client.get(
-            self._slice_url(_far_past_minute_index()), HTTP_IF_NONE_MATCH=etag
-        )
+        second = self.client.get(self._slice_url(_far_past_minute_index()), HTTP_IF_NONE_MATCH=etag)
         self.assertEqual(second.status_code, 304)
 
     # --- 3b. Unversioned "finished" URLs must never get the 1-year cache, since their
@@ -283,11 +283,28 @@ class CDNCacheHeadersTests(TransactionTestCase):
         self.contestant.contestanttrack.calculator_finished = True
         self.contestant.contestanttrack.save()
 
-        version = f"{self.contestant.track_version}-{self.contestant.score_version}"
+        version = score_data_version(self.contestant)
         response = self.client.get(self._score_data_versioned_url(version))
 
         self.assertEqual(response.status_code, 200)
         self.assertIn("s-maxage=31536000", response["Cache-Control"])
+
+    def test_score_data_cached_before_the_format_changed_does_not_get_the_one_year_cache(self):
+        # A finished flight's copy cached for a year before gate_results was added would keep the debrief empty: the
+        # old version (without the format) and the old ETag no longer count as the current data.
+        self._make_public()
+        self.contestant.contestanttrack.calculator_finished = True
+        self.contestant.contestanttrack.save()
+
+        old_version = f"{self.contestant.track_version}-{self.contestant.score_version}"
+        response = self.client.get(self._score_data_versioned_url(old_version))
+        self.assertEqual(response.status_code, 200)
+        self.assertNotIn("s-maxage=31536000", response["Cache-Control"])
+        self.assertIn("gate_results", response.json())
+
+        old_etag = f'"{self.contestant.pk}-{old_version}-scores"'
+        revalidated = self.client.get(self._score_data_versioned_url(old_version), HTTP_IF_NONE_MATCH=old_etag)
+        self.assertEqual(revalidated.status_code, 200)
 
     def test_unversioned_finished_track_never_gets_the_one_year_cache(self):
         self._make_public()

@@ -4,6 +4,21 @@ export interface LatLon {
     lon: number;
 }
 
+/** One stretch of following: who, and a number that is new for every stretch (also the same contestant again). */
+export interface FollowSession {
+    id: number | null;
+    n: number;
+}
+
+/**
+ * The session after `followId` is known: unchanged while the same contestant is followed, a new one whenever the
+ * followed contestant changes, including to nobody. A pause belongs to one session, so it ends when nobody is followed
+ * (the rotation's overview, Esc) and following the same contestant again starts the camera again.
+ */
+export function nextFollowSession(session: FollowSession, followId: number | null): FollowSession {
+    return session.id === followId ? session : { id: followId, n: session.n + 1 };
+}
+
 /** What the map shows now. */
 export interface ViewBounds {
     south: number;

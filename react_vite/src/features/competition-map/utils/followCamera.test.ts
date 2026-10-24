@@ -1,7 +1,26 @@
 import { describe, expect, it } from 'vitest';
-import { cameraMove } from './followCamera';
+import { cameraMove, nextFollowSession } from './followCamera';
 
 const view = { south: 60, west: 10, north: 61, east: 12 };
+
+describe('nextFollowSession', () => {
+    it('keeps the session while the same contestant is followed', () => {
+        const session = { id: 7, n: 3 };
+        expect(nextFollowSession(session, 7)).toBe(session);
+    });
+
+    it('starts a new session when another contestant, or nobody, is followed', () => {
+        expect(nextFollowSession({ id: 7, n: 3 }, 9)).toEqual({ id: 9, n: 4 });
+        expect(nextFollowSession({ id: 7, n: 3 }, null)).toEqual({ id: null, n: 4 });
+    });
+
+    it('makes the same contestant followed again after nobody a new session, so an old pause is over', () => {
+        const first = { id: 7, n: 1 };
+        const nobody = nextFollowSession(first, null);
+        const again = nextFollowSession(nobody, 7);
+        expect(again.n).not.toBe(first.n);
+    });
+});
 
 describe('cameraMove', () => {
     it('stays while the aircraft is in the middle of the view', () => {

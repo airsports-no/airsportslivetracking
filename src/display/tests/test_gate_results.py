@@ -86,3 +86,23 @@ class TestGateResults(TestCase):
         results = self.results({"TP1": at(300)}, {}, [entry("TP1", "missed TP1 while outside corridor")])
         self.assertTrue(results["TP1"]["missed"])
         self.assertEqual(results["TP1"]["points"], 0)
+
+
+class TestScoreLogBroadcast(TestCase):
+    def test_the_log_entries_go_out_even_if_the_gate_results_cannot_be_built(self):
+        from websocket_channels import WebsocketFacade
+
+        contestant = MagicMock()
+        contestant.navigation_task.pk = 5
+        contestant.scorelogentry_set.filter.return_value = []
+        facade = WebsocketFacade.__new__(WebsocketFacade)
+        facade._safe_group_send = MagicMock()
+        with (
+            patch("display.services.gate_results.gate_results_for", side_effect=RuntimeError("no route")),
+            patch("websocket_channels.generate_contestant_data_block", return_value={"score_log_entries": []}),
+        ):
+            facade.transmit_score_log_entry(contestant)  # must not raise
+        facade._safe_group_send.assert_called_once()
+        message = facade._safe_group_send.call_args.args[1]["data"]
+        self.assertEqual(message["type"], "score_log")
+        self.assertNotIn("gate_results", message["data"])

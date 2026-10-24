@@ -78,6 +78,12 @@ export async function fetchContestantPaginatedTrack(contestId: number, navigatio
   return res.json();
 }
 
+/**
+ * The shape of the score data, part of its versioned URL like the server's SCORE_DATA_FORMAT (display/viewsets.py) that
+ * it must equal: a finished flight's copy cached for a year before a field was added is then not asked for again.
+ */
+const SCORE_DATA_FORMAT = 2;
+
 export async function fetchContestantScoreData(contestId: number, navigationTaskId: number, contestantId: number, trackVersion?: number, scoreVersion?: number): Promise<ContestantScoreData> {
   // When the caller already knows the contestant's current track/score version (it's part of
   // every contestant returned by the navigation task fetch), request the versioned URL so the
@@ -85,7 +91,7 @@ export async function fetchContestantScoreData(contestId: number, navigationTask
   // goes stale the moment a finished contestant is rescored. Falls back to the unversioned route
   // when the version isn't known yet.
   const url = (trackVersion !== undefined && scoreVersion !== undefined)
-    ? reverse('contestants-score-data-versioned', contestId, navigationTaskId, contestantId, `${trackVersion}-${scoreVersion}`)
+    ? reverse('contestants-score-data-versioned', contestId, navigationTaskId, contestantId, `${trackVersion}-${scoreVersion}-f${SCORE_DATA_FORMAT}`)
     : reverse('contestants-score-data', contestId, navigationTaskId, contestantId);
   const res = await fetch(url, {
     headers: { 'Accept': 'application/json' }

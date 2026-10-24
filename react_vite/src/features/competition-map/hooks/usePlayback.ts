@@ -91,6 +91,8 @@ export function usePlayback(
         setIsPlaying,
         playbackTime,
         setPlaybackTime: handleTimeChange,
+        // For moving the clock without stopping it: the clock brought into a new span, a playing replay's own steps.
+        moveClockKeepingPlay: setPlaybackTime,
         playbackTimeInfo: activeSpan,
         wholeSpan: playbackTimeInfo,
     };

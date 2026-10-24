@@ -308,6 +308,7 @@ export default function CompetitionMapPage() {
     setIsPlaying,
     playbackTime,
     setPlaybackTime,
+    moveClockKeepingPlay,
     playbackTimeInfo
   } = usePlayback(mode, positionsByContestant, initialTime, initialSpeed, autoPlay, replayWholeDay ? null : ownFlightSpan);
 
@@ -331,8 +332,11 @@ export default function CompetitionMapPage() {
   // started) goes to the span's start: the flight replays from takeoff.
   useEffect(() => {
     if (mode !== 'playback' || !playbackTimeInfo) return;
-    if (clampToSpan(playbackTime, playbackTimeInfo) !== playbackTime) setPlaybackTime(playbackTimeInfo.start);
-  }, [mode, playbackTimeInfo, playbackTime, setPlaybackTime]);
+    const clamped = clampToSpan(playbackTime, playbackTimeInfo);
+    // The link's own time goes to the nearest end of the span; otherwise the flight replays from its takeoff. The clock
+    // moves without pausing, so an autoplaying link goes on playing.
+    if (clamped !== playbackTime) moveClockKeepingPlay(initialTime ? clamped : playbackTimeInfo.start);
+  }, [mode, playbackTimeInfo, playbackTime, moveClockKeepingPlay, initialTime]);
 
   // Default to full trails if task is over or no one is running
   useEffect(() => {
