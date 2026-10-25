@@ -46,6 +46,9 @@ export default function GatesTable({
         : r?.offset_seconds !== null && r?.offset_seconds !== undefined
             ? <span style={{ color: Math.abs(r.offset_seconds) <= 2 ? 'var(--hud-ok)' : 'var(--hud-warn)' }}>{r.offset_seconds > 0 ? '+' : ''}{r.offset_seconds} s</span>
             : null;
+    // A gate that has been crossed or missed shows its points, a zero too; one not reached yet shows none.
+    const pointsText = (r: GateResult | undefined) =>
+        r && (r.actual !== null || r.missed || r.points !== 0) ? (r.points === 0 ? '0' : signed(r.points)) : '';
     const otherBy = new Map((compare?.results ?? []).map(r => [r.gate, r]));
 
     return (
@@ -104,10 +107,10 @@ export default function GatesTable({
                             {compare ? (
                                 <>
                                     <td className="py-1 pr-1 hud-figure text-right">{offsetText(r, true)}</td>
-                                    <td className="py-1 pr-2 hud-figure text-right" style={{ color: colour(r.points) }}>{r.points ? signed(r.points) : ''}</td>
+                                    <td className="py-1 pr-2 hud-figure text-right" style={{ color: colour(r.points) }}>{pointsText(r)}</td>
                                     <td className="py-1 pr-1 hud-figure text-right">{offsetText(otherBy.get(r.gate), true)}</td>
                                     <td className="py-1 hud-figure text-right" style={{ color: colour(otherBy.get(r.gate)?.points ?? 0) }}>
-                                        {otherBy.get(r.gate)?.points ? signed(otherBy.get(r.gate)!.points) : ''}
+                                        {pointsText(otherBy.get(r.gate))}
                                     </td>
                                 </>
                             ) : (
@@ -117,7 +120,7 @@ export default function GatesTable({
                                         {r.missed ? <span style={{ color: 'var(--hud-red)' }}>Missed</span> : clock(r.actual, timeZone)}
                                     </td>
                                     <td className="py-1 pr-1 hud-figure text-right">{offsetText(r, false)}</td>
-                                    <td className="py-1 hud-figure text-right" style={{ color: colour(r.points) }}>{r.points ? signed(r.points) : ''}</td>
+                                    <td className="py-1 hud-figure text-right" style={{ color: colour(r.points) }}>{pointsText(r)}</td>
                                 </>
                             )}
                         </tr>

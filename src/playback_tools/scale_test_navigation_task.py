@@ -268,11 +268,15 @@ def create_contestants(
             wind_speed=current_old_contestant.wind_speed,
             adaptive_start=False,
         )
-        Contestant.objects.filter(pk=contestant_object.pk).update(
-            predefined_gate_times=contestant_object.calculate_missing_gate_times(
-                {}, start_time + current_contestant_index * start_interval
-            )
-        )
+        contestant_start = start_time + current_contestant_index * start_interval
+        gate_times = contestant_object.calculate_missing_gate_times({}, contestant_start)
+        # The track is replayed arguments.speed times faster (get_retimed_track), so the plan it is scored against must
+        # be as well: otherwise every offset, score and the progress are measured against a flight at normal speed.
+        gate_times = {
+            gate: contestant_start + (gate_time - contestant_start) / arguments.speed
+            for gate, gate_time in gate_times.items()
+        }
+        Contestant.objects.filter(pk=contestant_object.pk).update(predefined_gate_times=gate_times)
 
         created_contestants.append(
             (
