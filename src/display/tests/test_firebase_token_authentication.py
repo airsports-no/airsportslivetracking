@@ -82,7 +82,8 @@ class TestFirebaseTokenAuthentication(TestCase):
         self.assertEqual(user.last_name, "Doe")
         self.assertTrue(User.objects.filter(email="newpilot@example.com").exists())
 
-    def test_display_name_with_more_than_two_parts_is_not_split(self, mock_get_user, mock_verify, mock_init):
+    def test_display_name_with_more_than_two_parts_keeps_the_last_word_as_the_last_name(self, mock_get_user, mock_verify, mock_init):
+        # The signup form no longer makes the local user: the first sign-in does, from the display name it wrote.
         mock_verify.return_value = {"uid": "firebase-uid-123"}
         mock_get_user.return_value = _make_firebase_user(
             email="newpilot@example.com", display_name="Jane Middle Doe"
@@ -91,8 +92,8 @@ class TestFirebaseTokenAuthentication(TestCase):
         auth = FirebaseTokenAuthentication()
         user, _ = auth.authenticate_credentials("some-token")
 
-        self.assertEqual(user.first_name, "")
-        self.assertEqual(user.last_name, "")
+        self.assertEqual(user.first_name, "Jane Middle")
+        self.assertEqual(user.last_name, "Doe")
 
     def test_unverified_email_is_rejected(self, mock_get_user, mock_verify, mock_init):
         mock_verify.return_value = {"uid": "firebase-uid-123"}
