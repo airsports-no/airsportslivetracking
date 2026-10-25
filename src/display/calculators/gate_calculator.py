@@ -1,6 +1,7 @@
 import datetime
 import itertools
 import logging
+import math
 from queue import Queue
 from typing import List, Optional, Sequence
 
@@ -20,7 +21,7 @@ from display.calculators.calculator import (
     StartingLinePassedEvent,
     TakeoffPassedEvent,
 )
-from display.calculators.calculator_utilities import round_time_minute
+from display.calculators.calculator_utilities import round_time_minute, travel_bearing_from_track
 from display.calculators.positions_and_gates import Gate, round_seconds
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
@@ -28,6 +29,7 @@ from display.models import ANOMALY, INFORMATION
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
 from display.utilities.coordinate_utilities import (
+    bearing_difference,
     calculate_distance_lat_lon,
     calculate_speed_between_points,
     extend_line,
@@ -291,7 +293,6 @@ class GateCalculator(Calculator):
         p_y = getattr(last_pos, "projected_y", None)
 
         if p_x is not None and state.next_gate.center_x is not None:
-            import math
 
             distance_to_next_gate_m = math.sqrt(
                 (p_x - state.next_gate.center_x) ** 2 + (p_y - state.next_gate.center_y) ** 2
@@ -301,12 +302,43 @@ class GateCalculator(Calculator):
                 (last_pos.latitude, last_pos.longitude), (state.next_gate.latitude, state.next_gate.longitude)
             )
 
+        if remaining_leg_distance_m == 0:
+            distance_to_next_gate_m = self._distance_along_heading_to_gate_line(
+                state.next_gate, last_pos, track, distance_to_next_gate_m
+            )
+
         distance = (distance_to_next_gate_m + remaining_leg_distance_m) / 1852  # nm
 
         seconds_to_gate = (distance / speed) * 3600
         estimated_time = last_pos.time + datetime.timedelta(seconds=seconds_to_gate)
 
         return EstimationUpdatedEvent(next_timed_gate, estimated_time, last_pos)
+
+    @staticmethod
+    def _distance_along_heading_to_gate_line(
+        gate: Gate, last_pos, track: Sequence[ContestantReceivedPosition], distance_to_centre_m: float
+    ) -> float:
+        """
+        The distance the aircraft still has to fly to reach the gate's line, not its centre. An aircraft that approaches
+        off-centre never gets closer to the centre than its sideways offset, so the estimate to the centre stops
+        falling a few seconds before the line and then jumps back when the crossing is detected. Falls back to the
+        distance to the centre whenever the line, the heading or the geometry does not give a better answer.
+        """
+        line = gate.projected_gate_line_infinite or gate.projected_gate_line
+        p_x = getattr(last_pos, "projected_x", None)
+        p_y = getattr(last_pos, "projected_y", None)
+        bearing = travel_bearing_from_track(track)
+        if not line or p_x is None or p_y is None or bearing is None or gate.gate_heading is None:
+            return distance_to_centre_m
+        dx = line[1].projected_x - line[0].projected_x
+        dy = line[1].projected_y - line[0].projected_y
+        length = math.hypot(dx, dy)
+        if length == 0:
+            return distance_to_centre_m
+        perpendicular = abs(dx * (p_y - line[0].projected_y) - dy * (p_x - line[0].projected_x)) / length
+        # How square to the line the aircraft is flying; a shallow angle would make the distance blow up.
+        cosine = max(math.cos(math.radians(bearing_difference(bearing, gate.gate_heading))), 0.5)
+        return min(distance_to_centre_m, perpendicular / cosine)
 
     def calculate_enroute(
         self,

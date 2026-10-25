@@ -363,6 +363,41 @@ class TestGateCalculator(CalculatorUnitTestBase):
         actual_seconds = (event.estimated_time - pos.time).total_seconds()
         self.assertAlmostEqual(actual_seconds, expected_seconds, delta=1)
 
+    def test_estimate_of_an_off_centre_approach_counts_to_the_gate_line_not_its_centre(self):
+        # Flying north to an east-west gate 220 m east of its centre: the distance to the centre stops falling a few
+        # seconds before the line, so the estimate kept receding and then jumped back when the crossing was detected.
+        gate = MagicMock()
+        gate.time_check = True
+        gate.distance = 0
+        gate.gate_heading = 0
+        centre = self.projector.project_point(60.0, 11.0)
+        gate.center_x = centre.projected_x
+        gate.center_y = centre.projected_y
+        gate.projected_gate_line_infinite = (self.projector.project_point(60.0, 10.99), self.projector.project_point(60.0, 11.01))
+        gate.latitude = 60.0
+        gate.longitude = 11.0
+        self.calculator.gates = [gate]
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=gate,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        start = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        # 30 m/s north, one position a second, the last 167 m short of the line.
+        track = [
+            self.create_position(59.9985 - (10 - second) * 0.00027, 11.004, start + datetime.timedelta(seconds=second))
+            for second in range(11)
+        ]
+
+        event = self.calculator.estimate_crossing_time_of_next_timed_gate(track, state)
+
+        seconds = (event.estimated_time - track[-1].time).total_seconds()
+        self.assertAlmostEqual(seconds, 167 / 30, delta=1.0)  # to the centre it would have been about 9.3
+
     def _estimates_made(self, estimated_crossing_time, positions):
         """How many times the crossing is estimated again over a run of positions, one second apart."""
         _, state = self._start_line_and_state()
