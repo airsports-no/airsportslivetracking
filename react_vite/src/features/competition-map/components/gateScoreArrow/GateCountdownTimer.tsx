@@ -12,8 +12,6 @@ interface GateCountdownTimerProps {
     missed: boolean;
     /** Whether there is a prediction to show beside the countdown (not before the start, which has none). */
     predicted?: boolean;
-    /** Shown between the gate's name and the figures: on a phone, the danger level, to save a row below the arrow. */
-    middle?: React.ReactNode;
 }
 
 /**
@@ -29,7 +27,6 @@ const GateCountdownTimer: React.FC<GateCountdownTimerProps> = ({
     final,
     missed,
     predicted = true,
-    middle,
 }) => {
     const offsetColour = offsetWithinGrace ? "var(--hud-ok)" : "var(--hud-red)";
     const late = secondsToRequiredTime < 0;
@@ -48,7 +45,6 @@ const GateCountdownTimer: React.FC<GateCountdownTimerProps> = ({
                 )}
                 <div className="hud-figure text-xl sm:text-2xl min-[100rem]:text-4xl truncate">{waypointName}</div>
             </div>
-            {middle}
             <div className="flex items-end gap-4">
                 {missed ? (
                     <div className="hud-figure text-3xl sm:text-4xl min-[100rem]:text-6xl leading-none" style={{ color: "var(--hud-red)" }}>Missed</div>

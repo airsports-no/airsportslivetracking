@@ -14,8 +14,6 @@ interface Props {
     dangerData?: DangerData;
     /** Live: the gate countdown and arrow. Off in debrief, where the replay bar takes the bottom edge instead. */
     live: boolean;
-    /** How far along the route the contestant is (0-100); undefined before the start and after the finish line. */
-    progress?: number;
     /** Whether the viewer sees secret and unknown-leg gates (the gate score arrow counts down to them then). */
     showSecrets?: boolean;
     /** One slim row above the replay bar: crew, score and place at the replay's time. */
@@ -124,7 +122,7 @@ function Neighbours({ neighbours, className }: { neighbours: NonNullable<Props['
  * max-height:500px classes) it keeps to one row, without photos, so the map keeps most of the height. On a big screen
  * (100rem, 1600 px, and wider: the event display) everything is larger and the arrow takes the rest of the width.
  */
-export default function FollowBar({ contestant, navigationTask, score, rank, rankOf, gateArrowData, dangerData, live, slim = false, neighbours, showSecrets = true, progress }: Props) {
+export default function FollowBar({ contestant, navigationTask, score, rank, rankOf, gateArrowData, dangerData, live, slim = false, neighbours, showSecrets = true }: Props) {
     const crew = contestant.team?.crew;
     if (!crew?.member1) return null;
     const isPoker = navigationTask.scorecard.task_type.includes('poker');
@@ -168,9 +166,7 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
 
                 {live && !isPoker && (
                     <div className={`w-full min-w-0 lg:w-auto lg:flex-1 lg:max-w-[36rem] lg:ml-auto min-[100rem]:max-w-none [@media(max-height:500px)]:w-auto [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:max-w-[22rem] [@media(max-height:500px)]:ml-auto`}>
-                        <GateScoreArrowV2 contestant={contestant} navigationTask={navigationTask} gateArrowData={gateArrowData} showSecrets={showSecrets}
-                            danger={showDanger ? { level: danger, accumulated: dangerData?.accumulated_score ?? 0 } : null}
-                            progress={progress} />
+                        <GateScoreArrowV2 contestant={contestant} navigationTask={navigationTask} gateArrowData={gateArrowData} showSecrets={showSecrets} />
                     </div>
                 )}
                 {isPoker && contestant.playing_cards && contestant.playing_cards.length > 0 && (
@@ -179,7 +175,7 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
 
                 {showDanger && (
                     // How close the pilot is to a penalty (outside the corridor, in a prohibited zone), as a level.
-                    <div className={`${live && !isPoker ? "hidden sm:flex" : "flex"} lg:flex-col items-center gap-2 flex-none`} title="How close the contestant is to a penalty">
+                    <div className="flex lg:flex-col items-center gap-2 flex-none" title="How close the contestant is to a penalty">
                         <div className="relative w-24 h-2 lg:w-2 lg:h-20 min-[100rem]:w-3 min-[100rem]:h-28 rounded-full overflow-hidden" style={{ background: 'var(--hud-raised)' }}>
                             {/* Fills from the left on narrow screens, from the bottom beside the arrow on wide ones. */}
                             <div className="absolute left-0 top-0 h-full lg:hidden" style={{ width: `${danger}%`, background: danger >= 100 ? 'var(--hud-red)' : 'var(--hud-warn)' }} />
