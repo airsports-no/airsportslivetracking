@@ -9,7 +9,7 @@ import { getPortalRoot } from '../../../utils/portalRoot';
 const BusyOverlay: React.FC<{ message: string }> = ({ message }) =>
   createPortal(
     <div
-      className="fixed inset-0 z-[10000] flex flex-col items-center justify-center gap-4 bg-base-100/80 backdrop-blur-sm"
+      className="fixed inset-0 z-[10000] flex flex-col items-center justify-center gap-4 bg-base-100"
       role="alert"
       aria-live="assertive"
       aria-busy="true"
