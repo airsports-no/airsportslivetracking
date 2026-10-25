@@ -30,8 +30,14 @@ const BusyOverlay: React.FC<{ message: string; detail?: string }> = ({
       if (element === portalRoot) Array.from(portalRoot.children).forEach(makeInert);
       else makeInert(element);
     }
+    // The control that had the focus (the one that started the deletion) gets it back when the overlay goes, if it is
+    // still there: after a failed deletion the keyboard user is where they were.
+    const previous = document.activeElement instanceof HTMLElement ? document.activeElement : null;
     overlay?.focus();
-    return () => made.forEach(element => { element.inert = false; });
+    return () => {
+      made.forEach(element => { element.inert = false; });
+      if (previous && previous.isConnected && previous !== document.body) previous.focus();
+    };
   }, []);
 
   return createPortal(

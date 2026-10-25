@@ -132,12 +132,13 @@ function Neighbours({ neighbours, className }: { neighbours: NonNullable<Props['
  * (100rem, 1600 px, and wider: the event display) everything is larger and the arrow takes the rest of the width.
  */
 export default function FollowBar({ contestant, navigationTask, score, rank, rankOf, gateArrowData, dangerData, live, slim = false, neighbours, showSecrets = true }: Props) {
+    // Hooks first: the same ones on every render, whether or not there is a crew to show.
+    const wide = useSyncExternalStore(subscribeToWide, isWide, () => true);
     const crew = contestant.team?.crew;
     if (!crew?.member1) return null;
     const isPoker = navigationTask.scorecard.task_type.includes('poker');
     const danger = Math.max(0, Math.min(100, dangerData?.danger_level ?? 0));
     const showDanger = live && dangerData !== undefined;
-    const wide = useSyncExternalStore(subscribeToWide, isWide, () => true);
 
     // A poker run's hand lies on the map just above the team presentation, with no background, so the bar keeps its
     // height: an arc where every card shows its corner. Smaller on a phone, and in a replay's slim row.
