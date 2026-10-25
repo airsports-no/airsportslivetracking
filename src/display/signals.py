@@ -275,7 +275,10 @@ def post_task_summary_change(sender, instance: TaskSummary, **kwargs):
     # cascade has committed - raising Task.DoesNotExist from inside Contest.delete() itself
     # (Sentry PYTHON-DJANGO-1M). Contest still exists at signal time since children are
     # deleted before parents.
-    contest = instance.task.contest
+    try:
+        contest = instance.task.contest
+    except ObjectDoesNotExist:
+        return  # the results task went first (see push_test_change)
 
     def send_update():
         ws = WebsocketFacade()
@@ -341,8 +344,13 @@ def push_test_change(sender, instance: TaskTest, **kwargs):
     if getattr(instance, "_skip_results_broadcast", False):
         return
 
-    # See post_task_summary_change above - resolve eagerly, not inside send_update.
-    contest = instance.task.contest
+    # See post_task_summary_change above - resolve eagerly, not inside send_update. When the contest is deleted its
+    # navigation tasks' own pre_delete (clear_navigation_task_results_service_test) deletes the results task first, so
+    # that this test's task can be gone when its post_delete arrives: nothing to announce for a task that is not there.
+    try:
+        contest = instance.task.contest
+    except ObjectDoesNotExist:
+        return
 
     def send_update():
         ws = WebsocketFacade()
