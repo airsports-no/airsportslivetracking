@@ -6,7 +6,7 @@ interface HandProps {
     cards: string[];
     cardSize?: number;
     elevated?: string;
-    layout?: 'fan' | 'spread' | 'stack';
+    layout?: 'fan' | 'spread' | 'stack' | 'arc';
     hide?: boolean;
     onClick?: (card: string) => void;
 }
@@ -46,6 +46,15 @@ const Hand: React.FC<HandProps> = (props) => {
                     transform: `translateY(${(overHalf ? -down : down)}%) translateX(${(-50 + over * -1)}%) rotate(${degs}deg)`
                 };
             };
+        } else if (layout === 'arc') {
+            // Every card turns about one point at the foot of the hand, so each shows its corner (rank and suit):
+            // the step is wide enough for that, and narrower the more cards there are.
+            const step = Math.min(16, 64 / Math.max(1, handLength - 1));
+            return (num: number) => ({
+                zIndex: num,
+                transformOrigin: '50% 100%',
+                transform: `translateX(-50%) rotate(${(num - (handLength - 1) / 2) * step}deg)`,
+            });
         } else if (layout === 'spread') {
             const initialOver = 110 * (handLength - 1);
             return (num: number) => {
@@ -66,8 +75,17 @@ const Hand: React.FC<HandProps> = (props) => {
         }
     }, [layout, handLength]);
 
+    // The box of an arc is as wide as the turned cards need (a card is about 0.7 as wide as it is high), and as high.
+    const arcStep = Math.min(16, 64 / Math.max(1, handLength - 1));
+    const arcHalfAngle = ((handLength - 1) / 2) * arcStep;
+    const arcWidth = Math.ceil(cardSize * (0.72 + 2 * Math.sin((arcHalfAngle * Math.PI) / 180)));
     return (
-                <div className={'Hand'} style={{ height: cardSize }} >
+                <div
+                    className={'Hand'}
+                    style={layout === 'arc'
+                        ? { height: Math.ceil(cardSize * 1.05), width: arcWidth, margin: 0 }
+                        : { height: cardSize }}
+                >
             {cards.map((card, index) => (
                 <PlayingCard
                     key={card}

@@ -31,6 +31,15 @@ const subscribeToBothFit = (onChange: () => void) => {
 };
 const bothFit = () => !!window.matchMedia?.(BOTH_FIT).matches;
 
+/** From the sm breakpoint (640 px): room for a larger poker hand. */
+const WIDE = '(min-width: 640px)';
+const subscribeToWide = (onChange: () => void) => {
+    const query = window.matchMedia?.(WIDE);
+    query?.addEventListener('change', onChange);
+    return () => query?.removeEventListener('change', onChange);
+};
+const isWide = () => !!window.matchMedia?.(WIDE).matches;
+
 /** How long each crew member is shown when there is room for only one at a time. */
 const CREW_SWITCH_MS = 6000;
 const ROLES = ['Pilot', 'Navigator'];
@@ -128,9 +137,20 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
     const isPoker = navigationTask.scorecard.task_type.includes('poker');
     const danger = Math.max(0, Math.min(100, dangerData?.danger_level ?? 0));
     const showDanger = live && dangerData !== undefined;
+    const wide = useSyncExternalStore(subscribeToWide, isWide, () => true);
+
+    // A poker run's hand lies on the map just above the team presentation, with no background, so the bar keeps its
+    // height: an arc where every card shows its corner. Smaller on a phone, and in a replay's slim row.
+    const handSize = (wide ? 110 : 84) - (slim ? 14 : 0);
 
     return (
-        <section className={`hud border-t hud-divider px-3 sm:px-4 ${slim ? 'py-1.5' : 'py-2 sm:py-3 min-[100rem]:py-4'} min-[100rem]:px-6 z-[1100]`} aria-label={`Following ${crew.member1.first_name} ${crew.member1.last_name}`}>
+        <section className={`hud relative border-t hud-divider px-3 sm:px-4 ${slim ? 'py-1.5' : 'py-2 sm:py-3 min-[100rem]:py-4'} min-[100rem]:px-6 z-[1100]`} aria-label={`Following ${crew.member1.first_name} ${crew.member1.last_name}`}>
+            {isPoker && contestant.playing_cards && contestant.playing_cards.length > 0 && (
+                <div // Clear of the map's scale bar at the bottom left.
+                className="absolute left-[5.5rem] bottom-full mb-2 pointer-events-none" aria-label="Poker hand">
+                    <PlayingCards playingCards={contestant.playing_cards} cardSize={handSize} layout="arc" />
+                </div>
+            )}
             <div className={`flex ${slim ? 'flex-nowrap' : 'flex-wrap lg:flex-nowrap'} [@media(max-height:500px)]:flex-nowrap items-center gap-x-5 min-[100rem]:gap-x-10 gap-y-2`}>
                 <div className="flex items-center gap-4 min-w-0 flex-1 lg:flex-none">
                     <Crew members={crew.member2 ? [crew.member1, crew.member2] : [crew.member1]} club={contestant.team.club?.name} slim={slim} />
@@ -169,9 +189,6 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
                         <GateScoreArrowV2 contestant={contestant} navigationTask={navigationTask} gateArrowData={gateArrowData} showSecrets={showSecrets}
                             danger={showDanger ? { level: danger, accumulated: dangerData?.accumulated_score ?? 0 } : null} />
                     </div>
-                )}
-                {isPoker && contestant.playing_cards && contestant.playing_cards.length > 0 && (
-                    <div className="lg:ml-auto"><PlayingCards playingCards={contestant.playing_cards} /></div>
                 )}
 
                 {showDanger && (
