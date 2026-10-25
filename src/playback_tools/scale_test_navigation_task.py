@@ -102,7 +102,6 @@ if __name__ == "__main__":
     traccar = Traccar.create_from_configuration()
 
     traccar.get_device_map()
-    warn_if_too_few_calculator_slots(arguments.number_of_contestants)
 
 
 def warn_if_too_few_calculator_slots(number_of_contestants: int):
@@ -322,6 +321,7 @@ def create_contestants(
 
 
 if __name__ == "__main__":
+    warn_if_too_few_calculator_slots(arguments.number_of_contestants)
     navigation_task = NavigationTask.objects.get(pk=arguments.navigation_task_id)
     logger.info(
         f"Creating scaling test from task {navigation_task} with {arguments.number_of_contestants} created from {navigation_task.contestant_set.all().count()} existing contestants spaced by {datetime.timedelta(seconds=arguments.start_interval_seconds)}"
