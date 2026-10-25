@@ -363,6 +363,27 @@ class TestGateCalculator(CalculatorUnitTestBase):
         actual_seconds = (event.estimated_time - pos.time).total_seconds()
         self.assertAlmostEqual(actual_seconds, expected_seconds, delta=1)
 
+    def _estimates_made(self, estimated_crossing_time, positions):
+        """How many times the crossing is estimated again over a run of positions, one second apart."""
+        _, state = self._start_line_and_state()
+        state.estimated_crossing_time = estimated_crossing_time
+        calls = []
+        self.calculator.check_intersections = lambda track, state: []
+        self.calculator.estimate_crossing_time_of_next_timed_gate = lambda track, state: calls.append(1) or MagicMock()
+        self.calculator.live_processing = False
+        self.calculator.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+        for position in positions:
+            self.calculator.calculate_enroute([position], state)
+        return len(calls)
+
+    def test_the_crossing_is_estimated_every_second_in_the_last_half_minute_and_every_five_seconds_before(self):
+        start = datetime.datetime(2020, 1, 1, 9, 0, tzinfo=datetime.timezone.utc)
+        positions = [self.create_position(60.0, 11.0, start + datetime.timedelta(seconds=s)) for s in range(31)]
+        far = self._estimates_made(start + datetime.timedelta(minutes=10), positions)
+        near = self._estimates_made(start + datetime.timedelta(seconds=20), positions)
+        self.assertEqual(far, 7)  # 0, 5, 10, ..., 30
+        self.assertEqual(near, 31)  # every position, one second apart, once the crossing is within half a minute
+
     def _start_line_and_state(self, adaptive_start=False):
         line = MagicMock()
         line.name = "SP"

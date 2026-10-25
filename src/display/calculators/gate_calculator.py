@@ -46,6 +46,12 @@ from websocket_channels import WebsocketFacade
 # How long before the planned starting line crossing (set start times) the gate score arrow gets a prediction of it.
 START_ESTIMATE_LEAD = datetime.timedelta(minutes=1)
 
+# How often the crossing of the next timed gate is estimated again: every few seconds, every second in the last half
+# minute before the estimated crossing.
+ESTIMATE_INTERVAL = datetime.timedelta(seconds=5)
+CLOSE_ESTIMATE_INTERVAL = datetime.timedelta(seconds=1)
+CLOSE_CROSSING_WITHIN = datetime.timedelta(seconds=30)
+
 logger = logging.getLogger(__name__)
 
 GATE_SCORE_TYPE = "gate_score"
@@ -309,9 +315,15 @@ class GateCalculator(Calculator):
     ) -> List[OrchestratorEvent]:
         events = self.check_intersections(track, state)
 
-        # Performance estimation every 5 seconds
+        # Performance estimation every 5 seconds, every second once the crossing is near (or overdue): the last half
+        # minute is where the live map's prediction is watched, and a stale one is then up to five seconds old.
         last_pos = track[-1]
-        if last_pos.time > self.last_estimation_time + datetime.timedelta(seconds=5):
+        crossing_is_near = (
+            state.estimated_crossing_time is not None
+            and state.estimated_crossing_time - last_pos.time < CLOSE_CROSSING_WITHIN
+        )
+        interval = CLOSE_ESTIMATE_INTERVAL if crossing_is_near else ESTIMATE_INTERVAL
+        if last_pos.time >= self.last_estimation_time + interval:
             estimation_event = self.estimate_crossing_time_of_next_timed_gate(track, state)
             if estimation_event:
                 events.append(estimation_event)
