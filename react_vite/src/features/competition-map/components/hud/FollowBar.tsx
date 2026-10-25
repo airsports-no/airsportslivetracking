@@ -166,7 +166,8 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
 
                 {live && !isPoker && (
                     <div className={`w-full min-w-0 lg:w-auto lg:flex-1 lg:max-w-[36rem] lg:ml-auto min-[100rem]:max-w-none [@media(max-height:500px)]:w-auto [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:max-w-[22rem] [@media(max-height:500px)]:ml-auto`}>
-                        <GateScoreArrowV2 contestant={contestant} navigationTask={navigationTask} gateArrowData={gateArrowData} showSecrets={showSecrets} />
+                        <GateScoreArrowV2 contestant={contestant} navigationTask={navigationTask} gateArrowData={gateArrowData} showSecrets={showSecrets}
+                            danger={showDanger ? { level: danger, accumulated: dangerData?.accumulated_score ?? 0 } : null} />
                     </div>
                 )}
                 {isPoker && contestant.playing_cards && contestant.playing_cards.length > 0 && (
@@ -175,7 +176,7 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
 
                 {showDanger && (
                     // How close the pilot is to a penalty (outside the corridor, in a prohibited zone), as a level.
-                    <div className="flex lg:flex-col items-center gap-2 flex-none" title="How close the contestant is to a penalty">
+                    <div className={`${live && !isPoker ? "hidden sm:flex" : "flex"} lg:flex-col items-center gap-2 flex-none`} title="How close the contestant is to a penalty">
                         <div className="relative w-24 h-2 lg:w-2 lg:h-20 min-[100rem]:w-3 min-[100rem]:h-28 rounded-full overflow-hidden" style={{ background: 'var(--hud-raised)' }}>
                             {/* Fills from the left on narrow screens, from the bottom beside the arrow on wide ones. */}
                             <div className="absolute left-0 top-0 h-full lg:hidden" style={{ width: `${danger}%`, background: danger >= 100 ? 'var(--hud-red)' : 'var(--hud-warn)' }} />

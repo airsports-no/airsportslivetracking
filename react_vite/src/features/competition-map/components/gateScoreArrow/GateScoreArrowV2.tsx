@@ -11,6 +11,8 @@ interface GateScoreArrowV2Props {
     gateArrowData?: GateArrowData;
     /** Whether the viewer sees secret and unknown-leg gates: no countdown to them otherwise. */
     showSecrets?: boolean;
+    /** The danger level (0-100) and the penalty accumulated, shown in the top row on a phone. */
+    danger?: { level: number; accumulated: number } | null;
 }
 
 // How long before a set start time the countdown to it shows.
@@ -23,6 +25,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     navigationTask,
     gateArrowData,
     showSecrets = true,
+    danger = null,
 }) => {
     // A callback ref, not a mount-time effect: the container is only rendered once there is something to show, and an
     // arrow that appears later (a contestant selected before the start) must be measured then, or it stays small.
@@ -232,6 +235,17 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                     final={displayData.final}
                     missed={displayData.missed}
                     predicted={!startData}
+                    middle={danger && (
+                        // Phone only: from tablet width the danger level has its own place beside the arrow.
+                        <div className="sm:hidden flex-1 min-w-0 flex items-center gap-1.5 self-center px-2" title="How close the contestant is to a penalty">
+                            <div className="relative h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--hud-raised)" }}>
+                                <div className="absolute left-0 top-0 h-full" style={{ width: `${danger.level}%`, background: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }} />
+                            </div>
+                            <span className="hud-figure text-sm leading-none" style={{ color: danger.level >= 100 ? "var(--hud-red)" : undefined }}>
+                                {danger.level.toFixed(0)}%{danger.level >= 100 && danger.accumulated > 0 ? ` +${danger.accumulated}` : ""}
+                            </span>
+                        </div>
+                    )}
                 />
             </div>
             <GateScoreArrowRenderer
