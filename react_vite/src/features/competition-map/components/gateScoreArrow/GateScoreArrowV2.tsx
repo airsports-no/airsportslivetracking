@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef } from "react";
 import "./gateScore.css";
 import GateScoreArrowRenderer from "./GateScoreArrowRenderer";
 import GateCountdownTimer from "./GateCountdownTimer";
+import { useMapClock } from "../../utils/mapClock";
 import { addLagSample, clockOffsetMs, secondsToRequiredTime, withinGrace } from "./gateCountdown";
 import { Contestant, NavigationTask, GateArrowData, Waypoint, GateScoreRule } from "../../types";
 
@@ -64,7 +65,9 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
             const previous = lagSamplesRef.current.contestantId === contestant.id ? lagSamplesRef.current.samples : [];
             const samples = addLagSample(previous, gateArrowData.received_at, new Date(gateArrowData.position_time).getTime());
             lagSamplesRef.current = { contestantId: contestant.id, samples };
-            setClockOffset({ contestantId: contestant.id, ms: clockOffsetMs(samples, delayMinutes) });
+            const ms = clockOffsetMs(samples, delayMinutes);
+            setClockOffset({ contestantId: contestant.id, ms });
+            useMapClock.getState().set(contestant.id, ms);
         }
     }, [gateArrowData, delayMinutes, contestant.id]);
     const clockOffsetForContestant = clockOffset.contestantId === contestant.id ? clockOffset.ms : null;

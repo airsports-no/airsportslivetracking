@@ -23,6 +23,7 @@ import RouteRenderer from "./components/track-renderers/RouteRenderer";
 import Disclaimer from './components/Disclaimer';
 import SidePanel, { PanelTab } from './components/hud/SidePanel';
 import RankingList from './components/hud/RankingList';
+import { useMapClock } from './utils/mapClock';
 import NavLog from './components/hud/NavLog';
 import GatesTable from './components/hud/GatesTable';
 import FlightTimeline from './components/hud/FlightTimeline';
@@ -327,6 +328,15 @@ export default function CompetitionMapPage() {
   }, [now, staticNavTaskData]);
 
   const currentTime = mode === 'playback' ? playbackTime : realtimeTime;
+
+  // The side panel's countdown to the next gate counts on the same time as the lower third's: the browser's clock
+  // corrected by the lag the arrow measures from the followed contestant's messages.
+  const mapClock = useMapClock();
+  const timelineNow = useMemo(() => {
+    if (mode === 'playback' || mapClock.offsetMs === null || mapClock.contestantId !== selectedContestant?.id) return currentTime;
+    const delayMs = (staticNavTaskData?.calculation_delay_minutes || 0) * 60_000;
+    return new Date(now.getTime() - mapClock.offsetMs - delayMs);
+  }, [mode, currentTime, now, mapClock.offsetMs, mapClock.contestantId, selectedContestant?.id, staticNavTaskData?.calculation_delay_minutes]);
 
   // A replay time outside the span (another contestant, back from the whole day, or the clock before the replay has
   // started) goes to the span's start: the flight replays from takeoff.
@@ -1092,7 +1102,7 @@ export default function CompetitionMapPage() {
         && ((a.gate_type !== 'secret' && a.gate_type !== 'ul') || (staticNavTaskData.display_secrets && userShowSecrets)))}
       onSelectAnnotation={jumpToAnnotation}
       showSecrets={!!(staticNavTaskData.display_secrets && userShowSecrets)}
-      now={currentTime}
+      now={timelineNow}
       missesKnown={mode === 'realtime' || (!!playbackTimeInfo && currentTime >= playbackTimeInfo.end)}
       crossingOrder={staticNavTaskData.task_subtype === 'turnpoint_hunt'}
       timeZone={staticNavTaskData.time_zone}
