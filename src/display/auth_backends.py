@@ -118,7 +118,12 @@ class FirebaseMigrationBackend(ModelBackend):
                 user = MyUser.objects.filter(email__iexact=username).first()
                 
                 if not user:
-                    # AUTO-PROVISION: If they are in Firebase but not Django, create them.
+                    # AUTO-PROVISION: If they are in Firebase but not Django, create them. Only when Firebase has said
+                    # the address is verified: if the lookup above failed, nothing is made (a user who already has a
+                    # profile still signs in, so a Firebase Admin hiccup does not lock anybody out).
+                    if firebase_user is None or not firebase_user.email_verified:
+                        logger.warning(f"[Auth-Migration] Not provisioning {username}: verification could not be confirmed.")
+                        return None
                     logger.info(f"[Auth-Migration] User {username} not found in Django. Auto-provisioning profile.")
                     user = MyUser.objects.create_user(
                         email=username.lower(),
@@ -126,9 +131,7 @@ class FirebaseMigrationBackend(ModelBackend):
                         password=None  # Firebase is the source of truth
                     )
                     # The signup form puts the name in the Firebase display name (it makes no local rows itself).
-                    user.first_name, user.last_name = split_display_name(
-                        firebase_user.display_name if firebase_user else None
-                    )
+                    user.first_name, user.last_name = split_display_name(firebase_user.display_name)
                     user._is_firebase_migrated = True
                     user.set_unusable_password()
                     user.save()

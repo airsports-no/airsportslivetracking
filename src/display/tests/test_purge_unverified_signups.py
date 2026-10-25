@@ -13,14 +13,18 @@ from utilities.mock_utilities import TraccarMock
 NOW = datetime.datetime.now(datetime.timezone.utc)
 
 
-def firebase_user(email, name="Test User", verified=False, hours_old=48, signed_in=False, providers=("password",)):
+def firebase_user(email, name="Test User", verified=False, hours_old=48, signed_in=False, signup_sign_in=True, providers=("password",)):
     user = MagicMock()
     user.uid = f"uid-{email}"
     user.email = email
     user.display_name = name
     user.email_verified = verified
     user.user_metadata.creation_timestamp = int((NOW - datetime.timedelta(hours=hours_old)).timestamp() * 1000)
-    user.user_metadata.last_sign_in_timestamp = int(NOW.timestamp() * 1000) if signed_in else 0
+    created = user.user_metadata.creation_timestamp
+    # The signup form signs the account in once, a second after it is made, to send the verification email.
+    user.user_metadata.last_sign_in_timestamp = (
+        int(NOW.timestamp() * 1000) if signed_in else created + 800 if signup_sign_in else 0
+    )
     user.provider_data = [MagicMock(provider_id=provider) for provider in providers]
     return user
 
@@ -57,6 +61,20 @@ class TestPurgeUnverifiedSignups(TestCase):
         self.assertFalse(MyUser.objects.filter(email="bot@example.com").exists())
         self.assertFalse(Person.objects.filter(email="bot@example.com").exists())
         self.assertIn("Removed 1", output)
+
+    def test_the_signups_own_token_request_does_not_count_as_a_sign_in(self, _traccar):
+        # Every bot account made through the form has a last sign-in about a second after its creation.
+        self.make_rows("bot@example.com")
+        _, delete_user = self.run_command([firebase_user("bot@example.com", signup_sign_in=True)], "--execute")
+        delete_user.assert_called_once()
+
+    def test_a_profile_with_details_is_left_alone(self, _traccar):
+        person = self.make_rows("details@example.com")
+        person.phone = "+4712345678"
+        person.save()
+        _, delete_user = self.run_command([firebase_user("details@example.com")], "--execute")
+        delete_user.assert_not_called()
+        self.assertTrue(Person.objects.filter(email="details@example.com").exists())
 
     def test_a_firebase_account_without_local_rows_is_removed_too(self, _traccar):
         _, delete_user = self.run_command([firebase_user("fresh@example.com")], "--execute")

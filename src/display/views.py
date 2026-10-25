@@ -140,6 +140,7 @@ from display.flight_order_and_maps.user_uploaded_mbtiles_publish import (
     request_mbtiles_reload,
 )
 
+from display.utilities.person_provisioning import ensure_person
 from display.utilities.signup_protection import client_ip, new_form_token, over_limit, token_problem
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
 from display.utilities.navigation_task_type_definitions import POKER, AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, PRECISION
@@ -1298,6 +1299,7 @@ def firebase_token_login(request):
         # The backend recorded in the session must be listed in settings.AUTHENTICATION_BACKENDS, otherwise Django
         # discards the session on the next request (ModelBackend is not listed, so the app's web view stayed anonymous).
         login(request, user, backend="display.auth_backends.FirebaseMigrationBackend")
+        ensure_person(user)
     except drf_exceptions.AuthenticationFailed as e:
         logger.warning("Firebase login with token from app failed: %s", e)
         messages.error(request, f"Login failed: {e}")

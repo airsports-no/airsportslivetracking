@@ -168,7 +168,44 @@ class TestFirstVerifiedSignIn(TestCase):
         person = Person.objects.get(email="new.pilot@example.com")
         self.assertEqual((person.first_name, person.last_name), ("Mary Ann", "Smith"))
 
+    def test_nothing_is_made_when_the_verification_cannot_be_confirmed(self):
+        from django.contrib.auth import authenticate
+
+        with (
+            patch("display.auth_backends.FirebaseMigrationBackend._initialize_firebase"),
+            patch("display.auth_backends.FirebaseMigrationBackend._verify_firebase_password", return_value={"idToken": "x"}),
+            patch("firebase_admin.auth.get_user_by_email", side_effect=RuntimeError("Firebase Admin is down")),
+            patch("display.signals.get_traccar_instance", return_value=TraccarMock),
+        ):
+            self.assertIsNone(authenticate(request=None, username="new.pilot@example.com", password="longenough"))
+        self.assertFalse(MyUser.objects.filter(email="new.pilot@example.com").exists())
+        self.assertFalse(Person.objects.filter(email="new.pilot@example.com").exists())
+
+    def test_an_existing_user_still_signs_in_when_the_lookup_fails(self):
+        from django.contrib.auth import authenticate
+
+        MyUser.objects.create_user(username="old.pilot@example.com", email="old.pilot@example.com")
+        with (
+            patch("display.auth_backends.FirebaseMigrationBackend._initialize_firebase"),
+            patch("display.auth_backends.FirebaseMigrationBackend._verify_firebase_password", return_value={"idToken": "x"}),
+            patch("firebase_admin.auth.get_user_by_email", side_effect=RuntimeError("Firebase Admin is down")),
+            patch("display.signals.get_traccar_instance", return_value=TraccarMock),
+        ):
+            self.assertIsNotNone(authenticate(request=None, username="old.pilot@example.com", password="longenough"))
+
     def test_an_unverified_address_gets_nothing(self):
         self.assertIsNone(self.sign_in("Test User", email_verified=False))
         self.assertFalse(MyUser.objects.filter(email="new.pilot@example.com").exists())
         self.assertFalse(Person.objects.filter(email="new.pilot@example.com").exists())
+
+
+class TestAppWebSignIn(TestCase):
+    """firebase_token_login (the apps' web view) makes the Person as the website's own sign-in does."""
+
+    @patch("display.signals.get_traccar_instance", return_value=TraccarMock)
+    def test_a_verified_first_sign_in_gets_a_person(self, _traccar):
+        user = MyUser.objects.create_user(username="uid-1", email="app.pilot@example.com", first_name="Ola", last_name="Nordmann")
+        with patch("display.authentication.FirebaseTokenAuthentication.authenticate_credentials", return_value=(user, {})):
+            self.client.get("/firebase_login/", HTTP_AUTHORIZATION="JWT token")
+        person = Person.objects.get(email="app.pilot@example.com")
+        self.assertEqual((person.first_name, person.last_name), ("Ola", "Nordmann"))

@@ -3,8 +3,9 @@ Removes the accounts a bot made through the signup form: Firebase accounts whose
 display name the bot used, together with the local user and person made for them before signup stopped making them.
 
 Nothing is deleted without --execute. An account is only removed if it is unverified, still has only the password
-provider, was created more than --older-than-hours ago, has never signed in, and its local rows (if any) have no data
-of their own: no crew, no permissions, nothing else that would go with them.
+provider, was created more than --older-than-hours ago and has not signed in since its signup (the signup's own
+token request, a second after creation, does not count). Its local rows (if any) must have no data of their own:
+no sign-in, not staff, no crew, no profile details, nothing else that would go with them.
 
     python3 manage.py purge_unverified_signups --display-name "Test User"             # what would be removed
     python3 manage.py purge_unverified_signups --display-name "Test User" --execute    # remove it
@@ -22,6 +23,18 @@ from display.models import MyUser, Person
 def mask(email: str) -> str:
     local, _, domain = (email or "").partition("@")
     return f"{local[:2]}***@{domain}"
+
+
+# The signup form signs the new account in once, on the server, to get the token that sends the verification email:
+# a sign-in this soon after creation is that, not the person using the account.
+SIGNUP_SIGN_IN_SECONDS = 120
+
+# A profile with anything filled in beyond the names is somebody's: none of it is set by the signup form.
+PROFILE_FIELDS = ("phone", "biography", "picture", "country", "app_aircraft_registration")
+
+
+def has_profile_data(person) -> bool:
+    return any(getattr(person, field, None) for field in PROFILE_FIELDS)
 
 
 def own_data(instance) -> list:
@@ -74,7 +87,8 @@ class Command(BaseCommand):
             if created > cutoff:
                 skip("newer than the limit")
                 continue
-            if firebase_user.user_metadata.last_sign_in_timestamp:
+            last_sign_in = firebase_user.user_metadata.last_sign_in_timestamp
+            if last_sign_in and (last_sign_in - firebase_user.user_metadata.creation_timestamp) / 1000 > SIGNUP_SIGN_IN_SECONDS:
                 skip("has signed in")
                 continue
             if {provider.provider_id for provider in firebase_user.provider_data} - {"password"}:
@@ -86,7 +100,7 @@ class Command(BaseCommand):
             if user and (user.last_login or user.is_staff or user.is_superuser):
                 skip("local user has signed in or is staff")
                 continue
-            if user and own_data(user) or person and own_data(person):
+            if user and own_data(user) or person and (own_data(person) or has_profile_data(person)):
                 skip("local rows have data of their own")
                 continue
             if removed >= options["limit"]:
