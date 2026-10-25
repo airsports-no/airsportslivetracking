@@ -83,3 +83,32 @@ class TestDeleteRetryingInsideATransaction(TestCase):
         with self.assertRaises(IntegrityError):
             delete_retrying(delete, attempts=3, delay_seconds=0)
         self.assertEqual(len(calls), 1)
+
+
+class TestModelDeleteRetry(SimpleTestCase):
+    """A retried delete starts from a fresh instance: the failed attempt's signals changed the first one."""
+
+    def test_the_retry_is_made_on_a_fresh_instance(self):
+        from django.db.models import Model
+
+        from display.models import NavigationTask
+
+        task, fresh = NavigationTask(pk=5), NavigationTask(pk=5)
+        seen = []
+
+        def refused_once(instance, *args, **kwargs):
+            seen.append(instance)
+            if len(seen) == 1:
+                raise IntegrityError(1451, "Cannot delete or update a parent row")
+            return (1, {})
+
+        with (
+            patch("display.utilities.calculator_termination_utilities.stop_calculators"),
+            patch("display.models.navigation_task.NavigationTask.contestant_set", create=True),
+            patch("display.models.navigation_task.NavigationTask.objects.get", return_value=fresh),
+            patch.object(Model, "delete", refused_once),
+            patch("time.sleep"),
+        ):
+            task.delete()
+        self.assertIs(seen[0], task)
+        self.assertIs(seen[1], fresh)

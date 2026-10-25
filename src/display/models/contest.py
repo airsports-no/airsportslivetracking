@@ -197,7 +197,15 @@ class Contest(models.Model):
         from display.utilities.calculator_termination_utilities import delete_retrying, stop_calculators
 
         stop_calculators(Contestant.objects.filter(navigation_task__contest=self).values_list("pk", flat=True))
-        return delete_retrying(lambda: super(Contest, self).delete(*args, **kwargs))
+        attempts = []
+
+        def attempt():
+            # A retry starts from the row as the database has it: the signals of a refused attempt changed this instance.
+            attempts.append(1)
+            instance = self if len(attempts) == 1 else Contest.objects.get(pk=self.pk)
+            return super(Contest, instance).delete(*args, **kwargs)
+
+        return delete_retrying(attempt)
 
     def save(self, *args, **kwargs):
         # is_featured only remains for the apps that still read it: it always equals is_public

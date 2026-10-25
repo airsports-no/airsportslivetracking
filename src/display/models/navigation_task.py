@@ -330,7 +330,16 @@ class NavigationTask(models.Model):
         from display.utilities.calculator_termination_utilities import delete_retrying, stop_calculators
 
         stop_calculators(self.contestant_set.values_list("pk", flat=True))
-        return delete_retrying(lambda: super(NavigationTask, self).delete(*args, **kwargs))
+        attempts = []
+
+        def attempt():
+            # The delete's signals change this instance (they delete its tasktest, for one): a refused attempt rolls the
+            # database back but not that, so a retry starts from the row as the database has it.
+            attempts.append(1)
+            instance = self if len(attempts) == 1 else NavigationTask.objects.get(pk=self.pk)
+            return super(NavigationTask, instance).delete(*args, **kwargs)
+
+        return delete_retrying(attempt)
 
     def save(self, *args, **kwargs):
         # is_featured only remains for the apps that still read it: it always equals is_public
