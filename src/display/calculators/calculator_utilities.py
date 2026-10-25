@@ -348,3 +348,16 @@ def get_shortest_intersection_time(
         )
         return min([lookahead_seconds] + list(intersection_times.values()))
     return lookahead_seconds
+
+
+def refresh_contestant_in_place(contestant) -> None:
+    """
+    Reloads the contestant's own fields from the database without replacing the objects attached to it.
+
+    A plain contestant.refresh_from_db() throws away the cached contestanttrack, and the next contestant.contestanttrack
+    is a new object: the live calculators then work with several copies of the track (the processor's own, the one the
+    orchestrator and the calculators reach through the contestant), each knowing only what it changed itself. Reloading
+    just the contestant's fields keeps the one track object, which is refreshed in place where the processor does it
+    (ContestantTrack.refresh_from_db), so there is a single copy to be right about.
+    """
+    contestant.refresh_from_db(fields=[field.name for field in type(contestant)._meta.concrete_fields])
