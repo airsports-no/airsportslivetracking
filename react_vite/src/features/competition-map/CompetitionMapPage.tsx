@@ -52,6 +52,11 @@ const NO_OBSERVATIONS: PhotoObservation[] = [];
 
 
 
+/** The scorecard's task types as a list: a list for some scorecards, a single string for older ones. */
+function taskTypeList(taskType: string[] | string | undefined): string[] {
+  return Array.isArray(taskType) ? taskType : taskType ? [taskType] : [];
+}
+
 export default function CompetitionMapPage() {
   const { contestId, navigationTaskId } = useParams();
   const [searchParams, setSearchParams] = useSearchParams();
@@ -681,6 +686,7 @@ export default function CompetitionMapPage() {
         });
       }
 
+      const poker = taskTypeList(staticNavTaskData.scorecard.task_type).includes('poker');
       return allContestantsData.map((c, index) => {
         const state = c.contestanttrack?.current_state ?? 'Waiting...';
         const hasStarted = c.contestanttrack?.passed_starting_gate;
@@ -731,7 +737,9 @@ export default function CompetitionMapPage() {
             expectedBy: expectedBy,
             is_active_flight: isActiveFlight,
             is_receiving_data: isReceivingData,
-            progress: c.progress ?? c.contestanttrack?.progress,
+            // The route's progress runs from the starting line to the finish line: past it the bar is gone, though the
+            // calculator goes on until the finished-by time. A poker run counts cards instead, which end the flight.
+            progress: c.contestanttrack?.passed_finish_gate && !poker ? undefined : (c.progress ?? c.contestanttrack?.progress),
         };
       });
     };
@@ -797,9 +805,7 @@ export default function CompetitionMapPage() {
 
   // A flight list under the ranking only where gates make the flight: not for a poker run (its gates deal cards, and
   // the follow bar shows them) or a landing task, whose crossings the gate results do not record.
-  // (task_type is a list for some scorecards and a single string for older ones.)
-  const rawTaskType: string[] | string | undefined = staticNavTaskData?.scorecard?.task_type;
-  const taskTypes = Array.isArray(rawTaskType) ? rawTaskType : rawTaskType ? [rawTaskType] : [];
+  const taskTypes = taskTypeList(staticNavTaskData?.scorecard?.task_type);
   const hasFlightList = !taskTypes.some(t => t.includes('poker') || t.includes('landing'));
 
   // Log entries with a place on the map (an annotation): those a click can show.
