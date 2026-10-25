@@ -62,6 +62,8 @@ docker exec -it tracker_daphne python3 playback_tools/scale_test_navigation_task
 ```
 See `-h` for the start-interval, playback-speed, and pause options.
 
+Every contestant is scored by a live calculator that holds one worker slot of the `live_calculator` queue for the whole flight, and the docker-compose worker has 12 (`LIVE_CALCULATOR_CONCURRENCY`). With more contestants than slots the last ones wait in the queue and show as "not started yet" until a flight finishes; the script warns about it when it starts. Raise `LIVE_CALCULATOR_CONCURRENCY` and recreate `live_calculator` to test with more.
+
 #### Running frontend compilers
 
 After optimizing the docker image the various front end systems must be compiled outside of the container. For development the docker compose file maps they build results into the container. This is done in the following manners:

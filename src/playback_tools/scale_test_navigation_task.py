@@ -102,6 +102,35 @@ if __name__ == "__main__":
     traccar = Traccar.create_from_configuration()
 
     traccar.get_device_map()
+    warn_if_too_few_calculator_slots(arguments.number_of_contestants)
+
+
+def warn_if_too_few_calculator_slots(number_of_contestants: int):
+    """
+    Each contestant is scored by a live calculator that holds a worker slot of the live_calculator queue for the whole
+    flight (the docker-compose worker has 12, LIVE_CALCULATOR_CONCURRENCY). More contestants than slots, and the last
+    ones wait in the queue: they stay "Not started yet" on the map, whatever they fly, until a flight finishes.
+    """
+    try:
+        from live_tracking_map.celery import app
+
+        inspector = app.control.inspect(timeout=3)
+        queues = inspector.active_queues() or {}
+        stats = inspector.stats() or {}
+        slots = sum(
+            stats[worker]["pool"]["max-concurrency"]
+            for worker, consumed in queues.items()
+            if worker in stats and any(queue["name"] == "live_calculator" for queue in consumed)
+        )
+    except Exception:
+        logger.info("Could not ask the Celery workers how many calculators can run at once")
+        return
+    if slots and number_of_contestants > slots:
+        logger.warning(
+            f"{number_of_contestants} contestants but only {slots} live calculator slots: the last "
+            f"{number_of_contestants - slots} will wait for a slot and show as not started until a flight finishes. "
+            "Raise LIVE_CALCULATOR_CONCURRENCY (docker-compose.yml) and recreate live_calculator, or use fewer contestants."
+        )
 
 
 # A shared, thread-safe connection pool: each send_data_thread otherwise opened
