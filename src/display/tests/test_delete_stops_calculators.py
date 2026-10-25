@@ -6,7 +6,7 @@ the delete tried again if the database refuses it because of a write that raced 
 from unittest.mock import patch
 
 from django.db.utils import IntegrityError, OperationalError
-from django.test import SimpleTestCase
+from django.test import SimpleTestCase, TestCase
 
 from display.utilities.calculator_termination_utilities import delete_retrying, stop_calculators
 
@@ -64,6 +64,21 @@ class TestDeleteRetrying(SimpleTestCase):
         def delete():
             calls.append(1)
             raise IntegrityError(1062, "Duplicate entry")
+
+        with self.assertRaises(IntegrityError):
+            delete_retrying(delete, attempts=3, delay_seconds=0)
+        self.assertEqual(len(calls), 1)
+
+
+class TestDeleteRetryingInsideATransaction(TestCase):
+    """A test case runs in a transaction: someone else's, as far as the delete is concerned."""
+
+    def test_a_refused_delete_is_not_retried_on_a_transaction_that_is_marked_for_rollback(self):
+        calls = []
+
+        def delete():
+            calls.append(1)
+            raise IntegrityError(1451, "Cannot delete or update a parent row")
 
         with self.assertRaises(IntegrityError):
             delete_retrying(delete, attempts=3, delay_seconds=0)

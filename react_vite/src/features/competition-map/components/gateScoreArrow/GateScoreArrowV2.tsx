@@ -81,11 +81,13 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
         && startTimeMs !== null
         && startTimeMs - (nowMs - delayMinutes * 60_000) < START_COUNTDOWN_WINDOW_MS;
     const ticking = countingToStart || (!!currentArrowData && !currentArrowData.final && !currentArrowData.missed);
+    // Before the start's window opens the clock still moves, slowly, or the window would never be seen to open.
+    const waitingForStart = !contestant.adaptive_start && !contestant.contestanttrack?.passed_starting_gate && startTimeMs !== null;
     useEffect(() => {
-        if (!ticking) return;
-        const timer = setInterval(() => setNowMs(Date.now()), 200);
+        if (!ticking && !waitingForStart) return;
+        const timer = setInterval(() => setNowMs(Date.now()), ticking ? 200 : 5000);
         return () => clearInterval(timer);
-    }, [ticking]);
+    }, [ticking, waitingForStart]);
 
     const debugMode = false; // Toggle this to force display for placement work
     const startData: GateArrowData | undefined = countingToStart && startName && startTimeMs !== null

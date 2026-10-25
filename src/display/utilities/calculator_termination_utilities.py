@@ -54,8 +54,13 @@ def delete_retrying(delete, attempts: int = 3, delay_seconds: float = 2.0):
     """Runs delete(), again if the database refuses it because of a write that raced with it."""
     import time
 
+    from django.db import connection
     from django.db.utils import IntegrityError, OperationalError
 
+    if connection.in_atomic_block:
+        # Inside someone else's transaction a refused statement leaves it to be rolled back: a second attempt would
+        # run on a broken transaction. Whoever owns the transaction decides whether to try again.
+        return delete()
     for attempt in range(1, attempts + 1):
         try:
             return delete()
