@@ -82,6 +82,13 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
     const label = missed ? "Missed" : `${estimatedScore > 0 ? "+" : ""}${Math.round(estimatedScore)}`;
     const labelWidth = Math.max(40, label.length * 10 + 16) * k;
 
+    // The end labels fade out while the pointer's points are over them, so the two never print on top of each other.
+    const endLabelHalf = 16 * k;
+    const clearOf = (labelCentre: number) => Math.abs(pointerX - labelCentre) > labelWidth / 2 + endLabelHalf;
+    const earlyOpacity = clearOf(SIDE_PADDING + endLabelHalf) ? 1 : 0;
+    const lateOpacity = clearOf(width - SIDE_PADDING - endLabelHalf) ? 1 : 0;
+    const fade = { transition: `opacity ${POINTER_MOVE_MS / 2}ms` };
+
     if (width <= 0) return null;
 
     return (
@@ -106,8 +113,8 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
             ))}
 
             {/* Above the ends of the track, clear of the values under it. */}
-            <text x={SIDE_PADDING} y={trackY - 8 * k} fontSize={smallFont} fontWeight={600} fill="var(--hud-muted)">Early</text>
-            <text x={width - SIDE_PADDING} y={trackY - 8 * k} fontSize={smallFont} fontWeight={600} fill="var(--hud-muted)" textAnchor="end">Late</text>
+            <text x={SIDE_PADDING} y={trackY - 8 * k} fontSize={smallFont} fontWeight={600} fill="var(--hud-muted)" opacity={earlyOpacity} style={fade}>Early</text>
+            <text x={width - SIDE_PADDING} y={trackY - 8 * k} fontSize={smallFont} fontWeight={600} fill="var(--hud-muted)" textAnchor="end" opacity={lateOpacity} style={fade}>Late</text>
 
             {/* The pointer and its points; it glides to each new estimate. */}
             <g style={{ transform: `translateX(${pointerX}px)`, transition: `transform ${POINTER_MOVE_MS}ms ease-out` }}>

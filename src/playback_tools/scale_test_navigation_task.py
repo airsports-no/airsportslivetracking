@@ -26,6 +26,7 @@ if __name__ == "__main__":
 
     django.setup()
 
+from display.utilities.simulator_policy import SIMULATOR_ALLOWED
 from display.utilities.tracking_definitions import TrackingService
 from traccar_facade import Traccar
 
@@ -314,6 +315,9 @@ if __name__ == "__main__":
         start_time=start_time,
         finish_time=finish_time,
         is_public=False,
+        # The positions are sent on the pilots' simulator tracking ids (see create_contestants), which a task that does
+        # not allow simulator flights ignores.
+        simulator_policy=SIMULATOR_ALLOWED,
     )
     for prohibited in navigation_task.route.prohibited_set.all():
         prohibited.copy_to_new_route(new_navigation_task.route)
