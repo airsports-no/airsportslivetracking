@@ -3,7 +3,7 @@ import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScor
 import type { Contestant, NavigationTask, TrackPosition, PhotoObservation, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint, CrossingEvent } from '../types';
 import { evaluateIncomingMessage, mergeAcceptedVersions, takeHigherVersion, VersionState } from './wsMessageOrdering';
 
-export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback', showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void) {
+export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback') {
     const [staticNavTaskData, setStaticNavTaskData] = useState<NavigationTask | null>(null);
     const [contestantsById, setContestantsById] = useState<Record<number, Contestant>>({});
     const [positionsByContestant, setPositionsByContestant] = useState<Record<number, TrackPosition[]>>({});
@@ -294,33 +294,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             }
             if (msg.type === "score_log" && payload.score_log_entries) {
                 setScoreLogByContestantRef.current(prev => {
-                    const existingScoreLogs = prev[contestantId] ?? [];
                     const newEntries = payload.score_log_entries; // The score_log WebSocket message contains the FULL history for the contestant.
-
-                    // Identify start and finish gates from navigation task data
-                    const startGateName = staticNavTaskDataRef.current?.route?.waypoints.find((wp: Waypoint) => wp.type === 'sp')?.name;
-                    const finishGateName = staticNavTaskDataRef.current?.route?.waypoints.find((wp: Waypoint) => wp.type === 'fp')?.name;
-
-                    if (staticNavTaskDataRef.current && (startGateName || finishGateName)) {
-                        const previousGateNames = new Set(existingScoreLogs.map(log => log.gate));
-
-                        newEntries.forEach((newLogEntry: ScoreLogEntry) => {
-                            if (!previousGateNames.has(newLogEntry.gate) && newLogEntry.planned!==null) {
-                                // This is a new score log entry
-                                if (newLogEntry.gate === startGateName || newLogEntry.gate === finishGateName) {
-                                    const contestant = contestantsByIdRef.current[contestantId];
-                                    if (contestant && contestant.team?.crew?.member1) {
-                                        const gateType = newLogEntry.gate === startGateName ? 'STARTING POINT' : 'FINISH POINT';
-                                        const scoreMessage = newLogEntry.points !== undefined ? `Score: ${newLogEntry.points.toFixed(1)}` : '';
-                                        showToast(
-                                            `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} crossed the ${gateType}! ${scoreMessage}`,
-                                            'success'
-                                        );
-                                    }
-                                }
-                            }
-                        });
-                    }
 
                     // Replace the existing log rather than appending.
                     const allScoreLogs = [...newEntries];
@@ -351,7 +325,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         } catch (e) {
             console.error('WS parse error', e);
         }
-    }, [showToast, updateContestant]);
+    }, [updateContestant]);
 
 
     const fetchAllContestantData = useCallback(async (contestantsToFetch: Contestant[], onProgress: (p: { loaded: number, total: number, message?: string }) => void, displaySecrets?: boolean) => {

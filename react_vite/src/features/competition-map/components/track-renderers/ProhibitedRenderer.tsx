@@ -1,6 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import type { NavigationTask, ProhibitedZone } from '../../types';
+import './WaypointLabel.css';
 
 interface Props {
   map: L.Map | null;
@@ -22,7 +23,8 @@ function drawProhibitedZone(map: L.Map, zone: ProhibitedZone): L.Polygon {
   const options: L.TooltipOptions = {
     permanent: true,
     direction: 'center',
-    className: 'prohibitedTooltip',
+    // The same label as the gates', its edge in the zone's colour.
+    className: `prohibitedTooltip waypoint-label zone-label-${zone.type}`,
   };
   if (zone.tooltip_position) {
     options.offset = [zone.tooltip_position[0], zone.tooltip_position[1]];

@@ -1,5 +1,5 @@
 import React from 'react';
-import { Activity, PanelLeftClose, PanelLeftOpen, PlayCircle } from 'lucide-react';
+import { Activity, PanelLeftClose, PanelLeftOpen, PlayCircle, X } from 'lucide-react';
 
 export type PanelTab = 'ranking' | 'flight' | 'log';
 
@@ -66,6 +66,13 @@ export default function SidePanel({
                     <PanelLeftOpen size={18} />
                 </button>
                 <span className="font-semibold text-sm truncate sm:hidden flex-1">{title}</span>
+                {selectedName && onClearSelection && (
+                    // The panel's "Clear" is out of reach while it is folded: the way back to the whole field stays here.
+                    <button className="hud-button sm:order-last" onClick={onClearSelection}
+                        aria-label={`Stop following ${selectedName}`} title={`Stop following ${selectedName}`}>
+                        <X size={18} />
+                    </button>
+                )}
                 <span className="hud-figure text-lg sm:text-sm sm:[writing-mode:vertical-rl] sm:rotate-180">{clock}</span>
             </aside>
         );

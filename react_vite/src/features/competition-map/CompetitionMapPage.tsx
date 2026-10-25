@@ -16,7 +16,6 @@ import { useDisplayKeys } from './hooks/useDisplayKeys';
 import { neighbourGaps } from './utils/neighbours';
 import { stepThrough } from './utils/displayKeys';
 import DisplayKeysHelp from './components/hud/DisplayKeysHelp';
-import { useToast } from './hooks/useToast'; // Import useToast
 import { fetchContestDetails, fetchPhotoObservations, fetchPhotos } from './api';
 
 import ProhibitedRenderer from "./components/track-renderers/ProhibitedRenderer";
@@ -39,8 +38,6 @@ import './CompetitionMap.css';
 import './components/hud/hud.css';
 import { GateResult, NavigationTask, PhotoObservation, ScoreAnnotation, ScoreLogEntry } from './types';
 
-// From this width the page is treated as an event display: following someone folds the panel (FollowBar grows too).
-const BIG_SCREEN_WIDTH = 1600;
 
 /** The contestant a contestantIds parameter names when it names exactly one, otherwise null. */
 function singleContestantId(param: string | null): number | null {
@@ -109,8 +106,7 @@ export default function CompetitionMapPage() {
     if (rankingExpandedParam === 'true') return false;
     if (rankingExpandedParam === 'false') return true;
     if (display === 'screen') return false; // the standings are half of what a screen is for
-    // A phone, upright or on its side, starts with the map in view; so does a big screen opened to follow one contestant.
-    if (window.innerWidth >= BIG_SCREEN_WIDTH && selectedContestantId !== null && initialMode === 'realtime') return true;
+    // A phone, upright or on its side, starts with the map in view.
     return window.innerWidth < 640 || window.innerHeight < 500;
   });
   const [isInfoModalOpen, setIsInfoModalOpen] = useState(false);
@@ -140,7 +136,6 @@ export default function CompetitionMapPage() {
 
 
 
-    const { toasts, showToast, removeToast, ToastContainer } = useToast(); // Initialize toast hook
 
 
   const {
@@ -158,7 +153,7 @@ export default function CompetitionMapPage() {
     progress,
     wsStatus,
     error: navTaskError,
-  } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode, showToast); // Pass showToast
+  } = useCompetitionData(contestIdNum, navigationTaskIdNum, mode);
 
   const selectedIds = useMemo(() => {
     const param = searchParams.get('contestantIds');
@@ -400,9 +395,6 @@ export default function CompetitionMapPage() {
     setSelectedContestantId(id);
     const finished = !!contestantsById[id]?.contestanttrack?.calculator_finished;
     setPanelTab(showLog || mode === 'playback' || finished ? 'log' : 'ranking');
-    // On a big screen (the event display), following someone live gives the map and the follow bar the whole width;
-    // the panel folds to its rail and comes back with one click.
-    if (!finished && mode === 'realtime' && window.innerWidth >= BIG_SCREEN_WIDTH && display !== 'screen') setIsRankingCollapsed(true);
   };
   const handleContestantSelect = (id: number | null, showLog: boolean) => selectContestant(id, showLog);
 
@@ -445,6 +437,12 @@ export default function CompetitionMapPage() {
   });
 
   // A notice at the gate whenever a contestant crosses a timed gate, live and in a replay.
+  // The camera is on the followed contestant, so the notices are theirs (and the one compared with): the field's
+  // are for the overview.
+  const onlyFor = useMemo(
+    () => selectedContestantId === null ? null : [selectedContestantId, ...(compareId !== null ? [compareId] : [])],
+    [selectedContestantId, compareId],
+  );
   useCrossingNotices({
     mapRef,
     mode,
@@ -454,6 +452,7 @@ export default function CompetitionMapPage() {
     currentTime,
     showSecrets: !!(staticNavTaskData?.display_secrets && userShowSecrets),
     playbackSpeed,
+    onlyFor,
   });
 
   const overlayBarsRef = useRef<HTMLDivElement>(null);
@@ -798,7 +797,9 @@ export default function CompetitionMapPage() {
 
   // A flight list under the ranking only where gates make the flight: not for a poker run (its gates deal cards, and
   // the follow bar shows them) or a landing task, whose crossings the gate results do not record.
-  const taskTypes = staticNavTaskData?.scorecard?.task_type ?? [];
+  // (task_type is a list for some scorecards and a single string for older ones.)
+  const rawTaskType: string[] | string | undefined = staticNavTaskData?.scorecard?.task_type;
+  const taskTypes = Array.isArray(rawTaskType) ? rawTaskType : rawTaskType ? [rawTaskType] : [];
   const hasFlightList = !taskTypes.some(t => t.includes('poker') || t.includes('landing'));
 
   // Log entries with a place on the map (an annotation): those a click can show.
@@ -1092,7 +1093,6 @@ export default function CompetitionMapPage() {
     // data-hud picks the panel's light or dark tokens (components/hud/hud.css) for everything inside, the map's labels too.
     <div className="flex flex-col sm:flex-row h-full overflow-hidden" data-hud={hudTheme} data-display={display ?? undefined}>
       <TaskInfoModal isOpen={isInfoModalOpen} onClose={() => setIsInfoModalOpen(false)} />
-      <ToastContainer toasts={toasts} removeToast={removeToast} />
 
       {display !== 'broadcast' && (
       <SidePanel

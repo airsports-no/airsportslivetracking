@@ -16,7 +16,7 @@ function escapeHtml(text: string): string {
  * the gate's grace period and red outside it, fading after a few seconds: live from the server's crossing messages,
  * in a replay from the gate results as the replay passes them. Secret and unknown-leg gates only where secrets show.
  */
-export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCrossings, currentTime, showSecrets, playbackSpeed = 1 }: {
+export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCrossings, currentTime, showSecrets, playbackSpeed = 1, onlyFor = null }: {
     mapRef: RefObject<L.Map | null>;
     mode: 'realtime' | 'playback';
     navTask: NavigationTask | null;
@@ -25,6 +25,8 @@ export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCro
     currentTime: Date;
     showSecrets: boolean;
     playbackSpeed?: number;
+    /** While following a contestant (and the one compared with): only theirs. Null: everyone's. */
+    onlyFor?: number[] | null;
 }) {
     const shownRef = useRef<{ marker: L.Marker; timer: number }[]>([]);
     const seenLiveRef = useRef(new Set<string>());
@@ -36,6 +38,7 @@ export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCro
         if (!map || !navTask) return 'wait';
         const waypoint = navTask.route.waypoints.find(w => w.name === event.gate);
         if (!waypoint) return 'skip';
+        if (onlyFor && !onlyFor.includes(event.contestantId)) return 'skip';
         if ((waypoint.type === 'secret' || waypoint.type === 'ul') && !showSecrets) return 'skip';
         const contestant = contestants.find(c => c.id === event.contestantId);
         if (!contestant) return 'wait';
@@ -65,7 +68,7 @@ export function useCrossingNotices({ mapRef, mode, navTask, contestants, liveCro
             oldest.marker.remove();
         }
         return 'shown';
-    }, [mapRef, navTask, contestants, showSecrets]);
+    }, [mapRef, navTask, contestants, showSecrets, onlyFor]);
 
     // Live: each crossing once, as it arrives.
     useEffect(() => {

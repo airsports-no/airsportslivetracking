@@ -15,11 +15,10 @@ interface ToastContainerProps {
 }
 
 const ToastContainer: React.FC<ToastContainerProps> = ({ toasts, removeToast }) => {
-  // On a phone the top is the docked panel: the notices go along the bottom, above the bar, and stay small.
   return createPortal(
-    <div className="toast toast-end toast-bottom sm:toast-top z-[9999] max-sm:bottom-24 max-sm:left-2 max-sm:w-auto">
+    <div className="toast toast-top toast-end z-[9999]">
       {toasts.map(toast => (
-        <div key={toast.id} className={`alert alert-${toast.type} shadow-lg max-sm:py-2 max-sm:text-sm`}>
+        <div key={toast.id} className={`alert alert-${toast.type} shadow-lg`}>
           <div>
             {toast.html ? <span dangerouslySetInnerHTML={{ __html: toast.message }} /> : <span>{toast.message}</span>}
           </div>
