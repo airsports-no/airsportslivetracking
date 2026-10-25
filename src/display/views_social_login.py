@@ -28,6 +28,8 @@ from django.views.decorators.csrf import csrf_exempt, ensure_csrf_cookie
 from django.views.decorators.http import require_GET, require_POST
 from rest_framework import exceptions as drf_exceptions
 
+from display.utilities.person_provisioning import ensure_person
+
 logger = logging.getLogger(__name__)
 
 # The provider's sign-in window is a popup that has to talk back to the page. The site's default
@@ -82,22 +84,7 @@ def _safe_next(request, next_url: str) -> str:
     return settings.LOGIN_REDIRECT_URL
 
 
-def _ensure_person(user) -> None:
-    """
-    A first-time user created by the token authentication has no Person yet, and pages that look at the person of
-    the signed-in user would fail until something else creates it (the app does, with its first profile request).
-    Mirrors that creation. Never blocks the sign-in: creating a Person registers a tracker with Traccar, and the
-    profile is created on its first use anyway if this fails.
-    """
-    from display.models import Person
-
-    try:
-        Person.objects.get_or_create(
-            email=user.email,
-            defaults={"first_name": user.first_name or "", "last_name": user.last_name or ""},
-        )
-    except Exception:
-        logger.exception("Could not create the person profile for %s at website sign-in", user.email)
+_ensure_person = ensure_person
 
 
 @require_POST

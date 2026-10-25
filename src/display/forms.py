@@ -4,7 +4,7 @@ import json
 
 from django.urls import reverse
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Layout, ButtonHolder, Submit, Fieldset, Field, HTML
+from crispy_forms.layout import Layout, ButtonHolder, Submit, Fieldset, Field, HTML, Div
 from django import forms
 from django.db import models
 from django.utils import timezone
@@ -1031,6 +1031,14 @@ class SignUpForm(forms.Form):
         error_messages={"min_length": "Password must be at least 6 characters long."},
     )
     password_confirm = forms.CharField(widget=forms.PasswordInput)
+    # Against bots (display/utilities/signup_protection.py): when the form was shown, signed, and a field that is
+    # hidden from people and so only ever filled in by something that fills in every field it finds.
+    form_started = forms.CharField(required=False, widget=forms.HiddenInput)
+    website = forms.CharField(
+        required=False,
+        label="Leave this field empty",
+        widget=forms.TextInput(attrs={"tabindex": "-1", "autocomplete": "off"}),
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -1050,6 +1058,8 @@ class SignUpForm(forms.Form):
                 "password",
                 "password_confirm",
             ),
+            "form_started",
+            Div("website", css_class="hidden", aria_hidden="true"),
             ButtonHolder(Submit("submit", "Sign Up")),
         )
 
