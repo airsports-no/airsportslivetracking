@@ -242,8 +242,16 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                                 <div className="absolute left-0 top-0 h-full" style={{ width: `${danger.level}%`, background: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }} />
                             </div>
                             <span className="hud-figure text-sm leading-none" style={{ color: danger.level >= 100 ? "var(--hud-red)" : undefined }}>
-                                {danger.level.toFixed(0)}%{danger.level >= 100 && danger.accumulated > 0 ? ` +${danger.accumulated}` : ""}
+                                {danger.level.toFixed(0)}%
                             </span>
+                            {danger.level >= 100 && danger.accumulated > 0 && (
+                                // The penalty so far for being outside the corridor or inside a zone: a tag of its own.
+                                <span className="hud-figure text-sm leading-none rounded px-1 py-0.5 flex-none"
+                                    style={{ background: "var(--hud-red)", color: "var(--hud-surface)" }}
+                                    title="Penalty points accumulated outside the corridor or inside a zone">
+                                    +{Math.round(danger.accumulated)} pts
+                                </span>
+                            )}
                         </div>
                     )}
                 />
