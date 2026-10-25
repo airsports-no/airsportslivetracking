@@ -124,7 +124,12 @@ def warn_if_too_few_calculator_slots(number_of_contestants: int):
     except Exception:
         logger.info("Could not ask the Celery workers how many calculators can run at once")
         return
-    if slots and number_of_contestants > slots:
+    if not slots:
+        logger.warning(
+            "No live_calculator worker answered: nothing will score these contestants. Start live_calculator "
+            "(docker compose up -d live_calculator) before the test."
+        )
+    elif number_of_contestants > slots:
         logger.warning(
             f"{number_of_contestants} contestants but only {slots} live calculator slots: the last "
             f"{number_of_contestants - slots} will wait for a slot and show as not started until a flight finishes. "

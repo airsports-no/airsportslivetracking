@@ -23,6 +23,10 @@ def is_termination_requested(contestant_pk: int) -> Optional[datetime.datetime]:
     return val
 
 
+class CalculatorsStillRunning(Exception):
+    """Live calculators did not stop in time: deleting now would race with what they write."""
+
+
 def stop_calculators(contestant_pks, timeout_seconds: float = 30.0, poll_seconds: float = 0.5) -> bool:
     """
     Asks the live calculators of these contestants to stop and waits until none of them is running (or the timeout).

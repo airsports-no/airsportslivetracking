@@ -327,9 +327,16 @@ class NavigationTask(models.Model):
         The live calculators of the task's contestants are stopped first, and the delete tried again if a score they
         wrote meanwhile made the database refuse it: it would otherwise fail with an internal server error.
         """
-        from display.utilities.calculator_termination_utilities import delete_retrying, stop_calculators
+        from display.utilities.calculator_termination_utilities import (
+            CalculatorsStillRunning,
+            delete_retrying,
+            stop_calculators,
+        )
 
-        stop_calculators(self.contestant_set.values_list("pk", flat=True))
+        if not stop_calculators(self.contestant_set.values_list("pk", flat=True)):
+            raise CalculatorsStillRunning(
+                "Some of the live calculators have not stopped yet, so nothing was deleted. Try again in a minute."
+            )
         attempts = []
 
         def attempt():

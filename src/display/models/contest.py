@@ -194,9 +194,16 @@ class Contest(models.Model):
     def delete(self, *args, **kwargs):
         """As NavigationTask.delete: the calculators of every contestant of the contest are stopped first."""
         from display.models import Contestant
-        from display.utilities.calculator_termination_utilities import delete_retrying, stop_calculators
+        from display.utilities.calculator_termination_utilities import (
+            CalculatorsStillRunning,
+            delete_retrying,
+            stop_calculators,
+        )
 
-        stop_calculators(Contestant.objects.filter(navigation_task__contest=self).values_list("pk", flat=True))
+        if not stop_calculators(Contestant.objects.filter(navigation_task__contest=self).values_list("pk", flat=True)):
+            raise CalculatorsStillRunning(
+                "Some of the live calculators have not stopped yet, so nothing was deleted. Try again in a minute."
+            )
         attempts = []
 
         def attempt():

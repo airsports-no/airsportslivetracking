@@ -16,14 +16,21 @@ const BusyOverlay: React.FC<{ message: string; detail?: string }> = ({
   // here, so nothing can be started underneath a deletion.
   useEffect(() => {
     const portalRoot = getPortalRoot();
+    const overlay = overlayRef.current;
     const made: HTMLElement[] = [];
-    for (const element of Array.from(document.body.children)) {
-      if (element === portalRoot || !(element instanceof HTMLElement) || element.inert) continue;
-      if (['SCRIPT', 'STYLE', 'LINK'].includes(element.tagName)) continue;
+    const makeInert = (element: Element) => {
+      if (element === overlay || !(element instanceof HTMLElement) || element.inert) return;
+      if (['SCRIPT', 'STYLE', 'LINK'].includes(element.tagName)) return;
       element.inert = true;
       made.push(element);
+    };
+    for (const element of Array.from(document.body.children)) {
+      // The portal root holds this overlay and other portals (a toast's dismiss button): its other children go inert
+      // one by one, not the whole root.
+      if (element === portalRoot) Array.from(portalRoot.children).forEach(makeInert);
+      else makeInert(element);
     }
-    overlayRef.current?.focus();
+    overlay?.focus();
     return () => made.forEach(element => { element.inert = false; });
   }, []);
 
