@@ -11,7 +11,7 @@ interface GateScoreArrowV2Props {
     gateArrowData?: GateArrowData;
     /** Whether the viewer sees secret and unknown-leg gates: no countdown to them otherwise. */
     showSecrets?: boolean;
-    /** The danger level (0-100) and the penalty accumulated, shown in the top row on a phone. */
+    /** The danger level (0-100) and the penalty accumulated, shown in the top row where its bar is horizontal (below lg). */
     danger?: { level: number; accumulated: number } | null;
 }
 
@@ -238,8 +238,9 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                     missed={displayData.missed}
                     predicted={!startData}
                     middle={danger && (
-                        // Phone only: from tablet width the danger level has its own place beside the arrow.
-                        <div className="sm:hidden flex-1 min-w-0 flex items-center gap-1.5 self-center px-2" title="How close the contestant is to a penalty">
+                        // Wherever the bar is horizontal (below lg): between the gate's name and the figures. From lg it
+                        // is vertical, at the far right beside the arrow (FollowBar).
+                        <div className="lg:hidden flex-1 min-w-0 flex items-center gap-1.5 self-center px-2" title="How close the contestant is to a penalty">
                             <div className="relative h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--hud-raised)" }}>
                                 <div className="absolute left-0 top-0 h-full" style={{ width: `${danger.level}%`, background: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }} />
                             </div>
