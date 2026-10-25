@@ -404,10 +404,14 @@ class WebsocketFacade:
         )
 
     def transmit_basic_information(self, contestant: "Contestant"):
+        from display.models import ContestantTrack
+
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        channel_data = generate_contestant_data_block(
-            contestant, contestant_track_data=serialize_contestant_track(contestant.contestanttrack)
-        )
+        # The track as the database has it, not the instance this contestant happens to hold: the calculators keep
+        # several copies of it, each saving only the fields it changed (update_fields), so a copy that has not heard
+        # of the start line being crossed would push the contestant back to "not started" for the browser.
+        track = ContestantTrack.objects.filter(contestant_id=contestant.pk).first() or contestant.contestanttrack
+        channel_data = generate_contestant_data_block(contestant, contestant_track_data=serialize_contestant_track(track))
         self._safe_group_send(
             group_key,
             {
