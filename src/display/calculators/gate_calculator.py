@@ -32,7 +32,14 @@ from display.utilities.coordinate_utilities import (
     calculate_speed_between_points,
     extend_line,
 )
-from display.utilities.gate_definitions import CIRCLE_CENTER, CIRCLE_ENTRY, CIRCLE_EXIT, CIRCLE_START
+from display.utilities.gate_definitions import (
+    CIRCLE_CENTER,
+    CIRCLE_ENTRY,
+    CIRCLE_EXIT,
+    CIRCLE_START,
+    SECRETPOINT,
+    UNKNOWN_LEG,
+)
 from display.utilities.route_building_utilities import calculate_extended_gate
 from websocket_channels import WebsocketFacade
 
@@ -247,6 +254,9 @@ class GateCalculator(Calculator):
         # contestant only halfway around a winding route can be much closer to FP as the crow
         # flies than the distance they still have to actually fly. gate.distance (distance_next)
         # is exactly the leg length from each gate to the next one in route order, in metres.
+        # A task that keeps its secret gates and unknown legs hidden gets no countdown to them either: the arrow counts
+        # to the next gate the pilot is told about, the secret gate's distance still being part of the way there.
+        hides_secrets = not self.contestant.navigation_task.display_secrets
         next_timed_gate = None
         remaining_leg_distance_m = 0.0
         started = False
@@ -254,7 +264,7 @@ class GateCalculator(Calculator):
             if not started and gate == state.next_gate:
                 started = True
             if started:
-                if gate.time_check:
+                if gate.time_check and not (hides_secrets and gate.type in (SECRETPOINT, UNKNOWN_LEG)):
                     next_timed_gate = gate
                     break
                 remaining_leg_distance_m += gate.distance or 0
@@ -596,6 +606,9 @@ class GateCalculator(Calculator):
             return
 
         logger.info(f"{self.contestant}: Scoring passed gate {event.gate}")
+        if event.gate.time_check:
+            # The countdown goes on to the next timed gate from the next position, not up to five seconds later.
+            self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         passing_time = (
             event.intersection_time
             or event.gate.passing_time
