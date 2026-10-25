@@ -191,6 +191,14 @@ class Contest(models.Model):
         """
         return "Public" if self.is_public else "Private"
 
+    def delete(self, *args, **kwargs):
+        """As NavigationTask.delete: the calculators of every contestant of the contest are stopped first."""
+        from display.models import Contestant
+        from display.utilities.calculator_termination_utilities import delete_retrying, stop_calculators
+
+        stop_calculators(Contestant.objects.filter(navigation_task__contest=self).values_list("pk", flat=True))
+        return delete_retrying(lambda: super(Contest, self).delete(*args, **kwargs))
+
     def save(self, *args, **kwargs):
         # is_featured only remains for the apps that still read it: it always equals is_public
         self.is_featured = self.is_public

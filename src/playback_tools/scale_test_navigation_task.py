@@ -310,7 +310,8 @@ if __name__ == "__main__":
     )
     contest.time_zone = navigation_task.contest.time_zone
     contest.save()
-    contest.navigationtask_set.filter(name=new_navigation_task_name).delete()
+    for previous in contest.navigationtask_set.filter(name=new_navigation_task_name):
+        previous.delete()  # the model's delete stops the old calculators first
     new_navigation_task = NavigationTask.create(
         name=new_navigation_task_name,
         contest=contest,
