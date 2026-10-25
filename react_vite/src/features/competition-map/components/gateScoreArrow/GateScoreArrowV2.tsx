@@ -21,6 +21,30 @@ const START_COUNTDOWN_WINDOW_MS = 30 * 60_000;
 
 const GATE_FREEZE_TIME = 5; // seconds a gate's result stays up before the countdown moves on
 
+/**
+ * The danger level as a horizontal strip, wherever the bar is horizontal (below lg): between the gate's name and the
+ * figures, or on its own once the arrow is gone (after the finish line there can still be a zone to keep out of). From
+ * lg the bar is vertical, at the far right beside the arrow (FollowBar).
+ */
+const DangerStrip: React.FC<{ danger: { level: number; accumulated: number }; className?: string }> = ({ danger, className = "" }) => (
+    <div className={`flex items-center gap-1.5 ${className}`} title="How close the contestant is to a penalty">
+        <div className="relative h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--hud-raised)" }}>
+            <div className="absolute left-0 top-0 h-full" style={{ width: `${danger.level}%`, background: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }} />
+        </div>
+        <span className="hud-figure text-sm leading-none" style={{ color: danger.level >= 100 ? "var(--hud-red)" : undefined }}>
+            {danger.level.toFixed(0)}%
+        </span>
+        {danger.level >= 100 && danger.accumulated > 0 && (
+            // The penalty so far for being outside the corridor or inside a zone: a tag of its own.
+            <span className="hud-figure text-sm leading-none rounded px-1 py-0.5 flex-none"
+                style={{ background: "var(--hud-red)", color: "var(--hud-surface)" }}
+                title="Penalty points accumulated outside the corridor or inside a zone">
+                +{Math.round(danger.accumulated)} pts
+            </span>
+        )}
+    </div>
+);
+
 const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     contestant,
     navigationTask,
@@ -208,7 +232,9 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     }, [contestant.id, contestant.contestanttrack?.passed_finish_gate, finished]);
 
     if (!displayData || finished[contestant.id]) {
-        return null;
+        // No arrow (before the first estimate, after the finish line): the danger bar stays on phones, where it was
+        // part of the arrow.
+        return danger ? <DangerStrip danger={danger} className="lg:hidden px-1" /> : null;
     }
 
     const secondsLeft =
@@ -240,26 +266,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                     final={displayData.final}
                     missed={displayData.missed}
                     predicted={!startData}
-                    middle={danger && (
-                        // Wherever the bar is horizontal (below lg): between the gate's name and the figures. From lg it
-                        // is vertical, at the far right beside the arrow (FollowBar).
-                        <div className="lg:hidden flex-1 min-w-0 flex items-center gap-1.5 self-center px-2" title="How close the contestant is to a penalty">
-                            <div className="relative h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--hud-raised)" }}>
-                                <div className="absolute left-0 top-0 h-full" style={{ width: `${danger.level}%`, background: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }} />
-                            </div>
-                            <span className="hud-figure text-sm leading-none" style={{ color: danger.level >= 100 ? "var(--hud-red)" : undefined }}>
-                                {danger.level.toFixed(0)}%
-                            </span>
-                            {danger.level >= 100 && danger.accumulated > 0 && (
-                                // The penalty so far for being outside the corridor or inside a zone: a tag of its own.
-                                <span className="hud-figure text-sm leading-none rounded px-1 py-0.5 flex-none"
-                                    style={{ background: "var(--hud-red)", color: "var(--hud-surface)" }}
-                                    title="Penalty points accumulated outside the corridor or inside a zone">
-                                    +{Math.round(danger.accumulated)} pts
-                                </span>
-                            )}
-                        </div>
-                    )}
+                    middle={danger && <DangerStrip danger={danger} className="lg:hidden flex-1 min-w-0 self-center px-2" />}
                 />
             </div>
             <GateScoreArrowRenderer

@@ -203,7 +203,7 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
                         <div className="leading-none text-center">
                             <div className="hud-figure text-lg">{danger.toFixed(0)}%</div>
                             {danger >= 100 && (dangerData?.accumulated_score ?? 0) > 0 && (
-                                <div className="hud-figure text-sm" style={{ color: 'var(--hud-red)' }}>+{dangerData!.accumulated_score}</div>
+                                <div className="hud-figure text-sm" style={{ color: 'var(--hud-red)' }}>+{Math.round(dangerData!.accumulated_score)}</div>
                             )}
                         </div>
                     </div>
