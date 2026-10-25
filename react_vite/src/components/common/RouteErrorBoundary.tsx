@@ -20,6 +20,11 @@ function isChunkLoadError(error: unknown): boolean {
 }
 
 const CHUNK_RELOAD_GUARD_KEY = 'aslt-chunk-reload-attempted';
+// A reload is not repeated within this long: a reload that did not help would otherwise loop. Later it is allowed
+// again, as the next deploy of the tab's life makes its chunks stale in the same way.
+const CHUNK_RELOAD_GUARD_MS = 60_000;
+// Set when the guard declined to reload, so the fallback offers a button instead of waiting for a reload that is not coming.
+let staleReloadDeclined = false;
 
 /**
  * A dynamic import() 404ing means this tab's HTML/JS still references a chunk hash from a
@@ -29,17 +34,23 @@ const CHUNK_RELOAD_GUARD_KEY = 'aslt-chunk-reload-attempted';
  * JAVASCRIPT-REACT-X, JAVASCRIPT-REACT-15) as the generic "Something went wrong, reload" fallback
  * below, which the user has to notice and click themselves - do it for them instead.
  *
- * sessionStorage can be null (or throw) when DOM storage is disabled - seen in production
- * elsewhere already (JAVASCRIPT-REACT-Y, see ContestantScheduling.tsx). Without a persistent
- * guard we can't tell "stale build, one reload fixes it" apart from "reload didn't help, this
- * will just loop forever" - so without storage, skip the auto-reload entirely and fall back to
- * the normal fallback UI rather than risking a reload loop.
+ * The guard is the time of the last automatic reload (not a flag that stays set for the tab's life, which left a
+ * tab that had reloaded once stuck on "Updating..." at every later deploy). sessionStorage can be null (or throw)
+ * when DOM storage is disabled - seen in production elsewhere already (JAVASCRIPT-REACT-Y, see
+ * ContestantScheduling.tsx). Without a persistent guard we can't tell "stale build, one reload fixes it" apart from
+ * "reload didn't help, this will just loop forever" - so without storage, skip the auto-reload entirely and fall back
+ * to the normal fallback UI rather than risking a reload loop.
  */
 function reloadOnceForStaleChunk(): void {
     try {
-        if (sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY)) return;
-        sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, '1');
+        const last = Number(sessionStorage.getItem(CHUNK_RELOAD_GUARD_KEY));
+        if (last && Date.now() - last < CHUNK_RELOAD_GUARD_MS) {
+            staleReloadDeclined = true;
+            return;
+        }
+        sessionStorage.setItem(CHUNK_RELOAD_GUARD_KEY, String(Date.now()));
     } catch {
+        staleReloadDeclined = true;
         return;
     }
     window.location.reload();
@@ -66,7 +77,16 @@ export default function RouteErrorBoundary({ children }: RouteErrorBoundaryProps
                     return (
                         <div className="hero min-h-screen bg-base-200">
                             <div className="hero-content text-center">
-                                <p className="py-6">Updating to the latest version...</p>
+                                {staleReloadDeclined ? (
+                                    <div className="max-w-md">
+                                        <p className="py-6">A new version is available. Reload the page to update.</p>
+                                        <button className="btn btn-primary" onClick={() => window.location.reload()}>
+                                            Reload
+                                        </button>
+                                    </div>
+                                ) : (
+                                    <p className="py-6">Updating to the latest version...</p>
+                                )}
                             </div>
                         </div>
                     );

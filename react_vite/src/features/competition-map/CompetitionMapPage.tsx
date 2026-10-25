@@ -688,8 +688,11 @@ export default function CompetitionMapPage() {
 
       const poker = taskTypeList(staticNavTaskData.scorecard.task_type).includes('poker');
       return allContestantsData.map((c, index) => {
-        const state = c.contestanttrack?.current_state ?? 'Waiting...';
         const hasStarted = c.contestanttrack?.passed_starting_gate;
+        // The start line is crossed before the calculator moves the state on from "Waiting...", which can take several
+        // seconds: the contestant is in the air from the crossing, not from then.
+        const reportedState = c.contestanttrack?.current_state ?? 'Waiting...';
+        const state = hasStarted && reportedState === 'Waiting...' ? 'Started' : reportedState;
         const calculatorStarted = c.contestanttrack?.calculator_started;
         const calculatorFinished = c.contestanttrack?.calculator_finished;
 
@@ -1176,8 +1179,9 @@ export default function CompetitionMapPage() {
         ) : selectedContestant && staticNavTaskData && hasFlightList ? (
           // Following someone: the ranking (only as tall as its rows) with their flight under it, so the panel shows both
           // where they stand and how the flight is going. On a phone the panel is too small for both: ranking only.
-          <div className="flex flex-col h-full">
-            <div className="flex-none max-h-[45%] sm:max-h-[40%] overflow-y-auto hud-scroll">
+          // (On a phone the panel is only as tall as the ranking, the rest of the screen is the map's.)
+          <div className="flex flex-col sm:h-full">
+            <div className="flex-none sm:max-h-[40%] overflow-y-auto hud-scroll">
               <RankingList
                 rows={standings}
                 selectedId={selectedContestantId}
@@ -1291,6 +1295,7 @@ export default function CompetitionMapPage() {
             gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
             dangerData={dangerDataByContestant[selectedContestant.id]}
             live={view === 'follow'}
+            showSecrets={!!(staticNavTaskData.display_secrets && userShowSecrets)}
           />
         ) : null}
         </div>

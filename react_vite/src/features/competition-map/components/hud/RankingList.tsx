@@ -84,7 +84,7 @@ export default function RankingList({ rows, selectedId, onSelect, dividerIndex =
                                     )}
                                 </span>
                                 {status && <span className="hidden sm:block hud-label truncate">{status}</span>}
-                                {!compact && r.is_active_flight && r.progress !== undefined && (
+                                {r.is_active_flight && r.progress !== undefined && (
                                     <span className="hidden sm:block h-0.5 mt-1 rounded-full overflow-hidden" style={{ background: 'var(--hud-line)' }} title={`${Math.round(r.progress)}% of the route`}>
                                         <span className="block h-full" style={{ width: `${Math.max(0, Math.min(100, r.progress))}%`, background: 'var(--hud-accent)' }} />
                                     </span>

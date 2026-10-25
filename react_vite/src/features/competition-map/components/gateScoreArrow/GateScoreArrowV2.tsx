@@ -9,39 +9,47 @@ interface GateScoreArrowV2Props {
     contestant: Contestant;
     navigationTask: NavigationTask; // Need this to get scorecard and waypoints
     gateArrowData?: GateArrowData;
+    /** Whether the viewer sees secret and unknown-leg gates: no countdown to them otherwise. */
+    showSecrets?: boolean;
 }
 
-const GATE_FREEZE_TIME = 15; // seconds
+// How long before a set start time the countdown to it shows.
+const START_COUNTDOWN_WINDOW_MS = 30 * 60_000;
+
+const GATE_FREEZE_TIME = 5; // seconds a gate's result stays up before the countdown moves on
 
 const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     contestant,
     navigationTask,
     gateArrowData,
+    showSecrets = true,
 }) => {
-    const containerRef = useRef<HTMLDivElement>(null);
+    // A callback ref, not a mount-time effect: the container is only rendered once there is something to show, and an
+    // arrow that appears later (a contestant selected before the start) must be measured then, or it stays small.
+    const [container, setContainer] = useState<HTMLDivElement | null>(null);
     // The scale has a set height rather than growing with its width as it used to: taller as it gets wider (an event
     // display), so its labels stay readable from a distance.
     const [size, setSize] = useState({ width: 512, height: 76 });
 
     useEffect(() => {
-        const element = containerRef.current;
+        const element = container;
         if (!element) return;
 
         const observer = new ResizeObserver(entries => {
             if (entries[0]) {
                 const { width } = entries[0].contentRect;
                 if (width > 0) {
-                    setSize({ width, height: width >= 1000 ? 112 : width >= 700 ? 96 : 76 });
+                    setSize({ width, height: width >= 1000 ? 112 : width >= 700 ? 96 : width < 480 ? 52 : 76 });
                 }
             }
         });
         observer.observe(element);
         return () => observer.disconnect();
-    }, []);
+    }, [container]);
 
     const [currentArrowData, setCurrentArrowData] = useState<GateArrowData | undefined>(gateArrowData);
     const [finished, setFinished] = useState<{ [key: number]: boolean }>({});
-    const frozenTimeRef = useRef<number | null>(null);
+    const frozenUntilRef = useRef(0);
 
     // Arrival minus position time of the recent messages, for the countdown's clock correction (gateCountdown.ts).
     // Kept per contestant: another contestant's positions come from another device clock.
@@ -60,7 +68,16 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
 
     // The countdown ticks locally; the server only sends a new estimate now and then.
     const [nowMs, setNowMs] = useState(() => Date.now());
-    const ticking = !!currentArrowData && !currentArrowData.final && !currentArrowData.missed;
+    // A start at a set time is counted down to as any gate is. An adaptive start is not: the pilot crosses when ready.
+    const startName = navigationTask.route.waypoints.find((waypoint: Waypoint) => waypoint.type === "sp")?.name;
+    const startTimeMs = startName && contestant.gate_times?.[startName] ? new Date(contestant.gate_times[startName]).getTime() : null;
+    const countingToStart = !currentArrowData
+        && !contestant.adaptive_start
+        && !contestant.contestanttrack?.passed_starting_gate
+        && startName !== undefined
+        && startTimeMs !== null
+        && startTimeMs - (nowMs - delayMinutes * 60_000) < START_COUNTDOWN_WINDOW_MS;
+    const ticking = countingToStart || (!!currentArrowData && !currentArrowData.final && !currentArrowData.missed);
     useEffect(() => {
         if (!ticking) return;
         const timer = setInterval(() => setNowMs(Date.now()), 200);
@@ -68,7 +85,18 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     }, [ticking]);
 
     const debugMode = false; // Toggle this to force display for placement work
-    const displayData = currentArrowData || (debugMode ? {
+    const startData: GateArrowData | undefined = countingToStart && startName && startTimeMs !== null
+        ? {
+            waypoint_name: startName,
+            seconds_to_planned_crossing: 0,
+            estimated_crossing_offset: 0,
+            estimated_score: 0,
+            final: false,
+            missed: false,
+            expected_time: new Date(startTimeMs).toISOString(),
+        }
+        : undefined;
+    const displayData = currentArrowData || startData || (debugMode ? {
         waypoint_name: "DEBUG GATE",
         seconds_to_planned_crossing: -15,
         estimated_crossing_offset: 5,
@@ -113,49 +141,85 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     const getPointsPerSecond = () => getRule("penalty_per_second");
     const getMaximumTimingPenalty = () => getRule("maximum_penalty");
 
-    // Effect to handle updates similar to componentDidUpdate
-    useEffect(() => {
-        const isCurrentlyFrozen = frozenTimeRef.current && (new Date().getTime() - frozenTimeRef.current) < (GATE_FREEZE_TIME * 1000);
+    // What the arrow shows follows the server's messages, with a gate's result held up for GATE_FREEZE_TIME seconds
+    // before it moves on: the results wait their turn when gates come close together, an estimate for a gate that has
+    // had its result is stale and skipped, and so is anything for a gate the viewer does not see. The hold ends by
+    // itself (a timer), not with the next message.
+    const queuedResultsRef = useRef<GateArrowData[]>([]);
+    const seenRef = useRef(new WeakSet<GateArrowData>());
+    const lastResultRef = useRef<GateArrowData | null>(null);
+    const settledGateRef = useRef<string | null>(null);
+    const [releaseTick, setReleaseTick] = useState(0);
+    const hiddenFromViewer = (waypointName: string) => {
+        const type = getWaypointType(waypointName);
+        return (type === "secret" || type === "ul") && !showSecrets;
+    };
 
-        if (gateArrowData) {
-            if (gateArrowData.missed || gateArrowData.final) {
-                // If a gate is missed or finalized, start freeze timer if not already frozen
-                if (!isCurrentlyFrozen) {
-                    frozenTimeRef.current = new Date().getTime();
-                    setCurrentArrowData(gateArrowData); // Update immediately on final/missed
-                }
-            } else if (!isCurrentlyFrozen && gateArrowData !== currentArrowData) {
-                // Only update if not frozen and data has actually changed
-                frozenTimeRef.current = null; // Clear frozen state if new non-final/missed data comes in
-                setCurrentArrowData(gateArrowData);
+    useEffect(() => {
+        const now = Date.now();
+        if (gateArrowData && !seenRef.current.has(gateArrowData)) {
+            seenRef.current.add(gateArrowData);
+            if ((gateArrowData.final || gateArrowData.missed) && !hiddenFromViewer(gateArrowData.waypoint_name)) {
+                queuedResultsRef.current = [...queuedResultsRef.current, gateArrowData].slice(-3);
             }
-        } else if (!isCurrentlyFrozen && currentArrowData) {
-            // If gateArrowData becomes undefined/null and not frozen, clear currentArrowData
+        }
+        if (now < frozenUntilRef.current) {
+            const timer = window.setTimeout(() => setReleaseTick(tick => tick + 1), frozenUntilRef.current - now + 20);
+            return () => window.clearTimeout(timer);
+        }
+        const nextResult = queuedResultsRef.current.shift();
+        if (nextResult) {
+            frozenUntilRef.current = now + GATE_FREEZE_TIME * 1000;
+            lastResultRef.current = nextResult;
+            settledGateRef.current = nextResult.waypoint_name;
+            setCurrentArrowData(nextResult);
+            return;
+        }
+        // Nothing waiting: the latest estimate, unless it is stale or not for the viewer's eyes, then nothing (the
+        // arrow is back when the next gate has an estimate).
+        const usable = gateArrowData
+            && !gateArrowData.final && !gateArrowData.missed
+            && gateArrowData.waypoint_name !== settledGateRef.current
+            && !hiddenFromViewer(gateArrowData.waypoint_name);
+        if (usable) {
+            settledGateRef.current = null;
+            if (gateArrowData !== currentArrowData) setCurrentArrowData(gateArrowData);
+        } else if (currentArrowData) {
             setCurrentArrowData(undefined);
         }
+        // eslint-disable-next-line react-hooks/exhaustive-deps
+    }, [gateArrowData, currentArrowData, releaseTick, showSecrets, navigationTask]);
 
-
-        // Handle finished state for contestant
-        if (contestant.contestanttrack && contestant.contestanttrack.passed_finish_gate && !finished[contestant.id]) {
-            setTimeout(() => {
-                setFinished(prev => ({ ...prev, [contestant.id]: true }));
-            }, GATE_FREEZE_TIME * 1000);
-        }
-    }, [gateArrowData, currentArrowData, contestant, finished, navigationTask]);
+    // The arrow is gone a little after the finish line, once its result has been seen.
+    useEffect(() => {
+        if (!contestant.contestanttrack?.passed_finish_gate || finished[contestant.id]) return;
+        const timer = window.setTimeout(() => {
+            setFinished(prev => ({ ...prev, [contestant.id]: true }));
+        }, GATE_FREEZE_TIME * 1000);
+        return () => window.clearTimeout(timer);
+    }, [contestant.id, contestant.contestanttrack?.passed_finish_gate, finished]);
 
     if (!displayData || finished[contestant.id]) {
         return null;
     }
 
     const secondsLeft =
-        displayData.expected_time && clockOffsetForContestant !== null
-            ? secondsToRequiredTime(nowMs, new Date(displayData.expected_time).getTime(), clockOffsetForContestant, delayMinutes)
+        displayData.expected_time && (clockOffsetForContestant !== null || startData)
+            ? secondsToRequiredTime(nowMs, new Date(displayData.expected_time).getTime(), clockOffsetForContestant ?? 0, delayMinutes)
             : // An older server sends no times: count on from what the last message said.
               -displayData.seconds_to_planned_crossing - (nowMs - (displayData.received_at ?? nowMs)) / 1000;
 
     return (
-        <div className={"gate-score-arrow"} ref={containerRef}>
-            <div className="flex items-end pb-1.5">
+        <div
+            className={"gate-score-arrow" + (displayData.final || displayData.missed ? " rounded-lg px-2 -mx-2 py-1" : "")}
+            ref={setContainer}
+            // A recorded result (held a few seconds) looks unlike the live countdown: tinted, with an edge in its colour.
+            style={displayData.final || displayData.missed ? {
+                background: "var(--hud-raised)",
+                borderLeft: `4px solid ${displayData.missed || !withinGrace(displayData.estimated_crossing_offset, getGracePeriodBefore(), getGracePeriodAfter()) ? "var(--hud-red)" : "var(--hud-ok)"}`,
+            } : undefined}
+        >
+            <div className="flex items-end pb-1 sm:pb-1.5">
                 <GateCountdownTimer
                     waypointName={displayData.waypoint_name}
                     secondsToRequiredTime={secondsLeft}
@@ -167,6 +231,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                     )}
                     final={displayData.final}
                     missed={displayData.missed}
+                    predicted={!startData}
                 />
             </div>
             <GateScoreArrowRenderer
@@ -181,6 +246,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                 contestantId={contestant.id}
                 final={displayData.final}
                 missed={displayData.missed}
+                showPointer={!startData}
             />
         </div>
     );

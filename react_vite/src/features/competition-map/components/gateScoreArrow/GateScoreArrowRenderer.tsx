@@ -23,6 +23,8 @@ interface GateScoreArrowRendererProps {
     contestantId: number;
     final: boolean;
     missed: boolean;
+    /** Off before the start, where there is no prediction to point at. */
+    showPointer?: boolean;
 }
 
 const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
@@ -36,6 +38,7 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
     estimatedScore,
     final,
     missed,
+    showPointer = true,
 }) => {
     const grace = Math.max(gracePeriodBefore, gracePeriodAfter);
     // How far the scale reaches: until the maximum penalty is reached (a minute past the grace period when the
@@ -61,7 +64,7 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
 
     // Everything is drawn for a 76 px high scale and grows with it (a wide screen gets a taller one).
     const k = height / 76;
-    const smallFont = 13 * k;
+    const smallFont = Math.max(11, 13 * k); // not below readable on a short (phone) arrow
     // Vertical layout: the pointer's label, the pointer, the track, the values under it.
     const trackY = Math.round(height * 0.62);
     const valueY = trackY + 18 * k;
@@ -117,12 +120,12 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
             <text x={width - SIDE_PADDING} y={trackY - 8 * k} fontSize={smallFont} fontWeight={600} fill="var(--hud-muted)" textAnchor="end" opacity={lateOpacity} style={fade}>Late</text>
 
             {/* The pointer and its points; it glides to each new estimate. */}
-            <g style={{ transform: `translateX(${pointerX}px)`, transition: `transform ${POINTER_MOVE_MS}ms ease-out` }}>
+            {showPointer && <g style={{ transform: `translateX(${pointerX}px)`, transition: `transform ${POINTER_MOVE_MS}ms ease-out` }}>
                 <rect x={-labelWidth / 2} y={2} width={labelWidth} height={24 * k} rx={6 * k}
                     fill={final || missed ? pointerColour : "var(--hud-surface)"} stroke={pointerColour} strokeWidth={2 * k} />
                 <text x={0} y={2 + 18 * k} textAnchor="middle" fontSize={17 * k} fontWeight={700} fill={final || missed ? "var(--hud-surface)" : pointerColour}>{label}</text>
                 <path d={`M ${-7 * k} ${bandTop - 6 * k} L ${7 * k} ${bandTop - 6 * k} L 0 ${trackY - 1} Z`} fill={pointerColour} />
-            </g>
+            </g>}
         </svg>
     );
 };
