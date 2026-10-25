@@ -13,6 +13,8 @@ interface GateScoreArrowV2Props {
     showSecrets?: boolean;
     /** The danger level (0-100) and the penalty accumulated, shown in the top row on a phone. */
     danger?: { level: number; accumulated: number } | null;
+    /** The flight's progress along the route (0-100), shown in the top row on a phone. */
+    progress?: number;
 }
 
 // How long before a set start time the countdown to it shows.
@@ -26,6 +28,7 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
     gateArrowData,
     showSecrets = true,
     danger = null,
+    progress,
 }) => {
     // A callback ref, not a mount-time effect: the container is only rendered once there is something to show, and an
     // arrow that appears later (a contestant selected before the start) must be measured then, or it stays small.
@@ -235,15 +238,29 @@ const GateScoreArrowV2: React.FC<GateScoreArrowV2Props> = ({
                     final={displayData.final}
                     missed={displayData.missed}
                     predicted={!startData}
-                    middle={danger && (
-                        // Phone only: from tablet width the danger level has its own place beside the arrow.
-                        <div className="sm:hidden flex-1 min-w-0 flex items-center gap-1.5 self-center px-2" title="How close the contestant is to a penalty">
-                            <div className="relative h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--hud-raised)" }}>
-                                <div className="absolute left-0 top-0 h-full" style={{ width: `${danger.level}%`, background: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }} />
-                            </div>
-                            <span className="hud-figure text-sm leading-none" style={{ color: danger.level >= 100 ? "var(--hud-red)" : undefined }}>
-                                {danger.level.toFixed(0)}%{danger.level >= 100 && danger.accumulated > 0 ? ` +${danger.accumulated}` : ""}
-                            </span>
+                    middle={(progress !== undefined || danger) && (
+                        // Phone only, between the gate's name and the figures: how far the flight is (the thicker line)
+                        // and how close it is to a penalty (the thinner, warm one). From tablet width they have their
+                        // own places (the ranking row, the bar beside the arrow).
+                        <div className="sm:hidden flex-1 min-w-0 flex flex-col justify-center gap-1 self-center px-2">
+                            {progress !== undefined && (
+                                <div className="flex items-center gap-1.5" title={`${Math.round(progress)}% of the route`}>
+                                    <div className="relative h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--hud-raised)" }}>
+                                        <div className="absolute left-0 top-0 h-full" style={{ width: `${Math.max(0, Math.min(100, progress))}%`, background: "var(--hud-accent)" }} />
+                                    </div>
+                                    <span className="hud-figure text-xs leading-none w-8 text-right">{Math.round(Math.max(0, Math.min(100, progress)))}%</span>
+                                </div>
+                            )}
+                            {danger && (
+                                <div className="flex items-center gap-1.5" title="How close the contestant is to a penalty">
+                                    <div className="relative h-1 flex-1 rounded-full overflow-hidden" style={{ background: "var(--hud-raised)" }}>
+                                        <div className="absolute left-0 top-0 h-full" style={{ width: `${danger.level}%`, background: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }} />
+                                    </div>
+                                    <span className="hud-figure text-xs leading-none w-8 text-right" style={{ color: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }}>
+                                        ⚠{danger.level.toFixed(0)}
+                                    </span>
+                                </div>
+                            )}
                         </div>
                     )}
                 />

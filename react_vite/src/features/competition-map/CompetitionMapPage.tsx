@@ -1294,6 +1294,7 @@ export default function CompetitionMapPage() {
             neighbours={neighbours}
             gateArrowData={gateArrowDataByContestant[selectedContestant.id]}
             dangerData={dangerDataByContestant[selectedContestant.id]}
+            progress={standings[selectedStanding]?.progress}
             live={view === 'follow'}
             showSecrets={!!(staticNavTaskData.display_secrets && userShowSecrets)}
           />

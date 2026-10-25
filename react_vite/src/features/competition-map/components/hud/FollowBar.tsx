@@ -14,6 +14,8 @@ interface Props {
     dangerData?: DangerData;
     /** Live: the gate countdown and arrow. Off in debrief, where the replay bar takes the bottom edge instead. */
     live: boolean;
+    /** How far along the route the contestant is (0-100); undefined before the start and after the finish line. */
+    progress?: number;
     /** Whether the viewer sees secret and unknown-leg gates (the gate score arrow counts down to them then). */
     showSecrets?: boolean;
     /** One slim row above the replay bar: crew, score and place at the replay's time. */
@@ -122,7 +124,7 @@ function Neighbours({ neighbours, className }: { neighbours: NonNullable<Props['
  * max-height:500px classes) it keeps to one row, without photos, so the map keeps most of the height. On a big screen
  * (100rem, 1600 px, and wider: the event display) everything is larger and the arrow takes the rest of the width.
  */
-export default function FollowBar({ contestant, navigationTask, score, rank, rankOf, gateArrowData, dangerData, live, slim = false, neighbours, showSecrets = true }: Props) {
+export default function FollowBar({ contestant, navigationTask, score, rank, rankOf, gateArrowData, dangerData, live, slim = false, neighbours, showSecrets = true, progress }: Props) {
     const crew = contestant.team?.crew;
     if (!crew?.member1) return null;
     const isPoker = navigationTask.scorecard.task_type.includes('poker');
@@ -167,7 +169,8 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
                 {live && !isPoker && (
                     <div className={`w-full min-w-0 lg:w-auto lg:flex-1 lg:max-w-[36rem] lg:ml-auto min-[100rem]:max-w-none [@media(max-height:500px)]:w-auto [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:max-w-[22rem] [@media(max-height:500px)]:ml-auto`}>
                         <GateScoreArrowV2 contestant={contestant} navigationTask={navigationTask} gateArrowData={gateArrowData} showSecrets={showSecrets}
-                            danger={showDanger ? { level: danger, accumulated: dangerData?.accumulated_score ?? 0 } : null} />
+                            danger={showDanger ? { level: danger, accumulated: dangerData?.accumulated_score ?? 0 } : null}
+                            progress={progress} />
                     </div>
                 )}
                 {isPoker && contestant.playing_cards && contestant.playing_cards.length > 0 && (
