@@ -6,7 +6,7 @@ import { deleteNavigationTask, refreshEditableRoute, removeAllContestants } from
 import { useToast } from '../../competition-map/hooks/useToast';
 import { useMissionDashboardStore } from '../../mission-dashboard/store';
 import { NavigationTaskDetail } from '../types';
-import BusyOverlay from './BusyOverlay';
+import BusyOverlay from '../../../components/common/BusyOverlay';
 import BatchUpdateContestantsModal from './BatchUpdateContestantsModal';
 import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
 import DuplicateTaskModal, { DuplicateTaskModalHandle } from './DuplicateTaskModal';
@@ -182,6 +182,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
       <FlightOrderConfigurationModal ref={flightOrderConfigModalRef} contestId={contestId} navigationTaskId={navigationTaskId} onSaved={() => showToast('Flight order configuration saved.', 'success', 5000)} />
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       {deleting && <BusyOverlay message={`Deleting “${task.name}”…`} />}
+      {removingContestants && <BusyOverlay message="Removing all contestants…" detail="This can take a while when they have flown a lot." />}
       <GenerateNavigationMapModal ref={generateMapModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
       <DuplicateTaskModal ref={duplicateModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
       <ContestantFormModal

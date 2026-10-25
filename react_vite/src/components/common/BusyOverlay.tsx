@@ -1,12 +1,15 @@
 import React, { useEffect, useRef } from 'react';
 import { createPortal } from 'react-dom';
-import { getPortalRoot } from '../../../utils/portalRoot';
+import { getPortalRoot } from '../../utils/portalRoot';
 
 /**
  * Covers the page with a spinner and a message while something slow runs (deleting a task with many contestants
  * takes half a minute), so it is clear that the click did something and that the page should be left alone.
  */
-const BusyOverlay: React.FC<{ message: string }> = ({ message }) => {
+const BusyOverlay: React.FC<{ message: string; detail?: string }> = ({
+  message,
+  detail = 'This can take a while for a task with many contestants.',
+}) => {
   const overlayRef = useRef<HTMLDivElement>(null);
 
   // Everything else on the page is made inert while this is up (no clicks, no keys, no focus), and the focus is moved
@@ -37,7 +40,7 @@ const BusyOverlay: React.FC<{ message: string }> = ({ message }) => {
     >
       <span className="loading loading-spinner loading-lg text-primary" aria-hidden="true" />
       <p className="text-lg font-semibold">{message}</p>
-      <p className="text-sm opacity-70">This can take a while for a task with many contestants.</p>
+      <p className="text-sm opacity-70">{detail}</p>
     </div>,
     getPortalRoot(),
   );
