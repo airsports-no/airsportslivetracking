@@ -1,5 +1,6 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScoreData, makeWebSocket, fetchContestantSlice } from '../api';
+import { mergePositions } from '../utils/mergePositions';
 import type { Contestant, NavigationTask, TrackPosition, PhotoObservation, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint, CrossingEvent } from '../types';
 import { evaluateIncomingMessage, mergeAcceptedVersions, takeHigherVersion, VersionState } from './wsMessageOrdering';
 
@@ -484,7 +485,13 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             // judged against a baseline that doesn't know about this fetch yet.
             seedVersionsFromContestants(Object.values(contestantUpdates));
 
-            setPositionsByContestant(prev => ({...prev, ...positionUpdates}));
+            // Merged, not replaced: a refetch (back from a replay, after a lost connection) must never leave a track
+            // shorter than the page already had it.
+            setPositionsByContestant(prev => {
+                const next = { ...prev };
+                for (const id of Object.keys(positionUpdates)) next[Number(id)] = mergePositions(prev[Number(id)], positionUpdates[Number(id)]);
+                return next;
+            });
             setAnnotationsByContestant(prev => ({...prev, ...annotationUpdates}));
             setScoreLogByContestant(prev => ({...prev, ...scoreLogUpdates}));
             setGateScoresByContestant(prev => ({...prev, ...gateScoreUpdates}));

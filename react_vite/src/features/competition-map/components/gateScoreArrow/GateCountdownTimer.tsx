@@ -12,6 +12,8 @@ interface GateCountdownTimerProps {
     missed: boolean;
     /** Whether there is a prediction to show beside the countdown (not before the start, which has none). */
     predicted?: boolean;
+    /** Shown between the gate's name and the figures: on a phone, the danger level, to save a row below the arrow. */
+    middle?: React.ReactNode;
 }
 
 /**
@@ -27,6 +29,7 @@ const GateCountdownTimer: React.FC<GateCountdownTimerProps> = ({
     final,
     missed,
     predicted = true,
+    middle,
 }) => {
     const offsetColour = offsetWithinGrace ? "var(--hud-ok)" : "var(--hud-red)";
     const late = secondsToRequiredTime < 0;
@@ -36,7 +39,7 @@ const GateCountdownTimer: React.FC<GateCountdownTimerProps> = ({
             <div className="leading-tight min-w-0">
                 {final || missed ? (
                     // The result of a gate just crossed, held for a few seconds: not the live countdown.
-                    <span className="inline-flex items-center rounded px-1.5 py-0.5 text-xs min-[100rem]:text-base font-bold uppercase tracking-wide"
+                    <span className="inline-flex items-center rounded px-1.5 text-xs leading-4 min-[100rem]:text-base font-bold uppercase tracking-wide"
                         style={{ background: missed || !offsetWithinGrace ? "var(--hud-red)" : "var(--hud-ok)", color: "var(--hud-surface)" }}>
                         {missed ? "✗ Missed" : "✓ Passed"}
                     </span>
@@ -45,13 +48,14 @@ const GateCountdownTimer: React.FC<GateCountdownTimerProps> = ({
                 )}
                 <div className="hud-figure text-xl sm:text-2xl min-[100rem]:text-4xl truncate">{waypointName}</div>
             </div>
+            {middle}
             <div className="flex items-end gap-4">
                 {missed ? (
-                    <div className="hud-figure text-4xl min-[100rem]:text-6xl leading-none" style={{ color: "var(--hud-red)" }}>Missed</div>
+                    <div className="hud-figure text-3xl sm:text-4xl min-[100rem]:text-6xl leading-none" style={{ color: "var(--hud-red)" }}>Missed</div>
                 ) : final ? (
                     <div className="leading-none text-right">
-                        <div className="hud-figure text-4xl min-[100rem]:text-6xl" style={{ color: offsetColour }}>{formatOffset(crossingOffset)}</div>
-                        <div className="hud-label min-[100rem]:text-base mt-1">Crossed</div>
+                        <div className="hud-figure text-3xl sm:text-4xl min-[100rem]:text-6xl" style={{ color: offsetColour }}>{formatOffset(crossingOffset)}</div>
+                        <div className="hud-label min-[100rem]:text-base mt-1 hidden sm:block">Crossed</div>
                     </div>
                 ) : (
                     <>
