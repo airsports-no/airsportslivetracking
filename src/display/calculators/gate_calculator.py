@@ -43,6 +43,9 @@ from display.utilities.gate_definitions import (
 from display.utilities.route_building_utilities import calculate_extended_gate
 from websocket_channels import WebsocketFacade
 
+# How long before the planned starting line crossing (set start times) the gate score arrow gets a prediction of it.
+START_ESTIMATE_LEAD = datetime.timedelta(minutes=1)
+
 logger = logging.getLogger(__name__)
 
 GATE_SCORE_TYPE = "gate_score"
@@ -315,25 +318,49 @@ class GateCalculator(Calculator):
                 self.last_estimation_time = last_pos.time
 
         if self.live_processing and state.estimated_next_timed_gate and state.estimated_crossing_time:
-            planned_time_to_crossing = (track[-1].time - state.estimated_next_timed_gate.expected_time).total_seconds()
-            score = self.scorecard.get_gate_timing_score_for_gate_type(
-                state.estimated_next_timed_gate.type,
-                state.estimated_next_timed_gate.expected_time,
-                state.estimated_crossing_time,
-            )
-
-            self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(
-                self.contestant,
-                state.estimated_next_timed_gate.name,
-                planned_time_to_crossing,
-                round((state.estimated_crossing_time - state.estimated_next_timed_gate.expected_time).total_seconds()),
-                score,
-                False,
-                False,
-                state.estimated_next_timed_gate.expected_time,
-                track[-1].time,
-            )
+            self._transmit_estimate(state.estimated_next_timed_gate, state.estimated_crossing_time, track[-1].time)
         return events
+
+    def _transmit_estimate(self, gate: Gate, estimated_crossing_time: datetime.datetime, position_time: datetime.datetime):
+        """
+        Update the gate score arrow in the frontend with the predicted crossing of a gate, made from the position at
+        position_time.
+        """
+        planned_time_to_crossing = (position_time - gate.expected_time).total_seconds()
+        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, estimated_crossing_time)
+        self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(
+            self.contestant,
+            gate.name,
+            planned_time_to_crossing,
+            round((estimated_crossing_time - gate.expected_time).total_seconds()),
+            score,
+            False,
+            False,
+            gate.expected_time,
+            position_time,
+        )
+
+    def _transmit_start_estimate(self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState):
+        """
+        The prediction of the starting line crossing, for a start at a set time, in the last START_ESTIMATE_LEAD before
+        the planned time (and on until the line is crossed). Earlier the contestant may be parked, taxiing or climbing:
+        the estimate would be made from a speed that says nothing about when they get there. An adaptive start has no
+        planned time to predict against.
+        """
+        line = self.starting_line
+        if (
+            not self.live_processing
+            or not track
+            or self.contestant.adaptive_start
+            or line is None
+            or state.next_gate is not line
+            or not line.time_check
+            or track[-1].time < line.expected_time - START_ESTIMATE_LEAD
+        ):
+            return
+        estimation = self.estimate_crossing_time_of_next_timed_gate(track, state)
+        if estimation and estimation.gate is line:
+            self._transmit_estimate(line, estimation.estimated_time, track[-1].time)
 
     def calculate_outside_route(
         self,
@@ -344,6 +371,7 @@ class GateCalculator(Calculator):
         # Emit initial next gate if none known yet
         if state.next_gate is None and self.outstanding_gates:
             events.append(NextGateExpectedEvent(self.outstanding_gates[0], track[-1]))
+        self._transmit_start_estimate(track, state)
         return events
 
     def check_intersections(

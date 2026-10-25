@@ -363,6 +363,55 @@ class TestGateCalculator(CalculatorUnitTestBase):
         actual_seconds = (event.estimated_time - pos.time).total_seconds()
         self.assertAlmostEqual(actual_seconds, expected_seconds, delta=1)
 
+    def _start_line_and_state(self, adaptive_start=False):
+        line = MagicMock()
+        line.name = "SP"
+        line.type = "sp"
+        line.time_check = True
+        line.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        proj = self.projector.project_point(60.0, 11.0)
+        line.center_x = proj.projected_x
+        line.center_y = proj.projected_y
+        line.latitude = 60.0
+        line.longitude = 11.0
+        line.distance = 0
+        self.calculator.gates = [line]
+        self.calculator.outstanding_gates = [line]
+        self.calculator.starting_line = line
+        self.calculator.live_processing = True
+        self.calculator.websocket_facade = MagicMock()
+        self.contestant.adaptive_start = adaptive_start
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=line,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        return line, state
+
+    def test_start_estimate_is_sent_only_in_the_last_minute_before_a_set_start(self):
+        _, state = self._start_line_and_state()
+        sent = self.calculator.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate
+        early = self.create_position(60.0, 11.0, datetime.datetime(2020, 1, 1, 9, 57))
+        self.calculator._transmit_start_estimate([early], state)
+        sent.assert_not_called()
+        close = self.create_position(60.0, 11.0, datetime.datetime(2020, 1, 1, 9, 59, 30))
+        self.calculator._transmit_start_estimate([close], state)
+        sent.assert_called_once()
+        args = sent.call_args.args
+        self.assertEqual(args[1], "SP")  # the starting line
+        self.assertFalse(args[5])  # not final
+        self.assertFalse(args[6])  # not missed
+
+    def test_no_start_estimate_for_an_adaptive_start(self):
+        _, state = self._start_line_and_state(adaptive_start=True)
+        close = self.create_position(60.0, 11.0, datetime.datetime(2020, 1, 1, 9, 59, 30))
+        self.calculator._transmit_start_estimate([close], state)
+        self.calculator.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate.assert_not_called()
+
     def test_on_gate_missed(self):
         gate = self.calculator.gates[0]
         gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
