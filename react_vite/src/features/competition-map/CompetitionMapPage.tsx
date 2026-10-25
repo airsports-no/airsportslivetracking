@@ -923,7 +923,11 @@ export default function CompetitionMapPage() {
   const startedCount = firstWaitingIndex === -1 ? standings.length : firstWaitingIndex;
   // The race around the followed contestant: who is just above and below, and by how many points.
   const gaps = neighbourGaps(standings, selectedStanding, startedCount);
-  const lastName = (id: number) => contestantsById[id]?.team?.crew?.member1?.last_name ?? '';
+  // "#4 Hatlestad": the number is what the ranking and the start list show, a name alone is not always enough.
+  const lastName = (id: number) => {
+    const other = contestantsById[id];
+    return `#${other?.contestant_number ?? ''} ${other?.team?.crew?.member1?.last_name ?? ''}`.trim();
+  };
   const neighbours = {
     above: gaps.above && { name: lastName(gaps.above.id), points: gaps.above.points },
     below: gaps.below && { name: lastName(gaps.below.id), points: gaps.below.points },

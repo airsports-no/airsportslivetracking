@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { generatePath, reverse } from '../../../urls';
@@ -27,6 +27,12 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
   const [removingContestants, setRemovingContestants] = useState(false);
   const [reloadingRoute, setReloadingRoute] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // The deletion goes on at the server even if the page is left meanwhile: then nobody is sent to the dashboard after.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const updateDetailsModalRef = useRef<HTMLDialogElement>(null);
   const flightOrderConfigModalRef = useRef<FlightOrderConfigurationModalHandle>(null);
   const generateMapModalRef = useRef<GenerateNavigationMapModalHandle>(null);
@@ -73,8 +79,9 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
       // landing back on it after this navigate() would still show the just-deleted task until
       // a manual page reload evicted the stale cache entry.
       await useMissionDashboardStore.getState().fetchContest(contestId, true);
-      navigate(generatePath('MISSION_DASHBOARD_DETAIL', { contestId: String(contestId) }));
+      if (mounted.current) navigate(generatePath('MISSION_DASHBOARD_DETAIL', { contestId: String(contestId) }));
     } catch (err: any) {
+      if (!mounted.current) return;
       window.alert(err.message || 'Failed to delete navigation task');
       setDeleting(false);
     }

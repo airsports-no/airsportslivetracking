@@ -101,6 +101,20 @@ function CrewMember({ person, club, slim = false }: { person: Member; club?: str
 }
 
 /**
+ * The race around the followed contestant: the points to the one just above and to the one just below. As large as
+ * the crew's names beside it (not the small label style, which a utility class cannot make larger).
+ */
+function Neighbours({ neighbours, className }: { neighbours: NonNullable<Props['neighbours']>; className: string }) {
+    const figure = 'hud-figure text-base min-[100rem]:text-3xl';
+    return (
+        <div className={`${className} leading-tight hud-muted text-sm lg:text-base min-[100rem]:text-2xl`}>
+            {neighbours.above && <span><span className={figure} style={{ color: 'var(--hud-text)' }}>{neighbours.above.points}</span> behind {neighbours.above.name}</span>}
+            {neighbours.below && <span><span className={figure} style={{ color: 'var(--hud-text)' }}>{neighbours.below.points}</span> ahead of {neighbours.below.name}</span>}
+        </div>
+    );
+}
+
+/**
  * The selected contestant along the bottom edge of the map: who is flying, their score and place, and while they fly
  * the countdown to the next gate with the gate score arrow and the danger level. On a phone on its side (the
  * max-height:500px classes) it keeps to one row, without photos, so the map keeps most of the height. On a big screen
@@ -140,12 +154,13 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
                     )}
                     {/* The race around them, where there is room. */}
                     {(neighbours?.above || neighbours?.below) && (
-                        <div className="hidden md:flex flex-col gap-0.5 leading-tight hud-label min-[100rem]:text-base self-center [@media(max-height:500px)]:hidden">
-                            {neighbours.above && <span><span className="hud-figure" style={{ color: 'var(--hud-text)' }}>{neighbours.above.points}</span> behind {neighbours.above.name}</span>}
-                            {neighbours.below && <span><span className="hud-figure" style={{ color: 'var(--hud-text)' }}>{neighbours.below.points}</span> ahead of {neighbours.below.name}</span>}
-                        </div>
+                        <Neighbours neighbours={neighbours} className="hidden md:flex flex-col gap-0.5 self-center [@media(max-height:500px)]:hidden" />
                     )}
                 </div>
+
+                {(neighbours?.above || neighbours?.below) && (
+                    <Neighbours neighbours={neighbours} className="md:hidden w-full flex flex-wrap gap-x-4 [@media(max-height:500px)]:hidden" />
+                )}
 
                 {live && !isPoker && (
                     <div className={`w-full min-w-0 lg:w-auto lg:flex-1 lg:max-w-[36rem] lg:ml-auto min-[100rem]:max-w-none [@media(max-height:500px)]:w-auto [@media(max-height:500px)]:flex-1 [@media(max-height:500px)]:max-w-[22rem] [@media(max-height:500px)]:ml-auto`}>
