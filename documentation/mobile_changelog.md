@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-25
+#### Backend
+- **Signing up with the website's form no longer makes the profile at once.** The form makes the (unverified) Firebase account and sends the verification email; the user and person are made at the first sign-in with the verified address, website or app, with the names from the Firebase display name (the last word is the last name, so "Mary Ann Smith" is Mary Ann, Smith, which the app's first sign-in now gets too where it used to get no name). The form also has a hidden field, a signed minimum time and a limit of five signups an hour from one address, against bots.
+
 ### 2026-10-24
 #### Backend
 - **Training countdown to the next gate.** `training_feedback` on the Now endpoints also gives `next_gate` and `next_gate_time`: the next visible gate with a time check (never a secret gate, unknown leg or curve point) and its required time; with an adaptive start only once the starting point is crossed, with the times that crossing set. Stored by the live gate calculator on `ContestantTrack` (migration `0210`). The live map's gate score arrow now has one large countdown to the required time, ticked in the browser (corrected for the browser clock and the task's calculation delay), with the predicted offset beside it.

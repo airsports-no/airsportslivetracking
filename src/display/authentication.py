@@ -30,6 +30,7 @@ from firebase_admin import auth as firebase_auth
 from rest_framework import authentication, exceptions
 
 from display.auth_backends import FirebaseMigrationBackend
+from display.utilities.person_provisioning import split_display_name
 
 logger = logging.getLogger(__name__)
 
@@ -92,10 +93,6 @@ class FirebaseTokenAuthentication(authentication.TokenAuthentication):
 
         user = User.objects.create_user(username=firebase_user.uid, email=email)
         user.last_login = timezone.now()
-        if firebase_user.display_name is not None:
-            display_name = firebase_user.display_name.split(" ")
-            if len(display_name) == 2:
-                user.first_name = display_name[0]
-                user.last_name = display_name[1]
+        user.first_name, user.last_name = split_display_name(firebase_user.display_name)
         user.save()
         return user

@@ -140,6 +140,8 @@ from display.flight_order_and_maps.user_uploaded_mbtiles_publish import (
     request_mbtiles_reload,
 )
 
+from display.utilities.person_provisioning import ensure_person
+from display.utilities.signup_protection import client_ip, new_form_token, over_limit, token_problem
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
 from display.utilities.navigation_task_type_definitions import POKER, AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, PRECISION
 from display.waypoint import Waypoint
@@ -1297,6 +1299,7 @@ def firebase_token_login(request):
         # The backend recorded in the session must be listed in settings.AUTHENTICATION_BACKENDS, otherwise Django
         # discards the session on the next request (ModelBackend is not listed, so the app's web view stayed anonymous).
         login(request, user, backend="display.auth_backends.FirebaseMigrationBackend")
+        ensure_person(user)
     except drf_exceptions.AuthenticationFailed as e:
         logger.warning("Firebase login with token from app failed: %s", e)
         messages.error(request, f"Login failed: {e}")
@@ -1415,7 +1418,6 @@ def signup(request):
     """
     from firebase_admin import auth
     from display.auth_backends import FirebaseMigrationBackend
-    from display.models import MyUser, Person
     import requests
 
     # Keep the page the user came from (e.g. a flight QR code) so they can resume after verifying.
@@ -1432,6 +1434,30 @@ def signup(request):
             last_name = form.cleaned_data["last_name"]
             email = form.cleaned_data["email"].lower()
             password = form.cleaned_data["password"]
+
+            # Bots: see display/utilities/signup_protection.py. Each signup creates a Firebase account and sends an
+            # email to the address given, so the form must not be usable to do that for anybody.
+            ip = client_ip(request)
+            if form.cleaned_data.get("website"):
+                # Filled in only by something that fills in every field: told it worked, and nothing is done.
+                logger.warning(f"[SignUp] Honeypot filled in from {ip}, signup for {email} ignored")
+                return render(request, "registration/signup_success.html", {"email": email, "next": next_url})
+            problem = token_problem(form.cleaned_data.get("form_started"))
+            if problem == "too_fast":
+                logger.warning(f"[SignUp] Submitted too fast from {ip} for {email}")
+                form.add_error(None, "That was quick. Please check the details and press Sign Up again.")
+            elif problem:
+                logger.warning(f"[SignUp] Form token {problem} from {ip} for {email}")
+                data = request.POST.copy()
+                data["form_started"] = new_form_token()
+                form = SignUpForm(data)
+                form.is_valid()
+                form.add_error(None, "The form had expired. Please press Sign Up again.")
+            elif over_limit(ip):
+                logger.warning(f"[SignUp] Too many signups from {ip}, {email} refused")
+                form.add_error(None, "Too many sign-ups from your network. Please try again later.")
+            if form.errors:
+                return render(request, "registration/signup.html", {"form": form, "next": next_url, **social_login_context()})
 
             # 1. Initialize Firebase
             backend = FirebaseMigrationBackend()
@@ -1474,36 +1500,9 @@ def signup(request):
                     messages.error(request, "User created but verification email could not be sent. Please use 'Forgot Password' to verify your account.")
                     return redirect("login")
 
-                # 4. Ensure Django User exists (Inactive or Unusable Password)
-                # Since MyUser is a local proxy for Firebase, we tolerate existing records.
-                user, created = MyUser.objects.get_or_create(
-                    email=email,
-                    defaults={
-                        "username": email,
-                        "first_name": first_name,
-                        "last_name": last_name,
-                    }
-                )
-                if not created:
-                    user.first_name = first_name
-                    user.last_name = last_name
-                
-                user.set_unusable_password()
-                user.save()
-
-                # 5. Create Person profile
-                # We use get_or_create in case a Person record exists without a user
-                person, created = Person.objects.get_or_create(
-                    email=email,
-                    defaults={
-                        "first_name": first_name,
-                        "last_name": last_name,
-                    }
-                )
-                if not created:
-                    person.first_name = first_name
-                    person.last_name = last_name
-                    person.save()
+                # No local user or person is made here: they are made when the verified address first signs in
+                # (FirebaseMigrationBackend, FirebaseTokenAuthentication), with the names from the display name set
+                # above. A signup nobody verifies then leaves an unverified Firebase account and nothing else.
 
                 # Do NOT log the user in automatically. They must verify email first.
                 return render(request, "registration/signup_success.html", {"email": email, "next": next_url})
@@ -1517,7 +1516,7 @@ def signup(request):
                     logger.error(f"[SignUp] Unexpected error during signup for {email}: {e}")
                     messages.error(request, "An error occurred during signup. Please try again later.")
     else:
-        form = SignUpForm()
+        form = SignUpForm(initial={"form_started": new_form_token()})
 
     return render(request, "registration/signup.html", {"form": form, "next": next_url, **social_login_context()})
 
