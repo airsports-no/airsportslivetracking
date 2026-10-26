@@ -5,7 +5,7 @@ import type { DummyBranchPhase } from '../unknownLegWizard';
 interface WizardActionBannerProps {
   // The step's full description: shown on hover only, the wizard panel has it too
   currentWizardActionLabel: string;
-  // A short title worth showing (which trigger the dummy waypoints belong to), or nothing
+  // A short title worth showing (which trigger the extension waypoints belong to), or nothing
   title?: string | null;
   instruction: string;
   stopWizardAction: () => void;
@@ -39,7 +39,7 @@ const WizardActionBanner: React.FC<WizardActionBannerProps> = ({
       </div>
       {dummyBranchPhase === 'awaiting_trigger' && awaitingNonTriggerSelection && (
         <div className="mt-1 rounded-full border border-warning/30 bg-base-100/95 px-3 py-1 text-xs text-base-content/80 shadow">
-          That waypoint isn't an unknown-leg trigger: pick an amber one, or change a waypoint's type to Unknown Leg.
+          That waypoint isn't an unknown-leg point: pick an amber one, or change a waypoint's type to Unknown Leg.
         </div>
       )}
     </div>

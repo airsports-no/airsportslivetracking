@@ -166,11 +166,11 @@ Each section covers: what the task tests, how to build the route, how to configu
 
 **Build the route:**
 1. Build the true backbone route first — the actual route the contestant flies, including curves and photo observation markers as needed.
-2. Click a backbone waypoint to mark it as an **unknown-leg trigger**; the wizard immediately switches to placing that trigger's dummy waypoints.
-3. For each amber trigger, click the map to add dummy branch waypoints — these extend the visible segment shown to the contestant without being part of the real backbone.
+2. Click a backbone waypoint to mark it as an **unknown-leg point**; the wizard immediately switches to placing that point's extension waypoints.
+3. For each amber unknown-leg point, click the map to add extension waypoints — these extend the visible segment shown to the contestant without being part of the real backbone.
 4. Hidden gates directly on the true backbone, and photo/observation markers, are both optional but recommended as scoring evidence.
 
-The contestant only ever sees disjoint segments: from the last visible point, through the unknown-leg trigger (shown as a photo with a course printed on it), through its dummy waypoints. You can add extra "false" photos that don't correspond to any real trigger, to make the task harder — the route editor supports registering these directly.
+The contestant only ever sees disjoint segments: from the last visible point, through the unknown-leg point (shown as a photo with a course printed on it), through its extension waypoints. You can add extra "false" photos that don't correspond to any real unknown-leg point, to make the task harder — the route editor supports registering these directly.
 
 **Create the task:** pick *"2.A5 Navigation with unknown legs"*, a Precision-family scorecard.
 

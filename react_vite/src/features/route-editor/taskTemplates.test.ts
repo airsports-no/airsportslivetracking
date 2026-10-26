@@ -116,13 +116,13 @@ describe('getWizardRouteInsertLabel', () => {
 
   it('gives the unknown-leg-specific instruction for a ul pointType', () => {
     expect(getWizardRouteInsertLabel({ ...baseStep, pointType: 'ul' })).toBe(
-      'Click the backbone waypoint you want as a trigger; the wizard then goes straight to placing its dummy waypoints.',
+      'Click the backbone waypoint you want as an unknown-leg point; the wizard then goes straight to placing its extension waypoints.',
     );
   });
 
   it('gives the dummy-branch-specific instruction for a dummy_branch_waypoint featureType', () => {
     expect(getWizardRouteInsertLabel({ ...baseStep, featureType: 'dummy_branch_waypoint' })).toBe(
-      'Click an amber unknown-leg trigger on the map — placement starts automatically — then click the map for each dummy waypoint.',
+      'Click an amber unknown-leg point on the map — placement starts automatically — then click the map for each extension waypoint.',
     );
   });
 

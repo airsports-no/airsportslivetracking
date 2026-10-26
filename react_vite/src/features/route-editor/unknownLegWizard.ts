@@ -30,21 +30,21 @@ export function getWizardBannerText(
 ): { title: string; instruction: string } {
   if (phase === 'placing') {
     return {
-      title: `Placing dummy waypoints for ${triggerName || 'selected trigger'}`,
-      instruction: 'Click the map for each dummy waypoint on this branch.',
+      title: `Placing extension waypoints for ${triggerName || 'selected unknown-leg point'}`,
+      instruction: 'Click the map for each extension waypoint on this branch.',
     };
   }
 
   if (phase === 'awaiting_trigger') {
     return {
-      title: 'Select an unknown-leg trigger',
-      instruction: 'Click an unknown-leg trigger on the map (amber) to start placing dummy waypoints.',
+      title: 'Select an unknown-leg point',
+      instruction: 'Click an unknown-leg point on the map (amber) to start placing extension waypoints.',
     };
   }
 
   return {
     title: 'No active unknown-leg step',
-    instruction: 'Start the unknown-leg wizard step to select a trigger and place dummy waypoints.',
+    instruction: 'Start the unknown-leg wizard step to select an unknown-leg point and place extension waypoints.',
   };
 }
 
@@ -75,8 +75,8 @@ const withName = (point: RoutePoint, name: string): RoutePoint => (point.name ==
 
 /**
  * Names the points of an unknown-legs (2.A5) route in the order the map shows them, so that the numbers on the
- * generated map follow the route including its dummy legs: SP, then TP 1, TP 2, ... through the turnpoints and each
- * unknown-leg trigger's dummy waypoints (right after the trigger, in branch order), then FP. The triggers themselves
+ * generated map follow the route including its extension legs: SP, then TP 1, TP 2, ... through the turnpoints and each
+ * unknown-leg point's extension waypoints (right after the trigger, in branch order), then FP. The triggers themselves
  * are never shown and are named Unknown leg 1, 2, ...; secret points keep their names. Points whose name is already
  * right are returned as they are, so an already named route comes back unchanged (same arrays).
  */
@@ -123,8 +123,8 @@ export function nameUnknownLegsRoutePoints(
   };
 }
 
-// The point a dummy-branch waypoint's leg starts from: the waypoint before it on its branch, or the unknown-leg trigger
-// for the first one. A curved dummy leg is drawn from there.
+// The point a dummy-branch waypoint's leg starts from: the waypoint before it on its branch, or the unknown-leg point
+// for the first one. A curved extension leg is drawn from there.
 export function previousOnDummyBranch(
   point: RoutePoint,
   routePoints: RoutePoint[],

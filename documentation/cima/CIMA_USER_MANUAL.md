@@ -74,11 +74,11 @@ at least one kind of evidence.
 The route is a true backbone plus decoy branches:
 
 1. Build the **backbone route**: the route actually flown.
-2. Click a backbone waypoint to make it an **unknown-leg trigger**. The wizard then goes straight to placing that
-   trigger's **dummy waypoints** on the map.
+2. Click a backbone waypoint to make it an **unknown-leg point**. The wizard then goes straight to placing that
+   point's **extension waypoints** on the map.
 3. Optionally add hidden gates on the backbone and observation photo markers.
 
-Contestants see only disjoint route segments that run through each unknown-leg trigger and its dummy waypoints.
+Contestants see only disjoint route segments that run through each unknown-leg point and its extension waypoints.
 The flight order includes a section with the unknown-leg photos (course printed on each) in arbitrary order. On the
 live map, hiding secrets shows the contestant's view; showing secrets shows the editor's full view.
 

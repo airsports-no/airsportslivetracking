@@ -30,7 +30,7 @@ await page.getByRole('button', { name: '2.A5 Navigation with unknown' }).click()
 
 // ── Phase: Backbone route ──
 await chapter("Backbone route");
-await say("First, build the backbone: the route the contestants actually fly, from the starting point to the finish point. While placing its waypoints, plan which of them will be unknown waypoints, and where their dummy legs should go.", { wait: false });
+await say("First, build the backbone: the route the contestants actually fly, from the starting point to the finish point. While placing its waypoints, plan which of them will be unknown-leg points, and where their extension legs should go.", { wait: false });
 await page.getByRole('button', { name: 'Start' }).click();
 await map.wheel([[793,572,-100,0],[816,527,-100,267],[819,516,-100,142],[843,444,-100,365]]);
 await map.view(60.7901284, 11.1043453, 14);
@@ -52,22 +52,22 @@ await page.getByRole('button', { name: 'Done' }).click();
 
 // ── Phase: Unknown leg 1 ──
 await chapter("Unknown leg 1");
-await say("Next, choose the first unknown waypoint. Press Add under unknown-leg triggers, then click the backbone waypoint the contestants must find. In the flight order they only get a photo of it.", { wait: false });
+await say("Next, choose the first unknown-leg point. Press Add under unknown-leg points, then click the backbone waypoint the contestants must find. In the flight order they only get a photo of it.", { wait: false });
 await page.getByRole('button', { name: 'Task Wizard' }).click();
-// The Add of the wizard's "Unknown-leg triggers" step, by its title (not the first Add on the page)
-await page.getByText(/^\d+\. Unknown-leg triggers$/).locator("xpath=ancestor::div[.//button][1]").getByRole('button', { name: 'Add' }).click();
+// The Add of the wizard's "Unknown-leg points" step, by its title (not the first Add on the page)
+await page.getByText(/^\d+\. Unknown-leg points$/).locator("xpath=ancestor::div[.//button][1]").getByRole('button', { name: 'Add' }).click();
 await map.drag([[579,781,0],[580,781,33],[580,780,26],[580,778,24],[580,774,17],[580,772,17],[580,768,18],[575,747,24],[572,739,17],[568,724,17],[564,713,17],[557,690,17],[553,679,33],[535,632,17],[526,612,16],[518,597,17],[510,584,17],[503,571,17],[494,557,17],[486,544,17],[474,526,17],[466,515,17],[460,504,17],[453,495,17],[449,487,17],[445,481,17],[442,477,17],[439,472,18],[438,472,106]], {"at":[60.7812054,11.1038956],"zoom":13});
 await map.view(60.7782724, 11.1660604, 13);
 await map.click(60.7522828, 11.159177);
-await say("The wizard goes straight on to the dummy leg: click where it should lead. It is drawn on the contestants' map, and hides where the unknown waypoint really is.", { wait: false });
+await say("The wizard goes straight on to the extension leg: click where it should lead. It is drawn on the contestants' map, and hides where the unknown-leg point really is.", { wait: false });
 await map.click(60.7387766, 11.1767034);
 
 // ── Phase: Unknown leg 2 ──
 await chapter("Unknown leg 2");
 await say("Do the same for the second unknown leg, then press Done.", { wait: false });
 await page.getByRole('button', { name: 'Task Wizard' }).click();
-// The Add of the wizard's "Unknown-leg triggers" step, by its title (not the first Add on the page)
-await page.getByText(/^\d+\. Unknown-leg triggers$/).locator("xpath=ancestor::div[.//button][1]").getByRole('button', { name: 'Add' }).click();
+// The Add of the wizard's "Unknown-leg points" step, by its title (not the first Add on the page)
+await page.getByText(/^\d+\. Unknown-leg points$/).locator("xpath=ancestor::div[.//button][1]").getByRole('button', { name: 'Add' }).click();
 await map.drag([[660,252,0],[661,252,51],[661,253,22],[662,255,18],[662,262,20],[662,266,17],[662,272,17],[662,278,17],[662,285,17],[660,302,17],[659,309,17],[658,318,17],[656,331,17],[655,340,17],[655,351,17],[653,362,17],[652,369,17],[651,382,17],[648,402,17],[647,412,17],[646,422,17],[645,442,17],[644,466,25],[644,481,17],[644,496,17],[644,509,17],[643,520,17],[643,534,17],[643,546,17],[643,551,17],[642,561,17],[642,567,16],[642,573,17],[642,578,17],[642,587,17],[640,602,17],[639,611,17],[639,620,17],[638,625,17],[638,633,17],[638,647,17],[638,653,17],[638,663,17],[638,669,17],[638,681,17],[637,691,17],[637,697,17],[637,703,17],[637,708,17],[637,720,17],[636,723,17],[636,725,17],[636,726,41]], {"at":[60.7996352,11.142012],"zoom":13});
 await map.view(60.8179706, 11.1701807, 13);
 await map.click(60.8215695, 11.1511109);
@@ -76,7 +76,7 @@ await page.getByRole('button', { name: 'Done' }).click();
 
 // ── Phase: Secrets ──
 await chapter("Secrets");
-await say("To make the route harder, add hidden gates along the backbone, even on the leg after an unknown waypoint. They are not on the contestants' map, but passing them is checked.", { wait: false });
+await say("To make the route harder, add hidden gates along the backbone, even on the leg after an unknown-leg point. They are not on the contestants' map, but passing them is checked.", { wait: false });
 // The Add of the wizard's "Hidden gates" step, by its title (not the third Add on the page)
 await page.getByText(/^\d+\. Hidden gates \(optional\)$/).locator("xpath=ancestor::div[.//button][1]").getByRole('button', { name: 'Add' }).click();
 await map.wheel([[936,467,-100,0],[936,467,-100,186],[936,467,-100,142],[936,467,-100,124],[936,467,-100,150]]);
@@ -156,7 +156,7 @@ await endHidden();
 
 // ── Phase: Live map ──
 await chapter("Live map");
-await say("On the live map you see the whole route the contestants will fly, with the hidden gates and the dummy legs.");
+await say("On the live map you see the whole route the contestants will fly, with the hidden gates and the extension legs.");
 
 // ── Phase: Live map with hidden secrets ──
 await chapter("Live map with hidden secrets");
@@ -165,7 +165,7 @@ await say("Turn off the secret gates, and you see the map the contestants get:",
 
 await page.getByRole('button', { name: 'Settings' }).click();
 await page.getByRole('checkbox', { name: 'Show Secret Gates' }).click();
-await say("the dummy legs are drawn, but the unknown legs are not.", { wait: false });
+await say("the extension legs are drawn, but the unknown legs are not.", { wait: false });
 
 // ── Phase: Flight order ──
 await chapter("Flight order");
@@ -174,11 +174,11 @@ await showPdf("pdfs/flight_orders 2.A5.pdf", { pages: [4], width: "page" });
 await say("The flight order holds the navigation map the contestants navigate by during the flight.", { wait: false });
 await pause(1200);
 await zoomPdf(4, { y: 0.31, height: 0.36, x: 0.048, width: 0.904 });
-await say("It shows the backbone and the dummy legs, but not the unknown legs.");
+await say("It shows the backbone and the extension legs, but not the unknown legs.");
 // Small enough for all four photos to fit in the window
 await showPdf("pdfs/flight_orders 2.A5.pdf", { pages: [5], width: 0.62 });
-await say("Next come the photos of the unknown waypoints, in random order and mixed in with decoy photos, so the contestants cannot tell which are real. The number on each photo is the course to fly from that point.", { wait: false });
+await say("Next come the photos of the unknown-leg points, in random order and mixed in with decoy photos, so the contestants cannot tell which are real. The number on each photo is the course to fly from that point.", { wait: false });
 await highlight(await pdfRegion(5, { x: 0.04, y: 0.05, width: 0.92, height: 0.53 }), { label: "Unknown leg and decoy photos", durationMs: 9000 });
-await say("The route is ready. In photo management you can replace these satellite pictures with real aerial photos of the unknown waypoints.");
+await say("The route is ready. In photo management you can replace these satellite pictures with real aerial photos of the unknown-leg points.");
   },
 });

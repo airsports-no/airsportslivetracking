@@ -70,7 +70,7 @@ const getPointTooltipLabel = (point: RoutePoint, index: number) => {
     return `${index + 1}. ⚑ UL ${point.name}`;
   }
   if (point.featureType === 'dummy_branch_waypoint') {
-    return `${index + 1}. ${point.name} (dummy)`;
+    return `${index + 1}. ${point.name} (extension)`;
   }
   return `${index + 1}. ${point.name}`;
 };
@@ -284,7 +284,7 @@ export const drawRouteLine = (
   polylinesRef.current.push(polyline);
 
   branchLineGroups.forEach((group) => {
-    // A curved dummy leg (segmentType curved on its end point) follows its curve, like a curved route leg
+    // A curved extension leg (segmentType curved on its end point) follows its curve, like a curved route leg
     const branchLatLngs: L.LatLng[] = [];
     group.points.forEach((point, index) => {
       const previous = group.points[index - 1];

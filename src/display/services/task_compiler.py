@@ -169,7 +169,7 @@ class TaskCompiler:
 
         unknown_leg_names = [name for name in primitives.get("unknown_leg", []) if name]
         if not unknown_leg_names:
-            errors.append("Unknown legs requires at least one unknown-leg trigger waypoint.")
+            errors.append("Unknown legs requires at least one unknown-leg point.")
 
         point_types = [item.get("properties", {}).get("pointType") for item in authored_waypoints]
         dummy_branch_features = editable_route.get_features_type("dummy_branch_waypoint")
@@ -187,7 +187,7 @@ class TaskCompiler:
                 continue
             trigger_id = authored_waypoints[trigger_index].get("properties", {}).get("id")
             if not trigger_id or not dummy_branch_by_trigger.get(trigger_id):
-                errors.append("Unknown legs requires at least one dummy waypoint after each unknown-leg trigger.")
+                errors.append("Unknown legs requires at least one extension waypoint after each unknown-leg point.")
                 break
 
         if not unknown_leg_names:

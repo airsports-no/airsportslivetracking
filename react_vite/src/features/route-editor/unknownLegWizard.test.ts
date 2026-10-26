@@ -30,12 +30,12 @@ describe('getDummyBranchPhase', () => {
     expect(getDummyBranchPhase(true, null, [makeRoutePoint({ type: 'ul' as RoutePoint['type'] })])).toBe('awaiting_trigger');
   });
 
-  it('returns placing when the active trigger resolves to an unknown-leg trigger point', () => {
+  it('returns placing when the active trigger resolves to an unknown-leg point point', () => {
     const trigger = makeRoutePoint({ id: 'trigger-1', type: 'ul' as RoutePoint['type'], name: 'WP3' });
     expect(getDummyBranchPhase(true, trigger.id, [trigger])).toBe('placing');
   });
 
-  it('returns awaiting_trigger when the trigger id no longer resolves to an unknown-leg trigger', () => {
+  it('returns awaiting_trigger when the trigger id no longer resolves to an unknown-leg point', () => {
     const nonTrigger = makeRoutePoint({ id: 'point-2', type: 'tp' as RoutePoint['type'] });
     expect(getDummyBranchPhase(true, nonTrigger.id, [nonTrigger])).toBe('awaiting_trigger');
     expect(getDummyBranchPhase(true, 'missing', [nonTrigger])).toBe('awaiting_trigger');
@@ -45,22 +45,22 @@ describe('getDummyBranchPhase', () => {
 describe('getWizardBannerText', () => {
   it('returns awaiting-trigger copy', () => {
     expect(getWizardBannerText('awaiting_trigger')).toEqual({
-      title: 'Select an unknown-leg trigger',
-      instruction: 'Click an unknown-leg trigger on the map (amber) to start placing dummy waypoints.',
+      title: 'Select an unknown-leg point',
+      instruction: 'Click an unknown-leg point on the map (amber) to start placing extension waypoints.',
     });
   });
 
   it('returns placing copy with the trigger name', () => {
     expect(getWizardBannerText('placing', 'WP3')).toEqual({
-      title: 'Placing dummy waypoints for WP3',
-      instruction: 'Click the map for each dummy waypoint on this branch.',
+      title: 'Placing extension waypoints for WP3',
+      instruction: 'Click the map for each extension waypoint on this branch.',
     });
   });
 
   it('returns idle copy when no step is active', () => {
     expect(getWizardBannerText('idle')).toEqual({
       title: 'No active unknown-leg step',
-      instruction: 'Start the unknown-leg wizard step to select a trigger and place dummy waypoints.',
+      instruction: 'Start the unknown-leg wizard step to select an unknown-leg point and place extension waypoints.',
     });
   });
 });
@@ -68,7 +68,7 @@ describe('getWizardBannerText', () => {
 describe('buildDummyBranchWaypoint', () => {
   const trigger = makeRoutePoint({ id: 'trigger-1', type: 'ul' as RoutePoint['type'], name: 'WP3' });
 
-  it('builds the first dummy waypoint with the expected defaults', () => {
+  it('builds the first extension waypoint with the expected defaults', () => {
     const point = buildDummyBranchWaypoint({ lat: 60.1, lng: 11.1 }, trigger, []);
     expect(point.name).toBe('WP3-D1');
     expect(point.branchSequence).toBe(0);
@@ -77,7 +77,7 @@ describe('buildDummyBranchWaypoint', () => {
     expect(point.isPassing).toBe(true);
   });
 
-  it('increments the name and sequence for the second dummy waypoint', () => {
+  it('increments the name and sequence for the second extension waypoint', () => {
     const existing = [
       makeRoutePoint({ id: 'dummy-1', type: 'dummy' as RoutePoint['type'], featureType: 'dummy_branch_waypoint', triggerPointId: 'trigger-1', branchSequence: 0 }),
     ];
@@ -86,7 +86,7 @@ describe('buildDummyBranchWaypoint', () => {
     expect(point.branchSequence).toBe(1);
   });
 
-  it('keeps counting for later dummy waypoints', () => {
+  it('keeps counting for later extension waypoints', () => {
     const existing = Array.from({ length: 4 }, (_, index) => makeRoutePoint({
       id: `dummy-${index + 1}`,
       type: 'dummy' as RoutePoint['type'],

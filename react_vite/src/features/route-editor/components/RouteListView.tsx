@@ -108,9 +108,9 @@ const RouteListView: React.FC<RouteListViewProps> = ({
       </div>
 
       <div>
-        <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Dummy Branches</h3>
+        <h3 className="text-xs font-bold text-gray-500 uppercase mb-2">Extensions</h3>
         {dummyBranchPoints.length === 0 ? (
-          <p className="text-sm text-gray-400 italic">No dummy-branch waypoints.</p>
+          <p className="text-sm text-gray-400 italic">No extension waypoints.</p>
         ) : (
           <ul className="space-y-1">
             {dummyBranchPoints.map((p) => (
@@ -121,7 +121,7 @@ const RouteListView: React.FC<RouteListViewProps> = ({
               >
                 <div className="flex items-center justify-between gap-2">
                   <span className="font-medium truncate" title={p.name}>{p.name}</span>
-                  <span className="badge badge-sm badge-neutral uppercase text-[9px] h-4 leading-none font-bold">dummy</span>
+                  <span className="badge badge-sm badge-neutral uppercase text-[9px] h-4 leading-none font-bold">extension</span>
                 </div>
                 <div className="text-[11px] text-gray-500">
                   Trigger {(unknownLegTriggerOptions.find((trigger) => trigger.id === p.triggerPointId)?.name) || p.triggerPointId || 'unassigned'} · branch step {(p.branchSequence ?? 0) + 1}
