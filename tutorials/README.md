@@ -308,6 +308,11 @@ Words the voice says wrong go in `pronunciations.json`, spelled the way they sho
 pronunciation needs no new recording: the next render (or `npm run narrate -- <name>`, for Studio) makes the lines
 that changed.
 
+**Narration for a video made elsewhere** (a phone recording edited in DaVinci Resolve, say): write the sentences in a
+text file, one per line (blank lines and `#` lines are skipped), and run `npm run voice -- my-script.txt [folder]`.
+It writes `01.wav`, `02.wav`, ... in the configured voice, with the pronunciations, and an `index.txt` listing each
+file's length and text. The default folder is `out/<script name>-voice`.
+
 ## Tips
 
 - Record against demo data on the local site, so names and numbers look the same every time and no real

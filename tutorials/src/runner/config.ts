@@ -12,6 +12,9 @@ export const PRONUNCIATIONS_FILE = path.join(ROOT, "pronunciations.json");
 // The team's private bucket for files that cannot be in git (npm run fetch-assets)
 export const ASSETS_BUCKET = process.env.TUTORIAL_ASSETS_BUCKET || "gs://airsports-tutorial-assets";
 
+// .env.local holds keys written by provider CLIs (the ElevenLabs one: ELEVENLABS_API_KEY). It is loaded first because a
+// variable that is already set is never overridden, so an empty ELEVENLABS_API_KEY= in .env cannot hide the key.
+if (existsSync(path.join(ROOT, ".env.local"))) process.loadEnvFile(path.join(ROOT, ".env.local"));
 if (existsSync(path.join(ROOT, ".env"))) process.loadEnvFile(path.join(ROOT, ".env"));
 
 export const settings = {
