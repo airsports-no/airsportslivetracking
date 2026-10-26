@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { generatePath, reverse } from '../../../urls';
@@ -6,6 +6,7 @@ import { deleteNavigationTask, refreshEditableRoute, removeAllContestants } from
 import { useToast } from '../../competition-map/hooks/useToast';
 import { useMissionDashboardStore } from '../../mission-dashboard/store';
 import { NavigationTaskDetail } from '../types';
+import BusyOverlay from '../../../components/common/BusyOverlay';
 import BatchUpdateContestantsModal from './BatchUpdateContestantsModal';
 import ContestantFormModal, { ContestantFormModalHandle } from './ContestantFormModal';
 import DuplicateTaskModal, { DuplicateTaskModalHandle } from './DuplicateTaskModal';
@@ -26,6 +27,12 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
   const [removingContestants, setRemovingContestants] = useState(false);
   const [reloadingRoute, setReloadingRoute] = useState(false);
   const [deleting, setDeleting] = useState(false);
+  // The deletion goes on at the server even if the page is left meanwhile: then nobody is sent to the dashboard after.
+  const mounted = useRef(true);
+  useEffect(() => {
+    mounted.current = true;
+    return () => { mounted.current = false; };
+  }, []);
   const updateDetailsModalRef = useRef<HTMLDialogElement>(null);
   const flightOrderConfigModalRef = useRef<FlightOrderConfigurationModalHandle>(null);
   const generateMapModalRef = useRef<GenerateNavigationMapModalHandle>(null);
@@ -72,8 +79,9 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
       // landing back on it after this navigate() would still show the just-deleted task until
       // a manual page reload evicted the stale cache entry.
       await useMissionDashboardStore.getState().fetchContest(contestId, true);
-      navigate(generatePath('MISSION_DASHBOARD_DETAIL', { contestId: String(contestId) }));
+      if (mounted.current) navigate(generatePath('MISSION_DASHBOARD_DETAIL', { contestId: String(contestId) }));
     } catch (err: any) {
+      if (!mounted.current) return;
       window.alert(err.message || 'Failed to delete navigation task');
       setDeleting(false);
     }
@@ -166,13 +174,15 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
         </li>
         <li>
           <button type="button" disabled={deleting} onClick={handleDelete} className="w-full text-left text-error">
-            Delete
+            {deleting ? 'Deleting…' : 'Delete'}
           </button>
         </li>
       </ul>
       <UpdateTaskDetailsModal ref={updateDetailsModalRef} contestId={contestId} navigationTaskId={navigationTaskId} task={task} onUpdated={onRefresh} />
       <FlightOrderConfigurationModal ref={flightOrderConfigModalRef} contestId={contestId} navigationTaskId={navigationTaskId} onSaved={() => showToast('Flight order configuration saved.', 'success', 5000)} />
       <ToastContainer toasts={toasts} removeToast={removeToast} />
+      {deleting && <BusyOverlay message={`Deleting “${task.name}”…`} />}
+      {removingContestants && <BusyOverlay message="Removing all contestants…" detail="This can take a while when they have flown a lot." />}
       <GenerateNavigationMapModal ref={generateMapModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
       <DuplicateTaskModal ref={duplicateModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
       <ContestantFormModal

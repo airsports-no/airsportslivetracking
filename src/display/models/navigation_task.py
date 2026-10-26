@@ -322,6 +322,32 @@ class NavigationTask(models.Model):
     def share_string(self):
         return "Public" if self.is_public else "Private"
 
+    def delete(self, *args, **kwargs):
+        """
+        The live calculators of the task's contestants are stopped first, and the delete tried again if a score they
+        wrote meanwhile made the database refuse it: it would otherwise fail with an internal server error.
+        """
+        from display.utilities.calculator_termination_utilities import (
+            CalculatorsStillRunning,
+            delete_retrying,
+            stop_calculators,
+        )
+
+        if not stop_calculators(self.contestant_set.values_list("pk", flat=True)):
+            raise CalculatorsStillRunning(
+                "Some of the live calculators have not stopped yet, so nothing was deleted. Try again in a minute."
+            )
+        attempts = []
+
+        def attempt():
+            # The delete's signals change this instance (they delete its tasktest, for one): a refused attempt rolls the
+            # database back but not that, so a retry starts from the row as the database has it.
+            attempts.append(1)
+            instance = self if len(attempts) == 1 else NavigationTask.objects.get(pk=self.pk)
+            return super(NavigationTask, instance).delete(*args, **kwargs)
+
+        return delete_retrying(attempt)
+
     def save(self, *args, **kwargs):
         # is_featured only remains for the apps that still read it: it always equals is_public
         self.is_featured = self.is_public

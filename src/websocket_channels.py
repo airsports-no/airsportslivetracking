@@ -21,6 +21,8 @@ if TYPE_CHECKING:
     )
 
 ANOMALY = "anomaly"
+# Annotations carry the type of their gate too (see display.utilities.gate_definitions SECRETPOINT, UNKNOWN_LEG).
+HIDDEN_GATE_TYPES = {"secret", "ul"}
 
 logger = logging.getLogger(__name__)
 
@@ -208,6 +210,19 @@ def serialize_contestant(c: "Contestant") -> dict:
     }
 
 
+def hidden_gate_names(contestant: "Contestant") -> set:
+    """
+    The names of the secret and unknown-leg gates, for a task that keeps them hidden (display_secrets off): nothing
+    about them may leave the server, as the map's own filtering is only advisory. Empty when the task shows secrets.
+    """
+    if contestant.navigation_task.display_secrets:
+        return set()
+    from display.services.gate_results import HIDDEN_GATES, effective_waypoints_for
+
+    waypoints = effective_waypoints_for(contestant)
+    return {w.name for w in waypoints if w.type in HIDDEN_GATES}
+
+
 def generate_contestant_data_block(
     contestant: "Contestant",
     positions: List = None,
@@ -248,6 +263,18 @@ def generate_contestant_data_block(
         data["contestant_track"] = contestant_track_data
     if latest_time:
         data["progress"] = contestant.calculate_progress(latest_time)
+    hidden = hidden_gate_names(contestant)
+    if hidden:
+        for key in ("annotations", "score_log_entries", "gate_scores"):
+            if key in data:
+                data[key] = [
+                    item
+                    for item in data[key]
+                    if item.get("gate") not in hidden and item.get("gate_type") not in HIDDEN_GATE_TYPES
+                ]
+        for key in ("gate_times", "gate_distance_and_estimate"):
+            if isinstance(data.get(key), dict):
+                data[key] = {gate: value for gate, value in data[key].items() if gate not in hidden}
     return data
 
 
@@ -333,8 +360,17 @@ class WebsocketFacade:
 
     def transmit_score_log_entry(self, contestant: "Contestant"):
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
+        from display.services.gate_results import gate_results_for
+
         log_entries = [serialize_score_log_entry(e) for e in contestant.scorelogentry_set.filter(type=ANOMALY)]
         channel_data = generate_contestant_data_block(contestant, log_entries=log_entries)
+        # Every new entry (a crossing without a time check too) brings the gates' results up to date on the map. They
+        # are only an addition: if they cannot be built, the log entries still go out, and the score update that
+        # sent them goes on.
+        try:
+            channel_data["gate_results"] = gate_results_for(contestant)
+        except Exception:
+            logger.exception("Could not build the gate results for contestant %s", contestant.pk)
         self._safe_group_send(
             group_key,
             {
@@ -368,10 +404,14 @@ class WebsocketFacade:
         )
 
     def transmit_basic_information(self, contestant: "Contestant"):
+        from display.models import ContestantTrack
+
         group_key = "tracking_{}".format(contestant.navigation_task.pk)
-        channel_data = generate_contestant_data_block(
-            contestant, contestant_track_data=serialize_contestant_track(contestant.contestanttrack)
-        )
+        # The track as the database has it, not the instance this contestant happens to hold: the calculators keep
+        # several copies of it, each saving only the fields it changed (update_fields), so a copy that has not heard
+        # of the start line being crossed would push the contestant back to "not started" for the browser.
+        track = ContestantTrack.objects.filter(contestant_id=contestant.pk).first() or contestant.contestanttrack
+        channel_data = generate_contestant_data_block(contestant, contestant_track_data=serialize_contestant_track(track))
         self._safe_group_send(
             group_key,
             {
@@ -435,6 +475,8 @@ class WebsocketFacade:
         expected_time: datetime.datetime,
         position_time: datetime.datetime,
     ):
+        if waypoint_name in hidden_gate_names(contestant):
+            return
         # expected_time (the gate's required time) and position_time (the time of the position the estimate is made
         # from) let the live map tick its countdown locally between messages: see GateScoreArrowV2.
         channel_data = generate_contestant_data_block(

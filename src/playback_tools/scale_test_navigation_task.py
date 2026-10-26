@@ -26,6 +26,7 @@ if __name__ == "__main__":
 
     django.setup()
 
+from display.utilities.simulator_policy import SIMULATOR_ALLOWED
 from display.utilities.tracking_definitions import TrackingService
 from traccar_facade import Traccar
 
@@ -101,6 +102,39 @@ if __name__ == "__main__":
     traccar = Traccar.create_from_configuration()
 
     traccar.get_device_map()
+
+
+def warn_if_too_few_calculator_slots(number_of_contestants: int):
+    """
+    Each contestant is scored by a live calculator that holds a worker slot of the live_calculator queue for the whole
+    flight (the docker-compose worker has 12, LIVE_CALCULATOR_CONCURRENCY). More contestants than slots, and the last
+    ones wait in the queue: they stay "Not started yet" on the map, whatever they fly, until a flight finishes.
+    """
+    try:
+        from live_tracking_map.celery import app
+
+        inspector = app.control.inspect(timeout=3)
+        queues = inspector.active_queues() or {}
+        stats = inspector.stats() or {}
+        slots = sum(
+            stats[worker]["pool"]["max-concurrency"]
+            for worker, consumed in queues.items()
+            if worker in stats and any(queue["name"] == "live_calculator" for queue in consumed)
+        )
+    except Exception:
+        logger.info("Could not ask the Celery workers how many calculators can run at once")
+        return
+    if not slots:
+        logger.warning(
+            "No live_calculator worker answered: nothing will score these contestants. Start live_calculator "
+            "(docker compose up -d live_calculator) before the test."
+        )
+    elif number_of_contestants > slots:
+        logger.warning(
+            f"{number_of_contestants} contestants but only {slots} live calculator slots: the last "
+            f"{number_of_contestants - slots} will wait for a slot and show as not started until a flight finishes. "
+            "Raise LIVE_CALCULATOR_CONCURRENCY (docker-compose.yml) and recreate live_calculator, or use fewer contestants."
+        )
 
 
 # A shared, thread-safe connection pool: each send_data_thread otherwise opened
@@ -267,11 +301,15 @@ def create_contestants(
             wind_speed=current_old_contestant.wind_speed,
             adaptive_start=False,
         )
-        Contestant.objects.filter(pk=contestant_object.pk).update(
-            predefined_gate_times=contestant_object.calculate_missing_gate_times(
-                {}, start_time + current_contestant_index * start_interval
-            )
-        )
+        contestant_start = start_time + current_contestant_index * start_interval
+        gate_times = contestant_object.calculate_missing_gate_times({}, contestant_start)
+        # The track is replayed arguments.speed times faster (get_retimed_track), so the plan it is scored against must
+        # be as well: otherwise every offset, score and the progress are measured against a flight at normal speed.
+        gate_times = {
+            gate: contestant_start + (gate_time - contestant_start) / arguments.speed
+            for gate, gate_time in gate_times.items()
+        }
+        Contestant.objects.filter(pk=contestant_object.pk).update(predefined_gate_times=gate_times)
 
         created_contestants.append(
             (
@@ -288,6 +326,7 @@ def create_contestants(
 
 
 if __name__ == "__main__":
+    warn_if_too_few_calculator_slots(arguments.number_of_contestants)
     navigation_task = NavigationTask.objects.get(pk=arguments.navigation_task_id)
     logger.info(
         f"Creating scaling test from task {navigation_task} with {arguments.number_of_contestants} created from {navigation_task.contestant_set.all().count()} existing contestants spaced by {datetime.timedelta(seconds=arguments.start_interval_seconds)}"
@@ -305,7 +344,8 @@ if __name__ == "__main__":
     )
     contest.time_zone = navigation_task.contest.time_zone
     contest.save()
-    contest.navigationtask_set.filter(name=new_navigation_task_name).delete()
+    for previous in contest.navigationtask_set.filter(name=new_navigation_task_name):
+        previous.delete()  # the model's delete stops the old calculators first
     new_navigation_task = NavigationTask.create(
         name=new_navigation_task_name,
         contest=contest,
@@ -314,6 +354,9 @@ if __name__ == "__main__":
         start_time=start_time,
         finish_time=finish_time,
         is_public=False,
+        # The positions are sent on the pilots' simulator tracking ids (see create_contestants), which a task that does
+        # not allow simulator flights ignores.
+        simulator_policy=SIMULATOR_ALLOWED,
     )
     for prohibited in navigation_task.route.prohibited_set.all():
         prohibited.copy_to_new_route(new_navigation_task.route)

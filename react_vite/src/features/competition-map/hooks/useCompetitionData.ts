@@ -1,9 +1,10 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 import { fetchNavigationTask, fetchContestantPaginatedTrack, fetchContestantScoreData, makeWebSocket, fetchContestantSlice } from '../api';
-import type { Contestant, NavigationTask, TrackPosition, PhotoObservation, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint } from '../types';
+import { mergePositions } from '../utils/mergePositions';
+import type { Contestant, NavigationTask, TrackPosition, PhotoObservation, ScoreAnnotation, ScoreLogEntry, DangerData, GateArrowData, Waypoint, CrossingEvent } from '../types';
 import { evaluateIncomingMessage, mergeAcceptedVersions, takeHigherVersion, VersionState } from './wsMessageOrdering';
 
-export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback', showToast: (message: string, type?: 'success' | 'error' | 'info' | 'warning') => void) {
+export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: number, mode: 'realtime' | 'playback') {
     const [staticNavTaskData, setStaticNavTaskData] = useState<NavigationTask | null>(null);
     const [contestantsById, setContestantsById] = useState<Record<number, Contestant>>({});
     const [positionsByContestant, setPositionsByContestant] = useState<Record<number, TrackPosition[]>>({});
@@ -13,6 +14,8 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
     const [gateScoresByContestant, setGateScoresByContestant] = useState<Record<number, any[]>>({});
     const [dangerDataByContestant, setDangerDataByContestant] = useState<Record<number, DangerData>>({});
     const [gateArrowDataByContestant, setGateArrowDataByContestant] = useState<Record<number, GateArrowData>>({});
+    // Each timed gate crossed while watching live, by any contestant (the final crossing_time message), for the map's notices.
+    const [liveCrossings, setLiveCrossings] = useState<CrossingEvent[]>([]);
     const [progress, setProgress] = useState({ loaded: 0, total: 0, message: '' });
     const [shouldConnectWs, setShouldConnectWs] = useState(false); // New state
     const [wsStatus, setWsStatus] = useState<'connected' | 'disconnected'>('disconnected');
@@ -236,6 +239,17 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
                 // Update gateArrowDataByContestant with the gate_distance_and_estimate from the crossing_time message
                 setGateArrowDataByContestant(prev => ({ ...prev, [crossingContestantId]: gateData }));
+                if (gateData.final) {
+                    // The position time tells a gate crossed again (a procedure turn, a restart) from the same message twice.
+                    const key = `${crossingContestantId}-${gateData.waypoint_name}-${gateData.position_time ?? gateData.received_at}`;
+                    setLiveCrossings(prev => prev.some(c => c.key === key) ? prev : [...prev.slice(-50), {
+                        key,
+                        contestantId: crossingContestantId,
+                        gate: gateData.waypoint_name,
+                        offsetSeconds: gateData.estimated_crossing_offset,
+                        missed: gateData.missed,
+                    }]);
+                }
                 updateContestant(crossingContestantId, {
                     track_version: payload.track_version,
                     score_version: payload.score_version
@@ -259,6 +273,10 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 if (payload.progress !== undefined) {
                     update.progress = payload.progress;
                 }
+                // An adaptive start moves the gate times when the starting point is crossed; the server sends them along.
+                if (payload.gate_times) {
+                    update.gate_times = payload.gate_times;
+                }
                 updateContestant(contestantId, update);
             }
             if (msg.type === "annotations" && payload.annotations) {
@@ -277,33 +295,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
             }
             if (msg.type === "score_log" && payload.score_log_entries) {
                 setScoreLogByContestantRef.current(prev => {
-                    const existingScoreLogs = prev[contestantId] ?? [];
                     const newEntries = payload.score_log_entries; // The score_log WebSocket message contains the FULL history for the contestant.
-
-                    // Identify start and finish gates from navigation task data
-                    const startGateName = staticNavTaskDataRef.current?.route?.waypoints.find((wp: Waypoint) => wp.type === 'sp')?.name;
-                    const finishGateName = staticNavTaskDataRef.current?.route?.waypoints.find((wp: Waypoint) => wp.type === 'fp')?.name;
-
-                    if (staticNavTaskDataRef.current && (startGateName || finishGateName)) {
-                        const previousGateNames = new Set(existingScoreLogs.map(log => log.gate));
-
-                        newEntries.forEach((newLogEntry: ScoreLogEntry) => {
-                            if (!previousGateNames.has(newLogEntry.gate) && newLogEntry.planned!==null) {
-                                // This is a new score log entry
-                                if (newLogEntry.gate === startGateName || newLogEntry.gate === finishGateName) {
-                                    const contestant = contestantsByIdRef.current[contestantId];
-                                    if (contestant && contestant.team?.crew?.member1) {
-                                        const gateType = newLogEntry.gate === startGateName ? 'STARTING POINT' : 'FINISH POINT';
-                                        const scoreMessage = newLogEntry.points !== undefined ? `Score: ${newLogEntry.points.toFixed(1)}` : '';
-                                        showToast(
-                                            `#${contestant.contestant_number} ${contestant.team.crew.member1.first_name} ${contestant.team.crew.member1.last_name} crossed the ${gateType}! ${scoreMessage}`,
-                                            'success'
-                                        );
-                                    }
-                                }
-                            }
-                        });
-                    }
 
                     // Replace the existing log rather than appending.
                     const allScoreLogs = [...newEntries];
@@ -312,7 +304,9 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 });
                 updateContestant(contestantId, {
                     track_version: payload.track_version,
-                    score_version: payload.score_version
+                    score_version: payload.score_version,
+                    // The gates' results come with every new entry, a crossing without a time check too.
+                    ...(payload.gate_results ? { gate_results: payload.gate_results } : {}),
                 });
             }
             if (msg.type === "gate_score" && payload.gate_scores) {
@@ -332,10 +326,10 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         } catch (e) {
             console.error('WS parse error', e);
         }
-    }, [showToast, updateContestant]);
+    }, [updateContestant]);
 
 
-    const fetchAllContestantData = useCallback(async (contestantsToFetch: Contestant[], onProgress: (p: { loaded: number, total: number, message?: string }) => void) => {
+    const fetchAllContestantData = useCallback(async (contestantsToFetch: Contestant[], onProgress: (p: { loaded: number, total: number, message?: string }) => void, displaySecrets?: boolean) => {
         const now = new Date();
         const chunkSize = 15;
 
@@ -424,7 +418,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                 const { startMinute, endMinute } = contestantRequestPlans[idx];
                 
                 // Fetch score data first so it's included in the progress and available as soon as possible
-                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id, c.track_version, c.score_version).finally(() => {
+                const scoreData = await fetchContestantScoreData(contestIdNum, navigationTaskIdNum, c.id, c.track_version, c.score_version, displaySecrets).finally(() => {
                     updateProgress(`Downloading track for ${c.team.crew.member1.first_name}...`);
                 });
 
@@ -439,7 +433,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
 
                 const allPositions: TrackPosition[] = sliceResults.flat();
                 return {
-                    contestant: { ...c, contestanttrack: scoreData.contestant_track, playing_cards: scoreData.playing_cards },
+                    contestant: { ...c, contestanttrack: scoreData.contestant_track, playing_cards: scoreData.playing_cards, gate_results: scoreData.gate_results },
                     positions: allPositions.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     annotations: scoreData.annotations.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
                     scoreLogs: scoreData.score_log_entries.sort((a, b) => new Date(a.time).getTime() - new Date(b.time).getTime()),
@@ -484,14 +478,20 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         const contestantsToRefetch = Object.values(contestantsByIdRef.current).filter(c => c && !c.contestanttrack?.calculator_finished);
 
         if (contestantsToRefetch.length > 0) {
-            const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(contestantsToRefetch, setProgress);
+            const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(contestantsToRefetch, setProgress, navTaskRef.current?.display_secrets);
 
             // Seed BEFORE replaying the buffer below, so any buffered message that's actually
             // stale relative to what we just fetched gets correctly rejected instead of being
             // judged against a baseline that doesn't know about this fetch yet.
             seedVersionsFromContestants(Object.values(contestantUpdates));
 
-            setPositionsByContestant(prev => ({...prev, ...positionUpdates}));
+            // Merged, not replaced: a refetch (back from a replay, after a lost connection) must never leave a track
+            // shorter than the page already had it.
+            setPositionsByContestant(prev => {
+                const next = { ...prev };
+                for (const id of Object.keys(positionUpdates)) next[Number(id)] = mergePositions(prev[Number(id)], positionUpdates[Number(id)]);
+                return next;
+            });
             setAnnotationsByContestant(prev => ({...prev, ...annotationUpdates}));
             setScoreLogByContestant(prev => ({...prev, ...scoreLogUpdates}));
             setGateScoresByContestant(prev => ({...prev, ...gateScoreUpdates}));
@@ -531,7 +531,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
                     seedVersionsFromContestants(task.contestant_set);
                     setShouldConnectWs(true);
 
-                    const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(task.contestant_set, setProgress);
+                    const { positionUpdates, annotationUpdates, scoreLogUpdates, gateScoreUpdates, contestantUpdates } = await fetchAllContestantData(task.contestant_set, setProgress, task.display_secrets);
                     if (!cancelled) {
                         seedVersionsFromContestants(Object.values(contestantUpdates));
                         setPositionsByContestant(positionUpdates);
@@ -704,6 +704,7 @@ export function useCompetitionData(contestIdNum: number, navigationTaskIdNum: nu
         gateScoresByContestant,
         dangerDataByContestant,
         gateArrowDataByContestant,
+        liveCrossings,
         progress,
         wsStatus,
         error,

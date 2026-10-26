@@ -10,11 +10,16 @@ interface GateCountdownTimerProps {
     offsetWithinGrace: boolean;
     final: boolean;
     missed: boolean;
+    /** Whether there is a prediction to show beside the countdown (not before the start, which has none). */
+    predicted?: boolean;
+    /** Shown between the gate's name and the figures: on a phone, the danger level, to save a row below the arrow. */
+    middle?: React.ReactNode;
 }
 
 /**
  * One large countdown to the gate's REQUIRED time, which never moves, and beside it how far off the pilot is predicted
- * to cross. Counting down to the predicted crossing instead would jump with every new estimate.
+ * to cross. Counting down to the predicted crossing instead would jump with every new estimate. Styled for the map's
+ * dark follow bar (components/hud/hud.css).
  */
 const GateCountdownTimer: React.FC<GateCountdownTimerProps> = ({
     waypointName,
@@ -23,27 +28,44 @@ const GateCountdownTimer: React.FC<GateCountdownTimerProps> = ({
     offsetWithinGrace,
     final,
     missed,
+    predicted = true,
+    middle,
 }) => {
-    const offsetColour = offsetWithinGrace ? "bg-success text-success-content" : "bg-error text-error-content";
+    const offsetColour = offsetWithinGrace ? "var(--hud-ok)" : "var(--hud-red)";
     const late = secondsToRequiredTime < 0;
     return (
-        <div className="gate-score-next-gate flex items-end justify-between gap-4 w-full">
-            <div className="leading-tight">
-                <div className="text-xs opacity-70">{final || missed ? "GATE" : "NEXT GATE"}</div>
-                <div className="text-2xl">{waypointName}</div>
+        <div className="flex items-end justify-between gap-4 w-full"
+            title="The big figure counts down to the gate's required time. The smaller one is how many seconds early (-) or late (+) the contestant is predicted to cross.">
+            <div className="leading-tight min-w-0">
+                {final || missed ? (
+                    // The result of a gate just crossed, held for a few seconds: not the live countdown.
+                    <span className="inline-flex items-center rounded px-1.5 text-xs leading-4 min-[100rem]:text-base font-bold uppercase tracking-wide"
+                        style={{ background: missed || !offsetWithinGrace ? "var(--hud-red)" : "var(--hud-ok)", color: "var(--hud-surface)" }}>
+                        {missed ? "✗ Missed" : "✓ Passed"}
+                    </span>
+                ) : (
+                    <div className="hud-label min-[100rem]:text-base">Next gate</div>
+                )}
+                <div className="hud-figure text-xl sm:text-2xl min-[100rem]:text-4xl truncate">{waypointName}</div>
             </div>
-            <div className="flex items-end gap-3">
+            {middle}
+            <div className="flex items-end gap-4">
                 {missed ? (
-                    <div className="text-4xl text-error">MISSED</div>
+                    <div className="hud-figure text-3xl sm:text-4xl min-[100rem]:text-6xl leading-none" style={{ color: "var(--hud-red)" }}>Missed</div>
                 ) : final ? (
-                    <div className={`badge badge-lg text-2xl h-auto py-1 px-3 ${offsetColour}`}>{formatOffset(crossingOffset)}</div>
+                    <div className="leading-none text-right">
+                        <div className="hud-figure text-3xl sm:text-4xl min-[100rem]:text-6xl" style={{ color: offsetColour }}>{formatOffset(crossingOffset)}</div>
+                        <div className="hud-label min-[100rem]:text-base mt-1 hidden sm:block">Crossed</div>
+                    </div>
                 ) : (
                     <>
-                        <div className="flex flex-col items-end leading-tight">
-                            <div className="text-xs opacity-70">PREDICTED</div>
-                            <div className={`badge badge-lg font-bold ${offsetColour}`}>{formatOffset(crossingOffset)}</div>
-                        </div>
-                        <div className={`text-5xl tabular-nums leading-none ${late ? "text-error" : ""}`}>
+                        {predicted && (
+                            <div className="leading-none text-right">
+                                <div className="hud-figure text-xl sm:text-2xl min-[100rem]:text-4xl" style={{ color: offsetColour }}>{formatOffset(crossingOffset)}</div>
+                                <div className="hud-label min-[100rem]:text-base mt-1 hidden sm:block">Predicted</div>
+                            </div>
+                        )}
+                        <div className="hud-figure text-3xl sm:text-5xl min-[100rem]:text-7xl leading-none" style={{ color: late ? "var(--hud-red)" : undefined }}>
                             {formatCountdown(secondsToRequiredTime)}
                         </div>
                     </>

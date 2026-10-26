@@ -1,6 +1,7 @@
 import datetime
 import itertools
 import logging
+import math
 from queue import Queue
 from typing import List, Optional, Sequence
 
@@ -20,7 +21,7 @@ from display.calculators.calculator import (
     StartingLinePassedEvent,
     TakeoffPassedEvent,
 )
-from display.calculators.calculator_utilities import round_time_minute
+from display.calculators.calculator_utilities import round_time_minute, travel_bearing_from_track
 from display.calculators.positions_and_gates import Gate, round_seconds
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
@@ -28,13 +29,30 @@ from display.models import ANOMALY, INFORMATION
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
 from display.utilities.coordinate_utilities import (
+    bearing_difference,
     calculate_distance_lat_lon,
     calculate_speed_between_points,
     extend_line,
 )
-from display.utilities.gate_definitions import CIRCLE_CENTER, CIRCLE_ENTRY, CIRCLE_EXIT, CIRCLE_START
+from display.utilities.gate_definitions import (
+    CIRCLE_CENTER,
+    CIRCLE_ENTRY,
+    CIRCLE_EXIT,
+    CIRCLE_START,
+    SECRETPOINT,
+    UNKNOWN_LEG,
+)
 from display.utilities.route_building_utilities import calculate_extended_gate
 from websocket_channels import WebsocketFacade
+
+# How long before the planned starting line crossing (set start times) the gate score arrow gets a prediction of it.
+START_ESTIMATE_LEAD = datetime.timedelta(minutes=1)
+
+# How often the crossing of the next timed gate is estimated again: every few seconds, every second in the last half
+# minute before the estimated crossing.
+ESTIMATE_INTERVAL = datetime.timedelta(seconds=5)
+CLOSE_ESTIMATE_INTERVAL = datetime.timedelta(seconds=1)
+CLOSE_CROSSING_WITHIN = datetime.timedelta(seconds=30)
 
 logger = logging.getLogger(__name__)
 
@@ -247,6 +265,9 @@ class GateCalculator(Calculator):
         # contestant only halfway around a winding route can be much closer to FP as the crow
         # flies than the distance they still have to actually fly. gate.distance (distance_next)
         # is exactly the leg length from each gate to the next one in route order, in metres.
+        # A task that keeps its secret gates and unknown legs hidden gets no countdown to them either: the arrow counts
+        # to the next gate the pilot is told about, the secret gate's distance still being part of the way there.
+        hides_secrets = not self.contestant.navigation_task.display_secrets
         next_timed_gate = None
         remaining_leg_distance_m = 0.0
         started = False
@@ -254,7 +275,7 @@ class GateCalculator(Calculator):
             if not started and gate == state.next_gate:
                 started = True
             if started:
-                if gate.time_check:
+                if gate.time_check and not (hides_secrets and gate.type in (SECRETPOINT, UNKNOWN_LEG)):
                     next_timed_gate = gate
                     break
                 remaining_leg_distance_m += gate.distance or 0
@@ -272,7 +293,6 @@ class GateCalculator(Calculator):
         p_y = getattr(last_pos, "projected_y", None)
 
         if p_x is not None and state.next_gate.center_x is not None:
-            import math
 
             distance_to_next_gate_m = math.sqrt(
                 (p_x - state.next_gate.center_x) ** 2 + (p_y - state.next_gate.center_y) ** 2
@@ -282,12 +302,43 @@ class GateCalculator(Calculator):
                 (last_pos.latitude, last_pos.longitude), (state.next_gate.latitude, state.next_gate.longitude)
             )
 
+        if remaining_leg_distance_m == 0:
+            distance_to_next_gate_m = self._distance_along_heading_to_gate_line(
+                state.next_gate, last_pos, track, distance_to_next_gate_m
+            )
+
         distance = (distance_to_next_gate_m + remaining_leg_distance_m) / 1852  # nm
 
         seconds_to_gate = (distance / speed) * 3600
         estimated_time = last_pos.time + datetime.timedelta(seconds=seconds_to_gate)
 
         return EstimationUpdatedEvent(next_timed_gate, estimated_time, last_pos)
+
+    @staticmethod
+    def _distance_along_heading_to_gate_line(
+        gate: Gate, last_pos, track: Sequence[ContestantReceivedPosition], distance_to_centre_m: float
+    ) -> float:
+        """
+        The distance the aircraft still has to fly to reach the gate's line, not its centre. An aircraft that approaches
+        off-centre never gets closer to the centre than its sideways offset, so the estimate to the centre stops
+        falling a few seconds before the line and then jumps back when the crossing is detected. Falls back to the
+        distance to the centre whenever the line, the heading or the geometry does not give a better answer.
+        """
+        line = gate.projected_gate_line_infinite or gate.projected_gate_line
+        p_x = getattr(last_pos, "projected_x", None)
+        p_y = getattr(last_pos, "projected_y", None)
+        bearing = travel_bearing_from_track(track)
+        if not line or p_x is None or p_y is None or bearing is None or gate.gate_heading is None:
+            return distance_to_centre_m
+        dx = line[1].projected_x - line[0].projected_x
+        dy = line[1].projected_y - line[0].projected_y
+        length = math.hypot(dx, dy)
+        if length == 0:
+            return distance_to_centre_m
+        perpendicular = abs(dx * (p_y - line[0].projected_y) - dy * (p_x - line[0].projected_x)) / length
+        # How square to the line the aircraft is flying; a shallow angle would make the distance blow up.
+        cosine = max(math.cos(math.radians(bearing_difference(bearing, gate.gate_heading))), 0.5)
+        return min(distance_to_centre_m, perpendicular / cosine)
 
     def calculate_enroute(
         self,
@@ -296,34 +347,64 @@ class GateCalculator(Calculator):
     ) -> List[OrchestratorEvent]:
         events = self.check_intersections(track, state)
 
-        # Performance estimation every 5 seconds
+        # Performance estimation every 5 seconds, every second once the crossing is near (or overdue): the last half
+        # minute is where the live map's prediction is watched, and a stale one is then up to five seconds old.
         last_pos = track[-1]
-        if last_pos.time > self.last_estimation_time + datetime.timedelta(seconds=5):
+        crossing_is_near = (
+            state.estimated_crossing_time is not None
+            and state.estimated_crossing_time - last_pos.time < CLOSE_CROSSING_WITHIN
+        )
+        interval = CLOSE_ESTIMATE_INTERVAL if crossing_is_near else ESTIMATE_INTERVAL
+        if last_pos.time >= self.last_estimation_time + interval:
             estimation_event = self.estimate_crossing_time_of_next_timed_gate(track, state)
             if estimation_event:
                 events.append(estimation_event)
                 self.last_estimation_time = last_pos.time
 
         if self.live_processing and state.estimated_next_timed_gate and state.estimated_crossing_time:
-            planned_time_to_crossing = (track[-1].time - state.estimated_next_timed_gate.expected_time).total_seconds()
-            score = self.scorecard.get_gate_timing_score_for_gate_type(
-                state.estimated_next_timed_gate.type,
-                state.estimated_next_timed_gate.expected_time,
-                state.estimated_crossing_time,
-            )
-
-            self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(
-                self.contestant,
-                state.estimated_next_timed_gate.name,
-                planned_time_to_crossing,
-                round((state.estimated_crossing_time - state.estimated_next_timed_gate.expected_time).total_seconds()),
-                score,
-                False,
-                False,
-                state.estimated_next_timed_gate.expected_time,
-                track[-1].time,
-            )
+            self._transmit_estimate(state.estimated_next_timed_gate, state.estimated_crossing_time, track[-1].time)
         return events
+
+    def _transmit_estimate(self, gate: Gate, estimated_crossing_time: datetime.datetime, position_time: datetime.datetime):
+        """
+        Update the gate score arrow in the frontend with the predicted crossing of a gate, made from the position at
+        position_time.
+        """
+        planned_time_to_crossing = (position_time - gate.expected_time).total_seconds()
+        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, estimated_crossing_time)
+        self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(
+            self.contestant,
+            gate.name,
+            planned_time_to_crossing,
+            round((estimated_crossing_time - gate.expected_time).total_seconds()),
+            score,
+            False,
+            False,
+            gate.expected_time,
+            position_time,
+        )
+
+    def _transmit_start_estimate(self, track: Sequence[ContestantReceivedPosition], state: OrchestratorState):
+        """
+        The prediction of the starting line crossing, for a start at a set time, in the last START_ESTIMATE_LEAD before
+        the planned time (and on until the line is crossed). Earlier the contestant may be parked, taxiing or climbing:
+        the estimate would be made from a speed that says nothing about when they get there. An adaptive start has no
+        planned time to predict against.
+        """
+        line = self.starting_line
+        if (
+            not self.live_processing
+            or not track
+            or self.contestant.adaptive_start
+            or line is None
+            or state.next_gate is not line
+            or not line.time_check
+            or track[-1].time < line.expected_time - START_ESTIMATE_LEAD
+        ):
+            return
+        estimation = self.estimate_crossing_time_of_next_timed_gate(track, state)
+        if estimation and estimation.gate is line:
+            self._transmit_estimate(line, estimation.estimated_time, track[-1].time)
 
     def calculate_outside_route(
         self,
@@ -334,6 +415,7 @@ class GateCalculator(Calculator):
         # Emit initial next gate if none known yet
         if state.next_gate is None and self.outstanding_gates:
             events.append(NextGateExpectedEvent(self.outstanding_gates[0], track[-1]))
+        self._transmit_start_estimate(track, state)
         return events
 
     def check_intersections(
@@ -596,6 +678,9 @@ class GateCalculator(Calculator):
             return
 
         logger.info(f"{self.contestant}: Scoring passed gate {event.gate}")
+        if event.gate.time_check:
+            # The countdown goes on to the next timed gate from the next position, not up to five seconds later.
+            self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         passing_time = (
             event.intersection_time
             or event.gate.passing_time

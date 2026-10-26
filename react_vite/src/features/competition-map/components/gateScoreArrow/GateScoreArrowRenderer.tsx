@@ -1,11 +1,15 @@
-import React, { useRef, useEffect } from "react";
-import blackImageSrc from './gate_score_arrow_black.gif';
-import redImageSrc from './gate_score_arrow_red.gif';
+import React from "react";
 
-const HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW = 20, HORIZONTAL_LINE_THICKNESS = 3, NUMBER_PADDING = 12, PADDING = 36,
-    ARROW_ICON_HEIGHT = 50,  BELOW_LINE_TEXT_X_OFFSET = 20, ANIMATION_STEPS = 10,
-    ANIMATION_TIME = 1000,  TOP_OFFSET = 0
-const ARROW_ICON_WIDTH = ARROW_ICON_HEIGHT / 1.3
+/*
+ * The gate score arrow: a timing scale from early to late with the gate's grace period in the middle, the penalty
+ * points marked along it, and a pointer at the predicted (or, once final, the actual) crossing with its points.
+ * Drawn as SVG in the map panel's colours (components/hud/hud.css), so it sits in the follow bar instead of on a
+ * light card of its own. The scale is logarithmic from the middle, as it always was, so the seconds that matter
+ * most near the gate get most of the width.
+ */
+
+const SIDE_PADDING = 28; // room for the end labels and the outermost values
+const POINTER_MOVE_MS = 1000;
 
 interface GateScoreArrowRendererProps {
     width: number;
@@ -19,12 +23,9 @@ interface GateScoreArrowRendererProps {
     contestantId: number;
     final: boolean;
     missed: boolean;
+    /** Off before the start, where there is no prediction to point at. */
+    showPointer?: boolean;
 }
-
-const blackImage = new Image();
-blackImage.src = blackImageSrc;
-const redImage = new Image();
-redImage.src = redImageSrc;
 
 const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
     width,
@@ -35,213 +36,97 @@ const GateScoreArrowRenderer: React.FC<GateScoreArrowRendererProps> = ({
     gracePeriodAfter,
     crossingOffsetEstimate,
     estimatedScore,
-    contestantId,
     final,
     missed,
+    showPointer = true,
 }) => {
-    const canvasRef = useRef<HTMLCanvasElement>(null);
-    const animationTimerRef = useRef<number | null>(null);
-    const animationStepNumberRef = useRef(0);
-    const previousArrowPositionRef = useRef<number | null>(null);
-    const previousSecondsRef = useRef(0);
-    const minXRef = useRef(0);
-    const maxXRef = useRef(0);
-
-    // Helper functions (converted from class methods)
-    const secondsToPosition = (seconds: number) => {
-        const maximumSeconds = Math.max(gracePeriodAfter, gracePeriodBefore) + maximumTimingPenalty / pointsPerSecond;
-        const sideLength = (width / 2) - PADDING;
-        const offset = sideLength / Math.log10(maximumSeconds);
-        if (seconds <= 0) {
-            return width / 2 - Math.log10(-seconds + 1) * offset;
-        } else {
-            return width / 2 + Math.log10(seconds + 1) * offset;
-        }
+    const grace = Math.max(gracePeriodBefore, gracePeriodAfter);
+    // How far the scale reaches: until the maximum penalty is reached (a minute past the grace period when the
+    // scorecard has no per-second penalty, so the scale still has a sensible width).
+    const maximumSeconds = Math.max(
+        2,
+        pointsPerSecond > 0 && maximumTimingPenalty > 0 ? grace + maximumTimingPenalty / pointsPerSecond : grace + 60,
+    );
+    const centre = width / 2;
+    const sideLength = Math.max(1, centre - SIDE_PADDING);
+    const perLogSecond = sideLength / Math.log10(maximumSeconds + 1);
+    const secondsToX = (seconds: number) => {
+        const clamped = Math.max(-maximumSeconds, Math.min(maximumSeconds, seconds));
+        const distance = Math.log10(Math.abs(clamped) + 1) * perLogSecond;
+        return clamped < 0 ? centre - distance : centre + distance;
     };
-
     const secondsToPoints = (seconds: number) => {
-        let grace;
-        if (seconds < 0) {
-            grace = gracePeriodBefore;
-        } else {
-            grace = gracePeriodAfter;
-        }
-        if ((seconds < 0 && seconds >= -gracePeriodBefore) || (seconds >= 0 && seconds <= gracePeriodAfter)) {
-            return 0;
-        } else {
-            let score = Math.round((Math.abs(seconds)) - grace) * pointsPerSecond;
-            if (maximumTimingPenalty >= 0) {
-                score = Math.min(maximumTimingPenalty, score);
-            }
-            return score;
-        }
+        const allowed = seconds < 0 ? gracePeriodBefore : gracePeriodAfter;
+        if (Math.abs(seconds) <= allowed) return 0;
+        const points = Math.round(Math.abs(seconds) - allowed) * pointsPerSecond;
+        return maximumTimingPenalty >= 0 ? Math.min(maximumTimingPenalty, points) : points;
     };
 
-    const drawNumberAtPosition = (context: CanvasRenderingContext2D, x: number, value: number, length: number) => {
-        context.fillStyle = "#a6a6a6";
-        context.font = "10pt Verdana";
-        const string = "" + Math.ceil(value);
-        context.fillText(string, x - context.measureText(string).width / 2, height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING);
-    };
+    // Everything is drawn for a 76 px high scale and grows with it (a wide screen gets a taller one).
+    const k = height / 76;
+    const smallFont = Math.max(11, 13 * k); // not below readable on a short (phone) arrow
+    // Vertical layout: the pointer's label, the pointer, the track, the values under it.
+    const trackY = Math.round(height * 0.62);
+    const valueY = trackY + 18 * k;
+    const bandTop = trackY - 14 * k;
 
-    const drawGracePeriod = (context: CanvasRenderingContext2D) => {
-        context.fillStyle = "#92d468";
-        const x = secondsToPosition(-gracePeriodBefore);
-        const graceWidth = secondsToPosition(gracePeriodAfter) - x;
-        context.fillRect(x - 1, TOP_OFFSET, graceWidth + 2, height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW - HORIZONTAL_LINE_THICKNESS);
-    };
+    // Penalty values along the track: from the end of the scale inwards by quarters, as before, skipping any that would
+    // crowd the middle.
+    const marks: number[] = [];
+    for (let s = maximumSeconds; s > grace + 0.5; s /= 4) marks.push(s);
+    const middleGap = 34 * k;
+    const visibleMarks = marks.filter(s => secondsToX(s) - centre > middleGap);
 
-    const drawNumberLine = (context: CanvasRenderingContext2D) => {
-        const maximumSeconds = Math.max(gracePeriodAfter, gracePeriodBefore) + Math.ceil(maximumTimingPenalty / pointsPerSecond);
-        // Mainline
-        context.fillStyle = "#000000";
-        context.fillRect(PADDING, height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW, width - PADDING * 2, HORIZONTAL_LINE_THICKNESS);
-        drawGracePeriod(context);
-        context.font = "10pt Verdana";
-        context.fillStyle = "#262626";
-        const textSize = context.measureText("PENALTY");
-        const penaltytext = secondsToPosition(0) - textSize.width / 2;
-        context.fillText("PENALTY", penaltytext, height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW + HORIZONTAL_LINE_THICKNESS + NUMBER_PADDING);
-        for (let i = maximumSeconds; i > Math.max(gracePeriodAfter, gracePeriodBefore); i /= 4) {
-            const leftPosition = secondsToPosition(-i);
-            const rightPosition = secondsToPosition(i);
-            if (leftPosition > penaltytext - 5 || rightPosition < penaltytext + textSize.width + 5) {
-                continue;
-            }
-            drawNumberAtPosition(context, leftPosition, secondsToPoints(Math.floor(-i)), 0);
-            drawNumberAtPosition(context, rightPosition, secondsToPoints(Math.ceil(i)), 0);
-        }
-    };
+    const offsetWithinGrace = crossingOffsetEstimate < 0
+        ? -crossingOffsetEstimate <= gracePeriodBefore
+        : crossingOffsetEstimate <= gracePeriodAfter;
+    const pointerColour = missed ? "var(--hud-red)" : offsetWithinGrace ? "var(--hud-ok)" : "var(--hud-red)";
+    const pointerX = secondsToX(crossingOffsetEstimate);
+    const label = missed ? "Missed" : `${estimatedScore > 0 ? "+" : ""}${Math.round(estimatedScore)}`;
+    const labelWidth = Math.max(40, label.length * 10 + 16) * k;
 
-    const drawRerenderedBackground = (context: CanvasRenderingContext2D) => {
-        context.font = "16pt Verdana";
-        context.fillStyle = "#a6a6a6";
-        const y= height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW - 10;
-        context.fillText("EARLY", PADDING + BELOW_LINE_TEXT_X_OFFSET, y);
-        const latex = width - context.measureText("Late").width - PADDING - BELOW_LINE_TEXT_X_OFFSET;
-        context.fillText("LATE", latex, y);
-        drawGracePeriod(context);
-    };
+    // The end labels fade out while the pointer's points are over them, so the two never print on top of each other.
+    const endLabelHalf = 16 * k;
+    const clearOf = (labelCentre: number) => Math.abs(pointerX - labelCentre) > labelWidth / 2 + endLabelHalf;
+    const earlyOpacity = clearOf(SIDE_PADDING + endLabelHalf) ? 1 : 0;
+    const lateOpacity = clearOf(width - SIDE_PADDING - endLabelHalf) ? 1 : 0;
+    const fade = { transition: `opacity ${POINTER_MOVE_MS / 2}ms` };
 
-    const drawArrow = () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const context = canvas.getContext("2d");
-        if (!context) return;
-
-        const animationStep = (secondsToPosition(crossingOffsetEstimate) - secondsToPosition(previousSecondsRef.current)) / ANIMATION_STEPS;
-        let x: number;
-        let value: number;
-
-        if (animationStepNumberRef.current === ANIMATION_STEPS || final) {
-            x = Math.min(maxXRef.current, Math.max(minXRef.current, secondsToPosition(crossingOffsetEstimate)));
-            if (animationTimerRef.current) clearInterval(animationTimerRef.current);
-            animationTimerRef.current = null;
-        } else {
-            x = Math.min(maxXRef.current, Math.max(minXRef.current, secondsToPosition(previousSecondsRef.current) + animationStepNumberRef.current * animationStep));
-            animationStepNumberRef.current++;
-        }
-        value = estimatedScore;
-        const start = x - ARROW_ICON_WIDTH / 2;
-        let imageObj = blackImage;
-        if (final) {
-            imageObj = redImage;
-        }
-        const arrowY=height-HORIZONTAL_LINE_Y_OFFSET_FROM_BELOW - ARROW_ICON_HEIGHT - 4
-        if (previousArrowPositionRef.current !== null) {
-            context.clearRect(previousArrowPositionRef.current - ARROW_ICON_WIDTH / 2, arrowY, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT);
-        }
-        previousArrowPositionRef.current = x;
-        drawRerenderedBackground(context);
-        context.fillStyle = "#FFFFFF";
-        context.drawImage(imageObj, start, arrowY, ARROW_ICON_WIDTH, ARROW_ICON_HEIGHT);
-        context.font = "bold 12pt Verdana";
-        let string = "" + Math.round(value);
-        if (missed) {
-            context.font = "bold 10pt Verdana";
-            string = "MISS";
-        }
-        context.fillText(string, x - context.measureText(string).width / 2, arrowY+25);
-    };
-
-    const drawEverything = () => {
-        const canvas = canvasRef.current;
-        if (!canvas) return;
-        const context = canvas.getContext("2d");
-        if (!context) return;
-        context.clearRect(0, 0, width, height); // Clear whole canvas before redrawing background
-        const maximumSeconds = Math.max(gracePeriodAfter, gracePeriodBefore) + maximumTimingPenalty / pointsPerSecond;
-        maxXRef.current = secondsToPosition(maximumSeconds);
-        minXRef.current = secondsToPosition(-maximumSeconds);
-        drawNumberLine(context);
-        drawArrow();
-    };
-
-    const prevPropsRef = useRef({ crossingOffsetEstimate, final, missed, width, height, contestantId });
-
-    // componentDidMount equivalent and prop changes for redrawing static elements
-    useEffect(() => {
-        animationStepNumberRef.current = ANIMATION_STEPS;
-        drawEverything();
-
-        return () => {
-            if (animationTimerRef.current) clearInterval(animationTimerRef.current);
-            animationTimerRef.current = null;
-        };
-    }, [contestantId, width, height, pointsPerSecond, maximumTimingPenalty, gracePeriodBefore, gracePeriodAfter]);
-
-    // componentDidUpdate equivalent for animation/prop changes
-    useEffect(() => {
-        const prevCrossingOffsetEstimate = prevPropsRef.current.crossingOffsetEstimate;
-        const prevFinal = prevPropsRef.current.final;
-        const prevMissed = prevPropsRef.current.missed;
-        const prevContestantId = prevPropsRef.current.contestantId;
-
-        // Reset animation if contestantId or static drawing properties change
-        if (contestantId !== prevContestantId || width !== prevPropsRef.current.width || height !== prevPropsRef.current.height) {
-            if (animationTimerRef.current) clearInterval(animationTimerRef.current);
-            animationTimerRef.current = null;
-            animationStepNumberRef.current = ANIMATION_STEPS; // Ensures next drawEverything does a full render
-            previousArrowPositionRef.current = null; // Reset arrow position
-            previousSecondsRef.current = crossingOffsetEstimate; // Set initial previousSeconds for smooth animation start
-            drawEverything(); // Full redraw for new contestant/size
-        }
-
-
-        if (crossingOffsetEstimate !== prevCrossingOffsetEstimate || final !== prevFinal || missed !== prevMissed) {
-            if (animationTimerRef.current) clearInterval(animationTimerRef.current);
-            animationTimerRef.current = null;
-            animationStepNumberRef.current = 0; // Start animation from step 0
-            previousSecondsRef.current = prevCrossingOffsetEstimate; // Store the actual previous estimate
-
-            drawArrow(); // Draw initial state before animation starts
-
-            // Only animate if not final (final state should be immediate)
-            if (!final) {
-                animationTimerRef.current = window.setInterval(() => {
-                    if (animationStepNumberRef.current < ANIMATION_STEPS) {
-                        drawArrow();
-                    } else {
-                        if (animationTimerRef.current) clearInterval(animationTimerRef.current);
-                        animationTimerRef.current = null;
-                    }
-                }, ANIMATION_TIME / ANIMATION_STEPS);
-            }
-        }
-        
-        // Update previous props for the next render cycle
-        prevPropsRef.current = { crossingOffsetEstimate, final, missed, width, height, contestantId };
-
-    }, [
-        crossingOffsetEstimate, estimatedScore, final, missed, contestantId, width, height, // Add width, height, contestantId here too for changes that trigger animation context
-        pointsPerSecond, maximumTimingPenalty, gracePeriodBefore, gracePeriodAfter, drawArrow, drawEverything // Dependencies for useCallback functions
-    ]);
-
+    if (width <= 0) return null;
 
     return (
-        <div className="">
-            <canvas id="myCanvas" ref={canvasRef} width={width} height={height} />
-        </div>
+        <svg width={width} height={height} viewBox={`0 0 ${width} ${height}`} role="img"
+            aria-label={missed ? "Gate missed" : `${final ? "Crossed" : "Predicted"} ${Math.round(crossingOffsetEstimate)} seconds from the required time, ${Math.round(estimatedScore)} points`}
+            style={{ display: "block", overflow: "visible", fontFamily: '"Barlow Condensed", "Barlow", sans-serif' }}>
+            {/* The track, early to late. */}
+            <line x1={SIDE_PADDING} x2={width - SIDE_PADDING} y1={trackY} y2={trackY} stroke="var(--hud-line)" strokeWidth={2 * k} strokeLinecap="round" />
+            {/* The grace period: no penalty inside it. */}
+            <rect x={secondsToX(-gracePeriodBefore)} y={bandTop} width={Math.max(2, secondsToX(gracePeriodAfter) - secondsToX(-gracePeriodBefore))} height={trackY - bandTop + 2}
+                rx={3} fill="var(--hud-ok)" opacity={0.18} />
+            <line x1={centre} x2={centre} y1={bandTop} y2={trackY + 4} stroke="var(--hud-ok)" strokeWidth={2 * k} />
+            <text x={centre} y={valueY} textAnchor="middle" fontSize={smallFont} fontWeight={600} fill="var(--hud-ok)">On time</text>
+
+            {visibleMarks.map(s => (
+                <g key={s} fill="var(--hud-muted)" fontSize={smallFont} fontWeight={600}>
+                    <line x1={secondsToX(-s)} x2={secondsToX(-s)} y1={trackY - 4 * k} y2={trackY + 4 * k} stroke="var(--hud-line)" strokeWidth={2 * k} />
+                    <line x1={secondsToX(s)} x2={secondsToX(s)} y1={trackY - 4 * k} y2={trackY + 4 * k} stroke="var(--hud-line)" strokeWidth={2 * k} />
+                    <text x={secondsToX(-s)} y={valueY} textAnchor="middle">{Math.ceil(secondsToPoints(-Math.floor(s)))}</text>
+                    <text x={secondsToX(s)} y={valueY} textAnchor="middle">{Math.ceil(secondsToPoints(Math.ceil(s)))}</text>
+                </g>
+            ))}
+
+            {/* Above the ends of the track, clear of the values under it. */}
+            <text x={SIDE_PADDING} y={trackY - 8 * k} fontSize={smallFont} fontWeight={600} fill="var(--hud-muted)" opacity={earlyOpacity} style={fade}>Early</text>
+            <text x={width - SIDE_PADDING} y={trackY - 8 * k} fontSize={smallFont} fontWeight={600} fill="var(--hud-muted)" textAnchor="end" opacity={lateOpacity} style={fade}>Late</text>
+
+            {/* The pointer and its points; it glides to each new estimate. */}
+            {showPointer && <g style={{ transform: `translateX(${pointerX}px)`, transition: `transform ${POINTER_MOVE_MS}ms ease-out` }}>
+                <rect x={-labelWidth / 2} y={2} width={labelWidth} height={24 * k} rx={6 * k}
+                    fill={final || missed ? pointerColour : "var(--hud-surface)"} stroke={pointerColour} strokeWidth={2 * k} />
+                <text x={0} y={2 + 18 * k} textAnchor="middle" fontSize={17 * k} fontWeight={700} fill={final || missed ? "var(--hud-surface)" : pointerColour}>{label}</text>
+                <path d={`M ${-7 * k} ${bandTop - 6 * k} L ${7 * k} ${bandTop - 6 * k} L 0 ${trackY - 1} Z`} fill={pointerColour} />
+            </g>}
+        </svg>
     );
 };
 

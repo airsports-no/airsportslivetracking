@@ -65,6 +65,8 @@ In tasks with observation registration, the **Photos** tab lets the crew mark ph
 ### After the flight
 The home screen shows your score so far and a notice when live scoring has finished. **My flights** lists upcoming and past flights with results, rank and a replay. Every tracked session is also stored on the phone, and you can share it as a GPX file.
 
+To go through the flight, open **View your flight**: the map shows your gates with their required and actual times, every penalty with where it happened, and a replay of your own flight. See [The Live Map](/docs/15_Live_Map#pilot-debrief).
+
 ---
 
 ## 4. Self-Registration and Management

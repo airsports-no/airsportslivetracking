@@ -10,6 +10,12 @@
   box-shadow: 0 1px 3px rgba(0,0,0,0.2); /* Small shadow */
 }
 
+/* The zones' labels are the gates' labels, with the zone's colour on the edge (see ProhibitedRenderer). */
+.waypoint-label.zone-label-prohibited { border-color: red; }
+.waypoint-label.zone-label-penalty { border-color: orange; }
+.waypoint-label.zone-label-info { border-color: lightblue; }
+.waypoint-label.zone-label-duration_landing_area { border-color: #22c55e; }
+
 /* Existing arrow hiding styles */
 .waypoint-label .leaflet-tooltip-tip {
   display: none;

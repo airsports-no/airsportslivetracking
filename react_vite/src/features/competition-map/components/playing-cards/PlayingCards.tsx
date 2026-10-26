@@ -10,9 +10,12 @@ interface PlayingCardsProps {
         card_value?: string;
         card_suit?: string;
     }[];
+    /** The size of a card in pixels: smaller where the hand sits in a slim row. */
+    cardSize?: number;
+    layout?: 'fan' | 'arc';
 }
 
-const PlayingCards: React.FC<PlayingCardsProps> = ({ playingCards }) => {
+const PlayingCards: React.FC<PlayingCardsProps> = ({ playingCards, cardSize = 120, layout = 'fan' }) => {
     if (!playingCards) return null;
     const cards = playingCards
         .map((card) => {
@@ -34,9 +37,9 @@ const PlayingCards: React.FC<PlayingCardsProps> = ({ playingCards }) => {
     return (
         <Hand
             hide={false}
-            layout={"fan"}
+            layout={layout}
             cards={cards}
-            cardSize={120} // Re-increased size
+            cardSize={cardSize}
         />
     );
 };

@@ -218,6 +218,7 @@ In rare instances where the automated scoring engine makes a significant miscalc
 Organizers will want to share the live event with spectators, national team members, and remote fans.
 
 *   **The Mission Dashboard:** There are no complex sharing menus. Simply navigate to the public contest page (the Mission Dashboard) in your browser, copy the URL from the address bar, and share it on social media, official websites, or directly with commentators.
+*   **The live map on a screen or on air:** the map has an airfield screen display that goes round the contestants by itself, and a broadcast display with a clean picture and a lower third. See [The Live Map](/docs/15_Live_Map#airfield-screens).
 *   **Hangar Flyers:** For self-service or local training flights (outside of the formal WPFC structure), organizers can print a "Hangar Flyer" for a specific navigation task. This printed flyer includes a QR code allowing prospective local pilots to scan and sign up for an unofficial fun flight.
 
 ---

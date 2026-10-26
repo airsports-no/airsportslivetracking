@@ -191,3 +191,8 @@ class TestEmbeddedFlagForTheReactApp(TestCase):
     def test_and_when_it_is_not(self):
         normal = self.client.get("/", HTTP_HOST=self.HOST)
         self.assertContains(normal, "embeddedInApp: false")
+
+    def test_the_live_maps_broadcast_display_hides_the_navigation_bar_without_claiming_the_app(self):
+        broadcast = self.client.get("/", {"display": "broadcast"}, HTTP_HOST=self.HOST)
+        self.assertNotContains(broadcast, TestEmbedMode.NAVBAR)
+        self.assertContains(broadcast, "embeddedInApp: false")

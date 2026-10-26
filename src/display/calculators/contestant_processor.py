@@ -37,6 +37,7 @@ from display.utilities.coordinate_utilities import (
     calculate_bearing,
     calculate_distance_lat_lon,
 )
+from display.calculators.calculator_utilities import refresh_contestant_in_place
 from display.models import Contestant, TrackAnnotation, ScoreLogEntry, ContestantReceivedPosition
 
 DANGER_LEVEL_REPORT_INTERVAL = 5
@@ -331,7 +332,7 @@ class ContestantProcessor:
         loses connectivity with the Web server.
         """
         try:
-            self.contestant.refresh_from_db()
+            refresh_contestant_in_place(self.contestant)
             self.contestant_track.refresh_from_db()
             # Synchronize local score state with database to account for manual manager adjustments
             self.score = self.contestant_track.score
@@ -415,7 +416,7 @@ class ContestantProcessor:
                 if not self.suppress_side_effects:
                     self.refresh_scores()
                 try:
-                    self.contestant.refresh_from_db()
+                    refresh_contestant_in_place(self.contestant)
                 except ObjectDoesNotExist:
                     # Contestants has been deleted, terminate the calculator
                     logger.info(f"{self.contestant} has been deleted, terminating")

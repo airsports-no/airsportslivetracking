@@ -183,6 +183,13 @@ class Orchestrator:
         """
         Update state based on event and notify all calculators.
         """
+        if (
+            isinstance(event, (StartingLinePassedEvent, GatePassedEvent, GateMissedEvent))
+            and event.gate is self.estimated_next_timed_gate
+        ):
+            # The gate has been settled: no more estimates for it (the live map would show them after its result).
+            self.estimated_next_timed_gate = None
+            self.estimated_crossing_time = None
         if isinstance(event, StartingLinePassedEvent):
             self.has_any_gate_passed = True
             self.contestant.contestanttrack.set_passed_starting_gate()

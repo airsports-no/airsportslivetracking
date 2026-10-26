@@ -73,7 +73,7 @@ const TaskInfoModal: React.FC<Props> = ({ isOpen, onClose }) => {
 
     return (
         <dialog className="modal modal-open z-[6000]" onClick={onClose}>
-            <div className="modal-box w-11/12 max-w-4xl top-[16px] relative max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
+            <div className="modal-box hud-theme w-11/12 max-w-4xl top-[16px] relative max-h-[80vh] overflow-y-auto" onClick={e => e.stopPropagation()}>
                 <form method="dialog">
                     <button className="btn btn-sm btn-circle btn-ghost absolute right-2 top-2" onClick={onClose}>✕</button>
                 </form>
@@ -83,8 +83,8 @@ const TaskInfoModal: React.FC<Props> = ({ isOpen, onClose }) => {
                         <Loading />
                     </div>
                 ) : navTask ? (
-                    <div className="prose lg:prose-xl max-w-none">
-                        <h1 className="text-4xl font-extrabold text-primary mb-2">{navTask.name}</h1>
+                    <div className="prose prose-invert lg:prose-xl max-w-none">
+                        <h1 className="text-4xl font-bold mb-2">{navTask.name}</h1>
                         <h2 className="text-xl font-bold text-secondary mb-2">{navTask.contest.name}</h2>
                         <p className="text-base-content/70 !mt-0">
                             {navTask.task_information?.family_display_name} · {navTask.task_information?.subtype_display_name}

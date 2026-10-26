@@ -363,6 +363,111 @@ class TestGateCalculator(CalculatorUnitTestBase):
         actual_seconds = (event.estimated_time - pos.time).total_seconds()
         self.assertAlmostEqual(actual_seconds, expected_seconds, delta=1)
 
+    def test_estimate_of_an_off_centre_approach_counts_to_the_gate_line_not_its_centre(self):
+        # Flying north to an east-west gate 220 m east of its centre: the distance to the centre stops falling a few
+        # seconds before the line, so the estimate kept receding and then jumped back when the crossing was detected.
+        gate = MagicMock()
+        gate.time_check = True
+        gate.distance = 0
+        gate.gate_heading = 0
+        centre = self.projector.project_point(60.0, 11.0)
+        gate.center_x = centre.projected_x
+        gate.center_y = centre.projected_y
+        gate.projected_gate_line_infinite = (self.projector.project_point(60.0, 10.99), self.projector.project_point(60.0, 11.01))
+        gate.latitude = 60.0
+        gate.longitude = 11.0
+        self.calculator.gates = [gate]
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=gate,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        start = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        # 30 m/s north, one position a second, the last 167 m short of the line.
+        track = [
+            self.create_position(59.9985 - (10 - second) * 0.00027, 11.004, start + datetime.timedelta(seconds=second))
+            for second in range(11)
+        ]
+
+        event = self.calculator.estimate_crossing_time_of_next_timed_gate(track, state)
+
+        seconds = (event.estimated_time - track[-1].time).total_seconds()
+        self.assertAlmostEqual(seconds, 167 / 30, delta=1.0)  # to the centre it would have been about 9.3
+
+    def _estimates_made(self, estimated_crossing_time, positions):
+        """How many times the crossing is estimated again over a run of positions, one second apart."""
+        _, state = self._start_line_and_state()
+        state.estimated_crossing_time = estimated_crossing_time
+        calls = []
+        self.calculator.check_intersections = lambda track, state: []
+        self.calculator.estimate_crossing_time_of_next_timed_gate = lambda track, state: calls.append(1) or MagicMock()
+        self.calculator.live_processing = False
+        self.calculator.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
+        for position in positions:
+            self.calculator.calculate_enroute([position], state)
+        return len(calls)
+
+    def test_the_crossing_is_estimated_every_second_in_the_last_half_minute_and_every_five_seconds_before(self):
+        start = datetime.datetime(2020, 1, 1, 9, 0, tzinfo=datetime.timezone.utc)
+        positions = [self.create_position(60.0, 11.0, start + datetime.timedelta(seconds=s)) for s in range(31)]
+        far = self._estimates_made(start + datetime.timedelta(minutes=10), positions)
+        near = self._estimates_made(start + datetime.timedelta(seconds=20), positions)
+        self.assertEqual(far, 7)  # 0, 5, 10, ..., 30
+        self.assertEqual(near, 31)  # every position, one second apart, once the crossing is within half a minute
+
+    def _start_line_and_state(self, adaptive_start=False):
+        line = MagicMock()
+        line.name = "SP"
+        line.type = "sp"
+        line.time_check = True
+        line.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        proj = self.projector.project_point(60.0, 11.0)
+        line.center_x = proj.projected_x
+        line.center_y = proj.projected_y
+        line.latitude = 60.0
+        line.longitude = 11.0
+        line.distance = 0
+        self.calculator.gates = [line]
+        self.calculator.outstanding_gates = [line]
+        self.calculator.starting_line = line
+        self.calculator.live_processing = True
+        self.calculator.websocket_facade = MagicMock()
+        self.contestant.adaptive_start = adaptive_start
+        state = OrchestratorState(
+            last_gate=None,
+            last_visible_gate=None,
+            next_gate=line,
+            in_range_of_gate=None,
+            projector=self.projector,
+            has_passed_finishpoint=False,
+            recalculation_completed=True,
+        )
+        return line, state
+
+    def test_start_estimate_is_sent_only_in_the_last_minute_before_a_set_start(self):
+        _, state = self._start_line_and_state()
+        sent = self.calculator.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate
+        early = self.create_position(60.0, 11.0, datetime.datetime(2020, 1, 1, 9, 57))
+        self.calculator._transmit_start_estimate([early], state)
+        sent.assert_not_called()
+        close = self.create_position(60.0, 11.0, datetime.datetime(2020, 1, 1, 9, 59, 30))
+        self.calculator._transmit_start_estimate([close], state)
+        sent.assert_called_once()
+        args = sent.call_args.args
+        self.assertEqual(args[1], "SP")  # the starting line
+        self.assertFalse(args[5])  # not final
+        self.assertFalse(args[6])  # not missed
+
+    def test_no_start_estimate_for_an_adaptive_start(self):
+        _, state = self._start_line_and_state(adaptive_start=True)
+        close = self.create_position(60.0, 11.0, datetime.datetime(2020, 1, 1, 9, 59, 30))
+        self.calculator._transmit_start_estimate([close], state)
+        self.calculator.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate.assert_not_called()
+
     def test_on_gate_missed(self):
         gate = self.calculator.gates[0]
         gate.expected_time = datetime.datetime(2020, 1, 1, 10, 0, tzinfo=datetime.timezone.utc)

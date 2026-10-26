@@ -171,6 +171,7 @@ from display.serialisers import (
     TodaysNavigationSerialiser,
     TrackAnnotationSerialiser,
 )
+from display.services.gate_results import gate_results_for
 from display.services.map_access import can_view_task_map, map_path_for
 from display.services.people_search import user_identities
 from display.services.access_resolver import resolve_contest_access
@@ -1050,7 +1051,19 @@ class ContestPagination(MyCursorPagination):
     max_page_size = 200
 
 
-class ContestViewSet(ContestSquadronsMixin, ModelViewSet):
+class DeleteWhileCalculatorsRunMixin:
+    """DELETE says why (409) when the live calculators of what is deleted did not stop in time, instead of failing."""
+
+    def destroy(self, request, *args, **kwargs):
+        from display.utilities.calculator_termination_utilities import CalculatorsStillRunning
+
+        try:
+            return super().destroy(request, *args, **kwargs)
+        except CalculatorsStillRunning as error:
+            return Response({"detail": str(error)}, status=status.HTTP_409_CONFLICT)
+
+
+class ContestViewSet(DeleteWhileCalculatorsRunMixin, ContestSquadronsMixin, ModelViewSet):
     """
     A contest is a high level wrapper for multiple tasks. It provides a lightweight view of a contest and is used by
     the front end to display the contest list.
@@ -2102,7 +2115,7 @@ class AdminActivityTrendsViewSet(ViewSet):
         return Response(payload)
 
 
-class NavigationTaskViewSet(ModelViewSet):
+class NavigationTaskViewSet(DeleteWhileCalculatorsRunMixin, ModelViewSet):
     """
     Main navigation task view set. Used by the front end to load the tracking map.
     """
@@ -3052,6 +3065,18 @@ class ContestantTeamIdViewSet(ModelViewSet):
         return context
 
 
+# The shape of the score data the map is served: part of its cache keys (the versioned URL and the ETag), so that
+# adding to it (2: gate_results) is not hidden behind a finished flight's copy cached before, which the browser and the
+# CDN keep for a year. Raise it whenever the score data gains or changes fields; the map's api.ts has the same number.
+SCORE_DATA_FORMAT = 2
+
+
+def score_data_version(contestant) -> str:
+    """The version in the score data's URL: the contestant's track and score versions and the data's format."""
+    secrets = int(contestant.navigation_task.display_secrets)
+    return f"{contestant.track_version}-{contestant.score_version}-f{SCORE_DATA_FORMAT}s{secrets}"
+
+
 def generate_score_data(contestant_pk):
     contestant = get_object_or_404(Contestant, pk=contestant_pk)  # type: Contestant
 
@@ -3162,6 +3187,7 @@ def generate_score_data(contestant_pk):
         gate_times=contestant.gate_times,
     )
     data["administrative_penalties"] = administrative_penalties
+    data["gate_results"] = gate_results_for(contestant)
     if hasattr(contestant, "contestanttaskconfiguration") and contestant.contestanttaskconfiguration.is_valid:
         payload = contestant.contestanttaskconfiguration.compiled_effective_route_payload or {}
         data["compiled_effective_route_payload"] = payload
@@ -3370,7 +3396,7 @@ class ContestantViewSet(ModelViewSet):
         # cached under that URL for a year, and get served that stale response once the
         # contestant's real version genuinely reaches it later - so the long-cache branch
         # below is only reachable when the path actually matches the canonical version.
-        is_versioned = requested_version == f"{contestant.track_version}-{contestant.score_version}"
+        is_versioned = requested_version == score_data_version(contestant)
         if not hasattr(contestant, "contestanttaskconfiguration"):
             from display.services.contestant_task_compiler import ContestantTaskCompiler
 
@@ -3383,7 +3409,7 @@ class ContestantViewSet(ModelViewSet):
         # ETag based on contestant's track and score versions.
         # track_version only bumps on (re)start. score_version bumps on admin edits.
         # Short-circuiting with 304 is therefore only safe when the flight is finished.
-        etag = f'"{contestant.pk}-{contestant.track_version}-{contestant.score_version}-scores"'
+        etag = f'"{contestant.pk}-{score_data_version(contestant)}-scores"'
         if is_finished and request.META.get("HTTP_IF_NONE_MATCH") == etag:
             return Response(status=status.HTTP_304_NOT_MODIFIED)
 

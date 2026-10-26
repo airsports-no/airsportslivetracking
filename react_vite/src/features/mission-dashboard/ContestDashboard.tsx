@@ -33,6 +33,7 @@ import ConceptHint from '../../components/common/ConceptHint';
 import ContestPermissionsPanel from '../contest-management/components/ContestPermissionsPanel';
 import ContestSquadronsPanel from '../contest-management/components/ContestSquadronsPanel';
 import ContestSeriesPanel from '../contest-management/components/ContestSeriesPanel';
+import BusyOverlay from '../../components/common/BusyOverlay';
 import * as contestManagementApi from '../contest-management/api';
 import {
     assignContestToken,
@@ -102,6 +103,12 @@ const ContestDashboard = () => {
     const [permissionsLoading, setPermissionsLoading] = useState(false);
     const [permissionsError, setPermissionsError] = useState<string | null>(null);
     const [deleting, setDeleting] = useState(false);
+    // The deletion goes on at the server even if the page is left meanwhile: then nobody is sent home after it.
+    const mounted = useRef(true);
+    useEffect(() => {
+        mounted.current = true;
+        return () => { mounted.current = false; };
+    }, []);
     const [deleteError, setDeleteError] = useState<string | null>(null);
     const latestTeamsContestId = useRef(contestId);
 
@@ -165,8 +172,9 @@ const ContestDashboard = () => {
         setDeleteError(null);
         try {
             await deleteContest(contest.id);
-            navigate('/');
+            if (mounted.current) navigate('/');
         } catch (err) {
+            if (!mounted.current) return;
             setDeleteError((err as Error).message);
             setDeleting(false);
         }
@@ -301,6 +309,9 @@ const ContestDashboard = () => {
 
     return (
         <div className="container mx-auto p-4" data-theme="aviation">
+            {deleting && (
+                <BusyOverlay message={`Deleting “${contest.name}”…`} detail="This can take a while for a contest with many tasks and contestants." />
+            )}
             {actionError && (
                 <div role="alert" className="alert alert-error mb-4">
                     <span className="flex-1">{actionError}</span>
