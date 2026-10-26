@@ -28,6 +28,7 @@ const GATE_FREEZE_TIME = 5; // seconds a gate's result stays up before the count
  */
 const DangerStrip: React.FC<{ danger: { level: number; accumulated: number }; className?: string }> = ({ danger, className = "" }) => (
     <div className={`flex items-center gap-1.5 ${className}`} title="How close the contestant is to a penalty">
+        <span className="hud-label flex-none">Danger</span>
         <div className="relative h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--hud-raised)" }}>
             <div className="absolute left-0 top-0 h-full" style={{ width: `${danger.level}%`, background: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }} />
         </div>

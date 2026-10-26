@@ -500,6 +500,15 @@ export default function CompetitionMapPage() {
     map.fitBounds(L.latLngBounds(points), { paddingTopLeft: [48, 48], paddingBottomRight: [48, 48 + covered], animate: true });
   };
 
+  // Clearing the selection (the contestant deselected, not another picked) shows the whole route again, instead of
+  // leaving the map where the followed aircraft was.
+  const previousSelectedRef = useRef<number | null>(selectedContestantId);
+  useEffect(() => {
+    if (previousSelectedRef.current !== null && selectedContestantId === null) fitRoute();
+    previousSelectedRef.current = selectedContestantId;
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [selectedContestantId]);
+
   // The displays' keys: follow by place or step through those in the air, the camera on or off, back to the field.
   const [keysHelpOpen, setKeysHelpOpen] = useState(false);
   const followFromKeys = (id: number | null) => {
