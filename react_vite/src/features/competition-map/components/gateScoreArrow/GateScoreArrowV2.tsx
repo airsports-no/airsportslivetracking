@@ -27,22 +27,24 @@ const GATE_FREEZE_TIME = 5; // seconds a gate's result stays up before the count
  * lg the bar is vertical, at the far right beside the arrow (FollowBar).
  */
 const DangerStrip: React.FC<{ danger: { level: number; accumulated: number }; className?: string }> = ({ danger, className = "" }) => (
-    <div className={`flex items-center gap-1.5 ${className}`} title="How close the contestant is to a penalty">
-        <span className="hud-label flex-none">Danger</span>
-        <div className="relative h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--hud-raised)" }}>
-            <div className="absolute left-0 top-0 h-full" style={{ width: `${danger.level}%`, background: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }} />
-        </div>
-        <span className="hud-figure text-sm leading-none" style={{ color: danger.level >= 100 ? "var(--hud-red)" : undefined }}>
-            {danger.level.toFixed(0)}%
-        </span>
-        {danger.level >= 100 && danger.accumulated > 0 && (
-            // The penalty so far for being outside the corridor or inside a zone: a tag of its own.
-            <span className="hud-figure text-sm leading-none rounded px-1 py-0.5 flex-none"
-                style={{ background: "var(--hud-red)", color: "var(--hud-surface)" }}
-                title="Penalty points accumulated outside the corridor or inside a zone">
-                +{Math.round(danger.accumulated)} pts
+    <div className={`flex flex-col gap-0.5 ${className}`} title="How close the contestant is to a penalty">
+        <span className="hud-label leading-none">Danger</span>
+        <div className="flex items-center gap-1.5">
+            <div className="relative h-1.5 flex-1 rounded-full overflow-hidden" style={{ background: "var(--hud-raised)" }}>
+                <div className="absolute left-0 top-0 h-full" style={{ width: `${danger.level}%`, background: danger.level >= 100 ? "var(--hud-red)" : "var(--hud-warn)" }} />
+            </div>
+            <span className="hud-figure text-sm leading-none" style={{ color: danger.level >= 100 ? "var(--hud-red)" : undefined }}>
+                {danger.level.toFixed(0)}%
             </span>
-        )}
+            {danger.level >= 100 && danger.accumulated > 0 && (
+                // The penalty so far for being outside the corridor or inside a zone: a tag of its own.
+                <span className="hud-figure text-sm leading-none rounded px-1 py-0.5 flex-none"
+                    style={{ background: "var(--hud-red)", color: "var(--hud-surface)" }}
+                    title="Penalty points accumulated outside the corridor or inside a zone">
+                    +{Math.round(danger.accumulated)} pts
+                </span>
+            )}
+        </div>
     </div>
 );
 

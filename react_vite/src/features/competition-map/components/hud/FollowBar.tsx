@@ -195,11 +195,13 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
                 {showDanger && (
                     // How close the pilot is to a penalty (outside the corridor, in a prohibited zone), as a level.
                     <div className={`${live && !isPoker ? "hidden lg:flex" : "flex"} lg:flex-col items-center gap-2 flex-none`} title="How close the contestant is to a penalty">
-                        <div className="hud-label min-[100rem]:text-base">Danger</div>
-                        <div className="relative w-24 h-2 lg:w-2 lg:h-20 min-[100rem]:w-3 min-[100rem]:h-28 rounded-full overflow-hidden" style={{ background: 'var(--hud-raised)' }}>
-                            {/* Fills from the left on narrow screens, from the bottom beside the arrow on wide ones. */}
-                            <div className="absolute left-0 top-0 h-full lg:hidden" style={{ width: `${danger}%`, background: danger >= 100 ? 'var(--hud-red)' : 'var(--hud-warn)' }} />
-                            <div className="absolute left-0 bottom-0 w-full hidden lg:block" style={{ height: `${danger}%`, background: danger >= 100 ? 'var(--hud-red)' : 'var(--hud-warn)' }} />
+                        <div className="flex flex-col items-center gap-1">
+                            <div className="hud-label min-[100rem]:text-base">Danger</div>
+                            <div className="relative w-24 h-2 lg:w-2 lg:h-20 min-[100rem]:w-3 min-[100rem]:h-28 rounded-full overflow-hidden" style={{ background: 'var(--hud-raised)' }}>
+                                {/* Fills from the left on narrow screens, from the bottom beside the arrow on wide ones. */}
+                                <div className="absolute left-0 top-0 h-full lg:hidden" style={{ width: `${danger}%`, background: danger >= 100 ? 'var(--hud-red)' : 'var(--hud-warn)' }} />
+                                <div className="absolute left-0 bottom-0 w-full hidden lg:block" style={{ height: `${danger}%`, background: danger >= 100 ? 'var(--hud-red)' : 'var(--hud-warn)' }} />
+                            </div>
                         </div>
                         <div className="leading-none text-center">
                             <div className="hud-figure text-lg">{danger.toFixed(0)}%</div>
