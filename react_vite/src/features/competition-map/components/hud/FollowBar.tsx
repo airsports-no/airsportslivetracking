@@ -181,7 +181,8 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
                     )}
                 </div>
 
-                {(neighbours?.above || neighbours?.below) && (
+                {/* Not in a replay's slim row: on a phone it would squeeze the map and the bar for a detail the ranking shows. */}
+                {!slim && (neighbours?.above || neighbours?.below) && (
                     <Neighbours neighbours={neighbours} className="md:hidden w-full flex flex-wrap gap-x-4 [@media(max-height:500px)]:hidden" />
                 )}
 

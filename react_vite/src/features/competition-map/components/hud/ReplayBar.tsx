@@ -49,7 +49,6 @@ export default function ReplayBar({
                     style={{ background: 'var(--hud-accent)', color: '#fff' }}>
                     {isPlaying ? <Pause size={16} /> : <Play size={16} />}
                 </button>
-                <span className="hud-figure text-2xl w-[5.5rem] text-center flex-none">{clock(currentTime, timeZone)}</span>
 
                 <div className="relative flex-1 min-w-0 h-8 flex items-center">
                     {/* Event ticks sit behind the slider's track; penalties in red. */}
