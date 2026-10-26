@@ -13,6 +13,11 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-26
+#### App
+- **Past flights: "My track" and a "Live map" of everyone.** The button that opened a past flight on the live map with only the pilot's own contestant followed is now called "My track", and a new "Live map" button beside it opens the whole task with all contestants, so the pilot can compare with the others (not shown for a private task the pilot may not view).
+- **Past flights can be searched, and the list stays where it was.** A search box on the past flights finds contest, task, task type or country (every word must match); and going back from "My track" or the live map returns to the same place in the list, with the search kept, instead of the top. A new visit to My flights starts at the top.
+
 ### 2026-10-25
 #### Backend
 - **Signing up with the website's form no longer makes the profile at once.** The form makes the (unverified) Firebase account and sends the verification email; the user and person are made at the first sign-in with the verified address, website or app, with the names from the Firebase display name (the last word is the last name, so "Mary Ann Smith" is Mary Ann, Smith, which the app's first sign-in now gets too where it used to get no name). The form also has a hidden field, a signed minimum time and a limit of five signups an hour from one address, against bots.
