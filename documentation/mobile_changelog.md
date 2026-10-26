@@ -15,8 +15,8 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-10-26
 #### App
-- **Past flights: "My track" and a "Live map" of everyone.** The button that opened a past flight on the live map with only the pilot's own contestant followed is now called "My track", and a new "Live map" button beside it opens the whole task with all contestants, so the pilot can compare with the others (not shown for a private task the pilot may not view).
-- **Past flights can be searched, and the list stays where it was.** A search box on the past flights finds contest, task, task type or country (every word must match); and going back from "My track" or the live map returns to the same place in the list, with the search kept, instead of the top. A new visit to My flights starts at the top.
+- **Past flights: "My track" and a "Live map" of everyone (phone and MSFS client).** The button that opened a past flight on the live map with only the pilot's own contestant followed is now called "My track", and a new "Live map" button beside it opens the whole task with all contestants, so the pilot can compare with the others (not shown for a private task the pilot may not view).
+- **Past flights can be searched, and the list stays where it was (phone and MSFS client).** A search box on the past flights finds contest, task, task type or country (every word must match); and going back from "My track" or the live map returns to the same place in the list, with the search kept, instead of the top. A new visit to My flights starts at the top.
 
 ### 2026-10-25
 #### Backend
