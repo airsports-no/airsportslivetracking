@@ -118,11 +118,16 @@ MOBILE_ANDROID_PACKAGE = os.environ.get("MOBILE_ANDROID_PACKAGE", "no.airsports.
 # developer's debug key, so sideloaded debug builds can be tested too. Set the variable to replace the list.
 MOBILE_ANDROID_CERT_SHA256 = [
     c.strip()
-    for c in os.environ.get("MOBILE_ANDROID_CERT_SHA256", "8B:2C:0A:1C:3E:AF:3A:B3:40:A6:0B:95:A0:69:92:7D:22:86:4D:7F:28:82:87:DC:B2:A3:2A:0C:F1:74:7B:BE,81:69:C8:D4:82:A7:F5:4E:BF:D3:DA:EA:D7:69:11:C4:89:B2:3F:72:19:0E:77:B6:09:2F:47:89:43:E7:47:E8").split(",")
+    for c in os.environ.get(
+        "MOBILE_ANDROID_CERT_SHA256",
+        "8B:2C:0A:1C:3E:AF:3A:B3:40:A6:0B:95:A0:69:92:7D:22:86:4D:7F:28:82:87:DC:B2:A3:2A:0C:F1:74:7B:BE,81:69:C8:D4:82:A7:F5:4E:BF:D3:DA:EA:D7:69:11:C4:89:B2:3F:72:19:0E:77:B6:09:2F:47:89:43:E7:47:E8",
+    ).split(",")
     if c.strip()
 ]
 MOBILE_IOS_APP_ID = os.environ.get("MOBILE_IOS_APP_ID", "3ZGT84Y36H.no.airports.ios.livetracking")
-MOBILE_IOS_STORE_URL = os.environ.get("MOBILE_IOS_STORE_URL", "https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686")
+MOBILE_IOS_STORE_URL = os.environ.get(
+    "MOBILE_IOS_STORE_URL", "https://apps.apple.com/us/app/air-sports-live-tracking/id1559193686"
+)
 MOBILE_TRACCAR_URL = os.environ.get("MOBILE_TRACCAR_URL", "https://traccarclient.airsports.no/")
 MOBILE_TRACKING_INTERVAL_MS = int(os.environ.get("MOBILE_TRACKING_INTERVAL_MS", "1000"))
 
@@ -136,7 +141,12 @@ PUSH_FLIGHT_SCORED_SETTLE_MINUTES = int(os.environ.get("PUSH_FLIGHT_SCORED_SETTL
 DEFAULT_FREE_TASK_TYPE_GROUPS = [
     item.strip() for item in os.environ.get("DEFAULT_FREE_TASK_TYPE_GROUPS", "legacy,cima").split(",") if item.strip()
 ]
-GATE_CIMA_TASK_VISIBILITY = os.environ.get("GATE_CIMA_TASK_VISIBILITY", "false").strip().lower() in {"1", "true", "yes", "on"}
+GATE_CIMA_TASK_VISIBILITY = os.environ.get("GATE_CIMA_TASK_VISIBILITY", "false").strip().lower() in {
+    "1",
+    "true",
+    "yes",
+    "on",
+}
 
 MEDIA_LOCATION = os.environ.get("MEDIA_LOCATION", "")
 
@@ -341,9 +351,7 @@ SPECTACULAR_SETTINGS = {
     "SERVE_INCLUDE_SCHEMA": False,
 }
 if not IS_UNIT_TESTING:
-    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(
-        0, "display.authentication.FirebaseTokenAuthentication"
-    )
+    REST_FRAMEWORK["DEFAULT_AUTHENTICATION_CLASSES"].insert(0, "display.authentication.FirebaseTokenAuthentication")
 # Database
 # https://docs.djangoproject.com/en/3.1/ref/settings/#databases
 
@@ -507,9 +515,7 @@ CELERY_TASK_REJECT_ON_WORKER_LOST = True
 # Deployment (its own worker pool, see deployment_live_calculator.yaml) opt
 # into the 25h value via its pod env while every other worker keeps Redis's
 # normal 1h default.
-CELERY_BROKER_TRANSPORT_OPTIONS = {
-    "visibility_timeout": int(os.environ.get("CELERY_VISIBILITY_TIMEOUT_SECONDS", 3600))
-}
+CELERY_BROKER_TRANSPORT_OPTIONS = {"visibility_timeout": int(os.environ.get("CELERY_VISIBILITY_TIMEOUT_SECONDS", 3600))}
 # Keeps live-tracking calculator tasks (potentially hours long) off the
 # default queue/worker pool used by short admin tasks (recalculation,
 # flight-order generation, mbtiles reload) - dispatched to a separate
