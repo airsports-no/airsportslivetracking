@@ -305,6 +305,12 @@ def push_contest_summary_change(sender, instance: ContestSummary, **kwargs):
     transaction.on_commit(send_update)
 
 
+@receiver(pre_save, sender=Task)
+def remember_task_weight(sender, instance: Task, **kwargs):
+    if instance.pk:
+        instance._weight_before_save = Task.objects.filter(pk=instance.pk).values_list("weight", flat=True).first()
+
+
 @receiver(post_save, sender=Task)
 @receiver(post_delete, sender=Task)
 def push_task_change(sender, instance: Task, **kwargs):
@@ -312,6 +318,19 @@ def push_task_change(sender, instance: Task, **kwargs):
 
     ws = WebsocketFacade()
     ws.transmit_tasks(instance.contest)
+    if (
+        kwargs.get("created") is not False
+        or getattr(instance, "_weight_before_save", instance.weight) == instance.weight
+    ):
+        return
+    # A new weight has had the contest sums recomputed without a broadcast of their own
+    # (update_score_on_task_configuration_change): send the whole results, as push_test_change does for a test.
+    contest = instance.contest
+
+    def send_update():
+        WebsocketFacade().transmit_contest_results(None, contest)
+
+    transaction.on_commit(send_update)
 
 
 @receiver(post_save, sender=Task)

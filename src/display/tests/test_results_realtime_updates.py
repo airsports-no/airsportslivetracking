@@ -104,6 +104,25 @@ class ResultsRealtimeUpdateTests(TransactionTestCase):
         self.assertEqual(payload["content"]["team_id"], self.team.id)
 
     @patch.object(WebsocketFacade, "_safe_group_send")
+    def test_changing_a_task_weight_changes_the_contest_sum(self, safe_group_send):
+        other_task = Task.objects.create(contest=self.contest, name="task-2", heading="Task 2", index=2)
+        other_test = TaskTest.objects.create(task=other_task, name="test-2", heading="Test 2", index=1)
+        TeamTestScore.objects.create(team=self.team, task_test=self.task_test, points=12)
+        TeamTestScore.objects.create(team=self.team, task_test=other_test, points=5)
+        self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=self.team).points, 17)
+        safe_group_send.reset_mock()
+
+        self.task.weight = 0
+        self.task.save()
+
+        self.assertEqual(ContestSummary.objects.get(contest=self.contest, team=self.team).points, 5)
+        sent = [call.args[1]["content"] for call in safe_group_send.call_args_list]
+        self.assertTrue(
+            any(content.get("type") == "contest.results" or "contest_summary" in content for content in sent),
+            f"no contest results were pushed after the weight change: {[c.get('type') for c in sent]}",
+        )
+
+    @patch.object(WebsocketFacade, "_safe_group_send")
     def test_deleting_contest_with_existing_results_does_not_raise(self, safe_group_send):
         # Regression test for Sentry PYTHON-DJANGO-1M: post_task_summary_change and
         # push_test_change deferred their websocket broadcast via transaction.on_commit but
