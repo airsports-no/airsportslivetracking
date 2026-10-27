@@ -91,13 +91,23 @@ export default function CompetitionMapPage() {
   // A link to one contestant's flight (contestantIds with a single id, as the apps' "View your flight" sends) opens
   // with that contestant selected, so their team panel and gate countdown show at once; so does a later change of the
   // link to another single contestant (the page is not reloaded when only the query changes).
+  // A link with ?contestant=<id> (the apps' "My flight" on a past flight) selects that contestant the same way but keeps
+  // everyone on the map, as if they had been clicked in the ranking.
   const contestantIdsParam = searchParams.get('contestantIds');
-  const [selectedContestantId, setSelectedContestantId] = useState<number | null>(() => singleContestantId(contestantIdsParam));
-  const [selectionParam, setSelectionParam] = useState(contestantIdsParam);
-  if (contestantIdsParam !== selectionParam) {
-    setSelectionParam(contestantIdsParam);
-    const single = singleContestantId(contestantIdsParam);
-    if (single !== null) setSelectedContestantId(single);
+  const contestantParam = searchParams.get('contestant');
+  const linkedContestantId = singleContestantId(contestantIdsParam) ?? singleContestantId(contestantParam);
+  const selectionKey = `${contestantIdsParam}|${contestantParam}`;
+  const [selectedContestantId, setSelectedContestantId] = useState<number | null>(linkedContestantId);
+  // The linked contestant's panel tab waits for their data: a finished flight opens on its log, as a click would.
+  const clickedContestantId = contestantIdsParam === null ? singleContestantId(contestantParam) : null;
+  const [linkTabPendingFor, setLinkTabPendingFor] = useState<number | null>(clickedContestantId);
+  const [selectionParam, setSelectionParam] = useState(selectionKey);
+  if (selectionKey !== selectionParam) {
+    setSelectionParam(selectionKey);
+    if (linkedContestantId !== null) {
+      setSelectedContestantId(linkedContestantId);
+      setLinkTabPendingFor(clickedContestantId);
+    }
   }
   // What the side panel shows while a contestant is selected: the ranking, or their navigation log.
   // A replay link to one contestant opens on their log.
@@ -412,6 +422,13 @@ export default function CompetitionMapPage() {
     setPanelTab(showLog || mode === 'playback' || finished ? 'log' : 'ranking');
   };
   const handleContestantSelect = (id: number | null, showLog: boolean) => selectContestant(id, showLog);
+  const linkedContestant = linkTabPendingFor === null ? undefined : contestantsById[linkTabPendingFor];
+  if (linkedContestant) {
+    setLinkTabPendingFor(null);
+    if (selectedContestantId === linkedContestant.id) {
+      setPanelTab(mode === 'playback' || linkedContestant.contestanttrack?.calculator_finished ? 'log' : 'ranking');
+    }
+  }
 
   const { openAnnotation } = useMapLayers({
     compareContestantId: compareId,

@@ -13,6 +13,12 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-27
+#### Backend
+- **A live map link can select a contestant without hiding the others.** `/competition-map/<contest>/<task>?contestant=<id>` opens the whole task with that contestant selected, as if clicked in the ranking (a finished flight opens on its navigation log); `contestantIds` still shows only the listed contestants.
+#### App
+- **Past flights: one "My flight" button again (phone and MSFS client).** It replaces yesterday's "My track" and "Live map" pair and opens the whole task's live map with every contestant, the pilot's own flight selected as if clicked in the ranking.
+
 ### 2026-10-26
 #### Backend
 - **The live map's replay is less cramped on a phone.** The replay bar no longer repeats the time (the panel already shows it), so the timeline is wider, and the replay's slim row under the map drops the "behind / ahead of" lines of the contestants around the followed one.
