@@ -46,6 +46,9 @@ function singleContestantId(param: string | null): number | null {
   return ids.length === 1 && Number.isFinite(ids[0]) ? ids[0] : null;
 }
 
+/** How far past a log entry's time a jump to it lands the replay. */
+const JUMP_AFTER_EVENT_MS = 1000;
+
 // Stable empty values: a fresh [] each render would make the photo layers redraw on every tick and close hover tooltips
 const NO_PHOTOS: TargetPhoto[] = [];
 const NO_OBSERVATIONS: PhotoObservation[] = [];
@@ -908,8 +911,9 @@ export default function CompetitionMapPage() {
       openAnnotation(ann.id);
     }
     if (view !== 'debrief') return;
-    // At the entry's own time: its annotation shows (annotations appear once their time has come) and opens.
-    const target = new Date(time);
+    // Just after the entry's own time: its annotation shows (annotations appear once their time has come) and opens, and
+    // the track has reached the crossing (positions are about a second apart, so at the exact time it stops short).
+    const target = new Date(new Date(time).getTime() + JUMP_AFTER_EVENT_MS);
     if (mode === 'playback') {
       setPlaybackTime(target);
     } else {
