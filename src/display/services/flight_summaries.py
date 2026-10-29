@@ -205,6 +205,13 @@ def summary_state(user, contestant: Contestant) -> dict:
     summary = current_summary(contestant)
     refusal = _refusal(user, contestant, new_generation=_needs_generation(summary))
     data = {
+        # Who flew it and where, for the heading
+        "flight": {
+            "crew": str(contestant.team.crew),
+            "contestant_number": contestant.contestant_number,
+            "task": contestant.navigation_task.name,
+            "contest": contestant.navigation_task.contest.name,
+        },
         "enabled": is_enabled(),
         "status": summary.status if summary else None,
         "text": summary.text if summary and summary.status == FlightSummary.STATUS_DONE else "",

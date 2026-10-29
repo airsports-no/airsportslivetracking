@@ -22,7 +22,7 @@ class FlightSummaryViewSet(ViewSet):
     def _contestant(self, pk) -> Contestant:
         contestant = get_object_or_404(
             Contestant.objects.select_related(
-                "team__crew__member1", "team__crew__member2", "navigation_task", "contestanttrack"
+                "team__crew__member1", "team__crew__member2", "navigation_task__contest", "contestanttrack"
             ),
             pk=pk,
         )

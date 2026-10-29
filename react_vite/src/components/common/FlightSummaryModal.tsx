@@ -62,15 +62,13 @@ export interface FlightSummaryModalHandle {
 
 interface FlightSummaryModalProps {
   contestantId: number;
-  /** Shown under the heading, e.g. the task or the contestant number. */
-  subtitle?: string;
 }
 
 /**
  * Shows the AI summary of a flight, and lets the crew (or a superuser) ask for it. It is written in the background, so
  * the modal polls while it is pending.
  */
-const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryModalProps>(({ contestantId, subtitle }, ref) => {
+const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryModalProps>(({ contestantId }, ref) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
   const [state, setState] = useState<FlightSummaryState | null>(null);
   const [loading, setLoading] = useState(false);
@@ -135,7 +133,15 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
         <h3 className="font-bold text-lg flex items-center gap-2">
           <Sparkles size={18} /> AI flight summary
         </h3>
-        {subtitle && <p className="text-sm opacity-70">{subtitle}</p>}
+        {state?.flight && (
+          <p className="text-sm">
+            <span className="font-semibold">{state.flight.crew}</span>
+            <span className="opacity-70">
+              {' '}
+              · #{state.flight.contestant_number} · {state.flight.task}, {state.flight.contest}
+            </span>
+          </p>
+        )}
 
         {loading && !state && <p className="py-4 text-sm opacity-70">Loading...</p>}
         {error && <p className="py-2 text-error text-sm">{error}</p>}

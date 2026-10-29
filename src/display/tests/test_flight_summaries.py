@@ -149,6 +149,10 @@ class FlightSummaryTest(TestCase):
         response = self.generate(self.pilot_user)
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.json()["status"], FlightSummary.STATUS_PENDING)
+        self.assertEqual(
+            response.json()["flight"],
+            {"crew": "Pi Lot and Co Pilot", "contestant_number": 1, "task": "Day 1", "contest": "Summary Cup"},
+        )
         summary = FlightSummary.objects.get()
         self.delay.assert_called_once_with(summary.pk)
         self.assertEqual(summary.requested_by, self.pilot_user)

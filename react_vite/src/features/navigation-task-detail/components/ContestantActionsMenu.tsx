@@ -187,11 +187,7 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
         onChanged={onRefresh}
       />
       {document.configuration.is_superuser && (
-        <FlightSummaryModal
-          ref={flightSummaryModalRef}
-          contestantId={contestant.pk}
-          subtitle={`Contestant #${contestant.contestant_number}`}
-        />
+        <FlightSummaryModal ref={flightSummaryModalRef} contestantId={contestant.pk} />
       )}
       {canManage && (
         <>

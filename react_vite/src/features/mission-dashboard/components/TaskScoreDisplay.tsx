@@ -65,7 +65,7 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantI
                                     </a>
                                 )}
                                 {isCurrentUser && !isStrikethrough && (
-                                    <FlightSummaryButton contestantId={contestant.id} subtitle={task.name} />
+                                    <FlightSummaryButton contestantId={contestant.id} />
                                 )}
                                 <span>Score: {contestant.contestanttrack.score.toFixed(0)}</span>
                             </span>

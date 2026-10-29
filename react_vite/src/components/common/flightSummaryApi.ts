@@ -36,6 +36,7 @@ export interface FlightAnalysis {
 
 /** The AI summary of a flight as the server describes it (display/services/flight_summaries.py's summary_state). */
 export interface FlightSummaryState {
+  flight: { crew: string; contestant_number: number; task: string; contest: string };
   enabled: boolean;
   status: 'pending' | 'done' | 'failed' | null;
   text: string;
