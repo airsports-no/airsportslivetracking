@@ -144,7 +144,7 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
           <div className="py-3 space-y-3">
             {state.status === 'done' && (
               <>
-                {state.sections.length > 0 ? (
+                {state.sections?.length > 0 ? (
                   <>
                     <p className="text-lg font-semibold">{state.headline}</p>
                     {state.sections.map((section) => (
@@ -162,7 +162,7 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
                 ) : (
                   <div className="whitespace-pre-line leading-relaxed">{state.text}</div>
                 )}
-                {state.analysis && state.analysis.legs.length > 0 && <LegTable analysis={state.analysis} />}
+                {state.analysis?.legs?.length ? <LegTable analysis={state.analysis} /> : null}
                 <p className="text-xs opacity-60">
                   Written by AI from the official score log. The scores and the results list are what count.
                   {state.analysis?.weather_source && (

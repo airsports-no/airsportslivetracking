@@ -278,9 +278,9 @@ class FlightSummaryTest(TestCase):
     def summary_row(self):
         return self.done_summary(status=FlightSummary.STATUS_PENDING, text="")
 
-    def run_generation(self, response):
+    def run_generation(self, response, attempts=1):
         client = MagicMock()
-        client.messages.create.return_value = response
+        client.messages.create.side_effect = [response] * attempts
         summary = self.summary_row()
         with patch("anthropic.Anthropic", return_value=client):
             flight_summaries.generate(FlightSummary.objects.select_related("contestant").get(pk=summary.pk))
@@ -310,23 +310,82 @@ class FlightSummaryTest(TestCase):
             self.assertNotIn(private, sent)
 
     def test_points_the_score_log_does_not_have_fail_the_summary(self):
-        summary, _ = self.run_generation(model_response("You lost 42 points at SP and 17 points elsewhere."))
+        summary, _ = self.run_generation(
+            model_response("You lost 42 points at SP and 17 points elsewhere."), attempts=2
+        )
         self.assertEqual(summary.status, FlightSummary.STATUS_FAILED)
         self.assertIn("17 points", summary.error)
         self.assertEqual(summary.text, "")
-        # It still cost us: the budget counts it
-        self.assertEqual(summary.cost_usd, Decimal("0.000400"))
+        # Both attempts still cost us: the budget counts them
+        self.assertEqual(summary.cost_usd, Decimal("0.000800"))
 
     def test_an_answer_that_is_not_the_schema_fails_the_summary(self):
         summary, _ = self.run_generation(model_response("", raw="Here is your summary!"))
         self.assertEqual(summary.status, FlightSummary.STATUS_FAILED)
 
-    def test_the_other_crews_points_may_be_quoted(self):
-        facts = flight_summaries.flight_facts(self.contestant)
-        facts["analysis"] = {"crews": [{"score": 17, "gates": {"SP": {"offset_seconds": 3, "points": 9}}}]}
-        self.assertEqual(
-            flight_summaries.unsupported_point_figures("The winner had 17 points, 9 points at SP.", facts), []
-        )
+    # Checking the points figures
+
+    def facts(self):
+        return {
+            "final_score": 42,
+            "events": [{"points": 30}, {"points": 12}, {"points": 9}],
+            "penalty_totals_by_gate": {"SP": 30, "TP1": 21},
+            "administrative_penalties": [],
+            "analysis": {
+                "crews": [
+                    {"crew": "Ann Ace", "score": 17, "gates": {"SP": {"offset_seconds": 3, "points": 8}}},
+                    {"crew": "Pi Lot and Co Pilot", "score": 42, "gates": {}, "you": True},
+                    {"crew": "Bo Late", "score": 140, "gates": {"SP": {"offset_seconds": 50, "points": 77}}},
+                ]
+            },
+        }
+
+    def unsupported(self, text):
+        return [item["figure"] for item in flight_summaries.unsupported_point_figures(text, self.facts())]
+
+    def test_own_figures_and_totals_of_own_penalties_pass(self):
+        self.assertEqual(self.unsupported("You scored 42 points. SP and TP1 cost you 39 points together."), [])
+
+    def test_a_wrong_total_fails(self):
+        self.assertEqual(self.unsupported("SP and TP1 cost you 40 points together."), ["40 points"])
+
+    def test_another_crews_figures_pass_only_in_a_sentence_that_names_it(self):
+        self.assertEqual(self.unsupported("Bo Late lost 77 points at SP."), [])
+        self.assertEqual(self.unsupported("Someone lost 77 points at SP."), ["77 points"])
+        self.assertEqual(self.unsupported("Ann Ace lost 77 points at SP."), ["77 points"])
+
+    def test_the_gap_to_a_named_crew_and_the_winners_score_pass(self):
+        self.assertEqual(self.unsupported("You were 98 points ahead of Bo Late."), [])
+        self.assertEqual(self.unsupported("The winner had 17 points. You were 25 points behind Ann Ace."), [])
+
+    # Correcting the answer
+
+    def test_points_the_data_does_not_have_are_corrected_once(self):
+        client = MagicMock()
+        client.messages.create.side_effect = [
+            model_response("You lost 17 points elsewhere."),
+            model_response("You lost 30 points at SP and 12 points at TP1."),
+        ]
+        summary = self.summary_row()
+        with patch("anthropic.Anthropic", return_value=client):
+            flight_summaries.generate(FlightSummary.objects.select_related("contestant").get(pk=summary.pk))
+        summary.refresh_from_db()
+        self.assertEqual(summary.status, FlightSummary.STATUS_DONE)
+        self.assertIn("30 points at SP", summary.text)
+        self.assertEqual(client.messages.create.call_count, 2)
+        messages = client.messages.create.call_args.kwargs["messages"]
+        self.assertEqual([message["role"] for message in messages], ["user", "assistant", "user"])
+        self.assertIn('"17 points"', messages[2]["content"])
+        # Both answers cost us
+        self.assertEqual(summary.cost_usd, Decimal("0.000800"))
+
+    def test_a_summary_that_wrote_a_different_prompt_version_is_refused(self):
+        summary = self.done_summary(status=FlightSummary.STATUS_PENDING, text="", prompt_version=1)
+        with patch("anthropic.Anthropic") as anthropic_client:
+            flight_summaries.generate(FlightSummary.objects.select_related("contestant").get(pk=summary.pk))
+        anthropic_client.assert_not_called()
+        summary.refresh_from_db()
+        self.assertEqual(summary.status, FlightSummary.STATUS_FAILED)
 
     def test_a_refusal_fails_the_summary(self):
         summary, _ = self.run_generation(model_response("", stop_reason="refusal"))

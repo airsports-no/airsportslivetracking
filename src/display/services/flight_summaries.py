@@ -31,12 +31,15 @@ from display.services.flight_analysis import analyse_flight
 logger = logging.getLogger(__name__)
 
 # Bump whenever the prompt or the facts sent change: every summary written before is then generated anew on request.
-PROMPT_VERSION = 3
+PROMPT_VERSION = 4
 
 # A pending generation older than this is taken as lost (the worker died) and may be asked for again.
 PENDING_TIMEOUT = datetime.timedelta(minutes=10)
 
 MAX_OUTPUT_TOKENS = 6000
+
+# The first answer, and one correction when it quotes points the data does not back
+MAX_ATTEMPTS = 2
 
 SYSTEM_PROMPT = """You write the debrief of one flight in a general aviation competition (precision flying, air \
 navigation race, rally and similar tasks), for the crew who flew it. Make it useful and fun to read, like a friendly, \
@@ -58,8 +61,10 @@ crew's timing ranks there (1 is the most precise). analysis.highlights are extra
 
 Rules:
 - Use only facts in the data. Never invent gates, times, events or causes.
-- Quote points only as they appear in the data (events, penalty_totals_by_gate, final_score, or a crew's score or \
-points at a gate). Do not add, subtract or round them.
+- Quote points as they appear in the data: this crew's events, penalty_totals_by_gate and final_score, and other \
+crews' scores and points at gates (name the crew in the same sentence). You may add up some of this crew's own \
+penalties into a total, and give the gap between this crew's score and another crew's. Do not compute other figures \
+or round them.
 - Blame or credit the wind for timing only where the data supports it: a leg's change in offset close to its \
 wind_effect_seconds, or most of the field being early or late at the same gates. Say when the crew did better or \
 worse than the wind explains. If the actual wind differed clearly from the planned wind, give both. Without wind or \
@@ -326,22 +331,69 @@ def flight_facts(contestant: Contestant) -> dict:
 
 
 _POINTS_FIGURE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:penalty\s+)?(?:points?|pts)\b", re.IGNORECASE)
+_SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
+_WINNER_WORDS = re.compile(r"\b(winner|won|wins|first|1st|leader|led|top)\b", re.IGNORECASE)
+# Cents, so that sums of points with decimals compare exactly
+_SCALE = 100
+_MAX_SUMS = 200_000
+_TOLERANCE = 5  # 0.05 points
 
 
-def unsupported_point_figures(text: str, facts: dict) -> list[str]:
-    """The points figures in the summary that are nowhere in the facts: the model made them up or added them up."""
-    known = {abs(facts["final_score"])}
-    known.update(abs(event["points"]) for event in facts["events"])
-    known.update(abs(total) for total in facts["penalty_totals_by_gate"].values())
-    known.update(abs(penalty["points"]) for penalty in facts["administrative_penalties"])
-    for crew in facts.get("analysis", {}).get("crews", []):
-        known.add(abs(crew["score"]))
-        known.update(abs(gate["points"]) for gate in crew["gates"].values() if "points" in gate)
+def _scaled(value: float) -> int:
+    return round(abs(value) * _SCALE)
+
+
+def _subset_sums(values: list[float]) -> set[int]:
+    """Every total some of the values add up to (bounded: past that, only the values themselves count)."""
+    sums = {0}
+    for value in (_scaled(value) for value in values if value):
+        sums |= {total + value for total in sums}
+        if len(sums) > _MAX_SUMS:
+            return {_scaled(value) for value in values}
+    return sums
+
+
+def _own_figures(facts: dict) -> tuple[set[int], set[int]]:
+    """This crew's points figures, and the totals its own penalty entries can add up to."""
+    events = [event["points"] for event in facts["events"]]
+    own = {_scaled(facts["final_score"])}
+    own.update(_scaled(points) for points in events)
+    own.update(_scaled(total) for total in facts["penalty_totals_by_gate"].values())
+    own.update(_scaled(penalty["points"]) for penalty in facts["administrative_penalties"])
+    return own, _subset_sums(events)
+
+
+def _crew_figures(crew: dict, own_score: float) -> set[int]:
+    figures = {_scaled(crew["score"]), _scaled(crew["score"] - own_score)}
+    figures.update(_scaled(gate["points"]) for gate in crew["gates"].values() if "points" in gate)
+    return figures
+
+
+def unsupported_point_figures(text: str, facts: dict) -> list[dict]:
+    """
+    The points figures in the summary the data does not back, with their sentences. A sentence may quote this crew's own
+    figures, or a total of some of its own penalties; a sentence that names another crew (or speaks of the winner) may
+    also quote that crew's score and points and the gap to it.
+    """
+    own, own_sums = _own_figures(facts)
+    crews = [crew for crew in facts.get("analysis", {}).get("crews", []) if not crew.get("you")]
+    winner = facts.get("analysis", {}).get("crews", [None])[0] if facts.get("analysis", {}).get("crews") else None
     unsupported = []
-    for match in _POINTS_FIGURE.finditer(text):
-        value = float(match.group(1).replace(",", "."))
-        if not any(abs(value - figure) < 0.05 for figure in known):
-            unsupported.append(match.group(0))
+    for sentence in (part for line in text.splitlines() for part in _SENTENCE_END.split(line)):
+        figures = _POINTS_FIGURE.findall(sentence)
+        if not figures:
+            continue
+        allowed = own | own_sums
+        lowered = sentence.lower()
+        for crew in crews:
+            if crew["crew"] and re.search(rf"\b{re.escape(crew['crew'].lower())}\b", lowered):
+                allowed |= _crew_figures(crew, facts["final_score"])
+        if winner and _WINNER_WORDS.search(sentence):
+            allowed |= _crew_figures(winner, facts["final_score"])
+        for figure in figures:
+            value = _scaled(float(figure.replace(",", ".")))
+            if not any(abs(value - known) <= _TOLERANCE for known in allowed):
+                unsupported.append({"figure": f"{figure} points", "sentence": sentence.strip()})
     return unsupported
 
 
@@ -364,53 +416,90 @@ def _fail(summary: FlightSummary, error: str):
     summary.save(update_fields=["status", "error", "input_tokens", "output_tokens", "cost_usd", "model"])
 
 
+def _read_answer(response) -> tuple[str, list[dict]]:
+    answer = json.loads(next(block.text for block in response.content if block.type == "text"))
+    headline = answer["headline"].strip()
+    sections = [
+        {"emoji": section["emoji"].strip(), "title": section["title"].strip(), "text": section["text"].strip()}
+        for section in answer["sections"]
+    ]
+    return headline, sections
+
+
+def _as_text(headline: str, sections: list[dict]) -> str:
+    # The plain text keeps the whole summary readable where the sections are not shown
+    return "\n\n".join([headline] + [f"{s['emoji']} {s['title']}\n{s['text']}" for s in sections]).strip()
+
+
+def _correction(unsupported: list[dict]) -> str:
+    problems = "\n".join(f'- "{item["figure"]}" in: "{item["sentence"]}"' for item in unsupported)
+    return (
+        "These points figures are not in the data (and are not a total of this crew's own penalties, or another crew's "
+        f"figures in a sentence that names it):\n{problems}\n"
+        "Rewrite only the sentences with them, using figures from the data, and keep everything else as it was. "
+        "Answer with the whole summary again."
+    )
+
+
 def generate(summary: FlightSummary):
-    """Writes the summary with the model (the Celery task's work). Failures are stored on the row, not raised."""
+    """
+    Writes the summary with the model (the Celery task's work). If the answer quotes points the data does not back, the
+    model is asked once to correct them. Failures are stored on the row, not raised.
+    """
     import anthropic
 
+    if summary.prompt_version != PROMPT_VERSION:
+        # Asked for by a newer (or older) web server than this worker: written by the wrong prompt it would be cached
+        # under the other version's key
+        _fail(summary, f"This worker writes prompt version {PROMPT_VERSION}, not {summary.prompt_version}.")
+        return
     contestant = summary.contestant
     facts = flight_facts(contestant)
     summary.model = settings.FLIGHT_SUMMARY_MODEL
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=60.0)
-    try:
-        response = client.messages.create(
-            model=settings.FLIGHT_SUMMARY_MODEL,
-            max_tokens=MAX_OUTPUT_TOKENS,
-            system=SYSTEM_PROMPT,
-            output_config={"effort": "low", "format": {"type": "json_schema", "schema": ANSWER_SCHEMA}},
-            messages=[{"role": "user", "content": json.dumps(facts, indent=1)}],
-        )
-    except anthropic.APIError as e:
-        _fail(summary, f"The model could not be reached: {e}")
-        return
-    # Retried rows keep what the earlier attempts cost, so the monthly budget sees all of it
-    summary.input_tokens += response.usage.input_tokens
-    summary.output_tokens += response.usage.output_tokens
-    summary.cost_usd += _cost(response.usage.input_tokens, response.usage.output_tokens)
-    if response.stop_reason == "refusal":
-        _fail(summary, "The model declined to write the summary.")
-        return
-    if response.stop_reason == "max_tokens":
-        _fail(summary, "The summary was cut off.")
-        return
-    try:
-        answer = json.loads(next(block.text for block in response.content if block.type == "text"))
-        headline = answer["headline"].strip()
-        sections = [
-            {"emoji": section["emoji"].strip(), "title": section["title"].strip(), "text": section["text"].strip()}
-            for section in answer["sections"]
+    messages = [{"role": "user", "content": json.dumps(facts, indent=1)}]
+    for attempt in range(MAX_ATTEMPTS):
+        try:
+            response = client.messages.create(
+                model=settings.FLIGHT_SUMMARY_MODEL,
+                max_tokens=MAX_OUTPUT_TOKENS,
+                system=SYSTEM_PROMPT,
+                output_config={"effort": "low", "format": {"type": "json_schema", "schema": ANSWER_SCHEMA}},
+                messages=messages,
+            )
+        except anthropic.APIError as e:
+            _fail(summary, f"The model could not be reached: {e}")
+            return
+        # Retried rows keep what the earlier attempts cost, so the monthly budget sees all of it
+        summary.input_tokens += response.usage.input_tokens
+        summary.output_tokens += response.usage.output_tokens
+        summary.cost_usd += _cost(response.usage.input_tokens, response.usage.output_tokens)
+        if response.stop_reason == "refusal":
+            _fail(summary, "The model declined to write the summary.")
+            return
+        if response.stop_reason == "max_tokens":
+            _fail(summary, "The summary was cut off.")
+            return
+        try:
+            headline, sections = _read_answer(response)
+        except (StopIteration, ValueError, KeyError, TypeError, AttributeError):
+            _fail(summary, "The model's answer could not be read.")
+            return
+        if not headline or not sections:
+            _fail(summary, "The model wrote nothing.")
+            return
+        text = _as_text(headline, sections)
+        unsupported = unsupported_point_figures(text, facts)
+        if not unsupported:
+            break
+        logger.info(f"Flight summary {summary.pk}: asking for a correction of {unsupported}")
+        messages += [
+            {"role": "assistant", "content": response.content},
+            {"role": "user", "content": _correction(unsupported)},
         ]
-    except (StopIteration, ValueError, KeyError, TypeError, AttributeError):
-        _fail(summary, "The model's answer could not be read.")
-        return
-    # The plain text keeps the whole summary readable where the sections are not shown
-    text = "\n\n".join([headline] + [f"{s['emoji']} {s['title']}\n{s['text']}" for s in sections]).strip()
-    if not headline or not sections:
-        _fail(summary, "The model wrote nothing.")
-        return
-    unsupported = unsupported_point_figures(text, facts)
-    if unsupported:
-        _fail(summary, f"The summary quotes points that are not in the score log: {', '.join(unsupported)}")
+    else:
+        figures = ", ".join(item["figure"] for item in unsupported)
+        _fail(summary, f"The summary quotes points that are not in the data: {figures}")
         return
     summary.text = text
     summary.headline = headline
