@@ -241,8 +241,40 @@ class FlightSummaryTest(TestCase):
             text="",
             requested_at=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1),
         )
+        # Shown as failed, so the modal offers to try again instead of spinning
+        self.client.force_authenticate(self.pilot_user)
+        state = self.client.get(self.url()).json()
+        self.assertEqual(state["status"], FlightSummary.STATUS_FAILED)
+        self.assertTrue(state["can_generate"])
         self.generate(self.pilot_user)
         self.delay.assert_called_once_with(lost.pk)
+
+    def test_a_failed_summary_restarted_by_someone_else_meanwhile_is_not_started_again(self):
+        failed = self.done_summary(status=FlightSummary.STATUS_FAILED, text="")
+        read = flight_summaries._summaries_for_scores
+
+        def read_then_restarted_elsewhere(contestant):
+            rows = read(contestant)
+            # Between this request reading the row and restarting it, another request restarted it
+            FlightSummary.objects.filter(pk=failed.pk).update(
+                status=FlightSummary.STATUS_PENDING, requested_at=datetime.datetime.now(datetime.timezone.utc)
+            )
+            return rows
+
+        with patch(
+            "display.services.flight_summaries._summaries_for_scores", side_effect=read_then_restarted_elsewhere
+        ):
+            self.generate(self.pilot_user)
+        self.delay.assert_not_called()
+
+    def test_the_quota_is_checked_again_under_the_lock(self):
+        # Another request used the last summary of the day after this one passed the first check
+        checks = iter([None, flight_summaries.FlightSummaryRefused("You have used today's AI summaries.", 429)])
+        with patch("display.services.flight_summaries._refusal", side_effect=lambda *args, **kwargs: next(checks)):
+            response = self.generate(self.pilot_user)
+        self.assertEqual(response.status_code, 429)
+        self.assertFalse(FlightSummary.objects.exists())
+        self.delay.assert_not_called()
 
     def test_only_a_superuser_can_regenerate_a_written_summary(self):
         summary = self.done_summary()

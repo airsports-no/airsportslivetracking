@@ -28,7 +28,9 @@ services:
       - MPLCONFIGDIR=/tmp
 
     env_file:
-      - .env.private
+      # Optional: not in a fresh checkout, and everything in it has a default
+      - path: .env.private
+        required: false
     build:
       context: .
       dockerfile: Dockerfile
@@ -59,7 +61,9 @@ services:
     command: [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG --concurrency 1 --without-mingle" ]
     # The AI flight summaries are written here and need ANTHROPIC_API_KEY
     env_file:
-      - .env.private
+      # Optional: not in a fresh checkout, and everything in it has a default
+      - path: .env.private
+        required: false
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
       - GOOGLE_CLOUD_PROJECT=airsports-613ce

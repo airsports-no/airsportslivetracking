@@ -8,8 +8,9 @@ contestant's track_version or score_version. New generations are limited per use
 (settings.FLIGHT_SUMMARY_*), since we pay for every one of them.
 
 What is sent: the contest, task and scorecard, the score and placement, the score log, and the analysis of the legs,
-wind, weather and the field (display.services.flight_analysis) - which names the crews, as the public map and results
-do. The model answers with a headline and a few titled sections, which the website shows as cards.
+wind, weather and the field (display.services.flight_analysis) - which names the crews as the public map and results
+do, and of a task that is not public names only this crew. The model answers with a headline and a few titled
+sections, which the website shows as cards.
 """
 
 import datetime
@@ -233,7 +234,8 @@ def summary_state(user, contestant: Contestant) -> dict:
             "contest": contestant.navigation_task.contest.name,
         },
         "enabled": is_enabled(),
-        "status": summary.status if summary else None,
+        # A generation whose worker died shows as failed, so it can be asked for again instead of spinning forever
+        "status": (FlightSummary.STATUS_FAILED if _is_lost(summary) else summary.status) if summary else None,
         "text": summary.text if summary and summary.status == FlightSummary.STATUS_DONE else "",
         "headline": summary.headline if summary and summary.status == FlightSummary.STATUS_DONE else "",
         "sections": summary.sections if summary and summary.status == FlightSummary.STATUS_DONE else [],
@@ -269,12 +271,23 @@ def request_summary(user, contestant: Contestant, regenerate: bool = False) -> F
     now = timezone.now()
     try:
         with transaction.atomic():
+            # The user's generations one at a time, with the quota checked again under the lock: parallel requests for
+            # several flights cannot all pass the check
+            type(user).objects.select_for_update().filter(pk=user.pk).first()
+            refusal = _refusal(user, contestant, new_generation=True)
+            if refusal:
+                raise refusal
             # Always written as this prompt version: an earlier version's summary stays as it is
             own, _ = _summaries_for_scores(contestant)
+            if own and (_is_being_written(own) or (own.status == FlightSummary.STATUS_DONE and not regenerate)):
+                return own
             if own:
-                FlightSummary.objects.filter(pk=own.pk).update(
-                    status=FlightSummary.STATUS_PENDING, text="", error="", requested_by=user, requested_at=now
-                )
+                # Only if nobody restarted it since it was read: two retries must not both pay for the model
+                started = FlightSummary.objects.filter(
+                    pk=own.pk, status=own.status, requested_at=own.requested_at
+                ).update(status=FlightSummary.STATUS_PENDING, text="", error="", requested_by=user, requested_at=now)
+                if not started:
+                    return current_summary(contestant)
                 own.refresh_from_db()
                 summary = own
             else:

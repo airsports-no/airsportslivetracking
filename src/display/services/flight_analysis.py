@@ -15,6 +15,7 @@ from django.db.models import Max, Min, Sum
 from display.models import ActualGateTime, Contestant, ScoreLogEntry
 from display.models.scoring_models import ANOMALY, INFORMATION
 from display.services import flight_weather
+from display.services.contest_visibility import is_navigation_task_public
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 
 FT_PER_M = 1 / 0.3048
@@ -57,14 +58,20 @@ def _offsets(contestant: Contestant) -> dict[str, float]:
     }
 
 
-def _crew_name(contestant: Contestant) -> str:
-    return str(contestant.team.crew)
+def _crew_name(crew: Contestant, contestant: Contestant, public: bool) -> str:
+    """
+    The crews are named as on the public map and results. Of a task that is not public, no other crew's name goes to
+    the model: they did not ask for the summary.
+    """
+    if public or crew.pk == contestant.pk:
+        return str(crew.team.crew)
+    return f"Crew #{crew.contestant_number}"
 
 
 def _field(contestant: Contestant) -> tuple[list[dict], dict[str, dict]]:
     """
-    Every scored crew on the task with its result and its offset and points at each gate (names are on the public map
-    and results anyway), and per gate the field's median offset and where this crew's timing ranks.
+    Every scored crew on the task with its result and its offset and points at each gate (named only when the task is
+    public, see _crew_name), and per gate the field's median offset and where this crew's timing ranks.
     """
     crews = list(
         Contestant.objects.filter(navigation_task=contestant.navigation_task, contestanttrack__calculator_finished=True)
@@ -72,6 +79,7 @@ def _field(contestant: Contestant) -> tuple[list[dict], dict[str, dict]]:
         .order_by("contestant_number")[:MAX_CREWS]
     )
     descending = contestant.navigation_task.score_sorting_direction == "desc"
+    public = is_navigation_task_public(contestant.navigation_task)
     ordered = sorted(crews, key=lambda crew: -crew.contestanttrack.score if descending else crew.contestanttrack.score)
     points = {}
     for row in (
@@ -94,7 +102,7 @@ def _field(contestant: Contestant) -> tuple[list[dict], dict[str, dict]]:
             if gate in points.get(crew.pk, {}):
                 gates[gate]["points"] = points[crew.pk][gate]
         entry = {
-            "crew": _crew_name(crew),
+            "crew": _crew_name(crew, contestant, public),
             "rank": 1
             + sum(
                 1

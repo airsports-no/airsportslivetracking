@@ -198,3 +198,8 @@ class FlightAnalysisTest(TestCase):
         self.assertEqual([crew["crew"] for crew in analysis["crews"]], ["P 1", "P 2"])
         self.assertTrue(analysis["crews"][0]["you"])
         self.assertEqual(analysis["field_at_gates"][gates[2]]["your_rank_by_precision"], 1)
+
+    def test_other_crews_of_a_task_that_is_not_public_are_not_named(self):
+        NavigationTask.objects.filter(pk=self.contestants[0].navigation_task_id).update(is_public=False)
+        crews = self.analyse(self.weather)["crews"]
+        self.assertEqual([crew["crew"] for crew in crews], ["P 1", "Crew #2"])
