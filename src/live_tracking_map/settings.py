@@ -101,6 +101,17 @@ ACCESS_ENFORCEMENT_MODE = os.environ.get("ACCESS_ENFORCEMENT_MODE", "audit")
 if ACCESS_ENFORCEMENT_MODE not in {"audit", "enforce"}:
     ACCESS_ENFORCEMENT_MODE = "audit"
 
+# AI flight summaries (display.services.flight_summaries). The feature is off without an API key. We pay for every
+# generation, so each user may ask for a few new ones a day (superusers are not limited), and the feature switches
+# itself off for the rest of the month once the summaries written this month have cost the budget. The prices are per
+# million tokens and only used to count that cost: keep them in step with the model.
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+FLIGHT_SUMMARY_MODEL = os.environ.get("FLIGHT_SUMMARY_MODEL", "claude-haiku-5-5")
+FLIGHT_SUMMARY_INPUT_USD_PER_MTOK = float(os.environ.get("FLIGHT_SUMMARY_INPUT_USD_PER_MTOK", "0.10"))
+FLIGHT_SUMMARY_OUTPUT_USD_PER_MTOK = float(os.environ.get("FLIGHT_SUMMARY_OUTPUT_USD_PER_MTOK", "0.50"))
+FLIGHT_SUMMARY_DAILY_LIMIT_PER_USER = int(os.environ.get("FLIGHT_SUMMARY_DAILY_LIMIT_PER_USER", "5"))
+FLIGHT_SUMMARY_MONTHLY_BUDGET_USD = float(os.environ.get("FLIGHT_SUMMARY_MONTHLY_BUDGET_USD", "20"))
+
 # Mobile app integration. Versions are the Android versionCode / iOS build number; the app shows a blocking
 # "update required" screen when its own version is below the minimum.
 MOBILE_ANDROID_MIN_VERSION = int(os.environ.get("MOBILE_ANDROID_MIN_VERSION", "0"))

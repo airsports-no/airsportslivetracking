@@ -36,6 +36,8 @@ service:
 emailAddress: frankose@ifi.uio.no
 openskyUsername: username
 openskyPassword: password
+# The AI flight summaries are off without it. Set the real key in private_values_gcloud (Secret Manager).
+anthropicApiKey: ""
 
 storageAccountName: airsportsstorage2
 mediaLocation: media

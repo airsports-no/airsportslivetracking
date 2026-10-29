@@ -27,8 +27,8 @@ services:
       - DISABLE_FIREBASE
       - MPLCONFIGDIR=/tmp
 
-    # env_file:
-    #   - .env.private
+    env_file:
+      - .env.private
     build:
       context: .
       dockerfile: Dockerfile
@@ -57,6 +57,9 @@ services:
     # -Q flag) - live-tracking calculator work goes to the live_calculator
     # service below, same split as production.
     command: [ "bash", "-c", "celery -A live_tracking_map worker -l DEBUG --concurrency 1 --without-mingle" ]
+    # The AI flight summaries are written here and need ANTHROPIC_API_KEY
+    env_file:
+      - .env.private
     environment:
       - GOOGLE_APPLICATION_CREDENTIALS=/secret/application_default_credentials.json
       - GOOGLE_CLOUD_PROJECT=airsports-613ce

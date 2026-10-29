@@ -498,3 +498,24 @@ def process_flymaster_file(file_data: str):
             logger.info(
                 f"Could not find contestant for fly master identifier {identifier} at timestamp {positions[0]["device_time"]}"
             )
+
+
+@app.task
+def generate_flight_summary(summary_pk: int):
+    from display.models import FlightSummary
+    from display.services.flight_summaries import generate
+
+    summary = (
+        FlightSummary.objects.select_related("contestant__navigation_task__contest", "contestant__contestanttrack")
+        .filter(pk=summary_pk, status=FlightSummary.STATUS_PENDING)
+        .first()
+    )
+    if summary is None:
+        return
+    try:
+        generate(summary)
+    except Exception:
+        logger.exception(f"Failed generating flight summary {summary_pk}")
+        FlightSummary.objects.filter(pk=summary_pk).update(
+            status=FlightSummary.STATUS_FAILED, error="The summary could not be written."
+        )

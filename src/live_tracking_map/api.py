@@ -2,6 +2,7 @@ from rest_framework_nested import routers
 
 from django.urls import path, include
 
+from display.viewsets_flight_summaries import FlightSummaryViewSet
 from display.viewsets_series import SeriesRequestViewSet, SeriesViewSet
 from display.viewsets_squadrons import SquadronInvitationViewSet, SquadronJoinViewSet, SquadronViewSet
 from display.viewsets import (
@@ -58,6 +59,7 @@ contestant_router.register(r"contestantsteamid", ContestantTeamIdViewSet, basena
 router.register(r"userprofile", UserPersonViewSet, basename="userprofile")
 router.register(r"aircraft", AircraftViewSet, basename="aircraft")
 router.register(r"clubs", ClubViewSet, basename="clubs")
+router.register(r"flight_summaries", FlightSummaryViewSet, basename="flight-summaries")
 router.register(r"series", SeriesViewSet, basename="series")
 router.register(r"series_requests", SeriesRequestViewSet, basename="series-requests")
 router.register(r"squadrons", SquadronViewSet, basename="squadrons")
