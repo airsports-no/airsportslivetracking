@@ -4,6 +4,7 @@ import { EllipsisVertical } from 'lucide-react';
 import { reverse, generatePath } from '../../../urls';
 import { deleteContestant, recalculateTrack, resetCalculator } from '../api';
 import { ContestantRow, supportsDeclarationEditing } from '../types';
+import FlightSummaryModal, { FlightSummaryModalHandle } from '../../../components/common/FlightSummaryModal';
 import GateTimesModal, { GateTimesModalHandle } from './GateTimesModal';
 import PlayingCardsModal, { PlayingCardsModalHandle } from './PlayingCardsModal';
 import RecalculateStartTimeModal from './RecalculateStartTimeModal';
@@ -43,6 +44,7 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
   const gpxModalRef = useRef<HTMLDialogElement>(null);
   const gateTimesModalRef = useRef<GateTimesModalHandle>(null);
   const playingCardsModalRef = useRef<PlayingCardsModalHandle>(null);
+  const flightSummaryModalRef = useRef<FlightSummaryModalHandle>(null);
 
   const handleRecalculateTrack = async () => {
     if (recalculating || !window.confirm('Reset the track/score and reload it from the tracker?')) return;
@@ -100,6 +102,13 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
         <li>
           <a href={reverse('contestant_map', contestant.pk)}>Map</a>
         </li>
+        {document.configuration.is_superuser && (
+          <li>
+            <button type="button" onClick={() => flightSummaryModalRef.current?.open()} className="w-full text-left">
+              AI flight summary
+            </button>
+          </li>
+        )}
         {supportsDeclarationEditing(taskSubtype) && (
           <li>
             <Link
@@ -177,6 +186,13 @@ const ContestantActionsMenu: React.FC<ContestantActionsMenuProps> = ({
         timeZone={timeZone}
         onChanged={onRefresh}
       />
+      {document.configuration.is_superuser && (
+        <FlightSummaryModal
+          ref={flightSummaryModalRef}
+          contestantId={contestant.pk}
+          subtitle={`Contestant #${contestant.contestant_number}`}
+        />
+      )}
       {canManage && (
         <>
           <UploadGpxModal

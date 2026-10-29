@@ -1,6 +1,7 @@
 import React from 'react';
 import { NavigationTask } from '../types';
 import { generatePath } from '../../../urls';
+import { FlightSummaryButton } from '../../../components/common/FlightSummaryModal';
 
 interface TaskScoreDisplayProps {
     task: NavigationTask;
@@ -62,6 +63,9 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantI
                                     >
                                         Replay track
                                     </a>
+                                )}
+                                {isCurrentUser && !isStrikethrough && (
+                                    <FlightSummaryButton contestantId={contestant.id} subtitle={task.name} />
                                 )}
                                 <span>Score: {contestant.contestanttrack.score.toFixed(0)}</span>
                             </span>
