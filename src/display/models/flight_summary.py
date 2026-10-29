@@ -20,7 +20,12 @@ class FlightSummary(models.Model):
     score_version = models.IntegerField()
     prompt_version = models.IntegerField()
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
+    # The whole summary as plain text, and as the website shows it: a headline and sections of emoji, title and text
     text = models.TextField(default="", blank=True)
+    headline = models.CharField(max_length=500, default="", blank=True)
+    sections = models.JSONField(default=list, blank=True)
+    # The numbers the text was written from (display.services.flight_analysis): legs, wind, weather, the field
+    analysis = models.JSONField(default=dict, blank=True)
     error = models.CharField(max_length=500, default="", blank=True)
     model = models.CharField(max_length=100, default="", blank=True)
     input_tokens = models.PositiveIntegerField(default=0)

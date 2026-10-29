@@ -1,5 +1,5 @@
 import datetime
-from typing import List, Tuple
+from typing import List, Optional, Tuple
 
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon, calculate_bearing
 from display.utilities.wind_utilities import calculate_ground_speed_combined
@@ -14,10 +14,11 @@ def get_segment_time(start, finish, air_speed, wind_speed, wind_direction) -> da
 
 
 def calculate_and_get_relative_gate_times(
-    route, air_speed, wind_speed, wind_direction
+    route, air_speed, wind_speed, wind_direction, leg_winds: Optional[List[Tuple[float, float]]] = None
 ) -> List[Tuple[str, datetime.timedelta]]:
     """
-    Used to calculate the gate times for a contestant when it is created.
+    Used to calculate the gate times for a contestant when it is created. ``leg_winds`` gives each leg its own wind (speed,
+    direction) instead, e.g. the wind that was actually there (the flight summaries).
     """
     waypoints = list(filter(lambda waypoint: waypoint.type not in ("dummy",), route.waypoints))  # type: List[Waypoint]
     if len(waypoints) == 0:
@@ -28,6 +29,8 @@ def calculate_and_get_relative_gate_times(
     for waypoint in waypoints:
         centre_tracks.append(waypoint.get_centre_track_segments())
     for index in range(0, len(waypoints) - 1):
+        if leg_winds is not None:
+            wind_speed, wind_direction = leg_winds[index]
         current_gate = centre_tracks[index]
         next_gate = centre_tracks[index + 1]
         start_index = len(current_gate) // 2

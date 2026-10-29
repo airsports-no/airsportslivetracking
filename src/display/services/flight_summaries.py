@@ -7,7 +7,9 @@ the flight's score log to the model, so asking again is free until a restart or 
 contestant's track_version or score_version. New generations are limited per user per day and by a monthly budget
 (settings.FLIGHT_SUMMARY_*), since we pay for every one of them.
 
-Only scoring facts are sent: the contest, task and scorecard, the score and placement, and the score log - no names.
+What is sent: the contest, task and scorecard, the score and placement, the score log, and the analysis of the legs,
+wind, weather and the field (display.services.flight_analysis) - which names the crews, as the public map and results
+do. The model answers with a headline and a few titled sections, which the website shows as cards.
 """
 
 import datetime
@@ -24,33 +26,74 @@ from django.utils import timezone
 
 from display.models import Contestant, FlightSummary, ScoreLogEntry
 from display.models.scoring_models import ANOMALY, INFORMATION
+from display.services.flight_analysis import analyse_flight
 
 logger = logging.getLogger(__name__)
 
 # Bump whenever the prompt or the facts sent change: every summary written before is then generated anew on request.
-PROMPT_VERSION = 1
+PROMPT_VERSION = 3
 
 # A pending generation older than this is taken as lost (the worker died) and may be asked for again.
 PENDING_TIMEOUT = datetime.timedelta(minutes=10)
 
-MAX_OUTPUT_TOKENS = 4000
+MAX_OUTPUT_TOKENS = 6000
 
-SYSTEM_PROMPT = """You write a short debrief of one flight in a general aviation competition (precision flying, air \
-navigation race, rally and similar tasks), for the crew who flew it. You are given the flight's data from the official \
-scoring system as JSON.
+SYSTEM_PROMPT = """You write the debrief of one flight in a general aviation competition (precision flying, air \
+navigation race, rally and similar tasks), for the crew who flew it. Make it useful and fun to read, like a friendly, \
+sharp instructor going through the flight afterwards. You are given the flight's data from the official scoring \
+system as JSON, with an analysis of the legs, the wind, the weather and the rest of the field.
+
+The data:
+- events and penalty_totals_by_gate are this crew's official score log. final_score and rank are the official result; \
+score_sorting says whether a lower or a higher score is better.
+- analysis.planned_wind is the wind the gate times were planned with. analysis.legs gives each leg's planned and \
+actual time and offset_at_end_seconds (positive: late at the gate at the end of the leg). actual_wind and \
+actual_headwind_kt come from a weather model at analysis.wind_height_ft_above_ground. wind_effect_seconds is how much \
+later (positive) or earlier that wind alone would have made a crew flying the planned airspeed exactly on that leg, \
+compared with the planned wind.
+- analysis.weather is the weather model's conditions at the start, middle and finish of the flight.
+- analysis.crews is every scored crew on the task, best first, with its score and its offset and points at each gate; \
+"you": true marks this crew. analysis.field_at_gates has the other crews' median offset at each gate and where this \
+crew's timing ranks there (1 is the most precise). analysis.highlights are extra facts about this crew's flight.
 
 Rules:
-- Use only facts that are in the data. Never guess why a penalty happened (wind, navigation, the aircraft, the crew's \
-intentions) and never invent gates, times or events.
-- Quote points only as they appear in the data, in the events, in penalty_totals_by_gate or as final_score. Do not add, \
-subtract or round them yourself.
-- final_score and rank are the official result; state them as given. score_sorting says whether a lower or a higher \
-score is better.
-- Start with one sentence on the result and the placement. Then describe where points were lost, the largest first, \
-naming the gates and saying how early or late the crossing was or what happened. Then mention what went well, such as \
-gates passed without penalty. End with one or two concrete things to practise, based only on the penalties.
-- 120 to 250 words. Plain text in short paragraphs: no headings, no lists, no markdown. Address the crew as "you". \
-Write in English."""
+- Use only facts in the data. Never invent gates, times, events or causes.
+- Quote points only as they appear in the data (events, penalty_totals_by_gate, final_score, or a crew's score or \
+points at a gate). Do not add, subtract or round them.
+- Blame or credit the wind for timing only where the data supports it: a leg's change in offset close to its \
+wind_effect_seconds, or most of the field being early or late at the same gates. Say when the crew did better or \
+worse than the wind explains. If the actual wind differed clearly from the planned wind, give both. Without wind or \
+weather data, leave them out.
+- Mention the weather only if it was notable (fog, low cloud, rain, poor visibility, strong gusts), as what the \
+weather model suggests, not as fact.
+- Compare with the other crews where it tells something: who did best at a gate where this crew lost points, whether \
+a problem gate caught everyone, the gap to the crews just above. You may name them.
+
+The answer:
+- headline: one short, lively sentence with the result and placement, starting with a fitting emoji.
+- sections: 3 to 6, in this order where there is something to say: where the points went; wind and weather; you and \
+the field; what went well (with a fun fact from the highlights); what to practise next time (one or two concrete \
+things). Each has a fitting emoji, a short title and 30 to 90 words of plain text (no markdown), in one or two short \
+paragraphs. Address the crew as "you". Write in English."""
+
+
+ANSWER_SCHEMA = {
+    "type": "object",
+    "properties": {
+        "headline": {"type": "string"},
+        "sections": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {"emoji": {"type": "string"}, "title": {"type": "string"}, "text": {"type": "string"}},
+                "required": ["emoji", "title", "text"],
+                "additionalProperties": False,
+            },
+        },
+    },
+    "required": ["headline", "sections"],
+    "additionalProperties": False,
+}
 
 
 class FlightSummaryRefused(Exception):
@@ -160,6 +203,9 @@ def summary_state(user, contestant: Contestant) -> dict:
         "enabled": is_enabled(),
         "status": summary.status if summary else None,
         "text": summary.text if summary and summary.status == FlightSummary.STATUS_DONE else "",
+        "headline": summary.headline if summary and summary.status == FlightSummary.STATUS_DONE else "",
+        "sections": summary.sections if summary and summary.status == FlightSummary.STATUS_DONE else [],
+        "analysis": summary.analysis if summary and summary.status == FlightSummary.STATUS_DONE else None,
         "requested_at": summary.requested_at if summary else None,
         "can_generate": refusal is None and _needs_generation(summary),
         "can_regenerate": user.is_superuser
@@ -230,6 +276,15 @@ def _rank(contestant: Contestant, score: float) -> tuple[int, int]:
     return better + 1, len(scores)
 
 
+def _analysis(contestant: Contestant) -> dict:
+    # The score log alone still makes a summary: a route or weather problem must not stop it
+    try:
+        return analyse_flight(contestant)
+    except Exception:
+        logger.exception(f"Could not analyse the flight of contestant {contestant.pk}")
+        return {}
+
+
 def flight_facts(contestant: Contestant) -> dict:
     """The scoring facts the model writes the summary from."""
     navigation_task = contestant.navigation_task
@@ -266,6 +321,7 @@ def flight_facts(contestant: Contestant) -> dict:
         "events": events,
         "penalty_totals_by_gate": totals_by_gate,
         "administrative_penalties": penalties,
+        "analysis": _analysis(contestant),
     }
 
 
@@ -278,6 +334,9 @@ def unsupported_point_figures(text: str, facts: dict) -> list[str]:
     known.update(abs(event["points"]) for event in facts["events"])
     known.update(abs(total) for total in facts["penalty_totals_by_gate"].values())
     known.update(abs(penalty["points"]) for penalty in facts["administrative_penalties"])
+    for crew in facts.get("analysis", {}).get("crews", []):
+        known.add(abs(crew["score"]))
+        known.update(abs(gate["points"]) for gate in crew["gates"].values() if "points" in gate)
     unsupported = []
     for match in _POINTS_FIGURE.finditer(text):
         value = float(match.group(1).replace(",", "."))
@@ -318,7 +377,7 @@ def generate(summary: FlightSummary):
             model=settings.FLIGHT_SUMMARY_MODEL,
             max_tokens=MAX_OUTPUT_TOKENS,
             system=SYSTEM_PROMPT,
-            output_config={"effort": "low"},
+            output_config={"effort": "low", "format": {"type": "json_schema", "schema": ANSWER_SCHEMA}},
             messages=[{"role": "user", "content": json.dumps(facts, indent=1)}],
         )
     except anthropic.APIError as e:
@@ -334,8 +393,19 @@ def generate(summary: FlightSummary):
     if response.stop_reason == "max_tokens":
         _fail(summary, "The summary was cut off.")
         return
-    text = "\n\n".join(block.text.strip() for block in response.content if block.type == "text").strip()
-    if not text:
+    try:
+        answer = json.loads(next(block.text for block in response.content if block.type == "text"))
+        headline = answer["headline"].strip()
+        sections = [
+            {"emoji": section["emoji"].strip(), "title": section["title"].strip(), "text": section["text"].strip()}
+            for section in answer["sections"]
+        ]
+    except (StopIteration, ValueError, KeyError, TypeError, AttributeError):
+        _fail(summary, "The model's answer could not be read.")
+        return
+    # The plain text keeps the whole summary readable where the sections are not shown
+    text = "\n\n".join([headline] + [f"{s['emoji']} {s['title']}\n{s['text']}" for s in sections]).strip()
+    if not headline or not sections:
         _fail(summary, "The model wrote nothing.")
         return
     unsupported = unsupported_point_figures(text, facts)
@@ -343,6 +413,22 @@ def generate(summary: FlightSummary):
         _fail(summary, f"The summary quotes points that are not in the score log: {', '.join(unsupported)}")
         return
     summary.text = text
+    summary.headline = headline
+    summary.sections = sections
+    summary.analysis = facts["analysis"]
     summary.status = FlightSummary.STATUS_DONE
     summary.error = ""
-    summary.save(update_fields=["status", "text", "error", "input_tokens", "output_tokens", "cost_usd", "model"])
+    summary.save(
+        update_fields=[
+            "status",
+            "text",
+            "headline",
+            "sections",
+            "analysis",
+            "error",
+            "input_tokens",
+            "output_tokens",
+            "cost_usd",
+            "model",
+        ]
+    )

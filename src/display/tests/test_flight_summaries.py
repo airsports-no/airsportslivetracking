@@ -1,4 +1,5 @@
 import datetime
+import json
 from decimal import Decimal
 from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
@@ -27,10 +28,21 @@ from display.utilities.tracking_definitions import TRACKING_PILOT
 from utilities.mock_utilities import TraccarMock
 
 
-def model_response(text, stop_reason="end_turn", input_tokens=2000, output_tokens=400):
+def model_response(text, stop_reason="end_turn", input_tokens=2000, output_tokens=400, raw=None):
+    """The model's answer: a headline and one section holding the text."""
+    answer = (
+        raw
+        if raw is not None
+        else json.dumps(
+            {
+                "headline": "🏁 You finished 1st.",
+                "sections": [{"emoji": "📉", "title": "Where the points went", "text": text}],
+            }
+        )
+    )
     return SimpleNamespace(
         stop_reason=stop_reason,
-        content=[SimpleNamespace(type="text", text=text)],
+        content=[SimpleNamespace(type="text", text=answer)],
         usage=SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens),
     )
 
@@ -48,6 +60,10 @@ class FlightSummaryTest(TestCase):
             patcher = patch(target, return_value=TraccarMock)
             patcher.start()
             self.addCleanup(patcher.stop)
+        # No weather from the network in tests: the analysis goes on without it
+        weather = patch("display.services.flight_weather.fetch_weather", return_value=None)
+        weather.start()
+        self.addCleanup(weather.stop)
         delay = patch("display.tasks.generate_flight_summary.delay")
         self.delay = delay.start()
         self.addCleanup(delay.stop)
@@ -271,20 +287,27 @@ class FlightSummaryTest(TestCase):
         summary.refresh_from_db()
         return summary, client.messages.create.call_args.kwargs
 
-    def test_the_summary_is_written_from_the_score_log_without_names(self):
+    def test_the_summary_is_written_in_sections_from_the_score_log(self):
         summary, request = self.run_generation(
             model_response("You scored 42 points, placing 1st. You lost 30 points at SP and 12 points at TP1.")
         )
         self.assertEqual(summary.status, FlightSummary.STATUS_DONE)
+        self.assertEqual(summary.headline, "🏁 You finished 1st.")
+        self.assertEqual(summary.sections[0]["title"], "Where the points went")
         self.assertIn("42 points", summary.text)
+        self.assertEqual(request["output_config"]["format"]["type"], "json_schema")
         self.assertEqual(summary.input_tokens, 2000)
         self.assertEqual(summary.cost_usd, Decimal("0.000400"))
         self.assertEqual(request["model"], "claude-haiku-5-5")
         sent = request["messages"][0]["content"]
         self.assertIn('"gate": "SP"', sent)
         self.assertIn('"final_score": 42', sent)
-        for name in ("Pi", "Lot", "pilot@example.com", "LN-SUM"):
-            self.assertNotIn(name, sent)
+        self.assertIn('"analysis"', sent)
+        self.assertIsNone(summary.analysis["weather_source"])
+        # Crews are named, as on the public map and results, but never with their e-mail or aeroplane
+        self.assertIn("Pi Lot and Co Pilot", sent)
+        for private in ("pilot@example.com", "LN-SUM"):
+            self.assertNotIn(private, sent)
 
     def test_points_the_score_log_does_not_have_fail_the_summary(self):
         summary, _ = self.run_generation(model_response("You lost 42 points at SP and 17 points elsewhere."))
@@ -293,6 +316,17 @@ class FlightSummaryTest(TestCase):
         self.assertEqual(summary.text, "")
         # It still cost us: the budget counts it
         self.assertEqual(summary.cost_usd, Decimal("0.000400"))
+
+    def test_an_answer_that_is_not_the_schema_fails_the_summary(self):
+        summary, _ = self.run_generation(model_response("", raw="Here is your summary!"))
+        self.assertEqual(summary.status, FlightSummary.STATUS_FAILED)
+
+    def test_the_other_crews_points_may_be_quoted(self):
+        facts = flight_summaries.flight_facts(self.contestant)
+        facts["analysis"] = {"crews": [{"score": 17, "gates": {"SP": {"offset_seconds": 3, "points": 9}}}]}
+        self.assertEqual(
+            flight_summaries.unsupported_point_figures("The winner had 17 points, 9 points at SP.", facts), []
+        )
 
     def test_a_refusal_fails_the_summary(self):
         summary, _ = self.run_generation(model_response("", stop_reason="refusal"))
