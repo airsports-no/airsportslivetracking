@@ -30,8 +30,9 @@ from display.services.flight_analysis import analyse_flight
 
 logger = logging.getLogger(__name__)
 
-# Bump whenever the prompt or the facts sent change: every summary written before is then generated anew on request.
-PROMPT_VERSION = 4
+# Bump whenever the prompt or the facts sent change. A summary written with an earlier version is still shown until the
+# flight's scores change (writing them all again would cost us for nothing); superusers can regenerate it.
+PROMPT_VERSION = 5
 
 # A pending generation older than this is taken as lost (the worker died) and may be asked for again.
 PENDING_TIMEOUT = datetime.timedelta(minutes=10)
@@ -69,6 +70,10 @@ or round them.
 wind_effect_seconds, or most of the field being early or late at the same gates. Say when the crew did better or \
 worse than the wind explains. If the actual wind differed clearly from the planned wind, give both. Without wind or \
 weather data, leave them out.
+- analysis.wind_difference compares the planned wind with the wind through the flight. When its "big" is true, the \
+wind and weather section must open by saying plainly that the wind was very different from the planned wind, with \
+both (direction and speed, e.g. "planned 180° at 13 kt, but it was 252° at 14 kt"), and then what that did to the \
+timing.
 - Mention the weather only if it was notable (fog, low cloud, rain, poor visibility, strong gusts), as what the \
 weather model suggests, not as fact.
 - Compare with the other crews where it tells something: who did best at a gate where this crew lost points, whether \
@@ -140,14 +145,29 @@ def not_scored_reason(contestant: Contestant) -> str | None:
     return None
 
 
+def _summaries_for_scores(contestant: Contestant) -> tuple[FlightSummary | None, FlightSummary | None]:
+    """For the contestant's current scores: the row of this prompt version, and the newest summary written before it."""
+    rows = FlightSummary.objects.filter(
+        contestant=contestant, track_version=contestant.track_version, score_version=contestant.score_version
+    ).order_by("-prompt_version")
+    own = older = None
+    for row in rows:
+        if row.prompt_version == PROMPT_VERSION:
+            own = row
+        elif older is None and row.prompt_version < PROMPT_VERSION and row.status == FlightSummary.STATUS_DONE:
+            older = row
+    return own, older
+
+
 def current_summary(contestant: Contestant) -> FlightSummary | None:
-    """The summary written for the contestant's current scores, if anyone has asked for it."""
-    return FlightSummary.objects.filter(
-        contestant=contestant,
-        track_version=contestant.track_version,
-        score_version=contestant.score_version,
-        prompt_version=PROMPT_VERSION,
-    ).first()
+    """
+    The summary of the contestant's current scores to show, if anyone has asked for one: this prompt version's when it
+    is written or being written, and otherwise the newest one written with an earlier version.
+    """
+    own, older = _summaries_for_scores(contestant)
+    if own and (own.status == FlightSummary.STATUS_DONE or _is_being_written(own)):
+        return own
+    return older or own
 
 
 def remaining_today(user) -> int | None:
@@ -249,12 +269,14 @@ def request_summary(user, contestant: Contestant, regenerate: bool = False) -> F
     now = timezone.now()
     try:
         with transaction.atomic():
-            if existing:
-                FlightSummary.objects.filter(pk=existing.pk).update(
+            # Always written as this prompt version: an earlier version's summary stays as it is
+            own, _ = _summaries_for_scores(contestant)
+            if own:
+                FlightSummary.objects.filter(pk=own.pk).update(
                     status=FlightSummary.STATUS_PENDING, text="", error="", requested_by=user, requested_at=now
                 )
-                existing.refresh_from_db()
-                summary = existing
+                own.refresh_from_db()
+                summary = own
             else:
                 summary = FlightSummary.objects.create(
                     contestant=contestant,
@@ -423,6 +445,40 @@ def _fail(summary: FlightSummary, error: str):
     summary.save(update_fields=["status", "error", "input_tokens", "output_tokens", "cost_usd", "model"])
 
 
+_KNOTS = re.compile(r"(\d+(?:\.\d+)?)\s*(?:kt|kts|knots?)\b", re.IGNORECASE)
+_CALM = re.compile(r"\b(no wind|calm|without wind|zero wind|nil wind)\b", re.IGNORECASE)
+_DEGREES = re.compile(r"(\d{1,3})\s*(?:°|degrees)", re.IGNORECASE)
+
+
+def missing_wind_difference(text: str, facts: dict) -> str | None:
+    """
+    When the wind was very different from the planned one, the summary must give both: what is missing, or None.
+    """
+    difference = (facts.get("analysis") or {}).get("wind_difference")
+    if not difference or not difference["big"]:
+        return None
+    knots = [float(value) for value in _KNOTS.findall(text)]
+    degrees = [float(value) for value in _DEGREES.findall(text)]
+
+    def stated(wind: dict) -> bool:
+        if wind["speed_kt"] < 1:
+            # A calm plan has no direction to give
+            return bool(_CALM.search(text)) or any(value < 1 for value in knots)
+        has_speed = any(abs(value - wind["speed_kt"]) <= 1.5 for value in knots)
+        has_direction = any(abs((value - wind["direction"] + 180) % 360 - 180) <= 10 for value in degrees)
+        return has_speed and has_direction
+
+    if stated(difference["planned"]) and stated(difference["actual"]):
+        return None
+    planned, actual = difference["planned"], difference["actual"]
+    return (
+        "The wind was very different from the planned wind, and the summary must say so plainly at the start of the "
+        "wind and weather section, with both: planned "
+        + ("no wind" if planned["speed_kt"] < 1 else f"{planned['direction']:.0f}° at {planned['speed_kt']:.0f} kt")
+        + f", and {actual['direction']:.0f}° at {actual['speed_kt']:.0f} kt through the flight."
+    )
+
+
 def _read_answer(response) -> tuple[str, list[dict]]:
     answer = json.loads(next(block.text for block in response.content if block.type == "text"))
     headline = answer["headline"].strip()
@@ -438,14 +494,19 @@ def _as_text(headline: str, sections: list[dict]) -> str:
     return "\n\n".join([headline] + [f"{s['emoji']} {s['title']}\n{s['text']}" for s in sections]).strip()
 
 
-def _correction(unsupported: list[dict]) -> str:
-    problems = "\n".join(f'- "{item["figure"]}" in: "{item["sentence"]}"' for item in unsupported)
-    return (
-        "These points figures are not in the data (and are not a total of this crew's own penalties, or another crew's "
-        f"figures in a sentence that names it):\n{problems}\n"
-        "Rewrite only the sentences with them, using figures from the data, and keep everything else as it was. "
-        "Answer with the whole summary again."
-    )
+def _correction(unsupported: list[dict], missing_wind: str | None) -> str:
+    parts = []
+    if unsupported:
+        problems = "\n".join(f'- "{item["figure"]}" in: "{item["sentence"]}"' for item in unsupported)
+        parts.append(
+            "These points figures are not in the data (and are not a total of this crew's own penalties, or another "
+            f"crew's figures in a sentence that names it):\n{problems}\n"
+            "Rewrite only the sentences with them, using figures from the data."
+        )
+    if missing_wind:
+        parts.append(missing_wind)
+    parts.append("Keep everything else as it was, and answer with the whole summary again.")
+    return "\n\n".join(parts)
 
 
 def generate(summary: FlightSummary):
@@ -497,16 +558,20 @@ def generate(summary: FlightSummary):
             return
         text = _as_text(headline, sections)
         unsupported = unsupported_point_figures(text, facts)
-        if not unsupported:
+        missing_wind = missing_wind_difference(text, facts)
+        if not unsupported and not missing_wind:
             break
-        logger.info(f"Flight summary {summary.pk}: asking for a correction of {unsupported}")
+        logger.info(f"Flight summary {summary.pk}: asking for a correction of {unsupported} {missing_wind or ''}")
         messages += [
             {"role": "assistant", "content": response.content},
-            {"role": "user", "content": _correction(unsupported)},
+            {"role": "user", "content": _correction(unsupported, missing_wind)},
         ]
     else:
-        figures = ", ".join(item["figure"] for item in unsupported)
-        _fail(summary, f"The summary quotes points that are not in the data: {figures}")
+        if unsupported:
+            figures = ", ".join(item["figure"] for item in unsupported)
+            _fail(summary, f"The summary quotes points that are not in the data: {figures}")
+        else:
+            _fail(summary, "The summary does not say how different the wind was from the planned wind.")
         return
     summary.text = text
     summary.headline = headline

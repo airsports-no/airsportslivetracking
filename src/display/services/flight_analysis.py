@@ -19,6 +19,12 @@ from display.utilities.calculate_gate_times import calculate_and_get_relative_ga
 
 FT_PER_M = 1 / 0.3048
 
+# When the wind the weather model had differs this much from the planned wind, the summary must say so
+BIG_WIND_VECTOR_DIFFERENCE_KT = 8
+BIG_WIND_SPEED_DIFFERENCE_KT = 5
+BIG_WIND_DIRECTION_DIFFERENCE = 40
+WIND_SPEED_FOR_DIRECTION_KT = 5
+
 # Enough for any task we run, and it keeps what is sent to the model bounded
 MAX_CREWS = 80
 
@@ -242,6 +248,34 @@ def _highlights(contestant, offsets, waypoints, planned, actual) -> dict:
     return highlights
 
 
+def wind_difference(planned_speed: float, planned_direction: float, winds: list[dict]) -> dict | None:
+    """How the wind through the flight (the mean of the weather model's) compares with the planned wind."""
+    winds = [wind for wind in winds if wind]
+    if not winds:
+        return None
+    components = [_components(wind["speed_kt"], wind["direction"]) for wind in winds]
+    east = sum(e for e, _ in components) / len(components)
+    north = sum(n for _, n in components) / len(components)
+    speed, direction = flight_weather.to_speed_and_direction(east, north)
+    planned_east, planned_north = _components(planned_speed, planned_direction)
+    vector = math.hypot(east - planned_east, north - planned_north)
+    speeds = abs(speed - planned_speed)
+    directions = abs((direction - planned_direction + 180) % 360 - 180)
+    big = (
+        vector >= BIG_WIND_VECTOR_DIFFERENCE_KT
+        or speeds >= BIG_WIND_SPEED_DIFFERENCE_KT
+        or (directions >= BIG_WIND_DIRECTION_DIFFERENCE and min(speed, planned_speed) >= WIND_SPEED_FOR_DIRECTION_KT)
+    )
+    return {
+        "planned": {"speed_kt": planned_speed, "direction": planned_direction},
+        "actual": {"speed_kt": speed, "direction": direction},
+        "vector_difference_kt": round(vector, 1),
+        "speed_difference_kt": round(speed - planned_speed, 1),
+        "direction_difference": round(directions),
+        "big": big,
+    }
+
+
 def analyse_flight(contestant: Contestant) -> dict:
     waypoints = _waypoints(contestant)
     planned = contestant.gate_times
@@ -269,6 +303,9 @@ def analyse_flight(contestant: Contestant) -> dict:
         "weather_source": flight_weather.SOURCE if location else None,
         "wind_height_ft_above_ground": height_ft,
         "weather": conditions,
+        "wind_difference": wind_difference(
+            contestant.wind_speed, contestant.wind_direction, [condition.get("wind") for condition in conditions]
+        ),
         "legs": _legs(contestant, waypoints, planned, actual, weather_points),
         "field_at_gates": field_at_gates,
         "crews": crews,

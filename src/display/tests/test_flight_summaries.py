@@ -255,6 +255,25 @@ class FlightSummaryTest(TestCase):
         self.assertEqual(summary.status, FlightSummary.STATUS_PENDING)
         self.delay.assert_called_once_with(summary.pk)
 
+    def test_a_summary_written_with_an_earlier_prompt_is_shown_without_a_new_generation(self):
+        self.done_summary(prompt_version=flight_summaries.PROMPT_VERSION - 1, text="An older summary.")
+        response = self.generate(self.pilot_user)
+        self.assertEqual(response.json()["text"], "An older summary.")
+        self.assertFalse(response.json()["can_generate"])
+        self.delay.assert_not_called()
+
+    def test_regenerating_an_earlier_prompts_summary_writes_a_new_one_and_keeps_the_old(self):
+        older = self.done_summary(prompt_version=flight_summaries.PROMPT_VERSION - 1, text="An older summary.")
+        self.generate(self.superuser, regenerate=True)
+        new = FlightSummary.objects.get(prompt_version=flight_summaries.PROMPT_VERSION)
+        self.delay.assert_called_once_with(new.pk)
+        older.refresh_from_db()
+        self.assertEqual(older.text, "An older summary.")
+        # While the new one is written it is what is shown; if it fails, the older one is shown again
+        self.assertEqual(flight_summaries.current_summary(self.contestant), new)
+        FlightSummary.objects.filter(pk=new.pk).update(status=FlightSummary.STATUS_FAILED)
+        self.assertEqual(flight_summaries.current_summary(self.contestant), older)
+
     # Limits
 
     def test_a_user_gets_five_new_summaries_a_day_and_failed_ones_do_not_count(self):
@@ -361,6 +380,57 @@ class FlightSummaryTest(TestCase):
     def test_the_gap_to_a_named_crew_and_the_winners_score_pass(self):
         self.assertEqual(self.unsupported("You were 98 points ahead of Bo Late."), [])
         self.assertEqual(self.unsupported("The winner had 17 points. You were 25 points behind Ann Ace."), [])
+
+    # Saying how different the wind was
+
+    def wind_facts(self, planned=(13, 180), actual=(14, 252)):
+        from display.services.flight_analysis import wind_difference
+
+        return {
+            "analysis": {
+                "wind_difference": wind_difference(*planned, [{"speed_kt": actual[0], "direction": actual[1]}])
+            }
+        }
+
+    def test_a_big_wind_difference_is_found(self):
+        self.assertTrue(self.wind_facts()["analysis"]["wind_difference"]["big"])
+        self.assertTrue(self.wind_facts(planned=(5, 270), actual=(15, 270))["analysis"]["wind_difference"]["big"])
+        self.assertFalse(self.wind_facts(planned=(10, 250), actual=(12, 260))["analysis"]["wind_difference"]["big"])
+        # Light winds: a different direction hardly matters
+        self.assertFalse(self.wind_facts(planned=(3, 90), actual=(4, 200))["analysis"]["wind_difference"]["big"])
+
+    def test_a_big_wind_difference_must_be_stated_with_both_winds(self):
+        facts = self.wind_facts()
+        self.assertIsNone(
+            flight_summaries.missing_wind_difference("Planned 180° at 13 kt, but it blew 252° at 14 kt.", facts)
+        )
+        self.assertIn("planned 180° at 13 kt", flight_summaries.missing_wind_difference("It was windy.", facts))
+        calm = self.wind_facts(planned=(0, 0), actual=(15, 250))
+        self.assertIsNone(
+            flight_summaries.missing_wind_difference("No wind was planned, but it was 250 degrees at 15 kt.", calm)
+        )
+        # Nothing to say when the wind was as planned
+        self.assertIsNone(flight_summaries.missing_wind_difference("", self.wind_facts(actual=(13, 185))))
+
+    def test_a_summary_that_leaves_out_a_big_wind_difference_is_corrected(self):
+        from display.services.flight_analysis import wind_difference
+
+        client = MagicMock()
+        client.messages.create.side_effect = [
+            model_response("You lost 30 points at SP."),
+            model_response("You lost 30 points at SP. The plan had 180° at 13 kt, but it was 252° at 14 kt."),
+        ]
+        summary = self.summary_row()
+        difference = wind_difference(13, 180, [{"speed_kt": 14, "direction": 252}])
+        with (
+            patch("anthropic.Anthropic", return_value=client),
+            patch("display.services.flight_analysis.wind_difference", return_value=difference),
+        ):
+            flight_summaries.generate(FlightSummary.objects.select_related("contestant").get(pk=summary.pk))
+        summary.refresh_from_db()
+        self.assertEqual(summary.status, FlightSummary.STATUS_DONE)
+        self.assertEqual(client.messages.create.call_count, 2)
+        self.assertIn("very different", client.messages.create.call_args.kwargs["messages"][2]["content"])
 
     # Correcting the answer
 
