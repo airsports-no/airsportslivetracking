@@ -158,6 +158,14 @@ class FlightSummaryTest(TestCase):
         self.delay.assert_called_once_with(summary.pk)
         self.assertEqual(summary.requested_by, self.pilot_user)
 
+    def test_a_browser_session_can_ask_for_a_summary(self):
+        # Logged in by session, as the website is: request.user is then a lazy wrapper, not the user model itself
+        self.client.force_login(self.pilot_user)
+        with self.captureOnCommitCallbacks(execute=True):
+            response = self.client.post(self.url("generate/"), {"style": "pundit"}, format="json")
+        self.assertEqual(response.status_code, 202)
+        self.delay.assert_called_once()
+
     def test_the_copilot_may_ask_too(self):
         self.assertEqual(self.generate(self.copilot_user).status_code, 202)
 

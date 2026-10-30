@@ -20,6 +20,7 @@ import re
 from decimal import Decimal
 
 from django.conf import settings
+from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
 from django.db.models import Sum
@@ -342,7 +343,7 @@ def request_summary(
         with transaction.atomic():
             # The user's generations one at a time, with the quota checked again under the lock: parallel requests for
             # several flights cannot all pass the check
-            type(user).objects.select_for_update().filter(pk=user.pk).first()
+            get_user_model().objects.select_for_update().filter(pk=user.pk).first()
             refusal = _refusal(user, contestant, new_generation=True)
             if refusal:
                 raise refusal
