@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Bump whenever the prompt or the facts sent change. A summary written with an earlier version is still shown until the
 # flight's scores change (writing them all again would cost us for nothing); superusers can regenerate it.
-PROMPT_VERSION = 10
+PROMPT_VERSION = 11
 
 # A pending generation older than this is taken as lost (the worker died) and may be asked for again.
 PENDING_TIMEOUT = datetime.timedelta(minutes=10)
@@ -126,19 +126,25 @@ each.""",
     },
     "comedy": {
         "label": "Comedy",
-        "prompt": """Style: comedy, and actually funny. You are a sharp stand-up comedian who flies, doing a short set \
-about this flight at the contest's prize-giving dinner. Write jokes, not descriptions with a joke attached: setups \
-and punchlines, callbacks to an earlier joke, absurdly precise comparisons, comic exaggeration of how it felt (never \
-of the facts), deadpan understatement of the disasters. Pick the two or three funniest things in the data - the most \
-expensive moment, an absurd number, the rival who did it effortlessly, the wind if it is funny - build the set around \
-them and leave the rest out. You do not have to cover everything, keep any order, or mention the wind.
-Roast affectionately, as a friend who flew the same contest would: tease the decisions, the numbers and the luck, \
-never the person, their looks or who they are, and no puns on names. Every fact and figure you use is real, from the \
-data, so the jokes still tell what happened.
+        "prompt": """Style: comedy - sharp, witty and genuinely funny, not a report with jokes in it. You are the best \
+comedian at the contest's prize-giving dinner, and the room is full of pilots who know exactly what a penalty zone \
+feels like. Find the story in the data - the irony, the cruel twist, the moment it all went sideways, the rival who \
+made it look easy - and tell it with wit: a strong premise, misdirection, a twist in the last line, a callback, an \
+absurd but apt comparison, deadpan understatement, a running joke that pays off at the end. Wordplay is welcome, \
+just not on anyone's name.
+Go easy on the numbers: a figure only where the number itself is the punchline (one or two in the whole piece), \
+otherwise say it in words ("a corridor exit long enough to file a flight plan for"). The reader should still know \
+what happened - the gate, the penalty, the place - but the laugh comes first. You do not have to cover everything, \
+keep any order, or mention the wind.
+Roast affectionately, as a friend who flew the same contest would: tease the decisions and the luck, never the person, \
+their looks or who they are.
 Headline: a punchline about the flight.
-Sections: 1 to 3 bits, each titled like the name of a comedy bit, 50 to 120 words each.""",
-        # Haiku's jokes were thin even with more effort; Sonnet is funny at low effort (about 10x the cost)
+Sections: 1 to 3 bits, each titled like the name of a comedy bit, 40 to 100 words each. Short sentences, tight \
+timing; cut any line that is not funny or needed for the next joke.""",
+        # Haiku's jokes were thin even with more effort; Sonnet is funny (about 10x the cost), and sharper at medium
+        # effort than at low for the same price (it thinks a little and then writes less)
         "model_setting": "FLIGHT_SUMMARY_COMEDY_MODEL",
+        "effort": "medium",
         # A joke does not have to be about the wind: the big-wind-difference check is skipped
         "states_wind": False,
     },
@@ -470,7 +476,41 @@ def flight_facts(contestant: Contestant) -> dict:
     }
 
 
-_POINTS_FIGURE = re.compile(r"(\d+(?:[.,]\d+)?)\s*(?:penalty\s+)?(?:points?|pts)\b", re.IGNORECASE)
+_NUMBER_WORDS = {
+    word: value
+    for value, word in enumerate(
+        "zero one two three four five six seven eight nine ten eleven twelve thirteen fourteen fifteen sixteen "
+        "seventeen eighteen nineteen".split()
+    )
+} | {
+    word: 10 * (index + 2) for index, word in enumerate("twenty thirty forty fifty sixty seventy eighty ninety".split())
+}
+_NUMBER_IN_WORDS = (
+    r"(?:(?:" + "|".join(_NUMBER_WORDS) + r")(?:[\s-]+(?:and|hundred|thousand|" + "|".join(_NUMBER_WORDS) + r"))*)"
+)
+# A figure in digits or in words ("sixty-nine points"), followed by points
+_POINTS_FIGURE = re.compile(
+    rf"(\d+(?:[.,]\d+)?|\b{_NUMBER_IN_WORDS})\s*(?:penalty\s+)?(?:points?|pts)\b", re.IGNORECASE
+)
+
+
+def _number(figure: str) -> float:
+    """A figure in digits, or a whole number in English words (up to the thousands)."""
+    if figure[0].isdigit():
+        return float(figure.replace(",", "."))
+    total = current = 0
+    for word in re.split(r"[\s-]+", figure.lower()):
+        if word == "and":
+            continue
+        if word == "hundred":
+            current *= 100
+        elif word == "thousand":
+            total, current = total + current * 1000, 0
+        else:
+            current += _NUMBER_WORDS[word]
+    return float(total + current)
+
+
 _SENTENCE_END = re.compile(r"(?<=[.!?])\s+")
 _WINNER_WORDS = re.compile(r"\b(winner|won|wins|first|1st|leader|led|top)\b", re.IGNORECASE)
 # Cents, so that sums of points with decimals compare exactly
@@ -531,7 +571,7 @@ def unsupported_point_figures(text: str, facts: dict) -> list[dict]:
         if winner and _WINNER_WORDS.search(sentence):
             allowed |= _crew_figures(winner, facts["final_score"])
         for figure in figures:
-            value = _scaled(float(figure.replace(",", ".")))
+            value = _scaled(_number(figure))
             if not any(abs(value - known) <= _TOLERANCE for known in allowed):
                 unsupported.append({"figure": f"{figure} points", "sentence": sentence.strip()})
     return unsupported
@@ -662,7 +702,10 @@ def generate(summary: FlightSummary):
                 model=model,
                 max_tokens=MAX_OUTPUT_TOKENS,
                 system=system_prompt(summary.style),
-                output_config={"effort": "low", "format": {"type": "json_schema", "schema": ANSWER_SCHEMA}},
+                output_config={
+                    "effort": STYLES[summary.style].get("effort", "low"),
+                    "format": {"type": "json_schema", "schema": ANSWER_SCHEMA},
+                },
                 messages=messages,
             )
             if model in MODELS_WITH_FALLBACK:

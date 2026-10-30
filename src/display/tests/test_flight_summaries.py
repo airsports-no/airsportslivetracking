@@ -491,6 +491,13 @@ class FlightSummaryTest(TestCase):
     def test_a_wrong_total_fails(self):
         self.assertEqual(self.unsupported("SP and TP1 cost you 40 points together."), ["40 points"])
 
+    def test_figures_in_words_are_checked_too(self):
+        self.assertEqual(self.unsupported("SP and TP1 cost you thirty-nine points together."), [])
+        self.assertEqual(self.unsupported("You scored forty two points."), [])
+        self.assertEqual(self.unsupported("SP cost you sixty-nine points."), ["sixty-nine points"])
+        self.assertEqual(self.unsupported("Bo Late lost seventy-seven points at SP."), [])
+        self.assertEqual(flight_summaries._number("one hundred and forty"), 140)
+
     def test_another_crews_figures_pass_only_in_a_sentence_that_names_it(self):
         self.assertEqual(self.unsupported("Bo Late lost 77 points at SP."), [])
         self.assertEqual(self.unsupported("Someone lost 77 points at SP."), ["77 points"])
