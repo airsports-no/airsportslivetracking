@@ -118,6 +118,17 @@ def _field(contestant: Contestant) -> tuple[list[dict], dict[str, dict]]:
         }
         if crew.pk == contestant.pk:
             entry["you"] = True
+        else:
+            # In words: with lower-is-better scoring, "273 behind" is easy to get the wrong way round
+            gap = round(abs(crew.contestanttrack.score - contestant.contestanttrack.score), 2)
+            better = (
+                crew.contestanttrack.score > contestant.contestanttrack.score
+                if descending
+                else crew.contestanttrack.score < contestant.contestanttrack.score
+            )
+            entry["compared_with_you"] = (
+                "the same score as you" if gap == 0 else f"{gap:g} points {'better' if better else 'worse'} than you"
+            )
         field.append(entry)
 
     own = offsets_by_crew.get(contestant.pk, _offsets(contestant))

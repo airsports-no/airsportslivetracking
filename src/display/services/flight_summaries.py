@@ -34,7 +34,7 @@ logger = logging.getLogger(__name__)
 
 # Bump whenever the prompt or the facts sent change. A summary written with an earlier version is still shown until the
 # flight's scores change (writing them all again would cost us for nothing); superusers can regenerate it.
-PROMPT_VERSION = 8
+PROMPT_VERSION = 10
 
 # A pending generation older than this is taken as lost (the worker died) and may be asked for again.
 PENDING_TIMEOUT = datetime.timedelta(minutes=10)
@@ -59,9 +59,10 @@ compared with the planned wind. you_compared_with_plan and wind_alone_would_have
 use them to get earlier and later the right way round (a negative wind effect means the wind helped).
 - analysis.weather is the weather model's conditions at the start, middle and finish of the flight.
 - analysis.crews is every scored crew on the task, best first, with its score and its offset and points at each gate; \
-"you": true marks this crew. analysis.field_at_gates has the other crews' median offset at each gate and where this \
-crew's timing ranks there (1 is the most precise). analysis.timing sums up the timing precision of this crew and the \
-field. analysis.highlights are extra facts about this crew's flight.
+"you": true marks this crew, and compared_with_you says whether each other crew did better or worse (use it to get \
+ahead and behind the right way round). analysis.field_at_gates has the other crews' median offset at each gate and \
+where this crew's timing ranks there (1 is the most precise). analysis.timing sums up the timing precision of this \
+crew and the field. analysis.highlights are extra facts about this crew's flight.
 
 Rules:
 - Use only facts in the data. Never invent gates, times, events or causes.
@@ -72,9 +73,9 @@ or round them.
 - Blame or credit the wind for timing only where the data supports it: a leg's change in offset close to its \
 wind_effect_seconds, or most of the field being early or late at the same gates. Say when the crew did better or \
 worse than the wind explains. Without wind or weather data, leave them out.
-- analysis.wind_difference compares the planned wind with the wind through the flight. When its "big" is true, the \
-section about the wind must open by saying plainly that the wind was very different from the planned wind, with both \
-(direction and speed, e.g. "planned 180° at 13 kt, but it was 252° at 14 kt"), and then what that did to the timing.
+- analysis.wind_difference compares the planned wind with the wind through the flight. When its "big" is true, say \
+plainly and early on that the wind was very different from the planned wind, with both (direction and speed, e.g. \
+"planned 180° at 13 kt, but it was 252° at 14 kt"), and what that did to the timing - unless the style says otherwise.
 - Mention the weather only if it was notable (fog, low cloud, rain, poor visibility, strong gusts), as what the \
 weather model suggests, not as fact.
 - Compare with the other crews where it tells something: who did best at a gate where this crew lost points, whether \
@@ -85,9 +86,9 @@ Describe and compare; do not coach.
 mocking the crew (the comedy style may tease, affectionately).
 
 The answer:
-- headline: one short sentence with the result and placement, starting with a fitting emoji.
+- headline: one short sentence, starting with a fitting emoji, as the style below says.
 - sections as the style below says. Each has a fitting emoji, a short title and plain text (no markdown) in one or two \
-short paragraphs. Address the crew as "you". Write in English.
+short paragraphs. Leave out a section the flight gives nothing to say in. Address the crew as "you". Write in English.
 
 """
 
@@ -97,17 +98,21 @@ STYLES = {
         "label": "Debrief",
         "prompt": """Style: a friendly, sharp debrief, like an experienced competitor going through the flight with \
 you afterwards. Clear and warm.
-Sections, 3 to 5, in this order where there is something to say: where the points went; wind and weather; you and \
-the field; what went well (with a fun fact from the highlights). 30 to 90 words each.""",
+Headline: the result and placement.
+Sections: 2 to 5, by topic, only those the flight has something to say about, most important first. Usually: where \
+the points went; the wind and weather (only if they mattered); you and the field; the bright spots (with a fun fact \
+from the highlights). 30 to 90 words each.""",
     },
     "pundit": {
         "label": "Pundit",
-        "prompt": """Style: a television sports pundit or football commentator going through the highlights after \
-the match. Big moments, drama and momentum: "and that is where it slipped away", "what a crossing at TP 3", the \
-turning points of the flight, the title race with the crews around you. Lively and colourful, but every fact from the \
-data.
-Sections, 3 to 5, such as: the big moments (where the points went); the conditions (wind and weather); the table and \
-the rivals; the moment of the match. 40 to 90 words each.""",
+        "prompt": """Style: a television sports pundit or football commentator taking the viewers through the match \
+afterwards. Big moments, drama and momentum: "and that is where it slipped away", "what a crossing at TP 3", the \
+rivals around you in the table. Lively and colourful, but every fact from the data.
+Headline: the result and placement, as a pundit's line.
+Sections: tell it in order, as the story of the match - 3 or 4 phases of the flight (such as the opening from the \
+start, the middle of the route, the finish), then the verdict: where it leaves you in the table and against the \
+rivals. Title each phase by what happened in it ("Late, late, late at TP 2 and TP 3"), not "The opening". Weave the \
+wind and weather into the phase where they mattered. 40 to 90 words each.""",
     },
     "statistics": {
         "label": "Statistics",
@@ -115,20 +120,27 @@ the rivals; the moment of the match. 40 to 90 words each.""",
 seconds, points per gate, the timing figures in analysis.timing, ranks at gates, wind components and wind effects per \
 leg. Short sentences; no drama. The page shows the gate and leg tables next to your text, so interpret them rather \
 than repeat every row: patterns, outliers, where the points concentrate, how the timing compares with the field.
-Sections, 3 to 5, such as: scoring breakdown; timing precision; wind and legs; comparison with the field. 40 to 100 \
-words each.""",
+Headline: the result and placement, with the score.
+Sections: 3 or 4 - scoring breakdown; timing precision; wind and legs; comparison with the field. 40 to 100 words \
+each.""",
     },
     "comedy": {
         "label": "Comedy",
-        "prompt": """Style: comedy. A stand-up comedian who flies, telling the story of this flight to a room full \
-of pilots: running jokes, absurd comparisons, comic timing, self-aware asides about aviation, gate times and penalty \
-zones. Tease the crew affectionately, like a friend at the bar afterwards, and laugh with them, never at them; nothing \
-hurtful, crude or about who they are. The jokes come from the real events: every fact, figure and gate is still from \
-the data, and the reader must still learn what actually happened.
-Sections, 3 to 5, with funny titles, such as: where the points went; the wind and the weather; the rivals; the \
-highlight of the show. 40 to 90 words each.""",
+        "prompt": """Style: comedy, and actually funny. You are a sharp stand-up comedian who flies, doing a short set \
+about this flight at the contest's prize-giving dinner. Write jokes, not descriptions with a joke attached: setups \
+and punchlines, callbacks to an earlier joke, absurdly precise comparisons, comic exaggeration of how it felt (never \
+of the facts), deadpan understatement of the disasters. Pick the two or three funniest things in the data - the most \
+expensive moment, an absurd number, the rival who did it effortlessly, the wind if it is funny - build the set around \
+them and leave the rest out. You do not have to cover everything, keep any order, or mention the wind.
+Roast affectionately, as a friend who flew the same contest would: tease the decisions, the numbers and the luck, \
+never the person, their looks or who they are, and no puns on names. Every fact and figure you use is real, from the \
+data, so the jokes still tell what happened.
+Headline: a punchline about the flight.
+Sections: 1 to 3 bits, each titled like the name of a comedy bit, 50 to 120 words each.""",
         # Haiku's jokes were thin even with more effort; Sonnet is funny at low effort (about 10x the cost)
         "model_setting": "FLIGHT_SUMMARY_COMEDY_MODEL",
+        # A joke does not have to be about the wind: the big-wind-difference check is skipped
+        "states_wind": False,
     },
 }
 DEFAULT_STYLE = "debrief"
@@ -589,8 +601,8 @@ def missing_wind_difference(text: str, facts: dict) -> str | None:
         return None
     planned, actual = difference["planned"], difference["actual"]
     return (
-        "The wind was very different from the planned wind, and the summary must say so plainly at the start of the "
-        "wind and weather section, with both: planned "
+        "The wind was very different from the planned wind, and the summary must say so plainly and early on, with "
+        "both: planned "
         + ("no wind" if planned["speed_kt"] < 1 else f"{planned['direction']:.0f}° at {planned['speed_kt']:.0f} kt")
         + f", and {actual['direction']:.0f}° at {actual['speed_kt']:.0f} kt through the flight."
     )
@@ -683,7 +695,7 @@ def generate(summary: FlightSummary):
             return
         text = _as_text(headline, sections)
         unsupported = unsupported_point_figures(text, facts)
-        missing_wind = missing_wind_difference(text, facts)
+        missing_wind = missing_wind_difference(text, facts) if STYLES[summary.style].get("states_wind", True) else None
         if not unsupported and not missing_wind:
             break
         logger.info(f"Flight summary {summary.pk}: asking for a correction of {unsupported} {missing_wind or ''}")

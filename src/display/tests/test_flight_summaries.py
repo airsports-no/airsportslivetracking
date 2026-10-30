@@ -551,6 +551,22 @@ class FlightSummaryTest(TestCase):
         self.assertEqual(client.messages.create.call_count, 2)
         self.assertIn("very different", client.messages.create.call_args.kwargs["messages"][2]["content"])
 
+    def test_comedy_does_not_have_to_mention_the_wind(self):
+        from display.services.flight_analysis import wind_difference
+
+        client = MagicMock()
+        client.beta.messages.create.return_value = model_response("You lost 30 points at SP. Twice as funny.")
+        summary = self.done_summary(status=FlightSummary.STATUS_PENDING, text="", style="comedy")
+        difference = wind_difference(13, 180, [{"speed_kt": 14, "direction": 252}])
+        with (
+            patch("anthropic.Anthropic", return_value=client),
+            patch("display.services.flight_analysis.wind_difference", return_value=difference),
+        ):
+            flight_summaries.generate(FlightSummary.objects.select_related("contestant").get(pk=summary.pk))
+        summary.refresh_from_db()
+        self.assertEqual(summary.status, FlightSummary.STATUS_DONE)
+        self.assertEqual(client.beta.messages.create.call_count, 1)
+
     # Correcting the answer
 
     def test_points_the_data_does_not_have_are_corrected_once(self):

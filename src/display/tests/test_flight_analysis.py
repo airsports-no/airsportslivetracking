@@ -201,6 +201,8 @@ class FlightAnalysisTest(TestCase):
         self.assertEqual(analysis["highlights"]["longest_run_of_gates_without_penalty"], len(analysis["legs"]) + 1)
         self.assertEqual([crew["crew"] for crew in analysis["crews"]], ["P 1", "P 2"])
         self.assertTrue(analysis["crews"][0]["you"])
+        self.assertNotIn("compared_with_you", analysis["crews"][0])
+        self.assertEqual(analysis["crews"][1]["compared_with_you"], "the same score as you")
         self.assertEqual(analysis["field_at_gates"][gates[2]]["your_rank_by_precision"], 1)
 
     def test_other_crews_of_a_task_that_is_not_public_are_not_named(self):
