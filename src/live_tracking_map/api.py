@@ -11,6 +11,7 @@ from display.viewsets import (
     AdminMobileAppsViewSet,
     AdminSystemStatsViewSet,
     AdminUpcomingContestantsViewSet,
+    AdminUserFlightsViewSet,
     ContestViewSet,
     ImportFCNavigationTask,
     ImportFCNavigationTaskTeamId,
@@ -74,6 +75,7 @@ router.register(r"admin/upcoming-contestants", AdminUpcomingContestantsViewSet, 
 router.register(r"admin/system-stats", AdminSystemStatsViewSet, basename="admin-system-stats")
 router.register(r"admin/mobile-apps", AdminMobileAppsViewSet, basename="admin-mobile-apps")
 router.register(r"admin/activity-trends", AdminActivityTrendsViewSet, basename="admin-activity-trends")
+router.register(r"admin/user-flights", AdminUserFlightsViewSet, basename="admin-user-flights")
 # results_details_router = routers.NestedSimpleRouter(router, r'contestresults', lookup='contest')
 # results_details_router.register(r'details', ContestResultsDetailsViewSet, basename="contestresultsdetails")
 

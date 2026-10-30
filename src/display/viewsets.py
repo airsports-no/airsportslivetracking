@@ -2040,6 +2040,21 @@ class AdminMobileAppsViewSet(ViewSet):
         return Response(connected_apps(minutes))
 
 
+class AdminUserFlightsViewSet(ViewSet):
+    """Site-admin view of every flight one person has flown, as pilot or co-pilot (``?person=`` a Person id)."""
+
+    permission_classes = [IsSuperUser]
+
+    def list(self, request):
+        from display.services.admin_user_flights import user_flights
+
+        try:
+            person_id = int(request.query_params.get("person", ""))
+        except ValueError:
+            raise ValidationError({"person": "Must be a person id."})
+        return Response(user_flights(get_object_or_404(Person, pk=person_id)))
+
+
 class AdminUpcomingContestantsViewSet(ViewSet):
     """
     Forward-looking companion to AdminFlightStatsViewSet - "what's coming up" rather than "what
