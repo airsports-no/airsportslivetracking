@@ -28,7 +28,7 @@ from display.utilities.tracking_definitions import TRACKING_PILOT
 from utilities.mock_utilities import TraccarMock
 
 
-def model_response(text, stop_reason="end_turn", input_tokens=2000, output_tokens=400, raw=None):
+def model_response(text, stop_reason="end_turn", input_tokens=2000, output_tokens=400, raw=None, model=None):
     """The model's answer: a headline and one section holding the text."""
     answer = (
         raw
@@ -41,6 +41,7 @@ def model_response(text, stop_reason="end_turn", input_tokens=2000, output_token
         )
     )
     return SimpleNamespace(
+        model=model,
         stop_reason=stop_reason,
         content=[SimpleNamespace(type="text", text=answer)],
         usage=SimpleNamespace(input_tokens=input_tokens, output_tokens=output_tokens),
@@ -320,7 +321,7 @@ class FlightSummaryTest(TestCase):
         styles = self.client.get(self.url()).json()["styles"]
         self.assertEqual(
             [(style["key"], style["written"]) for style in styles],
-            [("debrief", True), ("pundit", False), ("statistics", False)],
+            [("debrief", True), ("pundit", False), ("statistics", False), ("comedy", False)],
         )
         self.assertTrue(self.client.get(self.url() + "?style=pundit").json()["can_generate"])
         response = self.generate(self.pilot_user, style="pundit")
@@ -346,6 +347,30 @@ class FlightSummaryTest(TestCase):
         self.assertIn("Do not give training advice", system)
         for style in flight_summaries.STYLES:
             self.assertNotIn("practise", flight_summaries.STYLES[style]["prompt"])
+
+    @override_settings(FLIGHT_SUMMARY_COMEDY_MODEL="claude-sonnet-5-5")
+    def test_comedy_is_written_by_its_own_model_with_a_fallback_and_priced_as_the_model_that_answered(self):
+        client = MagicMock()
+        client.beta.messages.create.return_value = model_response(
+            "You lost 30 points at SP.", input_tokens=10_000, output_tokens=1_000, model="claude-sonnet-5-5"
+        )
+        summary = self.done_summary(status=FlightSummary.STATUS_PENDING, text="", style="comedy")
+        with patch("anthropic.Anthropic", return_value=client):
+            flight_summaries.generate(FlightSummary.objects.select_related("contestant").get(pk=summary.pk))
+        summary.refresh_from_db()
+        self.assertEqual(summary.status, FlightSummary.STATUS_DONE)
+        client.messages.create.assert_not_called()
+        request = client.beta.messages.create.call_args.kwargs
+        self.assertEqual(request["model"], "claude-sonnet-5-5")
+        self.assertEqual(request["fallbacks"], "default")
+        self.assertEqual(summary.model, "claude-sonnet-5-5")
+        # 10k in at $2 and 1k out at $10 per million
+        self.assertEqual(summary.cost_usd, Decimal("0.030000"))
+
+    def test_a_fallback_model_is_priced_at_its_own_rates(self):
+        self.assertEqual(flight_summaries._cost("claude-opus-5-5", 1_000_000, 0), Decimal("4.000000"))
+        # Unknown: the dearest known price, so the budget errs on the safe side
+        self.assertEqual(flight_summaries._cost("claude-next", 1_000_000, 0), Decimal("5.000000"))
 
     # Limits
 

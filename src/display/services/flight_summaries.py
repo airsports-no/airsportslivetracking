@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Bump whenever the prompt or the facts sent change. A summary written with an earlier version is still shown until the
 # flight's scores change (writing them all again would cost us for nothing); superusers can regenerate it.
-PROMPT_VERSION = 7
+PROMPT_VERSION = 8
 
 # A pending generation older than this is taken as lost (the worker died) and may be asked for again.
 PENDING_TIMEOUT = datetime.timedelta(minutes=10)
@@ -81,7 +81,7 @@ a problem gate caught everyone, the gap to the crews just above. You may name th
 - Do not give training advice or tell the crew what to practise or do differently: the data is not enough for that. \
 Describe and compare; do not coach.
 - Keep a light touch of humour, whatever the style: a wry remark or two, never at the expense of accuracy, and never \
-mocking the crew.
+mocking the crew (the comedy style may tease, affectionately).
 
 The answer:
 - headline: one short sentence with the result and placement, starting with a fitting emoji.
@@ -116,6 +116,18 @@ leg. Short sentences; no drama. The page shows the gate and leg tables next to y
 than repeat every row: patterns, outliers, where the points concentrate, how the timing compares with the field.
 Sections, 3 to 5, such as: scoring breakdown; timing precision; wind and legs; comparison with the field. 40 to 100 \
 words each.""",
+    },
+    "comedy": {
+        "label": "Comedy",
+        "prompt": """Style: comedy. A stand-up comedian who flies, telling the story of this flight to a room full \
+of pilots: running jokes, absurd comparisons, comic timing, self-aware asides about aviation, gate times and penalty \
+zones. Tease the crew affectionately, like a friend at the bar afterwards, and laugh with them, never at them; nothing \
+hurtful, crude or about who they are. The jokes come from the real events: every fact, figure and gate is still from \
+the data, and the reader must still learn what actually happened.
+Sections, 3 to 5, with funny titles, such as: where the points went; the wind and the weather; the rivals; the \
+highlight of the show. 40 to 90 words each.""",
+        # Haiku's jokes were thin even with more effort; Sonnet is funny at low effort (about 10x the cost)
+        "model_setting": "FLIGHT_SUMMARY_COMEDY_MODEL",
     },
 }
 DEFAULT_STYLE = "debrief"
@@ -497,16 +509,34 @@ def unsupported_point_figures(text: str, facts: dict) -> list[dict]:
     return unsupported
 
 
-def _cost(input_tokens: int, output_tokens: int) -> Decimal:
-    return Decimal(
-        str(
-            (
-                input_tokens * settings.FLIGHT_SUMMARY_INPUT_USD_PER_MTOK
-                + output_tokens * settings.FLIGHT_SUMMARY_OUTPUT_USD_PER_MTOK
-            )
-            / 1_000_000
-        )
-    ).quantize(Decimal("0.000001"))
+# USD per million input and output tokens of the models a summary can be written by (a style's model, or the model a
+# declined request falls back to), for counting what the summaries cost. Keep in step with Anthropic's prices; the
+# default model's are in the settings.
+MODEL_PRICES = {
+    "claude-haiku-5-5": (0.10, 0.50),
+    "claude-sonnet-5-5": (2.00, 10.00),
+    "claude-opus-5-5": (4.00, 20.00),
+    "claude-opus-5": (5.00, 25.00),
+    "claude-opus-4-8": (5.00, 25.00),
+}
+# The API answers with another model if these decline a request (only Sonnet 5.5 of ours has it)
+MODELS_WITH_FALLBACK = {"claude-sonnet-5-5"}
+
+
+def style_model(style: str) -> str:
+    setting = STYLES[style].get("model_setting")
+    return getattr(settings, setting) if setting else settings.FLIGHT_SUMMARY_MODEL
+
+
+def _cost(model: str, input_tokens: int, output_tokens: int) -> Decimal:
+    if model == settings.FLIGHT_SUMMARY_MODEL:
+        prices = (settings.FLIGHT_SUMMARY_INPUT_USD_PER_MTOK, settings.FLIGHT_SUMMARY_OUTPUT_USD_PER_MTOK)
+    else:
+        # An unknown model is counted at the dearest known price, so the budget errs on the safe side
+        prices = MODEL_PRICES.get(model, max(MODEL_PRICES.values()))
+    return Decimal(str((input_tokens * prices[0] + output_tokens * prices[1]) / 1_000_000)).quantize(
+        Decimal("0.000001")
+    )
 
 
 def _fail(summary: FlightSummary, error: str):
@@ -594,25 +624,33 @@ def generate(summary: FlightSummary):
         return
     contestant = summary.contestant
     facts = flight_facts(contestant)
-    summary.model = settings.FLIGHT_SUMMARY_MODEL
+    model = style_model(summary.style)
+    summary.model = model
     client = anthropic.Anthropic(api_key=settings.ANTHROPIC_API_KEY, timeout=60.0)
     messages = [{"role": "user", "content": json.dumps(facts, indent=1)}]
     for attempt in range(MAX_ATTEMPTS):
         try:
-            response = client.messages.create(
-                model=settings.FLIGHT_SUMMARY_MODEL,
+            request = dict(
+                model=model,
                 max_tokens=MAX_OUTPUT_TOKENS,
                 system=system_prompt(summary.style),
                 output_config={"effort": "low", "format": {"type": "json_schema", "schema": ANSWER_SCHEMA}},
                 messages=messages,
             )
+            if model in MODELS_WITH_FALLBACK:
+                response = client.beta.messages.create(
+                    **request, betas=["server-side-fallback-2026-07-01"], fallbacks="default"
+                )
+            else:
+                response = client.messages.create(**request)
         except anthropic.APIError as e:
             _fail(summary, f"The model could not be reached: {e}")
             return
         # Retried rows keep what the earlier attempts cost, so the monthly budget sees all of it
         summary.input_tokens += response.usage.input_tokens
         summary.output_tokens += response.usage.output_tokens
-        summary.cost_usd += _cost(response.usage.input_tokens, response.usage.output_tokens)
+        # Priced as the model that answered: a fallback model has its own rates
+        summary.cost_usd += _cost(response.model or model, response.usage.input_tokens, response.usage.output_tokens)
         if response.stop_reason == "refusal":
             _fail(summary, "The model declined to write the summary.")
             return

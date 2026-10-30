@@ -109,6 +109,8 @@ ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
 FLIGHT_SUMMARY_MODEL = os.environ.get("FLIGHT_SUMMARY_MODEL", "claude-haiku-5-5")
 FLIGHT_SUMMARY_INPUT_USD_PER_MTOK = float(os.environ.get("FLIGHT_SUMMARY_INPUT_USD_PER_MTOK", "0.10"))
 FLIGHT_SUMMARY_OUTPUT_USD_PER_MTOK = float(os.environ.get("FLIGHT_SUMMARY_OUTPUT_USD_PER_MTOK", "0.50"))
+# The comedy style needs a funnier model than the rest (display.services.flight_summaries.MODEL_PRICES has its price)
+FLIGHT_SUMMARY_COMEDY_MODEL = os.environ.get("FLIGHT_SUMMARY_COMEDY_MODEL", "claude-sonnet-5-5")
 FLIGHT_SUMMARY_DAILY_LIMIT_PER_USER = int(os.environ.get("FLIGHT_SUMMARY_DAILY_LIMIT_PER_USER", "5"))
 FLIGHT_SUMMARY_MONTHLY_BUDGET_USD = float(os.environ.get("FLIGHT_SUMMARY_MONTHLY_BUDGET_USD", "20"))
 # The summaries compare the planned wind with the wind the weather model (Open-Meteo) says was there at this height
