@@ -171,11 +171,15 @@ class FlightAnalysisTest(TestCase):
             self.assertEqual(leg["actual_wind"]["direction"], 270)
             self.assertEqual(leg["planned_headwind_kt"], 0)
             self.assertEqual(leg["wind_effect_seconds"] > 0, leg["actual_headwind_kt"] > 0, leg)
+            self.assertIn(
+                "later" if leg["wind_effect_seconds"] > 0 else "earlier", leg["wind_alone_would_have_made_you"]
+            )
 
     def test_legs_carry_the_planned_and_actual_times(self):
         leg = self.analyse(self.weather)["legs"][1]
         self.assertEqual(leg["actual_seconds"] - leg["planned_seconds"], 20)
         self.assertEqual(leg["offset_at_end_seconds"], 40)
+        self.assertEqual(leg["you_compared_with_plan"], "20 s longer than planned")
 
     def test_the_weather_is_described_at_the_start_middle_and_finish(self):
         weather = self.analyse(self.weather)["weather"]
@@ -203,3 +207,11 @@ class FlightAnalysisTest(TestCase):
         NavigationTask.objects.filter(pk=self.contestants[0].navigation_task_id).update(is_public=False)
         crews = self.analyse(self.weather)["crews"]
         self.assertEqual([crew["crew"] for crew in crews], ["P 1", "Crew #2"])
+
+    def test_timing_precision_against_the_field(self):
+        timing = self.analyse(self.weather)["timing"]
+        self.assertGreater(timing["timed_gates"], 0)
+        # This crew is 20 s later at each gate than the one before, the other 40 s: this one is the more precise
+        self.assertEqual(timing["your_rank_by_mean_absolute_offset"], 1)
+        self.assertEqual(timing["crews_ranked"], 2)
+        self.assertLess(timing["mean_absolute_offset_seconds"], timing["field_median_of_mean_absolute_offset_seconds"])

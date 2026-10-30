@@ -19,6 +19,8 @@ class FlightSummary(models.Model):
     track_version = models.IntegerField()
     score_version = models.IntegerField()
     prompt_version = models.IntegerField()
+    # The voice it is written in (display.services.flight_summaries.STYLES): each style is a summary of its own
+    style = models.CharField(max_length=20, default="debrief")
     status = models.CharField(max_length=10, choices=STATUS_CHOICES, default=STATUS_PENDING)
     # The whole summary as plain text, and as the website shows it: a headline and sections of emoji, title and text
     text = models.TextField(default="", blank=True)
@@ -37,7 +39,7 @@ class FlightSummary(models.Model):
     created_at = models.DateTimeField(auto_now_add=True)
 
     class Meta:
-        unique_together = ("contestant", "track_version", "score_version", "prompt_version")
+        unique_together = ("contestant", "track_version", "score_version", "prompt_version", "style")
         indexes = [models.Index(fields=["requested_by", "requested_at"], name="flight_summary_quota_idx")]
 
     def __str__(self):

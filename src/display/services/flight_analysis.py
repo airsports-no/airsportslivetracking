@@ -216,8 +216,21 @@ def _legs(contestant, waypoints, planned, actual, weather_points) -> list[dict]:
             planned_leg = planned_times[finish.name] - planned_times[start.name]
             actual_wind_leg = with_actual_wind[finish.name] - with_actual_wind[start.name]
             leg["wind_effect_seconds"] = _seconds(actual_wind_leg - planned_leg)
+        # In words as well: a signed number of seconds is easy to read the wrong way round
+        if leg["planned_seconds"] is not None and leg["actual_seconds"] is not None:
+            leg["you_compared_with_plan"] = _earlier_or_later(leg["actual_seconds"] - leg["planned_seconds"], "took")
+        if leg["wind_effect_seconds"] is not None:
+            leg["wind_alone_would_have_made_you"] = _earlier_or_later(leg["wind_effect_seconds"], "arrive")
         legs.append(leg)
     return legs
+
+
+def _earlier_or_later(seconds: int, verb: str) -> str:
+    if seconds == 0:
+        return "exactly as planned"
+    if verb == "took":
+        return f"{abs(seconds)} s {'longer' if seconds > 0 else 'shorter'} than planned"
+    return f"{abs(seconds)} s {'later' if seconds > 0 else 'earlier'} than planned"
 
 
 def _highlights(contestant, offsets, waypoints, planned, actual) -> dict:
@@ -284,6 +297,35 @@ def wind_difference(planned_speed: float, planned_direction: float, winds: list[
     }
 
 
+def _timing(contestant: Contestant, waypoints, crews: list[dict]) -> dict | None:
+    """How precise this crew's timing was at the timed gates, and how the field's compares."""
+    timed = {waypoint.name for waypoint in waypoints if waypoint.time_check}
+
+    def precision(crew: dict) -> list[int]:
+        return [
+            abs(gate["offset_seconds"])
+            for name, gate in crew["gates"].items()
+            if name in timed and gate.get("offset_seconds") is not None
+        ]
+
+    own = next((crew for crew in crews if crew.get("you")), None)
+    offsets = precision(own) if own else []
+    if not offsets:
+        return None
+    means = sorted(statistics.mean(values) for values in map(precision, crews) if values)
+    mean = statistics.mean(offsets)
+    return {
+        "timed_gates": len(offsets),
+        "mean_absolute_offset_seconds": round(mean, 1),
+        "largest_absolute_offset_seconds": max(offsets),
+        "gates_within_2_seconds": sum(1 for offset in offsets if offset <= 2),
+        "gates_within_5_seconds": sum(1 for offset in offsets if offset <= 5),
+        "field_median_of_mean_absolute_offset_seconds": round(statistics.median(means), 1),
+        "your_rank_by_mean_absolute_offset": 1 + sum(1 for value in means if value < mean),
+        "crews_ranked": len(means),
+    }
+
+
 def analyse_flight(contestant: Contestant) -> dict:
     waypoints = _waypoints(contestant)
     planned = contestant.gate_times
@@ -317,5 +359,6 @@ def analyse_flight(contestant: Contestant) -> dict:
         "legs": _legs(contestant, waypoints, planned, actual, weather_points),
         "field_at_gates": field_at_gates,
         "crews": crews,
+        "timing": _timing(contestant, waypoints, crews),
         "highlights": _highlights(contestant, _offsets(contestant), waypoints, planned, actual),
     }

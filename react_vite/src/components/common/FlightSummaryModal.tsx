@@ -12,9 +12,76 @@ const minutesAndSeconds = (seconds: number | null) =>
 const headwind = (knots: number | null) =>
   knots === null ? '-' : knots >= 0 ? `${knots.toFixed(0)} kt head` : `${(-knots).toFixed(0)} kt tail`;
 
+const STYLE_STORAGE_KEY = 'flightSummaryStyle';
+
+const storedStyle = (): string => {
+  try {
+    return window.localStorage.getItem(STYLE_STORAGE_KEY) || 'debrief';
+  } catch {
+    return 'debrief';
+  }
+};
+
+const storeStyle = (style: string) => {
+  try {
+    window.localStorage.setItem(STYLE_STORAGE_KEY, style);
+  } catch {
+    // Only a convenience: the next modal starts with the default style
+  }
+};
+
+/** Each gate: your timing and points, the rest of the field's median timing, and where yours ranks there. */
+const GateTable: React.FC<{ analysis: FlightAnalysis; open: boolean }> = ({ analysis, open }) => {
+  const you = analysis.crews?.find((crew) => crew.you);
+  if (!you) return null;
+  const timing = analysis.timing;
+  return (
+    <details className="collapse collapse-arrow bg-base-200" open={open}>
+      <summary className="collapse-title text-sm font-semibold">📊 Gate by gate</summary>
+      <div className="collapse-content overflow-x-auto">
+        {timing && (
+          <p className="text-xs opacity-70 mb-2">
+            Timing at {timing.timed_gates} timed gates: {timing.mean_absolute_offset_seconds} s off on average (the field's
+            median {timing.field_median_of_mean_absolute_offset_seconds} s), {timing.gates_within_2_seconds} within 2 s,
+            largest {timing.largest_absolute_offset_seconds} s. Precision rank {timing.your_rank_by_mean_absolute_offset} of{' '}
+            {timing.crews_ranked}.
+          </p>
+        )}
+        <table className="table table-xs">
+          <thead>
+            <tr>
+              <th>Gate</th>
+              <th>Your timing</th>
+              <th>Points</th>
+              <th>Field median</th>
+              <th>Your rank</th>
+            </tr>
+          </thead>
+          <tbody>
+            {Object.entries(you.gates).map(([gate, values]) => {
+              const field = analysis.field_at_gates?.[gate];
+              return (
+                <tr key={gate}>
+                  <td className="whitespace-nowrap">{gate}</td>
+                  <td>{signedSeconds(values.offset_seconds)}</td>
+                  <td>{values.points ?? 0}</td>
+                  <td>{field ? signedSeconds(field.median_offset_seconds) : '-'}</td>
+                  <td>
+                    {field?.your_rank_by_precision ? `${field.your_rank_by_precision} of ${field.other_crews + 1}` : '-'}
+                  </td>
+                </tr>
+              );
+            })}
+          </tbody>
+        </table>
+      </div>
+    </details>
+  );
+};
+
 /** The legs behind the summary: planned and flown times, and what the wind did. */
-const LegTable: React.FC<{ analysis: FlightAnalysis }> = ({ analysis }) => (
-  <details className="collapse collapse-arrow bg-base-200">
+const LegTable: React.FC<{ analysis: FlightAnalysis; open: boolean }> = ({ analysis, open }) => (
+  <details className="collapse collapse-arrow bg-base-200" open={open}>
     <summary className="collapse-title text-sm font-semibold">🧭 Leg by leg</summary>
     <div className="collapse-content overflow-x-auto">
       <p className="text-xs opacity-70 mb-2">
@@ -75,12 +142,13 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
+  const [style, setStyle] = useState(storedStyle);
 
-  const load = async () => {
+  const load = async (chosenStyle: string = style) => {
     setLoading(true);
     setError(null);
     try {
-      setState(await fetchFlightSummary(contestantId));
+      setState(await fetchFlightSummary(contestantId, chosenStyle));
     } catch (err: any) {
       setError(err.message || 'Could not load the summary');
     } finally {
@@ -100,19 +168,27 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
     if (!isOpen || state?.status !== 'pending') return;
     const timer = window.setTimeout(async () => {
       try {
-        setState(await fetchFlightSummary(contestantId));
+        setState(await fetchFlightSummary(contestantId, style));
       } catch (err: any) {
         setError(err.message || 'Could not load the summary');
       }
     }, POLL_INTERVAL_MS);
     return () => window.clearTimeout(timer);
-  }, [isOpen, state, contestantId]);
+  }, [isOpen, state, contestantId, style]);
+
+  const chooseStyle = (chosen: string) => {
+    if (chosen === style) return;
+    setStyle(chosen);
+    storeStyle(chosen);
+    setState(null);
+    load(chosen);
+  };
 
   const request = async (regenerate: boolean) => {
     setRequesting(true);
     setError(null);
     try {
-      setState(await requestFlightSummary(contestantId, regenerate));
+      setState(await requestFlightSummary(contestantId, style, regenerate));
     } catch (err: any) {
       setError(err.message || 'Could not ask for the summary');
     } finally {
@@ -142,6 +218,23 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
             </span>
           </p>
         )}
+        <div className="join mt-3" role="radiogroup" aria-label="Style">
+          {(state?.styles ?? []).map((option) => (
+            <button
+              key={option.key}
+              type="button"
+              role="radio"
+              aria-checked={option.key === style}
+              className={`btn btn-sm join-item ${option.key === style ? 'btn-primary' : 'btn-outline'}`}
+              onClick={() => chooseStyle(option.key)}
+              disabled={loading || requesting}
+              title={option.written ? 'Already written' : 'Not written yet'}
+            >
+              {option.label}
+              {option.written && <span aria-label="written"> ✓</span>}
+            </button>
+          ))}
+        </div>
 
         {loading && !state && <p className="py-4 text-sm opacity-70">Loading...</p>}
         {error && <p className="py-2 text-error text-sm">{error}</p>}
@@ -168,7 +261,10 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
                 ) : (
                   <div className="whitespace-pre-line leading-relaxed">{state.text}</div>
                 )}
-                {state.analysis?.legs?.length ? <LegTable analysis={state.analysis} /> : null}
+                {state.analysis && <GateTable analysis={state.analysis} open={style === 'statistics'} />}
+                {state.analysis?.legs?.length ? (
+                  <LegTable analysis={state.analysis} open={style === 'statistics'} />
+                ) : null}
                 <p className="text-xs opacity-60">
                   Written by AI from the official score log. The scores and the results list are what count.
                   {state.analysis?.weather_source && (

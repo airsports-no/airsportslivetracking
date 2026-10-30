@@ -33,7 +33,7 @@ logger = logging.getLogger(__name__)
 
 # Bump whenever the prompt or the facts sent change. A summary written with an earlier version is still shown until the
 # flight's scores change (writing them all again would cost us for nothing); superusers can regenerate it.
-PROMPT_VERSION = 5
+PROMPT_VERSION = 7
 
 # A pending generation older than this is taken as lost (the worker died) and may be asked for again.
 PENDING_TIMEOUT = datetime.timedelta(minutes=10)
@@ -43,9 +43,8 @@ MAX_OUTPUT_TOKENS = 6000
 # The first answer, and one correction when it quotes points the data does not back
 MAX_ATTEMPTS = 2
 
-SYSTEM_PROMPT = """You write the debrief of one flight in a general aviation competition (precision flying, air \
-navigation race, rally and similar tasks), for the crew who flew it. Make it useful and fun to read, like a friendly, \
-sharp instructor going through the flight afterwards. You are given the flight's data from the official scoring \
+COMMON_PROMPT = """You write about one flight in a general aviation competition (precision flying, air navigation \
+race, rally and similar tasks), for the crew who flew it. You are given the flight's data from the official scoring \
 system as JSON, with an analysis of the legs, the wind, the weather and the rest of the field.
 
 The data:
@@ -55,11 +54,13 @@ score_sorting says whether a lower or a higher score is better.
 actual time and offset_at_end_seconds (positive: late at the gate at the end of the leg). actual_wind and \
 actual_headwind_kt come from a weather model at analysis.wind_height_ft_above_ground. wind_effect_seconds is how much \
 later (positive) or earlier that wind alone would have made a crew flying the planned airspeed exactly on that leg, \
-compared with the planned wind.
+compared with the planned wind. you_compared_with_plan and wind_alone_would_have_made_you say the same in words; \
+use them to get earlier and later the right way round (a negative wind effect means the wind helped).
 - analysis.weather is the weather model's conditions at the start, middle and finish of the flight.
 - analysis.crews is every scored crew on the task, best first, with its score and its offset and points at each gate; \
 "you": true marks this crew. analysis.field_at_gates has the other crews' median offset at each gate and where this \
-crew's timing ranks there (1 is the most precise). analysis.highlights are extra facts about this crew's flight.
+crew's timing ranks there (1 is the most precise). analysis.timing sums up the timing precision of this crew and the \
+field. analysis.highlights are extra facts about this crew's flight.
 
 Rules:
 - Use only facts in the data. Never invent gates, times, events or causes.
@@ -69,23 +70,59 @@ penalties into a total, and give the gap between this crew's score and another c
 or round them.
 - Blame or credit the wind for timing only where the data supports it: a leg's change in offset close to its \
 wind_effect_seconds, or most of the field being early or late at the same gates. Say when the crew did better or \
-worse than the wind explains. If the actual wind differed clearly from the planned wind, give both. Without wind or \
-weather data, leave them out.
+worse than the wind explains. Without wind or weather data, leave them out.
 - analysis.wind_difference compares the planned wind with the wind through the flight. When its "big" is true, the \
-wind and weather section must open by saying plainly that the wind was very different from the planned wind, with \
-both (direction and speed, e.g. "planned 180° at 13 kt, but it was 252° at 14 kt"), and then what that did to the \
-timing.
+section about the wind must open by saying plainly that the wind was very different from the planned wind, with both \
+(direction and speed, e.g. "planned 180° at 13 kt, but it was 252° at 14 kt"), and then what that did to the timing.
 - Mention the weather only if it was notable (fog, low cloud, rain, poor visibility, strong gusts), as what the \
 weather model suggests, not as fact.
 - Compare with the other crews where it tells something: who did best at a gate where this crew lost points, whether \
 a problem gate caught everyone, the gap to the crews just above. You may name them.
+- Do not give training advice or tell the crew what to practise or do differently: the data is not enough for that. \
+Describe and compare; do not coach.
+- Keep a light touch of humour, whatever the style: a wry remark or two, never at the expense of accuracy, and never \
+mocking the crew.
 
 The answer:
-- headline: one short, lively sentence with the result and placement, starting with a fitting emoji.
-- sections: 3 to 6, in this order where there is something to say: where the points went; wind and weather; you and \
-the field; what went well (with a fun fact from the highlights); what to practise next time (one or two concrete \
-things). Each has a fitting emoji, a short title and 30 to 90 words of plain text (no markdown), in one or two short \
-paragraphs. Address the crew as "you". Write in English."""
+- headline: one short sentence with the result and placement, starting with a fitting emoji.
+- sections as the style below says. Each has a fitting emoji, a short title and plain text (no markdown) in one or two \
+short paragraphs. Address the crew as "you". Write in English.
+
+"""
+
+# The voices to choose from. Each is written and stored on its own (FlightSummary.style).
+STYLES = {
+    "debrief": {
+        "label": "Debrief",
+        "prompt": """Style: a friendly, sharp debrief, like an experienced competitor going through the flight with \
+you afterwards. Clear and warm.
+Sections, 3 to 5, in this order where there is something to say: where the points went; wind and weather; you and \
+the field; what went well (with a fun fact from the highlights). 30 to 90 words each.""",
+    },
+    "pundit": {
+        "label": "Pundit",
+        "prompt": """Style: a television sports pundit or football commentator going through the highlights after \
+the match. Big moments, drama and momentum: "and that is where it slipped away", "what a crossing at TP 3", the \
+turning points of the flight, the title race with the crews around you. Lively and colourful, but every fact from the \
+data.
+Sections, 3 to 5, such as: the big moments (where the points went); the conditions (wind and weather); the table and \
+the rivals; the moment of the match. 40 to 90 words each.""",
+    },
+    "statistics": {
+        "label": "Statistics",
+        "prompt": """Style: a technical analyst. Precise, compact and full of numbers from the data: offsets in \
+seconds, points per gate, the timing figures in analysis.timing, ranks at gates, wind components and wind effects per \
+leg. Short sentences; no drama. The page shows the gate and leg tables next to your text, so interpret them rather \
+than repeat every row: patterns, outliers, where the points concentrate, how the timing compares with the field.
+Sections, 3 to 5, such as: scoring breakdown; timing precision; wind and legs; comparison with the field. 40 to 100 \
+words each.""",
+    },
+}
+DEFAULT_STYLE = "debrief"
+
+
+def system_prompt(style: str) -> str:
+    return COMMON_PROMPT + STYLES[style]["prompt"]
 
 
 ANSWER_SCHEMA = {
@@ -146,10 +183,18 @@ def not_scored_reason(contestant: Contestant) -> str | None:
     return None
 
 
-def _summaries_for_scores(contestant: Contestant) -> tuple[FlightSummary | None, FlightSummary | None]:
-    """For the contestant's current scores: the row of this prompt version, and the newest summary written before it."""
+def _summaries_for_scores(
+    contestant: Contestant, style: str = DEFAULT_STYLE
+) -> tuple[FlightSummary | None, FlightSummary | None]:
+    """
+    For the contestant's current scores, in the style: the row of this prompt version, and the newest summary written
+    before it.
+    """
     rows = FlightSummary.objects.filter(
-        contestant=contestant, track_version=contestant.track_version, score_version=contestant.score_version
+        contestant=contestant,
+        track_version=contestant.track_version,
+        score_version=contestant.score_version,
+        style=style,
     ).order_by("-prompt_version")
     own = older = None
     for row in rows:
@@ -160,12 +205,12 @@ def _summaries_for_scores(contestant: Contestant) -> tuple[FlightSummary | None,
     return own, older
 
 
-def current_summary(contestant: Contestant) -> FlightSummary | None:
+def current_summary(contestant: Contestant, style: str = DEFAULT_STYLE) -> FlightSummary | None:
     """
     The summary of the contestant's current scores to show, if anyone has asked for one: this prompt version's when it
     is written or being written, and otherwise the newest one written with an earlier version.
     """
-    own, older = _summaries_for_scores(contestant)
+    own, older = _summaries_for_scores(contestant, style)
     if own and (own.status == FlightSummary.STATUS_DONE or _is_being_written(own)):
         return own
     return older or own
@@ -221,9 +266,14 @@ def _refusal(user, contestant: Contestant, new_generation: bool) -> FlightSummar
     return None
 
 
-def summary_state(user, contestant: Contestant) -> dict:
+def _is_written(contestant: Contestant, style: str) -> bool:
+    summary = current_summary(contestant, style)
+    return summary is not None and summary.status == FlightSummary.STATUS_DONE
+
+
+def summary_state(user, contestant: Contestant, style: str = DEFAULT_STYLE) -> dict:
     """What the website shows for the flight: the summary if there is one, and whether the user may ask for one."""
-    summary = current_summary(contestant)
+    summary = current_summary(contestant, style)
     refusal = _refusal(user, contestant, new_generation=_needs_generation(summary))
     data = {
         # Who flew it and where, for the heading
@@ -233,6 +283,11 @@ def summary_state(user, contestant: Contestant) -> dict:
             "task": contestant.navigation_task.name,
             "contest": contestant.navigation_task.contest.name,
         },
+        "style": style,
+        "styles": [
+            {"key": key, "label": definition["label"], "written": _is_written(contestant, key)}
+            for key, definition in STYLES.items()
+        ],
         "enabled": is_enabled(),
         # A generation whose worker died shows as failed, so it can be asked for again instead of spinning forever
         "status": (FlightSummary.STATUS_FAILED if _is_lost(summary) else summary.status) if summary else None,
@@ -254,12 +309,14 @@ def summary_state(user, contestant: Contestant) -> dict:
     return data
 
 
-def request_summary(user, contestant: Contestant, regenerate: bool = False) -> FlightSummary:
+def request_summary(
+    user, contestant: Contestant, regenerate: bool = False, style: str = DEFAULT_STYLE
+) -> FlightSummary:
     """
     Returns the summary of the flight's current scores, starting its generation when there is none (or the last attempt
     failed). Only a new generation counts against the user's daily quota. ``regenerate`` (superusers) writes it again.
     """
-    existing = current_summary(contestant)
+    existing = current_summary(contestant, style)
     regenerate = regenerate and user.is_superuser
     new_generation = _needs_generation(existing) or (regenerate and not _is_being_written(existing))
     refusal = _refusal(user, contestant, new_generation=new_generation)
@@ -278,7 +335,7 @@ def request_summary(user, contestant: Contestant, regenerate: bool = False) -> F
             if refusal:
                 raise refusal
             # Always written as this prompt version: an earlier version's summary stays as it is
-            own, _ = _summaries_for_scores(contestant)
+            own, _ = _summaries_for_scores(contestant, style)
             if own and (_is_being_written(own) or (own.status == FlightSummary.STATUS_DONE and not regenerate)):
                 return own
             if own:
@@ -287,7 +344,7 @@ def request_summary(user, contestant: Contestant, regenerate: bool = False) -> F
                     pk=own.pk, status=own.status, requested_at=own.requested_at
                 ).update(status=FlightSummary.STATUS_PENDING, text="", error="", requested_by=user, requested_at=now)
                 if not started:
-                    return current_summary(contestant)
+                    return current_summary(contestant, style)
                 own.refresh_from_db()
                 summary = own
             else:
@@ -296,12 +353,13 @@ def request_summary(user, contestant: Contestant, regenerate: bool = False) -> F
                     track_version=contestant.track_version,
                     score_version=contestant.score_version,
                     prompt_version=PROMPT_VERSION,
+                    style=style,
                     requested_by=user,
                     requested_at=now,
                 )
     except IntegrityError:
         # Someone else asked for the same flight at the same moment: theirs is the one being written
-        return current_summary(contestant)
+        return current_summary(contestant, style)
 
     from display.tasks import generate_flight_summary
 
@@ -544,7 +602,7 @@ def generate(summary: FlightSummary):
             response = client.messages.create(
                 model=settings.FLIGHT_SUMMARY_MODEL,
                 max_tokens=MAX_OUTPUT_TOKENS,
-                system=SYSTEM_PROMPT,
+                system=system_prompt(summary.style),
                 output_config={"effort": "low", "format": {"type": "json_schema", "schema": ANSWER_SCHEMA}},
                 messages=messages,
             )

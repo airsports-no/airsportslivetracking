@@ -252,20 +252,26 @@ class FlightSummaryTest(TestCase):
     def test_a_failed_summary_restarted_by_someone_else_meanwhile_is_not_started_again(self):
         failed = self.done_summary(status=FlightSummary.STATUS_FAILED, text="")
         read = flight_summaries._summaries_for_scores
+        reads = []
 
-        def read_then_restarted_elsewhere(contestant):
-            rows = read(contestant)
-            # Between this request reading the row and restarting it, another request restarted it
-            FlightSummary.objects.filter(pk=failed.pk).update(
-                status=FlightSummary.STATUS_PENDING, requested_at=datetime.datetime.now(datetime.timezone.utc)
-            )
+        def read_then_restarted_elsewhere(*args):
+            rows = read(*args)
+            reads.append(rows)
+            if len(reads) == 2:
+                # Under the lock: this request has read the failed row, and another one restarts it before this one does
+                FlightSummary.objects.filter(pk=failed.pk).update(
+                    status=FlightSummary.STATUS_PENDING, requested_at=datetime.datetime.now(datetime.timezone.utc)
+                )
             return rows
 
         with patch(
             "display.services.flight_summaries._summaries_for_scores", side_effect=read_then_restarted_elsewhere
         ):
-            self.generate(self.pilot_user)
+            self.generate(self.copilot_user)
         self.delay.assert_not_called()
+        # The other request's restart stands: this one did not take the row over
+        failed.refresh_from_db()
+        self.assertEqual(failed.requested_by, self.pilot_user)
 
     def test_the_quota_is_checked_again_under_the_lock(self):
         # Another request used the last summary of the day after this one passed the first check
@@ -305,6 +311,41 @@ class FlightSummaryTest(TestCase):
         self.assertEqual(flight_summaries.current_summary(self.contestant), new)
         FlightSummary.objects.filter(pk=new.pk).update(status=FlightSummary.STATUS_FAILED)
         self.assertEqual(flight_summaries.current_summary(self.contestant), older)
+
+    # Styles
+
+    def test_each_style_is_a_summary_of_its_own(self):
+        self.done_summary(text="A debrief.")
+        self.client.force_authenticate(self.pilot_user)
+        styles = self.client.get(self.url()).json()["styles"]
+        self.assertEqual(
+            [(style["key"], style["written"]) for style in styles],
+            [("debrief", True), ("pundit", False), ("statistics", False)],
+        )
+        self.assertTrue(self.client.get(self.url() + "?style=pundit").json()["can_generate"])
+        response = self.generate(self.pilot_user, style="pundit")
+        self.assertEqual(response.json()["style"], "pundit")
+        pundit = FlightSummary.objects.get(style="pundit")
+        self.delay.assert_called_once_with(pundit.pk)
+        self.assertEqual(self.client.get(self.url()).json()["text"], "A debrief.")
+
+    def test_an_unknown_style_is_refused(self):
+        self.client.force_authenticate(self.pilot_user)
+        self.assertEqual(self.client.get(self.url() + "?style=limerick").status_code, 400)
+        self.assertEqual(self.generate(self.pilot_user, style="limerick").status_code, 400)
+        self.assertFalse(FlightSummary.objects.exists())
+
+    def test_the_style_picks_the_voice_and_no_style_coaches(self):
+        client = MagicMock()
+        client.messages.create.return_value = model_response("You lost 30 points at SP.")
+        summary = self.done_summary(status=FlightSummary.STATUS_PENDING, text="", style="pundit")
+        with patch("anthropic.Anthropic", return_value=client):
+            flight_summaries.generate(FlightSummary.objects.select_related("contestant").get(pk=summary.pk))
+        system = client.messages.create.call_args.kwargs["system"]
+        self.assertIn("pundit", system)
+        self.assertIn("Do not give training advice", system)
+        for style in flight_summaries.STYLES:
+            self.assertNotIn("practise", flight_summaries.STYLES[style]["prompt"])
 
     # Limits
 
