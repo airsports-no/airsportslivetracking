@@ -31,6 +31,19 @@ class FlightSummaryViewSet(ViewSet):
             raise Http404
         return contestant
 
+    @action(detail=False, methods=["get"])
+    def available(self, request):
+        """
+        Which flights of ``?navigation_task=`` the user may have summaries of: ``all`` for superusers, else
+        ``contestant_ids``, the flights the user flew. ``enabled`` is false when summaries are off.
+        """
+        try:
+            navigation_task_id = int(request.query_params.get("navigation_task", ""))
+        except ValueError:
+            raise ValidationError({"navigation_task": "Must be a navigation task id."})
+        every, contestant_ids = flight_summaries.summarisable_contestant_ids(request.user, navigation_task_id)
+        return Response({"enabled": flight_summaries.is_enabled(), "all": every, "contestant_ids": contestant_ids})
+
     def _style(self, value) -> str:
         if value in (None, ""):
             return flight_summaries.DEFAULT_STYLE

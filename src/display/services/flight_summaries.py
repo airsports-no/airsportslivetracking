@@ -23,7 +23,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
-from django.db.models import Sum
+from django.db.models import Q, Sum
 from django.utils import timezone
 
 from display.models import Contestant, FlightSummary, ScoreLogEntry
@@ -175,6 +175,21 @@ def is_crew(user, contestant: Contestant) -> bool:
         return False
     crew = contestant.team.crew
     return any(member and member.email.lower() == user.email.lower() for member in (crew.member1, crew.member2))
+
+
+def summarisable_contestant_ids(user, navigation_task_id: int) -> tuple[bool, list[int]]:
+    """
+    Whether the user may have the summary of every flight of the task (superusers), and otherwise the flights in it the
+    user flew, as pilot or co-pilot: for the live map, which shows the button only on these.
+    """
+    if user.is_superuser:
+        return True, []
+    if not user.email:
+        return False, []
+    flown = Q(team__crew__member1__email__iexact=user.email) | Q(team__crew__member2__email__iexact=user.email)
+    return False, list(
+        Contestant.objects.filter(flown, navigation_task_id=navigation_task_id).values_list("pk", flat=True)
+    )
 
 
 def may_view(user, contestant: Contestant) -> bool:

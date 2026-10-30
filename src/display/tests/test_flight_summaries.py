@@ -166,6 +166,19 @@ class FlightSummaryTest(TestCase):
         self.assertEqual(response.status_code, 202)
         self.delay.assert_called_once()
 
+    def test_the_live_map_learns_which_flights_the_user_may_summarise(self):
+        url = f"/api/v1/flight_summaries/available/?navigation_task={self.task.pk}"
+        for user, expected in (
+            (self.copilot_user, {"enabled": True, "all": False, "contestant_ids": [self.contestant.pk]}),
+            (self.stranger, {"enabled": True, "all": False, "contestant_ids": []}),
+            (self.superuser, {"enabled": True, "all": True, "contestant_ids": []}),
+        ):
+            self.client.force_authenticate(user)
+            self.assertEqual(self.client.get(url).json(), expected)
+        self.assertEqual(self.client.get("/api/v1/flight_summaries/available/").status_code, 400)
+        self.client.force_authenticate(None)
+        self.assertIn(self.client.get(url).status_code, (401, 403))
+
     def test_the_copilot_may_ask_too(self):
         self.assertEqual(self.generate(self.copilot_user).status_code, 202)
 

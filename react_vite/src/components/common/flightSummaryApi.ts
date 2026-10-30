@@ -117,3 +117,17 @@ export async function requestFlightSummary(
   if (!response.ok) throw new Error(await errorDetail(response));
   return response.json();
 }
+
+/** The flights of a task the user may have summaries of: all of them (superusers), or the user's own. */
+export interface SummarisableFlights {
+  enabled: boolean;
+  all: boolean;
+  contestant_ids: number[];
+}
+
+export async function fetchSummarisableFlights(navigationTaskId: number): Promise<SummarisableFlights> {
+  const url = `${reverse('flight-summaries-available')}?navigation_task=${navigationTaskId}`;
+  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  if (!response.ok) throw new Error(await errorDetail(response));
+  return response.json();
+}
