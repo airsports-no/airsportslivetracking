@@ -39,6 +39,13 @@ def create_self_managed_contestant(
     queues the flight order (send_self_registration_flight_order). The flight is planned at the team's speed in the
     contest unless [air_speed] is given (the MSFS practice flight); the team's registration is not changed.
     """
+    air_speed = air_speed if air_speed is not None else contest_team.air_speed
+    # The gate times are planned at the ground speed, which the wind must leave positive on every leg
+    if wind_speed >= air_speed:
+        raise ValidationError(
+            f"The wind speed ({wind_speed:g} knots) must be lower than the airspeed ({air_speed:g} knots) the flight is "
+            "planned at."
+        )
     takeoff_time = starting_point_time - datetime.timedelta(minutes=navigation_task.minutes_to_starting_point)
     existing_contestants = navigation_task.contestant_set.all()
     if existing_contestants.exists():
@@ -58,7 +65,7 @@ def create_self_managed_contestant(
         adaptive_start=adaptive_start,
         finished_by_time=tracker_start_time + datetime.timedelta(days=1) - datetime.timedelta(minutes=1),
         minutes_to_starting_point=navigation_task.minutes_to_starting_point,
-        air_speed=air_speed if air_speed is not None else contest_team.air_speed,
+        air_speed=air_speed,
         contestant_number=contestant_number,
         wind_speed=wind_speed,
         wind_direction=wind_direction,

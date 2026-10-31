@@ -284,6 +284,26 @@ class TestRegistrationIntent(SimulatorSeparationTestCase):
             refused = client.post(url, {**payload, "flight_mode": "simulator"}, format="json")
             self.assertEqual(400, refused.status_code)
 
+    def test_a_wind_at_or_above_the_airspeed_is_refused(self):
+        # The gate times would need a ground speed of zero or less on a leg into the wind
+        contest_team = ContestTeam.objects.create(contest=self.contest, team=self.team, air_speed=40)
+        client = APIClient()
+        client.force_authenticate(self.user)
+        url = f"/api/v1/contests/{self.contest.pk}/navigationtasks/{self.task.pk}/contestant_self_registration/"
+        payload = {
+            "starting_point_time": (self.now + datetime.timedelta(hours=3)).isoformat(),
+            "contest_team": contest_team.pk,
+            "adaptive_start": False,
+            "wind_speed": 40,
+            "wind_direction": 40,
+            "flight_mode": "real",
+        }
+        with patch("display.tasks.generate_and_maybe_notify_flight_order.apply_async"):
+            response = client.post(url, payload, format="json")
+        self.assertEqual(400, response.status_code)
+        self.assertIn("must be lower than the airspeed (40 knots)", str(response.json()))
+        self.assertFalse(Contestant.objects.filter(navigation_task=self.task).exists())
+
     def test_open_today_lists_only_tasks_that_accept_the_clients_flights(self):
         client = APIClient()
         listed = lambda **headers: [  # noqa: E731

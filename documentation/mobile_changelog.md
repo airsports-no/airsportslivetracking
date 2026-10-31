@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-10-31
+#### Backend
+- **Registering a self-managed flight with a wind at or above the airspeed is refused with a clear message** instead of failing with a server error (the gate times cannot be planned when the wind stops the aircraft on a leg).
+
 ### 2026-10-27
 #### Backend
 - **A live map link can select a contestant without hiding the others.** `/competition-map/<contest>/<task>?contestant=<id>` opens the whole task with that contestant selected, as if clicked in the ranking (a finished flight opens on its navigation log); `contestantIds` still shows only the listed contestants.
