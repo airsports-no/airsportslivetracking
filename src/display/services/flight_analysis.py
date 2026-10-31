@@ -73,11 +73,13 @@ def _field(contestant: Contestant) -> tuple[list[dict], dict[str, dict]]:
     Every scored crew on the task with its result and its offset and points at each gate (named only when the task is
     public, see _crew_name), and per gate the field's median offset and where this crew's timing ranks.
     """
-    crews = list(
-        Contestant.objects.filter(navigation_task=contestant.navigation_task, contestanttrack__calculator_finished=True)
-        .select_related("contestanttrack", "team__crew__member1", "team__crew__member2", "navigation_task__route")
-        .order_by("contestant_number")[:MAX_CREWS]
-    )
+    field_query = Contestant.objects.filter(
+        navigation_task=contestant.navigation_task, contestanttrack__calculator_finished=True
+    ).select_related("contestanttrack", "team__crew__member1", "team__crew__member2", "navigation_task__route")
+    crews = list(field_query.order_by("contestant_number")[:MAX_CREWS])
+    # This crew is always among them, however large the field
+    if crews and contestant.pk not in {crew.pk for crew in crews}:
+        crews[-1] = field_query.get(pk=contestant.pk)
     descending = contestant.navigation_task.score_sorting_direction == "desc"
     public = is_navigation_task_public(contestant.navigation_task)
     ordered = sorted(crews, key=lambda crew: -crew.contestanttrack.score if descending else crew.contestanttrack.score)

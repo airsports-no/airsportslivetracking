@@ -198,6 +198,14 @@ class FlightSummaryTest(TestCase):
         self.client.force_authenticate(self.superuser)
         self.assertEqual(self.client.get(self.url()).json()["text"], "A fine flight.")
 
+    def test_others_read_the_newest_finished_summary_while_a_newer_one_is_written(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        self.done_summary(text="A debrief.", requested_at=now - datetime.timedelta(hours=1))
+        self.done_summary(status=FlightSummary.STATUS_PENDING, text="", style="pundit", requested_at=now)
+        self.assertEqual(self.client.get(self.url()).json()["text"], "A debrief.")
+        self.client.force_authenticate(self.superuser)
+        self.assertEqual(self.client.get(self.url()).json()["status"], FlightSummary.STATUS_PENDING)
+
     def test_only_superusers_see_a_summary_being_written_or_failed(self):
         self.done_summary(status=FlightSummary.STATUS_PENDING, text="")
         state = self.client.get(self.url()).json()
@@ -510,6 +518,11 @@ class FlightSummaryTest(TestCase):
         self.assertEqual(self.unsupported("SP cost you sixty-nine points."), ["sixty-nine points"])
         self.assertEqual(self.unsupported("Bo Late lost seventy-seven points at SP."), [])
         self.assertEqual(flight_summaries._number("one hundred and forty"), 140)
+
+    def test_a_thousands_separator_is_not_a_decimal_comma(self):
+        self.assertEqual(flight_summaries._number("1,250"), 1250)
+        self.assertEqual(flight_summaries._number("12,5"), 12.5)
+        self.assertEqual(flight_summaries._POINTS_FIGURE.search("You lost 1,250 points.").group(1), "1,250")
 
     def test_another_crews_figures_pass_only_in_a_sentence_that_names_it(self):
         self.assertEqual(self.unsupported("Bo Late lost 77 points at SP."), [])

@@ -97,6 +97,13 @@ class AdminUserFlightsTest(TestCase):
         self.assertEqual(flight["score"], 42)
         self.assertTrue(flight["calculator_finished"])
 
+    def test_a_flight_not_scored_yet_has_no_score(self):
+        # The track holds the scorecard's initial score until scoring starts
+        ContestantTrack.objects.filter(contestant=self.flights[1]).update(calculator_started=False)
+        flights = {f["id"]: f for f in self.get(self.admin, self.person.pk).json()["flights"]}
+        self.assertIsNone(flights[self.flights[1].pk]["score"])
+        self.assertEqual(flights[self.flights[0].pk]["score"], 42)
+
     def test_the_ai_summaries_of_the_current_scores_are_listed(self):
         flight = self.flights[0]
         for style, track_version in (("pundit", flight.track_version), ("comedy", flight.track_version - 1)):

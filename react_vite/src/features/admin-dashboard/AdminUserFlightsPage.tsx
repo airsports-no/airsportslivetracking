@@ -23,6 +23,8 @@ export default function AdminUserFlightsPage() {
     // The last answer and whom it was for: while it is for someone else, the chosen person's flights are loading
     const [result, setResult] = useState<{ personId: number; data?: AdminUserFlightsResponse; error?: string } | null>(null);
     const [filter, setFilter] = useState('');
+    // Bumped when a summary modal closes, to list a summary written in it
+    const [refreshes, setRefreshes] = useState(0);
 
     useEffect(() => {
         if (personId === null) return;
@@ -31,7 +33,7 @@ export default function AdminUserFlightsPage() {
             .then((data) => { if (!cancelled) setResult({ personId, data }); })
             .catch((err: Error) => { if (!cancelled) setResult({ personId, error: err.message }); });
         return () => { cancelled = true; };
-    }, [personId]);
+    }, [personId, refreshes]);
 
     const current = personId !== null && result?.personId === personId ? result : null;
     const data = current?.data ?? null;
@@ -159,7 +161,7 @@ export default function AdminUserFlightsPage() {
                                                             >
                                                                 Task
                                                             </Link>
-                                                            {flight.calculator_finished && <FlightSummaryButton contestantId={flight.id} />}
+                                                            {flight.calculator_finished && <FlightSummaryButton contestantId={flight.id} onClose={() => setRefreshes((count) => count + 1)} />}
                                                         </div>
                                                     </td>
                                                 </tr>

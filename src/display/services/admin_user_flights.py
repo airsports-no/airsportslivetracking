@@ -52,7 +52,8 @@ def _flight(contestant: Contestant, person: Person, summary_styles: list[str]) -
         "finished_by_time": contestant.finished_by_time,
         "calculator_started": bool(track and track.calculator_started),
         "calculator_finished": bool(track and track.calculator_finished),
-        "score": track.score if track else None,
+        # Before scoring starts the track holds the scorecard's initial score, which is not a result
+        "score": track.score if track and track.calculator_started else None,
         "summary_styles": summary_styles,
     }
 

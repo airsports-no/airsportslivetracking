@@ -205,6 +205,12 @@ class FlightAnalysisTest(TestCase):
         self.assertEqual(analysis["crews"][1]["compared_with_you"], "the same score as you")
         self.assertEqual(analysis["field_at_gates"][gates[2]]["your_rank_by_precision"], 1)
 
+    def test_the_crew_is_in_the_field_however_large_it_is(self):
+        with patch("display.services.flight_analysis.MAX_CREWS", 1):
+            with patch("display.services.flight_weather.fetch_weather", return_value=self.weather):
+                crews = analyse_flight(Contestant.objects.get(pk=self.contestants[1].pk))["crews"]
+        self.assertEqual([(crew["crew"], crew.get("you")) for crew in crews], [("P 2", True)])
+
     def test_other_crews_of_a_task_that_is_not_public_are_not_named(self):
         NavigationTask.objects.filter(pk=self.contestants[0].navigation_task_id).update(is_public=False)
         crews = self.analyse(self.weather)["crews"]

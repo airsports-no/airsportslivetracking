@@ -297,10 +297,12 @@ def summary_state(user, contestant: Contestant, style: str | None = None) -> dic
     What the website shows for the flight: the newest summary written (in the style, which superusers choose to have one
     written in), and whether the user may ask for one. Anybody but a superuser sees only finished summaries.
     """
-    summary = current_summary(contestant, style)
     superuser = may_generate(user)
-    if not superuser and summary is not None and summary.status != FlightSummary.STATUS_DONE:
-        summary = None
+    if superuser:
+        summary = current_summary(contestant, style)
+    else:
+        # The newest finished one, also while a superuser has a newer one written
+        summary = _summaries_for_scores(contestant, style).filter(status=FlightSummary.STATUS_DONE).first()
     refusal = _refusal(user, contestant, new_generation=_needs_generation(summary)) if superuser else None
     written = _written_styles(contestant) if superuser else set()
     data = {
@@ -473,13 +475,17 @@ _NUMBER_IN_WORDS = (
 )
 # A figure in digits or in words ("sixty-nine points"), followed by points
 _POINTS_FIGURE = re.compile(
-    rf"(\d+(?:[.,]\d+)?|\b{_NUMBER_IN_WORDS})\s*(?:penalty\s+)?(?:points?|pts)\b", re.IGNORECASE
+    rf"(\d{{1,3}}(?:,\d{{3}})+(?:\.\d+)?|\d+(?:[.,]\d+)?|\b{_NUMBER_IN_WORDS})\s*(?:penalty\s+)?(?:points?|pts)\b",
+    re.IGNORECASE,
 )
 
 
 def _number(figure: str) -> float:
-    """A figure in digits, or a whole number in English words (up to the thousands)."""
+    """A figure in digits (1,250 with a thousands separator, 12,5 with a decimal comma), or a whole number in English
+    words (up to the thousands)."""
     if figure[0].isdigit():
+        if re.fullmatch(r"\d{1,3}(?:,\d{3})+(?:\.\d+)?", figure):
+            return float(figure.replace(",", ""))
         return float(figure.replace(",", "."))
     total = current = 0
     for word in re.split(r"[\s-]+", figure.lower()):
