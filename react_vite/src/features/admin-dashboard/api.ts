@@ -161,3 +161,38 @@ export const fetchAdminMobileApps = async (minutes: number): Promise<MobileAppsR
     }
     return response.json();
 };
+
+/** One flight of a person, as display/services/admin_user_flights.py describes it. */
+export interface AdminUserFlight {
+    id: number;
+    contestant_number: number;
+    contest_id: number;
+    contest_name: string;
+    navigation_task_id: number;
+    navigation_task_name: string;
+    task_type: string | null;
+    role: 'pilot' | 'co-pilot';
+    partner: string | null;
+    aeroplane: string;
+    flight_mode: string;
+    takeoff_time: string;
+    finished_by_time: string;
+    calculator_started: boolean;
+    calculator_finished: boolean;
+    score: number | null;
+    /** The styles of the AI summaries written of the flight's current scores. */
+    summary_styles: string[];
+}
+
+export interface AdminUserFlightsResponse {
+    person: { id: number; name: string; email: string; has_account: boolean };
+    flights: AdminUserFlight[];
+}
+
+export const fetchAdminUserFlights = async (personId: number): Promise<AdminUserFlightsResponse> => {
+    const response = await fetch(`${reverse('admin-user-flights-list')}?person=${personId}`, { cache: 'no-store' });
+    if (!response.ok) {
+        throw new Error(response.status === 404 ? 'No such person' : 'Failed to fetch the flights');
+    }
+    return response.json();
+};

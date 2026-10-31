@@ -21,6 +21,8 @@ interface Props {
     tab: PanelTab;
     onTabChange: (tab: PanelTab) => void;
     onClearSelection?: () => void;
+    /** Something to do with the selected contestant, next to Clear (the AI flight summary). */
+    selectionAction?: React.ReactNode;
     /** The task has a flight list (not a poker run or landing task): phones get a Flight tab for it. */
     showFlightTab?: boolean;
     children: React.ReactNode;
@@ -54,7 +56,7 @@ function LiveOrReplay({ mode, onModeChange }: { mode: 'realtime' | 'playback'; o
  */
 export default function SidePanel({
     title, time, timeZone, mode, onModeChange, collapsed, onToggleCollapsed, toolbar, notice,
-    selectedName, tab, onTabChange, onClearSelection, showFlightTab = false, children, footer,
+    selectedName, tab, onTabChange, onClearSelection, selectionAction, showFlightTab = false, children, footer,
 }: Props) {
     const { clock, zone } = formatClock(time, timeZone);
 
@@ -126,6 +128,7 @@ export default function SidePanel({
                             <span className="hidden sm:inline truncate">Log: {selectedName}</span>
                         </button>
                     </div>
+                    {selectionAction}
                     {onClearSelection && (
                         <button className="hud-button flex-none" onClick={onClearSelection} title="Back to all contestants">Clear</button>
                     )}

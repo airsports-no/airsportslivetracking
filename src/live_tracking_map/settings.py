@@ -101,6 +101,23 @@ ACCESS_ENFORCEMENT_MODE = os.environ.get("ACCESS_ENFORCEMENT_MODE", "audit")
 if ACCESS_ENFORCEMENT_MODE not in {"audit", "enforce"}:
     ACCESS_ENFORCEMENT_MODE = "audit"
 
+# AI flight summaries (display.services.flight_summaries). The feature is off without an API key. We pay for every
+# generation, so only superusers may have them written (anybody who may open the task reads them), and the feature
+# switches itself off for the rest of the month once the summaries written this month have cost the budget. The prices
+# are per million tokens and only used to count that cost: keep them in step with the model.
+ANTHROPIC_API_KEY = os.environ.get("ANTHROPIC_API_KEY", "")
+FLIGHT_SUMMARY_MODEL = os.environ.get("FLIGHT_SUMMARY_MODEL", "claude-haiku-5-5")
+FLIGHT_SUMMARY_INPUT_USD_PER_MTOK = float(os.environ.get("FLIGHT_SUMMARY_INPUT_USD_PER_MTOK", "0.10"))
+FLIGHT_SUMMARY_OUTPUT_USD_PER_MTOK = float(os.environ.get("FLIGHT_SUMMARY_OUTPUT_USD_PER_MTOK", "0.50"))
+# The comedy style needs a funnier model than the rest (display.services.flight_summaries.MODEL_PRICES has its price)
+FLIGHT_SUMMARY_COMEDY_MODEL = os.environ.get("FLIGHT_SUMMARY_COMEDY_MODEL", "claude-sonnet-5-5")
+FLIGHT_SUMMARY_MONTHLY_BUDGET_USD = float(os.environ.get("FLIGHT_SUMMARY_MONTHLY_BUDGET_USD", "20"))
+# The summaries compare the planned wind with the wind the weather model (Open-Meteo) says was there at this height
+# above the ground, where we usually fly (1000-1500 ft). Open-Meteo's free API is for non-commercial use; with a key the
+# paid API is used.
+FLIGHT_SUMMARY_WIND_HEIGHT_AGL_FT = float(os.environ.get("FLIGHT_SUMMARY_WIND_HEIGHT_AGL_FT", "1250"))
+OPEN_METEO_API_KEY = os.environ.get("OPEN_METEO_API_KEY", "")
+
 # Mobile app integration. Versions are the Android versionCode / iOS build number; the app shows a blocking
 # "update required" screen when its own version is below the minimum.
 MOBILE_ANDROID_MIN_VERSION = int(os.environ.get("MOBILE_ANDROID_MIN_VERSION", "0"))

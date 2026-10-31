@@ -25,6 +25,7 @@ const SquadronJoinPage = lazy(() => import("./features/squadrons/SquadronJoinPag
 const UpgradeOrganizer = lazy(() => import("./features/mission-dashboard/UpgradeOrganizer"));
 const UpgradeSuccess = lazy(() => import("./features/mission-dashboard/UpgradeSuccess"));
 const AdminFlightActivityPage = lazy(() => import("./features/admin-dashboard/AdminFlightActivityPage"));
+const AdminUserFlightsPage = lazy(() => import("./features/admin-dashboard/AdminUserFlightsPage"));
 
 const AppRoutes = () => {
     // Keying each boundary by pathname forces a remount (clearing any prior error state) when
@@ -62,6 +63,7 @@ const AppRoutes = () => {
             <Route path={routes.UPGRADE_ORGANIZER} element={wrap(<UpgradeOrganizer />)} />
             <Route path={routes.UPGRADE_SUCCESS} element={wrap(<UpgradeSuccess />)} />
             <Route path={routes.ADMIN_FLIGHT_ACTIVITY} element={wrap(<AdminFlightActivityPage />)} />
+            <Route path={routes.ADMIN_USER_FLIGHTS} element={wrap(<AdminUserFlightsPage />)} />
             <Route path={routes.NOT_FOUND} element={
                 <div className="hero min-h-screen bg-base-200">
                     <div className="hero-content text-center">

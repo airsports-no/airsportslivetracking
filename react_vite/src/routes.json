@@ -25,5 +25,6 @@
   "UPGRADE_ORGANIZER": "upgrade-organizer",
   "UPGRADE_SUCCESS": "upgrade-success",
   "ADMIN_FLIGHT_ACTIVITY": "management/flight-activity",
+  "ADMIN_USER_FLIGHTS": "management/user-flights",
   "NOT_FOUND": "*"
 }
