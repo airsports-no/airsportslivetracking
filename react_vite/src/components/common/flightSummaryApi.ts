@@ -1,3 +1,4 @@
+import { useEffect, useState } from 'react';
 import { reverse } from '../../urls';
 import { getCookie } from '../../utils/csrf';
 
@@ -54,11 +55,18 @@ export interface FlightAnalysis {
   weather_source: string | null;
   wind_height_ft_above_ground: number;
   legs: FlightLeg[];
-  crews?: { crew: string; rank: number; score: number; gates: Record<string, CrewGate>; you?: boolean }[];
+  crews?: {
+    crew: string;
+    rank: number;
+    score: number;
+    gates: Record<string, CrewGate>;
+    you?: boolean;
+  }[];
   field_at_gates?: Record<string, FieldAtGate>;
   timing?: FlightTiming | null;
 }
 
+/** A style a superuser may have a summary written in (the list is empty for anybody else). */
 export interface FlightSummaryStyle {
   key: string;
   label: string;
@@ -68,7 +76,12 @@ export interface FlightSummaryStyle {
 
 /** The AI summary of a flight as the server describes it (display/services/flight_summaries.py's summary_state). */
 export interface FlightSummaryState {
-  flight: { crew: string; contestant_number: number; task: string; contest: string };
+  flight: {
+    crew: string;
+    contestant_number: number;
+    task: string;
+    contest: string;
+  };
   style: string;
   styles: FlightSummaryStyle[];
   enabled: boolean;
@@ -81,7 +94,6 @@ export interface FlightSummaryState {
   can_generate: boolean;
   can_regenerate: boolean;
   reason: string | null;
-  remaining_today: number | null;
   // Superusers only
   model?: string;
   cost_usd?: string;
@@ -97,9 +109,13 @@ async function errorDetail(response: Response): Promise<string> {
   }
 }
 
-export async function fetchFlightSummary(contestantId: number, style: string): Promise<FlightSummaryState> {
-  const url = `${reverse('flight-summaries-detail', contestantId)}?style=${encodeURIComponent(style)}`;
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+/** The flight's newest summary, or with a style the newest in that style. */
+export async function fetchFlightSummary(contestantId: number, style: string | null): Promise<FlightSummaryState> {
+  const detail = reverse('flight-summaries-detail', contestantId);
+  const url = style === null ? detail : `${detail}?style=${encodeURIComponent(style)}`;
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json' },
+  });
   if (!response.ok) throw new Error(await errorDetail(response));
   return response.json();
 }
@@ -107,27 +123,59 @@ export async function fetchFlightSummary(contestantId: number, style: string): P
 export async function requestFlightSummary(
   contestantId: number,
   style: string,
-  regenerate = false
+  regenerate = false,
 ): Promise<FlightSummaryState> {
   const response = await fetch(reverse('flight-summaries-generate', contestantId), {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json', 'X-CSRFToken': getCookie('csrftoken')! },
+    headers: {
+      'Content-Type': 'application/json',
+      'X-CSRFToken': getCookie('csrftoken')!,
+    },
     body: JSON.stringify({ regenerate, style }),
   });
   if (!response.ok) throw new Error(await errorDetail(response));
   return response.json();
 }
 
-/** The flights of a task the user may have summaries of: all of them (superusers), or the user's own. */
+/**
+ * The flights of a task with a summary to read (contestant_ids), and all when the user is a superuser, who may have one
+ * written of any of them.
+ */
 export interface SummarisableFlights {
   enabled: boolean;
   all: boolean;
   contestant_ids: number[];
 }
 
+/** Whether a flight gets the AI summary button: it has a summary, or the user may have one written. */
+export const hasSummaryButton = (flights: SummarisableFlights | null, contestantId: number): boolean =>
+  !!flights && ((flights.all && flights.enabled) || flights.contestant_ids.includes(contestantId));
+
+/** The SummarisableFlights of a task, or null until they are known (or if they cannot be: then no buttons). */
+export function useSummarisableFlights(navigationTaskId: number | undefined): SummarisableFlights | null {
+  const [flights, setFlights] = useState<SummarisableFlights | null>(null);
+  useEffect(() => {
+    if (navigationTaskId === undefined) return;
+    let cancelled = false;
+    fetchSummarisableFlights(navigationTaskId)
+      .then((result) => {
+        if (!cancelled) setFlights(result);
+      })
+      .catch(() => {
+        /* No buttons then: the page works without them */
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [navigationTaskId]);
+  return flights;
+}
+
 export async function fetchSummarisableFlights(navigationTaskId: number): Promise<SummarisableFlights> {
   const url = `${reverse('flight-summaries-available')}?navigation_task=${navigationTaskId}`;
-  const response = await fetch(url, { headers: { Accept: 'application/json' } });
+  const response = await fetch(url, {
+    headers: { Accept: 'application/json' },
+  });
   if (!response.ok) throw new Error(await errorDetail(response));
   return response.json();
 }

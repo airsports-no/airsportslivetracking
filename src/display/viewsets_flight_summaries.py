@@ -8,17 +8,22 @@ from rest_framework.exceptions import ValidationError
 from rest_framework.response import Response
 from rest_framework.viewsets import ViewSet
 
-from display.models import Contestant
+from display.models import Contestant, NavigationTask
+from display.permissions import IsSuperUser
 from display.services import flight_summaries
+from display.services.contest_visibility import can_view_navigation_task
 
 
 class FlightSummaryViewSet(ViewSet):
     """
-    The AI summary of a flight, addressed by the contestant's id. Only the flight's crew (pilot or co-pilot) and
-    superusers see it; anybody else gets a 404, whether or not the flight exists.
+    The AI summary of a flight, addressed by the contestant's id. Anybody who may open the flight's navigation task
+    reads it (anybody else gets a 404, whether or not the flight exists); only superusers have one written.
     """
 
-    permission_classes = [permissions.IsAuthenticated]
+    def get_permissions(self):
+        if self.action == "generate":
+            return [permissions.IsAuthenticated(), IsSuperUser()]
+        return [permissions.AllowAny()]
 
     def _contestant(self, pk) -> Contestant:
         contestant = get_object_or_404(
@@ -34,29 +39,37 @@ class FlightSummaryViewSet(ViewSet):
     @action(detail=False, methods=["get"])
     def available(self, request):
         """
-        Which flights of ``?navigation_task=`` the user may have summaries of: ``all`` for superusers, else
-        ``contestant_ids``, the flights the user flew. ``enabled`` is false when summaries are off.
+        Which flights of ``?navigation_task=`` have a summary to read (``contestant_ids``), and ``all`` when the user is a
+        superuser, who may have any of them written. ``enabled`` is false when no summary can be written.
         """
         try:
             navigation_task_id = int(request.query_params.get("navigation_task", ""))
         except ValueError:
             raise ValidationError({"navigation_task": "Must be a navigation task id."})
-        every, contestant_ids = flight_summaries.summarisable_contestant_ids(request.user, navigation_task_id)
-        return Response({"enabled": flight_summaries.is_enabled(), "all": every, "contestant_ids": contestant_ids})
+        navigation_task = get_object_or_404(NavigationTask.objects.select_related("contest"), pk=navigation_task_id)
+        if not request.user.is_superuser and not can_view_navigation_task(request.user, navigation_task):
+            raise Http404
+        return Response(
+            {
+                "enabled": flight_summaries.is_enabled(),
+                "all": flight_summaries.may_generate(request.user),
+                "contestant_ids": flight_summaries.summarised_contestant_ids(navigation_task_id),
+            }
+        )
 
-    def _style(self, value) -> str:
+    def _style(self, value, default: str | None = flight_summaries.DEFAULT_STYLE) -> str | None:
         if value in (None, ""):
-            return flight_summaries.DEFAULT_STYLE
+            return default
         if value not in flight_summaries.STYLES:
             raise ValidationError({"style": f"Must be one of {sorted(flight_summaries.STYLES)}."})
         return value
 
     def retrieve(self, request, pk=None):
         """
-        The flight's summary in ``?style=`` (see the ``styles`` it lists), if one has been written for its current
-        scores, and whether the user may ask for one.
+        The newest summary written of the flight's current scores, in ``?style=`` if given (see the ``styles`` it lists
+        for superusers), and whether the user may ask for one.
         """
-        style = self._style(request.query_params.get("style"))
+        style = self._style(request.query_params.get("style"), default=None)
         return Response(flight_summaries.summary_state(request.user, self._contestant(pk), style))
 
     @action(detail=True, methods=["post"])

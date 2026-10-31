@@ -1,11 +1,11 @@
 """
 AI-written debriefs of scored flights.
 
-A crew member (pilot or co-pilot) of a finished, scored flight may ask for a short written summary of it; superusers may
-for any flight. The summary is generated once per version of the scores (see FlightSummary) by a Celery task that sends
-the flight's score log to the model, so asking again is free until a restart or an administrative change bumps the
-contestant's track_version or score_version. New generations are limited per user per day and by a monthly budget
-(settings.FLIGHT_SUMMARY_*), since we pay for every one of them.
+Superusers may have a short written summary of a finished, scored flight written; anybody who may open the navigation
+task may read the summaries written of its flights. The summary is generated once per version of the scores (see
+FlightSummary) by a Celery task that sends the flight's score log to the model, so asking again is free until a restart
+or an administrative change bumps the contestant's track_version or score_version. New generations are limited by a
+monthly budget (settings.FLIGHT_SUMMARY_*), since we pay for every one of them.
 
 What is sent: the contest, task and scorecard, the score and placement, the score log, and the analysis of the legs,
 wind, weather and the field (display.services.flight_analysis) - which names the crews as the public map and results
@@ -28,11 +28,12 @@ from django.utils import timezone
 
 from display.models import Contestant, FlightSummary, ScoreLogEntry
 from display.models.scoring_models import ANOMALY, INFORMATION
+from display.services.contest_visibility import can_view_navigation_task
 from display.services.flight_analysis import analyse_flight
 
 logger = logging.getLogger(__name__)
 
-# Bump whenever the prompt or the facts sent change. A summary written with an earlier version is still shown until the
+# Bump whenever the prompt or the facts sent change. The newest summary written is shown whatever its version until the
 # flight's scores change (writing them all again would cost us for nothing); superusers can regenerate it.
 PROMPT_VERSION = 11
 
@@ -187,31 +188,27 @@ def is_enabled() -> bool:
     return bool(settings.ANTHROPIC_API_KEY)
 
 
-def is_crew(user, contestant: Contestant) -> bool:
-    """Whether the user flew this flight, as pilot or co-pilot."""
-    if not user.is_authenticated or not user.email:
-        return False
-    crew = contestant.team.crew
-    return any(member and member.email.lower() == user.email.lower() for member in (crew.member1, crew.member2))
-
-
-def summarisable_contestant_ids(user, navigation_task_id: int) -> tuple[bool, list[int]]:
-    """
-    Whether the user may have the summary of every flight of the task (superusers), and otherwise the flights in it the
-    user flew, as pilot or co-pilot: for the live map, which shows the button only on these.
-    """
-    if user.is_superuser:
-        return True, []
-    if not user.email:
-        return False, []
-    flown = Q(team__crew__member1__email__iexact=user.email) | Q(team__crew__member2__email__iexact=user.email)
-    return False, list(
-        Contestant.objects.filter(flown, navigation_task_id=navigation_task_id).values_list("pk", flat=True)
-    )
-
-
 def may_view(user, contestant: Contestant) -> bool:
-    return user.is_authenticated and (user.is_superuser or is_crew(user, contestant))
+    """Whether the user may read the flight's summaries: anybody who may open its navigation task."""
+    return user.is_superuser or can_view_navigation_task(user, contestant.navigation_task)
+
+
+def may_generate(user) -> bool:
+    return user.is_authenticated and user.is_superuser
+
+
+def summarised_contestant_ids(navigation_task_id: int) -> list[int]:
+    """The flights of the task with a summary written for their current scores: for the live map's button."""
+    versions = dict(
+        (pk, (track_version, score_version))
+        for pk, track_version, score_version in Contestant.objects.filter(
+            navigation_task_id=navigation_task_id
+        ).values_list("pk", "track_version", "score_version")
+    )
+    written = FlightSummary.objects.filter(contestant_id__in=versions, status=FlightSummary.STATUS_DONE).values_list(
+        "contestant_id", "track_version", "score_version"
+    )
+    return sorted({pk for pk, track_version, score_version in written if versions[pk] == (track_version, score_version)})
 
 
 def not_scored_reason(contestant: Contestant) -> str | None:
@@ -229,49 +226,31 @@ def not_scored_reason(contestant: Contestant) -> str | None:
     return None
 
 
-def _summaries_for_scores(
-    contestant: Contestant, style: str = DEFAULT_STYLE
-) -> tuple[FlightSummary | None, FlightSummary | None]:
-    """
-    For the contestant's current scores, in the style: the row of this prompt version, and the newest summary written
-    before it.
-    """
+def _summaries_for_scores(contestant: Contestant, style: str | None = None):
+    """The contestant's summaries of its current scores (in the style, or in any), newest first."""
     rows = FlightSummary.objects.filter(
-        contestant=contestant,
-        track_version=contestant.track_version,
-        score_version=contestant.score_version,
-        style=style,
-    ).order_by("-prompt_version")
-    own = older = None
-    for row in rows:
-        if row.prompt_version == PROMPT_VERSION:
-            own = row
-        elif older is None and row.prompt_version < PROMPT_VERSION and row.status == FlightSummary.STATUS_DONE:
-            older = row
-    return own, older
-
-
-def current_summary(contestant: Contestant, style: str = DEFAULT_STYLE) -> FlightSummary | None:
-    """
-    The summary of the contestant's current scores to show, if anyone has asked for one: this prompt version's when it
-    is written or being written, and otherwise the newest one written with an earlier version.
-    """
-    own, older = _summaries_for_scores(contestant, style)
-    if own and (own.status == FlightSummary.STATUS_DONE or _is_being_written(own)):
-        return own
-    return older or own
-
-
-def remaining_today(user) -> int | None:
-    """How many more new summaries the user may ask for in the last 24 hours; None means no limit."""
-    if user.is_superuser:
-        return None
-    used = (
-        FlightSummary.objects.filter(requested_by=user, requested_at__gte=timezone.now() - datetime.timedelta(days=1))
-        .exclude(status=FlightSummary.STATUS_FAILED)
-        .count()
+        contestant=contestant, track_version=contestant.track_version, score_version=contestant.score_version
     )
-    return max(0, settings.FLIGHT_SUMMARY_DAILY_LIMIT_PER_USER - used)
+    if style is not None:
+        rows = rows.filter(style=style)
+    return rows.order_by("-requested_at", "-pk")
+
+
+def _own_summary(contestant: Contestant, style: str) -> FlightSummary | None:
+    """The row of this prompt version in the style, which a new generation writes."""
+    return _summaries_for_scores(contestant, style).filter(prompt_version=PROMPT_VERSION).first()
+
+
+def current_summary(contestant: Contestant, style: str | None = None) -> FlightSummary | None:
+    """
+    The summary of the contestant's current scores to show (in the style, or in any): the newest one written or being
+    written, whatever prompt version wrote it, and otherwise the newest attempt, which failed.
+    """
+    rows = list(_summaries_for_scores(contestant, style))
+    for row in rows:
+        if row.status == FlightSummary.STATUS_DONE or _is_being_written(row):
+            return row
+    return rows[0] if rows else None
 
 
 def spent_this_month() -> Decimal:
@@ -297,30 +276,33 @@ def _needs_generation(summary: FlightSummary | None) -> bool:
 
 def _refusal(user, contestant: Contestant, new_generation: bool) -> FlightSummaryRefused | None:
     """Why the user may not have the flight's summary (or, with ``new_generation``, a newly written one)."""
+    if not may_generate(user):
+        return FlightSummaryRefused("Only site administrators can have AI summaries written.", 403)
     if not is_enabled():
         return FlightSummaryRefused("AI summaries are not available.", 503)
-    if not may_view(user, contestant):
-        return FlightSummaryRefused("Only the crew of a flight can ask for its summary.", 403)
     reason = not_scored_reason(contestant)
     if reason:
         return FlightSummaryRefused(reason, 409)
-    if new_generation:
-        if remaining_today(user) == 0:
-            return FlightSummaryRefused("You have used today's AI summaries. Try again tomorrow.", 429)
-        if budget_exhausted():
-            return FlightSummaryRefused("AI summaries are paused for the rest of the month.", 503)
+    if new_generation and budget_exhausted():
+        return FlightSummaryRefused("AI summaries are paused for the rest of the month.", 503)
     return None
 
 
-def _is_written(contestant: Contestant, style: str) -> bool:
-    summary = current_summary(contestant, style)
-    return summary is not None and summary.status == FlightSummary.STATUS_DONE
+def _written_styles(contestant: Contestant) -> set[str]:
+    return set(_summaries_for_scores(contestant).filter(status=FlightSummary.STATUS_DONE).values_list("style", flat=True))
 
 
-def summary_state(user, contestant: Contestant, style: str = DEFAULT_STYLE) -> dict:
-    """What the website shows for the flight: the summary if there is one, and whether the user may ask for one."""
+def summary_state(user, contestant: Contestant, style: str | None = None) -> dict:
+    """
+    What the website shows for the flight: the newest summary written (in the style, which superusers choose to have one
+    written in), and whether the user may ask for one. Anybody but a superuser sees only finished summaries.
+    """
     summary = current_summary(contestant, style)
-    refusal = _refusal(user, contestant, new_generation=_needs_generation(summary))
+    superuser = may_generate(user)
+    if not superuser and summary is not None and summary.status != FlightSummary.STATUS_DONE:
+        summary = None
+    refusal = _refusal(user, contestant, new_generation=_needs_generation(summary)) if superuser else None
+    written = _written_styles(contestant) if superuser else set()
     data = {
         # Who flew it and where, for the heading
         "flight": {
@@ -329,11 +311,14 @@ def summary_state(user, contestant: Contestant, style: str = DEFAULT_STYLE) -> d
             "task": contestant.navigation_task.name,
             "contest": contestant.navigation_task.contest.name,
         },
-        "style": style,
+        "style": summary.style if summary else style or DEFAULT_STYLE,
+        # Superusers only, to choose a style to have written
         "styles": [
-            {"key": key, "label": definition["label"], "written": _is_written(contestant, key)}
+            {"key": key, "label": definition["label"], "written": key in written}
             for key, definition in STYLES.items()
-        ],
+        ]
+        if superuser
+        else [],
         "enabled": is_enabled(),
         # A generation whose worker died shows as failed, so it can be asked for again instead of spinning forever
         "status": (FlightSummary.STATUS_FAILED if _is_lost(summary) else summary.status) if summary else None,
@@ -342,15 +327,14 @@ def summary_state(user, contestant: Contestant, style: str = DEFAULT_STYLE) -> d
         "sections": summary.sections if summary and summary.status == FlightSummary.STATUS_DONE else [],
         "analysis": summary.analysis if summary and summary.status == FlightSummary.STATUS_DONE else None,
         "requested_at": summary.requested_at if summary else None,
-        "can_generate": refusal is None and _needs_generation(summary),
-        "can_regenerate": user.is_superuser
+        "can_generate": superuser and refusal is None and _needs_generation(summary),
+        "can_regenerate": superuser
         and summary is not None
         and not _is_being_written(summary)
         and _refusal(user, contestant, new_generation=True) is None,
-        "reason": str(refusal) if refusal else None,
-        "remaining_today": remaining_today(user),
+        "reason": str(refusal) if refusal else (None if summary or superuser else "No AI summary of this flight yet."),
     }
-    if user.is_superuser and summary:
+    if superuser and summary:
         data.update(model=summary.model, cost_usd=str(summary.cost_usd), error=summary.error)
     return data
 
@@ -360,10 +344,9 @@ def request_summary(
 ) -> FlightSummary:
     """
     Returns the summary of the flight's current scores, starting its generation when there is none (or the last attempt
-    failed). Only a new generation counts against the user's daily quota. ``regenerate`` (superusers) writes it again.
+    failed). Only superusers may. ``regenerate`` writes it again.
     """
     existing = current_summary(contestant, style)
-    regenerate = regenerate and user.is_superuser
     new_generation = _needs_generation(existing) or (regenerate and not _is_being_written(existing))
     refusal = _refusal(user, contestant, new_generation=new_generation)
     if refusal:
@@ -374,14 +357,14 @@ def request_summary(
     now = timezone.now()
     try:
         with transaction.atomic():
-            # The user's generations one at a time, with the quota checked again under the lock: parallel requests for
+            # The user's generations one at a time, with the budget checked again under the lock: parallel requests for
             # several flights cannot all pass the check
             get_user_model().objects.select_for_update().filter(pk=user.pk).first()
             refusal = _refusal(user, contestant, new_generation=True)
             if refusal:
                 raise refusal
             # Always written as this prompt version: an earlier version's summary stays as it is
-            own, _ = _summaries_for_scores(contestant, style)
+            own = _own_summary(contestant, style)
             if own and (_is_being_written(own) or (own.status == FlightSummary.STATUS_DONE and not regenerate)):
                 return own
             if own:

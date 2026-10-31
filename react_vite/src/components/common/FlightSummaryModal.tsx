@@ -12,24 +12,6 @@ const minutesAndSeconds = (seconds: number | null) =>
 const headwind = (knots: number | null) =>
   knots === null ? '-' : knots >= 0 ? `${knots.toFixed(0)} kt head` : `${(-knots).toFixed(0)} kt tail`;
 
-const STYLE_STORAGE_KEY = 'flightSummaryStyle';
-
-const storedStyle = (): string => {
-  try {
-    return window.localStorage.getItem(STYLE_STORAGE_KEY) || 'debrief';
-  } catch {
-    return 'debrief';
-  }
-};
-
-const storeStyle = (style: string) => {
-  try {
-    window.localStorage.setItem(STYLE_STORAGE_KEY, style);
-  } catch {
-    // Only a convenience: the next modal starts with the default style
-  }
-};
-
 /** Each gate: your timing and points, the rest of the field's median timing, and where yours ranks there. */
 const GateTable: React.FC<{ analysis: FlightAnalysis; open: boolean }> = ({ analysis, open }) => {
   const you = analysis.crews?.find((crew) => crew.you);
@@ -41,10 +23,10 @@ const GateTable: React.FC<{ analysis: FlightAnalysis; open: boolean }> = ({ anal
       <div className="collapse-content overflow-x-auto">
         {timing && (
           <p className="text-xs opacity-70 mb-2">
-            Timing at {timing.timed_gates} timed gates: {timing.mean_absolute_offset_seconds} s off on average (the field's
-            median {timing.field_median_of_mean_absolute_offset_seconds} s), {timing.gates_within_2_seconds} within 2 s,
-            largest {timing.largest_absolute_offset_seconds} s. Precision rank {timing.your_rank_by_mean_absolute_offset} of{' '}
-            {timing.crews_ranked}.
+            Timing at {timing.timed_gates} timed gates: {timing.mean_absolute_offset_seconds} s off on average (the
+            field's median {timing.field_median_of_mean_absolute_offset_seconds} s), {timing.gates_within_2_seconds}{' '}
+            within 2 s, largest {timing.largest_absolute_offset_seconds} s. Precision rank{' '}
+            {timing.your_rank_by_mean_absolute_offset} of {timing.crews_ranked}.
           </p>
         )}
         <table className="table table-xs">
@@ -67,7 +49,9 @@ const GateTable: React.FC<{ analysis: FlightAnalysis; open: boolean }> = ({ anal
                   <td>{values.points ?? 0}</td>
                   <td>{field ? signedSeconds(field.median_offset_seconds) : '-'}</td>
                   <td>
-                    {field?.your_rank_by_precision ? `${field.your_rank_by_precision} of ${field.other_crews + 1}` : '-'}
+                    {field?.your_rank_by_precision
+                      ? `${field.your_rank_by_precision} of ${field.other_crews + 1}`
+                      : '-'}
                   </td>
                 </tr>
               );
@@ -85,9 +69,9 @@ const LegTable: React.FC<{ analysis: FlightAnalysis; open: boolean }> = ({ analy
     <summary className="collapse-title text-sm font-semibold">🧭 Leg by leg</summary>
     <div className="collapse-content overflow-x-auto">
       <p className="text-xs opacity-70 mb-2">
-        Planned wind {analysis.planned_wind.direction}° / {analysis.planned_wind.speed_kt} kt. The actual wind is the weather
-        model's at {analysis.wind_height_ft_above_ground} ft above the ground; "wind effect" is how much later (+) or earlier
-        that wind alone would have made you at the planned airspeed.
+        Planned wind {analysis.planned_wind.direction}° / {analysis.planned_wind.speed_kt} kt. The actual wind is the
+        weather model's at {analysis.wind_height_ft_above_ground} ft above the ground; "wind effect" is how much later
+        (+) or earlier that wind alone would have made you at the planned airspeed.
       </p>
       <table className="table table-xs">
         <thead>
@@ -132,8 +116,8 @@ interface FlightSummaryModalProps {
 }
 
 /**
- * Shows the AI summary of a flight, and lets the crew (or a superuser) ask for it. It is written in the background, so
- * the modal polls while it is pending.
+ * Shows the newest AI summary of a flight, and lets a superuser have one written in a chosen style. It is written in
+ * the background, so the modal polls while it is pending.
  */
 const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryModalProps>(({ contestantId }, ref) => {
   const dialogRef = useRef<HTMLDialogElement>(null);
@@ -142,9 +126,10 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
   const [requesting, setRequesting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [isOpen, setIsOpen] = useState(false);
-  const [style, setStyle] = useState(storedStyle);
+  // The style a superuser chose; null shows the newest summary, whatever its style
+  const [style, setStyle] = useState<string | null>(null);
 
-  const load = async (chosenStyle: string = style) => {
+  const load = async (chosenStyle: string | null = style) => {
     setLoading(true);
     setError(null);
     try {
@@ -177,18 +162,19 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
   }, [isOpen, state, contestantId, style]);
 
   const chooseStyle = (chosen: string) => {
-    if (chosen === style) return;
+    if (chosen === state?.style) return;
     setStyle(chosen);
-    storeStyle(chosen);
     setState(null);
     load(chosen);
   };
 
   const request = async (regenerate: boolean) => {
+    const chosen = style ?? state?.style ?? 'debrief';
+    setStyle(chosen);
     setRequesting(true);
     setError(null);
     try {
-      setState(await requestFlightSummary(contestantId, style, regenerate));
+      setState(await requestFlightSummary(contestantId, chosen, regenerate));
     } catch (err: any) {
       setError(err.message || 'Could not ask for the summary');
     } finally {
@@ -218,23 +204,25 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
             </span>
           </p>
         )}
-        <div className="join mt-3" role="radiogroup" aria-label="Style">
-          {(state?.styles ?? []).map((option) => (
-            <button
-              key={option.key}
-              type="button"
-              role="radio"
-              aria-checked={option.key === style}
-              className={`btn btn-sm join-item ${option.key === style ? 'btn-primary' : 'btn-outline'}`}
-              onClick={() => chooseStyle(option.key)}
-              disabled={loading || requesting}
-              title={option.written ? 'Already written' : 'Not written yet'}
-            >
-              {option.label}
-              {option.written && <span aria-label="written"> ✓</span>}
-            </button>
-          ))}
-        </div>
+        {(state?.styles?.length ?? 0) > 0 && (
+          <div className="join mt-3" role="radiogroup" aria-label="Style">
+            {state!.styles.map((option) => (
+              <button
+                key={option.key}
+                type="button"
+                role="radio"
+                aria-checked={option.key === state!.style}
+                className={`btn btn-sm join-item ${option.key === state!.style ? 'btn-primary' : 'btn-outline'}`}
+                onClick={() => chooseStyle(option.key)}
+                disabled={loading || requesting}
+                title={option.written ? 'Already written' : 'Not written yet'}
+              >
+                {option.label}
+                {option.written && <span aria-label="written"> ✓</span>}
+              </button>
+            ))}
+          </div>
+        )}
 
         {loading && !state && <p className="py-4 text-sm opacity-70">Loading...</p>}
         {error && <p className="py-2 text-error text-sm">{error}</p>}
@@ -261,9 +249,9 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
                 ) : (
                   <div className="whitespace-pre-line leading-relaxed">{state.text}</div>
                 )}
-                {state.analysis && <GateTable analysis={state.analysis} open={style === 'statistics'} />}
+                {state.analysis && <GateTable analysis={state.analysis} open={state.style === 'statistics'} />}
                 {state.analysis?.legs?.length ? (
-                  <LegTable analysis={state.analysis} open={style === 'statistics'} />
+                  <LegTable analysis={state.analysis} open={state.style === 'statistics'} />
                 ) : null}
                 <p className="text-xs opacity-60">
                   Written by AI from the official score log. The scores and the results list are what count.
@@ -285,13 +273,17 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
                 <span className="loading loading-spinner loading-sm" /> Writing the summary...
               </p>
             )}
-            {state.status === 'failed' && <p className="text-sm text-warning">The summary could not be written this time.</p>}
+            {state.status === 'failed' && (
+              <p className="text-sm text-warning">The summary could not be written this time.</p>
+            )}
             {state.status === null && state.can_generate && (
               <p className="text-sm">
-                Get a short written debrief of this flight: where you lost points and what went well, from the score log.
+                No summary of this flight yet: have one written from its score log in the style chosen above.
               </p>
             )}
-            {state.reason && !pending && state.status !== 'done' && <p className="text-sm opacity-70">{state.reason}</p>}
+            {state.reason && !pending && state.status !== 'done' && (
+              <p className="text-sm opacity-70">{state.reason}</p>
+            )}
             {state.model !== undefined && state.status !== null && (
               <p className="text-xs opacity-60">
                 {state.model} · ${state.cost_usd}
@@ -303,17 +295,24 @@ const FlightSummaryModal = forwardRef<FlightSummaryModalHandle, FlightSummaryMod
 
         <div className="modal-action">
           {state?.can_generate && (
-            <button type="button" className="btn btn-primary btn-sm" disabled={requesting} onClick={() => request(false)}>
+            <button
+              type="button"
+              className="btn btn-primary btn-sm"
+              disabled={requesting}
+              onClick={() => request(false)}
+            >
               {state.status === 'failed' ? 'Try again' : 'Write summary'}
             </button>
           )}
           {state?.can_regenerate && (
-            <button type="button" className="btn btn-outline btn-sm" disabled={requesting} onClick={() => request(true)}>
+            <button
+              type="button"
+              className="btn btn-outline btn-sm"
+              disabled={requesting}
+              onClick={() => request(true)}
+            >
               Regenerate
             </button>
-          )}
-          {state?.remaining_today !== null && state?.remaining_today !== undefined && state.can_generate && (
-            <span className="text-xs opacity-60 self-center">{state.remaining_today} left today</span>
           )}
         </div>
       </div>

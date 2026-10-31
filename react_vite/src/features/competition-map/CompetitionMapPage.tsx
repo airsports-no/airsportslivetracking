@@ -36,7 +36,7 @@ import TaskInfoModal from './TaskInfoModal';
 import { Trophy, Info, Settings, Calendar, Sliders, Route, CircleHelp, Sparkles } from 'lucide-react';
 import { generatePath } from '../../urls';
 import FlightSummaryModal, { FlightSummaryModalHandle } from '../../components/common/FlightSummaryModal';
-import { fetchSummarisableFlights, SummarisableFlights } from '../../components/common/flightSummaryApi';
+import { hasSummaryButton, useSummarisableFlights } from '../../components/common/flightSummaryApi';
 import './CompetitionMap.css';
 import './components/hud/hud.css';
 import { GateResult, NavigationTask, PhotoObservation, ScoreAnnotation, ScoreLogEntry } from './types';
@@ -103,17 +103,9 @@ export default function CompetitionMapPage() {
   const linkedContestantId = singleContestantId(contestantIdsParam) ?? singleContestantId(contestantParam);
   const selectionKey = `${contestantIdsParam}|${contestantParam}`;
   const [selectedContestantId, setSelectedContestantId] = useState<number | null>(linkedContestantId);
-  // The flights this user may have AI summaries of (their own, or all for a superuser): only those get the button
-  const [summarisable, setSummarisable] = useState<SummarisableFlights | null>(null);
+  // The flights with an AI summary to read (or all, for a superuser, who may have one written): only those get the button
+  const summarisable = useSummarisableFlights(navigationTaskIdNum);
   const flightSummaryRef = useRef<FlightSummaryModalHandle>(null);
-  useEffect(() => {
-    if (!document.configuration?.isAuthenticated) return;
-    let cancelled = false;
-    fetchSummarisableFlights(navigationTaskIdNum)
-      .then((flights) => { if (!cancelled) setSummarisable(flights); })
-      .catch(() => { /* No button then: the map works without it */ });
-    return () => { cancelled = true; };
-  }, [navigationTaskIdNum]);
   // The linked contestant's panel tab waits for their data: a finished flight opens on its log, as a click would.
   const clickedContestantId = contestantIdsParam === null ? singleContestantId(contestantParam) : null;
   const [linkTabPendingFor, setLinkTabPendingFor] = useState<number | null>(clickedContestantId);
@@ -975,11 +967,9 @@ export default function CompetitionMapPage() {
   const selectedName = selectedContestant
     ? `#${selectedContestant.contestant_number} ${selectedContestant.team?.crew?.member1?.first_name ?? ''}`.trim()
     : null;
-  // Once the flight is scored, its crew (or a superuser) can have it written up by AI
+  // Once the flight is scored, anybody reads its AI summary, and a superuser can have one written
   const canSummarise = !!(
-    selectedContestant?.contestanttrack?.calculator_finished
-    && summarisable?.enabled
-    && (summarisable.all || summarisable.contestant_ids.includes(selectedContestant.id))
+    selectedContestant?.contestanttrack?.calculator_finished && hasSummaryButton(summarisable, selectedContestant.id)
   );
   const selectedStanding = selectedContestant ? standings.findIndex(r => r.id === selectedContestant.id) : -1;
   const startedCount = firstWaitingIndex === -1 ? standings.length : firstWaitingIndex;

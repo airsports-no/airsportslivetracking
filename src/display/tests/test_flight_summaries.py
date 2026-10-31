@@ -50,7 +50,6 @@ def model_response(text, stop_reason="end_turn", input_tokens=2000, output_token
 
 @override_settings(
     ANTHROPIC_API_KEY="test-key",
-    FLIGHT_SUMMARY_DAILY_LIMIT_PER_USER=5,
     FLIGHT_SUMMARY_MONTHLY_BUDGET_USD=20,
     FLIGHT_SUMMARY_INPUT_USD_PER_MTOK=0.10,
     FLIGHT_SUMMARY_OUTPUT_USD_PER_MTOK=0.50,
@@ -144,10 +143,10 @@ class FlightSummaryTest(TestCase):
         defaults.update(fields)
         return FlightSummary.objects.create(**defaults)
 
-    # Who may ask
+    # Who may ask, and who may read
 
-    def test_the_pilot_starts_a_summary_whatever_the_case_of_the_email(self):
-        response = self.generate(self.pilot_user)
+    def test_a_superuser_starts_a_summary(self):
+        response = self.generate(self.superuser)
         self.assertEqual(response.status_code, 202)
         self.assertEqual(response.json()["status"], FlightSummary.STATUS_PENDING)
         self.assertEqual(
@@ -156,50 +155,69 @@ class FlightSummaryTest(TestCase):
         )
         summary = FlightSummary.objects.get()
         self.delay.assert_called_once_with(summary.pk)
-        self.assertEqual(summary.requested_by, self.pilot_user)
+        self.assertEqual(summary.requested_by, self.superuser)
 
     def test_a_browser_session_can_ask_for_a_summary(self):
         # Logged in by session, as the website is: request.user is then a lazy wrapper, not the user model itself
-        self.client.force_login(self.pilot_user)
+        self.client.force_login(self.superuser)
         with self.captureOnCommitCallbacks(execute=True):
             response = self.client.post(self.url("generate/"), {"style": "pundit"}, format="json")
         self.assertEqual(response.status_code, 202)
         self.delay.assert_called_once()
 
-    def test_the_live_map_learns_which_flights_the_user_may_summarise(self):
-        url = f"/api/v1/flight_summaries/available/?navigation_task={self.task.pk}"
-        for user, expected in (
-            (self.copilot_user, {"enabled": True, "all": False, "contestant_ids": [self.contestant.pk]}),
-            (self.stranger, {"enabled": True, "all": False, "contestant_ids": []}),
-            (self.superuser, {"enabled": True, "all": True, "contestant_ids": []}),
-        ):
+    def test_nobody_but_a_superuser_has_one_written_not_even_the_crew(self):
+        for user in (self.pilot_user, self.copilot_user, self.stranger):
+            self.assertEqual(self.generate(user).status_code, 403)
             self.client.force_authenticate(user)
-            self.assertEqual(self.client.get(url).json(), expected)
-        self.assertEqual(self.client.get("/api/v1/flight_summaries/available/").status_code, 400)
+            self.assertFalse(self.client.get(self.url()).json()["can_generate"])
         self.client.force_authenticate(None)
-        self.assertIn(self.client.get(url).status_code, (401, 403))
-
-    def test_the_copilot_may_ask_too(self):
-        self.assertEqual(self.generate(self.copilot_user).status_code, 202)
-
-    def test_someone_who_did_not_fly_it_gets_a_404_and_nothing_is_written(self):
-        self.client.force_authenticate(self.stranger)
-        self.assertEqual(self.client.get(self.url()).status_code, 404)
-        self.assertEqual(self.generate(self.stranger).status_code, 404)
+        self.assertIn(self.client.post(self.url("generate/"), {}, format="json").status_code, (401, 403))
         self.assertFalse(FlightSummary.objects.exists())
         self.delay.assert_not_called()
 
-    def test_anonymous_users_are_refused(self):
-        self.assertIn(self.client.get(self.url()).status_code, (401, 403))
+    def test_anybody_who_may_open_the_task_reads_the_summary(self):
+        self.done_summary(requested_by=self.superuser)
+        for user in (None, self.stranger, self.pilot_user):
+            self.client.force_authenticate(user)
+            state = self.client.get(self.url()).json()
+            self.assertEqual(state["text"], "A fine flight.")
+            self.assertFalse(state["can_generate"])
+            self.assertFalse(state["can_regenerate"])
+            # The styles to choose from and what it cost are for superusers
+            self.assertEqual(state["styles"], [])
+            self.assertNotIn("cost_usd", state)
 
-    def test_a_superuser_may_ask_for_any_flight_without_a_daily_limit(self):
-        for _ in range(6):
-            self.done_summary(requested_by=self.superuser, track_version=100 + _)
+    def test_the_summaries_of_a_private_task_are_for_its_audience(self):
+        self.done_summary(requested_by=self.superuser)
+        NavigationTask.objects.filter(pk=self.task.pk).update(is_public=False)
+        for user in (None, self.stranger, self.pilot_user):
+            self.client.force_authenticate(user)
+            self.assertEqual(self.client.get(self.url()).status_code, 404)
+            url = f"/api/v1/flight_summaries/available/?navigation_task={self.task.pk}"
+            self.assertEqual(self.client.get(url).status_code, 404)
         self.client.force_authenticate(self.superuser)
+        self.assertEqual(self.client.get(self.url()).json()["text"], "A fine flight.")
+
+    def test_only_superusers_see_a_summary_being_written_or_failed(self):
+        self.done_summary(status=FlightSummary.STATUS_PENDING, text="")
         state = self.client.get(self.url()).json()
-        self.assertTrue(state["can_generate"])
-        self.assertIsNone(state["remaining_today"])
-        self.assertEqual(self.generate(self.superuser).status_code, 202)
+        self.assertIsNone(state["status"])
+        self.assertEqual(state["reason"], "No AI summary of this flight yet.")
+        self.client.force_authenticate(self.superuser)
+        self.assertEqual(self.client.get(self.url()).json()["status"], FlightSummary.STATUS_PENDING)
+
+    def test_the_live_map_learns_which_flights_have_a_summary(self):
+        url = f"/api/v1/flight_summaries/available/?navigation_task={self.task.pk}"
+        self.done_summary(track_version=self.contestant.track_version - 1)
+        # Only one of the current scores counts
+        self.assertEqual(self.client.get(url).json(), {"enabled": True, "all": False, "contestant_ids": []})
+        self.done_summary(style="pundit")
+        for user, every in ((None, False), (self.stranger, False), (self.superuser, True)):
+            self.client.force_authenticate(user)
+            self.assertEqual(
+                self.client.get(url).json(), {"enabled": True, "all": every, "contestant_ids": [self.contestant.pk]}
+            )
+        self.assertEqual(self.client.get("/api/v1/flight_summaries/available/").status_code, 400)
 
     # When
 
@@ -207,52 +225,53 @@ class FlightSummaryTest(TestCase):
         Contestant.objects.filter(pk=self.contestant.pk).update(
             finished_by_time=datetime.datetime.now(datetime.timezone.utc) + datetime.timedelta(hours=1)
         )
-        response = self.generate(self.pilot_user)
+        response = self.generate(self.superuser)
         self.assertEqual(response.status_code, 409)
         self.assertFalse(FlightSummary.objects.exists())
 
     def test_a_flight_still_being_scored_cannot_be_summarised(self):
         self.score(calculator_finished=False)
-        self.assertEqual(self.generate(self.pilot_user).status_code, 409)
-        self.client.force_authenticate(self.pilot_user)
+        self.assertEqual(self.generate(self.superuser).status_code, 409)
         state = self.client.get(self.url()).json()
         self.assertFalse(state["can_generate"])
         self.assertEqual(state["reason"], "The flight is still being scored.")
 
-    def test_without_an_api_key_the_feature_is_off(self):
+    def test_without_an_api_key_nothing_is_written_but_summaries_are_still_read(self):
+        self.done_summary(style="pundit")
         with override_settings(ANTHROPIC_API_KEY=""):
-            self.client.force_authenticate(self.pilot_user)
+            self.client.force_authenticate(self.superuser)
             self.assertFalse(self.client.get(self.url()).json()["enabled"])
-            self.assertEqual(self.generate(self.pilot_user).status_code, 503)
+            self.assertEqual(self.generate(self.superuser, style="debrief").status_code, 503)
+            self.client.force_authenticate(None)
+            self.assertEqual(self.client.get(self.url()).json()["text"], "A fine flight.")
 
     # Written once per version of the scores
 
     def test_asking_again_returns_the_written_summary_without_a_new_generation(self):
-        self.done_summary(requested_by=self.copilot_user)
-        response = self.generate(self.pilot_user)
+        self.done_summary()
+        response = self.generate(self.superuser)
         self.assertEqual(response.json()["text"], "A fine flight.")
         self.assertEqual(FlightSummary.objects.count(), 1)
         self.delay.assert_not_called()
-        self.assertEqual(flight_summaries.remaining_today(self.pilot_user), 5)
 
     def test_a_summary_being_written_is_not_started_twice(self):
-        self.generate(self.pilot_user)
-        self.generate(self.copilot_user)
+        self.generate(self.superuser)
+        self.generate(self.superuser)
         self.assertEqual(FlightSummary.objects.count(), 1)
         self.assertEqual(self.delay.call_count, 1)
 
     def test_new_scores_get_a_new_summary(self):
         self.done_summary()
         Contestant.objects.filter(pk=self.contestant.pk).update(score_version=self.contestant.score_version + 1)
-        self.client.force_authenticate(self.pilot_user)
+        self.client.force_authenticate(self.superuser)
         self.assertTrue(self.client.get(self.url()).json()["can_generate"])
-        self.assertEqual(self.generate(self.pilot_user).status_code, 202)
+        self.assertEqual(self.generate(self.superuser).status_code, 202)
         self.assertEqual(FlightSummary.objects.count(), 2)
         self.delay.assert_called_once()
 
     def test_a_failed_summary_may_be_asked_for_again(self):
         failed = self.done_summary(status=FlightSummary.STATUS_FAILED, text="", error="boom")
-        self.assertEqual(self.generate(self.pilot_user).status_code, 202)
+        self.assertEqual(self.generate(self.superuser).status_code, 202)
         failed.refresh_from_db()
         self.assertEqual(failed.status, FlightSummary.STATUS_PENDING)
         self.delay.assert_called_once_with(failed.pk)
@@ -264,50 +283,44 @@ class FlightSummaryTest(TestCase):
             requested_at=datetime.datetime.now(datetime.timezone.utc) - datetime.timedelta(hours=1),
         )
         # Shown as failed, so the modal offers to try again instead of spinning
-        self.client.force_authenticate(self.pilot_user)
+        self.client.force_authenticate(self.superuser)
         state = self.client.get(self.url()).json()
         self.assertEqual(state["status"], FlightSummary.STATUS_FAILED)
         self.assertTrue(state["can_generate"])
-        self.generate(self.pilot_user)
+        self.generate(self.superuser)
         self.delay.assert_called_once_with(lost.pk)
 
     def test_a_failed_summary_restarted_by_someone_else_meanwhile_is_not_started_again(self):
         failed = self.done_summary(status=FlightSummary.STATUS_FAILED, text="")
-        read = flight_summaries._summaries_for_scores
-        reads = []
+        read = flight_summaries._own_summary
 
         def read_then_restarted_elsewhere(*args):
-            rows = read(*args)
-            reads.append(rows)
-            if len(reads) == 2:
-                # Under the lock: this request has read the failed row, and another one restarts it before this one does
-                FlightSummary.objects.filter(pk=failed.pk).update(
-                    status=FlightSummary.STATUS_PENDING, requested_at=datetime.datetime.now(datetime.timezone.utc)
-                )
-            return rows
+            row = read(*args)
+            # Under the lock: this request has read the failed row, and another one restarts it before this one does
+            FlightSummary.objects.filter(pk=failed.pk).update(
+                status=FlightSummary.STATUS_PENDING, requested_at=datetime.datetime.now(datetime.timezone.utc)
+            )
+            return row
 
-        with patch(
-            "display.services.flight_summaries._summaries_for_scores", side_effect=read_then_restarted_elsewhere
-        ):
-            self.generate(self.copilot_user)
+        with patch("display.services.flight_summaries._own_summary", side_effect=read_then_restarted_elsewhere):
+            self.generate(self.superuser)
         self.delay.assert_not_called()
         # The other request's restart stands: this one did not take the row over
         failed.refresh_from_db()
         self.assertEqual(failed.requested_by, self.pilot_user)
 
-    def test_the_quota_is_checked_again_under_the_lock(self):
-        # Another request used the last summary of the day after this one passed the first check
-        checks = iter([None, flight_summaries.FlightSummaryRefused("You have used today's AI summaries.", 429)])
+    def test_the_budget_is_checked_again_under_the_lock(self):
+        # Another request spent the last of the budget after this one passed the first check
+        checks = iter([None, flight_summaries.FlightSummaryRefused("AI summaries are paused.", 503)])
         with patch("display.services.flight_summaries._refusal", side_effect=lambda *args, **kwargs: next(checks)):
-            response = self.generate(self.pilot_user)
-        self.assertEqual(response.status_code, 429)
+            response = self.generate(self.superuser)
+        self.assertEqual(response.status_code, 503)
         self.assertFalse(FlightSummary.objects.exists())
         self.delay.assert_not_called()
 
-    def test_only_a_superuser_can_regenerate_a_written_summary(self):
+    def test_a_superuser_can_regenerate_a_written_summary(self):
         summary = self.done_summary()
-        self.generate(self.pilot_user, regenerate=True)
-        self.delay.assert_not_called()
+        self.assertEqual(self.generate(self.pilot_user, regenerate=True).status_code, 403)
         self.client.force_authenticate(self.superuser)
         self.assertTrue(self.client.get(self.url()).json()["can_regenerate"])
         self.assertEqual(self.generate(self.superuser, regenerate=True).status_code, 202)
@@ -317,7 +330,7 @@ class FlightSummaryTest(TestCase):
 
     def test_a_summary_written_with_an_earlier_prompt_is_shown_without_a_new_generation(self):
         self.done_summary(prompt_version=flight_summaries.PROMPT_VERSION - 1, text="An older summary.")
-        response = self.generate(self.pilot_user)
+        response = self.generate(self.superuser)
         self.assertEqual(response.json()["text"], "An older summary.")
         self.assertFalse(response.json()["can_generate"])
         self.delay.assert_not_called()
@@ -329,32 +342,48 @@ class FlightSummaryTest(TestCase):
         self.delay.assert_called_once_with(new.pk)
         older.refresh_from_db()
         self.assertEqual(older.text, "An older summary.")
-        # While the new one is written it is what is shown; if it fails, the older one is shown again
+        # While the new one is written it is what superusers see; if it fails, the older one is shown again
         self.assertEqual(flight_summaries.current_summary(self.contestant), new)
         FlightSummary.objects.filter(pk=new.pk).update(status=FlightSummary.STATUS_FAILED)
         self.assertEqual(flight_summaries.current_summary(self.contestant), older)
+
+    def test_the_newest_summary_is_shown_whatever_its_style_or_prompt(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        self.done_summary(text="A debrief.", requested_at=now - datetime.timedelta(hours=1))
+        self.done_summary(
+            text="A pundit's take.",
+            style="pundit",
+            prompt_version=flight_summaries.PROMPT_VERSION - 1,
+            requested_at=now,
+        )
+        state = self.client.get(self.url()).json()
+        self.assertEqual((state["style"], state["text"]), ("pundit", "A pundit's take."))
+        # A superuser choosing a style sees that style's
+        self.client.force_authenticate(self.superuser)
+        state = self.client.get(self.url() + "?style=debrief").json()
+        self.assertEqual((state["style"], state["text"]), ("debrief", "A debrief."))
 
     # Styles
 
     def test_each_style_is_a_summary_of_its_own(self):
         self.done_summary(text="A debrief.")
-        self.client.force_authenticate(self.pilot_user)
+        self.client.force_authenticate(self.superuser)
         styles = self.client.get(self.url()).json()["styles"]
         self.assertEqual(
             [(style["key"], style["written"]) for style in styles],
             [("debrief", True), ("pundit", False), ("statistics", False), ("comedy", False)],
         )
         self.assertTrue(self.client.get(self.url() + "?style=pundit").json()["can_generate"])
-        response = self.generate(self.pilot_user, style="pundit")
+        response = self.generate(self.superuser, style="pundit")
         self.assertEqual(response.json()["style"], "pundit")
         pundit = FlightSummary.objects.get(style="pundit")
         self.delay.assert_called_once_with(pundit.pk)
-        self.assertEqual(self.client.get(self.url()).json()["text"], "A debrief.")
+        self.assertEqual(self.client.get(self.url() + "?style=debrief").json()["text"], "A debrief.")
 
     def test_an_unknown_style_is_refused(self):
-        self.client.force_authenticate(self.pilot_user)
+        self.client.force_authenticate(self.superuser)
         self.assertEqual(self.client.get(self.url() + "?style=limerick").status_code, 400)
-        self.assertEqual(self.generate(self.pilot_user, style="limerick").status_code, 400)
+        self.assertEqual(self.generate(self.superuser, style="limerick").status_code, 400)
         self.assertFalse(FlightSummary.objects.exists())
 
     def test_the_style_picks_the_voice_and_no_style_coaches(self):
@@ -395,24 +424,8 @@ class FlightSummaryTest(TestCase):
 
     # Limits
 
-    def test_a_user_gets_five_new_summaries_a_day_and_failed_ones_do_not_count(self):
-        now = datetime.datetime.now(datetime.timezone.utc)
-        for version in range(5):
-            self.done_summary(track_version=100 + version)
-        self.done_summary(track_version=200, status=FlightSummary.STATUS_FAILED)
-        self.done_summary(track_version=300, requested_at=now - datetime.timedelta(days=2))
-        response = self.generate(self.pilot_user)
-        self.assertEqual(response.status_code, 429)
-        self.client.force_authenticate(self.pilot_user)
-        state = self.client.get(self.url()).json()
-        self.assertEqual(state["remaining_today"], 0)
-        self.assertFalse(state["can_generate"])
-        # The co-pilot has not used theirs
-        self.assertEqual(self.generate(self.copilot_user).status_code, 202)
-
     def test_the_monthly_budget_switches_new_summaries_off(self):
         self.done_summary(track_version=100, requested_by=self.stranger, cost_usd=Decimal("20.000001"))
-        self.assertEqual(self.generate(self.pilot_user).status_code, 503)
         self.assertEqual(self.generate(self.superuser).status_code, 503)
 
     # Writing it

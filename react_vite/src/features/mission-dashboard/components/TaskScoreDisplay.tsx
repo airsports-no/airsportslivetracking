@@ -2,6 +2,7 @@ import React from 'react';
 import { NavigationTask } from '../types';
 import { generatePath } from '../../../urls';
 import { FlightSummaryButton } from '../../../components/common/FlightSummaryModal';
+import { hasSummaryButton, useSummarisableFlights } from '../../../components/common/flightSummaryApi';
 
 interface TaskScoreDisplayProps {
     task: NavigationTask;
@@ -10,12 +11,14 @@ interface TaskScoreDisplayProps {
 }
 
 const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantIds, contestId }) => {
+    // The task detail endpoint used to send only "id": fall back to it so the replay link works against an older backend as well
+    const navigationTaskId: number | undefined = task.pk ?? (task as { id?: number }).id;
+    // Every flight with an AI summary gets its button (a superuser's, any flight, to have one written)
+    const summarisable = useSummarisableFlights(navigationTaskId);
+
     if (!task.contestant_set || task.contestant_set.length === 0) {
         return <p>No scores recorded for this task yet.</p>;
     }
-
-    // The task detail endpoint used to send only "id": fall back to it so the replay link works against an older backend as well
-    const navigationTaskId: number | undefined = task.pk ?? (task as { id?: number }).id;
 
     const isStruckThrough = (contestant: any) =>
         (contestant.contestanttrack.calculator_started === false && contestant.contestanttrack.score === 0) ||
@@ -64,7 +67,7 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantI
                                         Replay track
                                     </a>
                                 )}
-                                {isCurrentUser && !isStrikethrough && (
+                                {!isStrikethrough && hasSummaryButton(summarisable, contestant.id) && (
                                     <FlightSummaryButton contestantId={contestant.id} />
                                 )}
                                 <span>Score: {contestant.contestanttrack.score.toFixed(0)}</span>
