@@ -529,6 +529,16 @@ class FlightSummaryTest(TestCase):
         self.assertEqual(self.unsupported("Someone lost 77 points at SP."), ["77 points"])
         self.assertEqual(self.unsupported("Ann Ace lost 77 points at SP."), ["77 points"])
 
+    def test_a_crew_named_by_surname_counts_as_named(self):
+        self.assertEqual(self.unsupported("Late lost 77 points at SP, and you finished 98 points ahead."), [])
+        self.assertEqual(self.unsupported("Ace lost 77 points at SP."), ["77 points"])
+        crew = "Hans Verwer and Erik Joelsson"
+        self.assertTrue(flight_summaries._names_crew("verwer and joelsson dropped 341 points at fp.", crew))
+        self.assertTrue(flight_summaries._names_crew("hans verwer was late.", crew))
+        self.assertFalse(flight_summaries._names_crew("verwerk was late.", crew))
+        self.assertTrue(flight_summaries._names_crew("crew #2 was late.", "Crew #2"))
+        self.assertFalse(flight_summaries._names_crew("crew #22 was late.", "Crew #2"))
+
     def test_the_gap_to_a_named_crew_and_the_winners_score_pass(self):
         self.assertEqual(self.unsupported("You were 98 points ahead of Bo Late."), [])
         self.assertEqual(self.unsupported("The winner had 17 points. You were 25 points behind Ann Ace."), [])

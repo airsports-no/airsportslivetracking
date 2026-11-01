@@ -542,6 +542,17 @@ def _own_figures(facts: dict) -> tuple[set[int], set[int]]:
     return own, _subset_sums(events)
 
 
+def _names_crew(sentence: str, crew_name: str) -> bool:
+    """
+    Whether the (lower-case) sentence names the crew: in full ("Ann Ace and Bo Late", or "Crew #2" of a task that is not
+    public), or by a member's surname, as a summary often does ("Ace and Late").
+    """
+    names = [crew_name] + [member.split()[-1] for member in crew_name.split(" and ") if len(member.split()) > 1]
+    return any(
+        len(name) > 2 and re.search(rf"(?<!\w){re.escape(name.lower())}(?!\w)", sentence) for name in names if name
+    )
+
+
 def _crew_figures(crew: dict, own_score: float) -> set[int]:
     figures = {_scaled(crew["score"]), _scaled(crew["score"] - own_score)}
     figures.update(_scaled(gate["points"]) for gate in crew["gates"].values() if "points" in gate)
@@ -551,8 +562,8 @@ def _crew_figures(crew: dict, own_score: float) -> set[int]:
 def unsupported_point_figures(text: str, facts: dict) -> list[dict]:
     """
     The points figures in the summary the data does not back, with their sentences. A sentence may quote this crew's own
-    figures, or a total of some of its own penalties; a sentence that names another crew (or speaks of the winner) may
-    also quote that crew's score and points and the gap to it.
+    figures, or a total of some of its own penalties; a sentence that names another crew (see _names_crew), or speaks of
+    the winner, may also quote that crew's score and points and the gap to it.
     """
     own, own_sums = _own_figures(facts)
     crews = [crew for crew in facts.get("analysis", {}).get("crews", []) if not crew.get("you")]
@@ -565,7 +576,7 @@ def unsupported_point_figures(text: str, facts: dict) -> list[dict]:
         allowed = own | own_sums
         lowered = sentence.lower()
         for crew in crews:
-            if crew["crew"] and re.search(rf"\b{re.escape(crew['crew'].lower())}\b", lowered):
+            if crew["crew"] and _names_crew(lowered, crew["crew"]):
                 allowed |= _crew_figures(crew, facts["final_score"])
         if winner and _WINNER_WORDS.search(sentence):
             allowed |= _crew_figures(winner, facts["final_score"])
