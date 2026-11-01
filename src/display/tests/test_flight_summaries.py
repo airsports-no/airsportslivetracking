@@ -629,6 +629,16 @@ class FlightSummaryTest(TestCase):
         summary.refresh_from_db()
         self.assertEqual(summary.status, FlightSummary.STATUS_FAILED)
 
+    def test_a_summary_in_a_style_the_worker_does_not_have_fails(self):
+        summary = self.done_summary(status=FlightSummary.STATUS_PENDING, text="", style="statistics")
+        with patch("anthropic.Anthropic") as anthropic_client:
+            flight_summaries.generate(FlightSummary.objects.select_related("contestant").get(pk=summary.pk))
+        anthropic_client.assert_not_called()
+        summary.refresh_from_db()
+        self.assertEqual(
+            (summary.status, summary.error), (FlightSummary.STATUS_FAILED, "This worker has no style 'statistics'.")
+        )
+
     def test_a_refusal_fails_the_summary(self):
         summary, _ = self.run_generation(model_response("", stop_reason="refusal"))
         self.assertEqual(summary.status, FlightSummary.STATUS_FAILED)

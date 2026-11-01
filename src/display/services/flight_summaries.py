@@ -689,6 +689,10 @@ def generate(summary: FlightSummary):
         # under the other version's key
         _fail(summary, f"This worker writes prompt version {PROMPT_VERSION}, not {summary.prompt_version}.")
         return
+    if summary.style not in STYLES:
+        # Likewise a style this worker does not have (one removed, asked for during a deploy)
+        _fail(summary, f"This worker has no style {summary.style!r}.")
+        return
     contestant = summary.contestant
     facts = flight_facts(contestant)
     model = style_model(summary.style)
