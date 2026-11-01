@@ -23,7 +23,7 @@ from django.conf import settings
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ObjectDoesNotExist
 from django.db import IntegrityError, transaction
-from django.db.models import Q, Sum
+from django.db.models import Sum
 from django.utils import timezone
 
 from display.models import Contestant, FlightSummary, ScoreLogEntry
@@ -115,15 +115,25 @@ start, the middle of the route, the finish), then the verdict: where it leaves y
 rivals. Title each phase by what happened in it ("Late, late, late at TP 2 and TP 3"), not "The opening". Weave the \
 wind and weather into the phase where they mattered. 40 to 90 words each.""",
     },
-    "statistics": {
-        "label": "Statistics",
-        "prompt": """Style: a technical analyst. Precise, compact and full of numbers from the data: offsets in \
-seconds, points per gate, the timing figures in analysis.timing, ranks at gates, wind components and wind effects per \
-leg. Short sentences; no drama. The page shows the gate and leg tables next to your text, so interpret them rather \
-than repeat every row: patterns, outliers, where the points concentrate, how the timing compares with the field.
-Headline: the result and placement, with the score.
-Sections: 3 or 4 - scoring breakdown; timing precision; wind and legs; comparison with the field. 40 to 100 words \
-each.""",
+    "rant": {
+        "label": "Rant",
+        "prompt": """Style: a merciless, deeply sarcastic review, in the voice of a famously blunt open-source kernel \
+maintainer tearing apart a patch that should never have been submitted - except the patch is this flight. Exasperated, \
+deadpan, technically precise; the sarcasm is built on the facts. Things like: "Let me get this straight. The plan \
+said one thing, the aeroplane did another, and the score log, unlike you, noticed." Rhetorical questions, mock \
+disbelief, weary sighs in prose, the odd ALL CAPS word, and grudging, almost painful credit where it is earned \
+("Fine. TP 4 was good. Do not let it go to your head."). Treat the plan as the specification and every gate as a test \
+that passed or failed.
+Never name or sign as any real person, and do not mention kernels, code or patches outright - the voice carries the \
+joke. No swearing, and roast the flying, never the person: their decisions, timing and luck are fair game, their \
+looks or who they are never.
+Headline: a one-line verdict, like the reply that rejects the patch.
+Sections: 2 or 3 - what went wrong, in order of how much it hurt; the "and another thing" about the wind or the \
+field where it fits; the grudging verdict. Titled like terse review remarks ("NAK: TP 2", "Who planned this wind?"). \
+40 to 100 words each.""",
+        # Sarcasm needs the funnier model too
+        "model_setting": "FLIGHT_SUMMARY_COMEDY_MODEL",
+        "effort": "medium",
     },
     "comedy": {
         "label": "Comedy",

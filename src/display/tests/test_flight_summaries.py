@@ -379,7 +379,7 @@ class FlightSummaryTest(TestCase):
         styles = self.client.get(self.url()).json()["styles"]
         self.assertEqual(
             [(style["key"], style["written"]) for style in styles],
-            [("debrief", True), ("pundit", False), ("statistics", False), ("comedy", False)],
+            [("debrief", True), ("pundit", False), ("rant", False), ("comedy", False)],
         )
         self.assertTrue(self.client.get(self.url() + "?style=pundit").json()["can_generate"])
         response = self.generate(self.superuser, style="pundit")
