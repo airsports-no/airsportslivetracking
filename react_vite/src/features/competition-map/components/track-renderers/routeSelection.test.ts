@@ -1,4 +1,4 @@
-import { getUnknownLegHiddenStretchNames, buildUnknownLegRouteDataFromTargets, getRenderedRoute, getRenderedCatalogueTargets } from './routeSelection';
+import { getUnknownLegHiddenStretchNames, buildUnknownLegRouteDataFromTargets, getRenderedRoute, getRenderedCatalogueTargets, routeLinePoints } from './routeSelection';
 import type { Contestant, NavigationTaskCatalogueTarget, RouteData, Waypoint } from '../../types';
 
 // This file locks in the decision logic behind "the live map always shows
@@ -245,5 +245,26 @@ describe('getRenderedCatalogueTargets', () => {
     });
     const result = getRenderedCatalogueTargets(targets, baseRoute, { 1: contestant }, 1, false, false);
     expect(result).toBe(targets);
+  });
+});
+
+describe('routeLinePoints', () => {
+  it('draws a procedure turn as its turn points and any other waypoint as its position', () => {
+    const turn: [number, number][] = [[60.2, 11.2], [60.3, 11.1], [60.25, 11.3], [60.2, 11.2]];
+    const points = routeLinePoints([
+      makeWaypoint({ name: 'SP', type: 'sp', latitude: 60, longitude: 11 }),
+      makeWaypoint({ name: 'Dummy', type: 'dummy', latitude: 60.1, longitude: 11.1 }),
+      makeWaypoint({ name: 'TP1', type: 'tp', latitude: 60.2, longitude: 11.2, is_procedure_turn: true, procedure_turn_points: turn }),
+      makeWaypoint({ name: 'TP2', type: 'tp', latitude: 60.4, longitude: 11.4 }),
+    ]);
+    expect(points).toEqual([[60, 11], ...turn, [60.4, 11.4]]);
+  });
+
+  it('keeps the position of a procedure turn that has no turn points, and of an unknown leg', () => {
+    const points = routeLinePoints([
+      makeWaypoint({ name: 'TP1', type: 'tp', latitude: 60.2, longitude: 11.2, is_procedure_turn: true, procedure_turn_points: [] }),
+      makeWaypoint({ name: 'UL', type: 'ul', latitude: 60.4, longitude: 11.4, is_procedure_turn: true, procedure_turn_points: [[1, 2]] }),
+    ]);
+    expect(points).toEqual([[60.2, 11.2], [60.4, 11.4]]);
   });
 });

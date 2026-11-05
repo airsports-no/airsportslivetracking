@@ -6,6 +6,24 @@ import type { NavigationTaskCatalogueTarget, RouteData, Waypoint, Contestant } f
 // decision logic behind "does the live map show the generic task route or
 // the selected contestant's declared route" - keep it framework-free.
 
+/**
+ * The points of the route line: each waypoint's position, except that a procedure turn is drawn as its turn (the
+ * waypoint's procedure_turn_points, which start and end at the waypoint), as the navigation map and the flight order do.
+ */
+export function routeLinePoints(waypoints: Waypoint[]): [number, number][] {
+  const points: [number, number][] = [];
+  waypoints
+    .filter((waypoint) => waypoint.type !== 'dummy')
+    .forEach((waypoint) => {
+      if (waypoint.is_procedure_turn && waypoint.type !== 'ul' && waypoint.procedure_turn_points?.length) {
+        points.push(...waypoint.procedure_turn_points);
+      } else {
+        points.push([waypoint.latitude, waypoint.longitude]);
+      }
+    });
+  return points;
+}
+
 export function getUnknownLegHiddenStretchNames(route: RouteData): Set<string> {
   const hiddenStretchNames = new Set<string>();
   let onUnknownLegHiddenStretch = false;

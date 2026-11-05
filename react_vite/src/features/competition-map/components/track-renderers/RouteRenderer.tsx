@@ -1,7 +1,7 @@
 import { useEffect, useRef } from 'react';
 import L from 'leaflet';
 import type { NavigationTask, Waypoint, Contestant, RouteData, NavigationTaskCatalogueTarget, Scorecard } from '../../types';
-import { getUnknownLegHiddenStretchNames, getRenderedRoute, getRenderedCatalogueTargets } from './routeSelection';
+import { getUnknownLegHiddenStretchNames, getRenderedRoute, getRenderedCatalogueTargets, routeLinePoints } from './routeSelection';
 import './WaypointLabel.css';
 
 function formatTime(dt: Date): string {
@@ -224,9 +224,8 @@ function renderPrecisionRoute(
 
   layers.push(...renderGateLines(map, filterWaypoints()));
 
-  const path: L.LatLngExpression[] = route.waypoints
-    .filter((waypoint: Waypoint) => waypoint.type !== 'dummy')
-    .map((waypoint: Waypoint) => [waypoint.latitude, waypoint.longitude] as L.LatLngExpression);
+  // The procedure turns are drawn in the line, as on the navigation map
+  const path = routeLinePoints(route.waypoints);
 
   if (path.length >= 2) {
     layers.push(L.polyline(path, {

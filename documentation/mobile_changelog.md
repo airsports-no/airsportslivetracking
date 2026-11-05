@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-11-05
+#### Backend
+- **The live map draws the procedure turns of a precision route** (also in the apps' embedded map), as the navigation map and flight order always have: a turn of 90 degrees or more shows as its turn loop instead of a plain corner.
+
 ### 2026-10-31
 #### Backend
 - **Registering a self-managed flight with a wind at or above the airspeed is refused with a clear message** instead of failing with a server error (the gate times cannot be planned when the wind stops the aircraft on a leg).
