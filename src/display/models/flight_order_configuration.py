@@ -84,9 +84,9 @@ class FlightOrderConfiguration(models.Model):
     )
     randomize_observation_photos = models.BooleanField(
         default=False,
-        help_text="If set, each contestant's observation photos are in an order of their own (the same every time the "
-        "flight order is made). Otherwise they are in the order of their names. Either way the photos are numbered "
-        "by their place in the flight order, never by name, which could give away the order of the route.",
+        help_text="If set, the observation photos are in a random order, the same for every contestant of the task and "
+        "every time the flight order is made. Otherwise they are in the order of their names. Either way the photos "
+        "are numbered by their place in the flight order, never by name, which could give away the order of the route.",
     )
 
     @property

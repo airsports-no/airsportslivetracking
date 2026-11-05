@@ -389,8 +389,8 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
                   onChange={(e) => set('randomize_observation_photos', e.target.checked)}
                 />
                 <span className="label-text text-xs">
-                  Randomise the order of the photos for each contestant. They are numbered by place in the flight order
-                  (also in the app), never by name; without this they are in the order of their names.
+                  Randomise the order of the photos (the same for every contestant). They are numbered by place in the
+                  flight order (also in the app), never by name; without this they are in the order of their names.
                 </span>
               </label>
 

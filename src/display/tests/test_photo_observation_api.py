@@ -705,7 +705,7 @@ class ObservationPhotoSelectionTest(PhotoObservationApiTest):
             [path for path, _ in cells], ["/tmp/A.png", "/tmp/Obs 1.png", "/tmp/Obs 2.png", "/tmp/Obs 10.png"]
         )
 
-    def test_randomised_photos_are_in_an_order_of_their_own_that_the_flight_order_and_the_app_share(self):
+    def test_randomised_photos_are_in_a_random_order_that_the_flight_order_and_the_app_share(self):
         names = [f"Obs {number}" for number in range(1, 13)]
         photos = self.add_observation_photos(names)
         by_name_order = [self.photo.pk] + [photos[name].pk for name in names]
@@ -725,6 +725,24 @@ class ObservationPhotoSelectionTest(PhotoObservationApiTest):
             [path for path, _ in cells], [f"/tmp/{names_by_id[p['id']]}.png" for p in first]
         )
         self.assertEqual([caption for _, caption in cells], [str(p["number"]) for p in first])
+
+    def test_every_contestant_of_the_task_has_the_same_random_order(self):
+        from display.services.photo_management import ordered_observation_photos
+
+        self.add_observation_photos([f"Obs {number}" for number in range(1, 13)])
+        FlightOrderConfiguration.objects.update_or_create(
+            navigation_task=self.navigation_task, defaults={"randomize_observation_photos": True}
+        )
+        photos = list(Photo.objects.filter(route=self.route, is_decoy=False).exclude(name="TP 1"))
+        others = [
+            SimpleNamespace(pk=pk, navigation_task=self.navigation_task, navigation_task_id=self.navigation_task.pk)
+            for pk in (1, 2, 99999)
+        ]
+        orders = [[p.pk for p in ordered_observation_photos(contestant, photos)] for contestant in others]
+        self.assertEqual(orders[0], orders[1])
+        self.assertEqual(orders[0], orders[2])
+        # Whatever order the photos come in
+        self.assertEqual(orders[0], [p.pk for p in ordered_observation_photos(others[0], list(reversed(photos)))])
 
     def test_the_crew_sees_its_registrations_by_photo_number_too(self):
         self.add_observation_photos(["Obs 1"])

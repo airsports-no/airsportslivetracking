@@ -47,7 +47,7 @@ URLs load without authentication.
 * `photos` has the registrable (non-decoy) photos **without coordinates**, in the order of the flight order's photo pages.
   A photo is called by its `number`, its place in that order (`name` is the same number as text, so an app that shows
   `name` shows it): the real names, such as "Obs 1" to "Obs 6", could give the order of the route away. The order is by
-  name, or, if the flight order configuration says so, a stable order of the contestant's own. `photo_name` of the
+  name, or, if the flight order configuration says so, a random order that is the same for every contestant of the task. `photo_name` of the
   crew's own registrations is the number as well.
 * The "now" endpoint (`get_current_app_navigation_task`) tells the app whether to offer this with
   `observation_registration` on each active contestant.
