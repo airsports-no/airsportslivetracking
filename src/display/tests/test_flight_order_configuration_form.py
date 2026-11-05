@@ -368,7 +368,8 @@ class FlightOrderConfigurationFormTests(TestCase):
         self.assertEqual(photo_stub.name, "Photo UL-1")
         self.assertEqual((photo_stub.longitude, photo_stub.latitude), (11.21, 60.21))
         self.assertEqual(waypoint.name, "TRG1")
-        self.assertEqual(cells, [("/tmp/photo-ul-1.png", "Photo UL-1")])
+        # Numbered by place: the photo's name could give away the order of the route
+        self.assertEqual(cells, [("/tmp/photo-ul-1.png", "1")])
 
     def test_contestant_declaration_toggle_defaults_to_enabled(self):
         form = FlightOrderConfigurationForm(instance=self.configuration)

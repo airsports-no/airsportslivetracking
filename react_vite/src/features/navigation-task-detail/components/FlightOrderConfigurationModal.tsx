@@ -381,6 +381,18 @@ const FlightOrderConfigurationModal = forwardRef<FlightOrderConfigurationModalHa
                   />
                 </label>
               </div>
+              <label className="label cursor-pointer justify-start gap-3">
+                <input
+                  type="checkbox"
+                  className="checkbox checkbox-sm"
+                  checked={config.randomize_observation_photos}
+                  onChange={(e) => set('randomize_observation_photos', e.target.checked)}
+                />
+                <span className="label-text text-xs">
+                  Randomise the order of the photos for each contestant. They are numbered by place in the flight order
+                  (also in the app), never by name; without this they are in the order of their names.
+                </span>
+              </label>
 
               {error && <p className="text-error text-sm">{error}</p>}
               <div className="modal-action">

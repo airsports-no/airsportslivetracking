@@ -338,6 +338,7 @@ export interface FlightOrderConfiguration {
   unknown_leg_photos_zoom_level: number;
   photos_meters_across: number;
   photos_zoom_level: number;
+  randomize_observation_photos: boolean;
 }
 
 export async function fetchFlightOrderConfiguration(

@@ -37,7 +37,8 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import qr_code_i
 from display.models import Contestant
 from display.models.flight_order_configuration import FlightOrderConfiguration
 from display.models.route import Photo
-from display.services.photo_management import get_observation_photo_names
+from display.services.photo_management import ordered_observation_photos
+from display.services.photo_observations import get_contestant_observation_photos
 from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
 from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS, UNKNOWN_LEGS
 from display.utilities.coordinate_utilities import normalise_bearing, utm_from_lat_lon
@@ -512,11 +513,10 @@ def _route_photos(contestant) -> list:
     photos apart and keeps all but the decoys.
     """
     navigation_task = contestant.navigation_task
-    photos = list(navigation_task.route.photo_set.filter(is_decoy=False).order_by("name"))
     if navigation_task.editable_route is None:
-        return photos
-    observation_names = get_observation_photo_names(navigation_task)
-    return [photo for photo in photos if photo.name in observation_names]
+        return list(navigation_task.route.photo_set.filter(is_decoy=False))
+    # The ones the crew is to mark (what the app offers): also fewer than the route has when the declaration says so
+    return get_contestant_observation_photos(contestant)
 
 
 def _photo_gallery_cells(
@@ -528,7 +528,8 @@ def _photo_gallery_cells(
     meters_across = flight_order_configuration.photos_meters_across
     zoom_level = flight_order_configuration.photos_zoom_level
     cells = []
-    for photo in photos:
+    # Numbered by place, as the app numbers them: a photo's name could give away the order of the route
+    for number, photo in enumerate(ordered_observation_photos(contestant, photos), start=1):
         waypoint = photo.leg
         if not waypoint:
             continue
@@ -537,7 +538,7 @@ def _photo_gallery_cells(
         else:
             image_file = generate_photo(photo, waypoint, meters_across, zoom_level)
             image_filename = image_file.name
-        cells.append((image_filename, photo.name))
+        cells.append((image_filename, str(number)))
     return cells
 
 

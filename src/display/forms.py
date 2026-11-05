@@ -275,10 +275,13 @@ class FlightOrderConfigurationForm(forms.ModelForm):
             Fieldset(
                 "Observation photo options",
                 HTML(
-                    "If the route includes photo markers, these will be included on one or more separate pages sorted according to name"
+                    "If the route includes photo markers, these will be included on one or more separate pages, numbered by "
+                    "their place on the page (the photos' names are not printed, they could give away the order of the "
+                    "route). The photos are in the order of their names unless randomised."
                 ),
                 "photos_meters_across",
                 "photos_zoom_level",
+                "randomize_observation_photos",
             ),
             Field("map_line_colour", type="hidden"),
             HTML(

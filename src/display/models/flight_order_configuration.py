@@ -82,6 +82,12 @@ class FlightOrderConfiguration(models.Model):
         help_text="The tile zoom level used for generating photos from google satellite imagery",
         validators=[MinValueValidator(1), MaxValueValidator(20)],
     )
+    randomize_observation_photos = models.BooleanField(
+        default=False,
+        help_text="If set, each contestant's observation photos are in an order of their own (the same every time the "
+        "flight order is made). Otherwise they are in the order of their names. Either way the photos are numbered "
+        "by their place in the flight order, never by name, which could give away the order of the route.",
+    )
 
     @property
     def paper_size_latex(self):

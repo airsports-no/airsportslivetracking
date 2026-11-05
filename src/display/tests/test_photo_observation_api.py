@@ -1,4 +1,5 @@
 import datetime
+from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
@@ -225,9 +226,12 @@ class PhotoObservationApiTest(TestCase):
         data = response.json()
         self.assertTrue(data["enabled"])
         self.assertTrue(data["may_register"])
-        self.assertEqual([p["name"] for p in data["photos"]], ["A"])
+        # Named by their number, the place in the flight order: the real name could give away the route's order
+        self.assertEqual([p["name"] for p in data["photos"]], ["1"])
         self.assertEqual(data["photos"][0]["id"], self.photo.pk)
-        self.assertEqual(set(data["photos"][0]), {"id", "name", "file"}, "the coordinates are the answer")
+        self.assertEqual(
+            set(data["photos"][0]), {"id", "name", "number", "file"}, "the coordinates are the answer"
+        )
         self.assertEqual(data["observations"], [])
 
     def test_a_private_task_still_works_for_its_crew(self):
@@ -651,6 +655,90 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
 
 
 class ObservationPhotoSelectionTest(PhotoObservationApiTest):
+    def add_observation_photos(self, names):
+        """More observation photos, as features of the editable route and as photos (A is the first)."""
+        route = self.navigation_task.editable_route
+        photos = {}
+        for name in names:
+            route.route["features"].append(
+                {
+                    "type": "Feature",
+                    "properties": {"id": f"obs-{name}", "name": name, "featureType": "observation_photo"},
+                    "geometry": {"type": "Point", "coordinates": [self.photo_lon, self.photo_lat]},
+                }
+            )
+            photos[name] = Photo.objects.create(
+                name=name, route=self.route, latitude=self.photo_lat, longitude=self.photo_lon
+            )
+        route.save()
+        self.navigation_task.refresh_from_db()
+        return photos
+
+    def listed_photos(self, user):
+        self.client.force_login(user)
+        return self.client.get(self.photos_url()).json()["photos"]
+
+    def flight_order_cells(self):
+        from display.flight_order_and_maps.generate_flight_orders import _photo_gallery_cells
+
+        configuration, _ = FlightOrderConfiguration.objects.get_or_create(navigation_task=self.navigation_task)
+        contestant = Contestant.objects.get(pk=self.contestant.pk)
+        with patch(
+            "display.flight_order_and_maps.generate_flight_orders.generate_photo",
+            side_effect=lambda photo, *args: SimpleNamespace(name=f"/tmp/{photo.name}.png"),
+        ):
+            return _photo_gallery_cells(contestant, configuration)
+
+    def test_photos_are_in_the_order_of_their_names_and_numbered_by_place_in_the_flight_order_and_the_app(self):
+        photos = self.add_observation_photos(["Obs 10", "Obs 2", "Obs 1"])
+        listed = self.listed_photos(self.pilot)
+        # Names in natural order, not text order ("Obs 10" after "Obs 2")
+        self.assertEqual(
+            [p["id"] for p in listed],
+            [self.photo.pk, photos["Obs 1"].pk, photos["Obs 2"].pk, photos["Obs 10"].pk],
+        )
+        self.assertEqual([(p["name"], p["number"]) for p in listed], [("1", 1), ("2", 2), ("3", 3), ("4", 4)])
+        # The flight order has the same photos in the same places, captioned with the same numbers and nothing else
+        cells = self.flight_order_cells()
+        self.assertEqual([caption for _, caption in cells], ["1", "2", "3", "4"])
+        self.assertEqual(
+            [path for path, _ in cells], ["/tmp/A.png", "/tmp/Obs 1.png", "/tmp/Obs 2.png", "/tmp/Obs 10.png"]
+        )
+
+    def test_randomised_photos_are_in_an_order_of_their_own_that_the_flight_order_and_the_app_share(self):
+        names = [f"Obs {number}" for number in range(1, 13)]
+        photos = self.add_observation_photos(names)
+        by_name_order = [self.photo.pk] + [photos[name].pk for name in names]
+        FlightOrderConfiguration.objects.update_or_create(
+            navigation_task=self.navigation_task, defaults={"randomize_observation_photos": True}
+        )
+        first = self.listed_photos(self.pilot)
+        self.assertEqual(sorted(p["id"] for p in first), sorted(by_name_order))
+        # Thirteen photos left in the order of their names would be a one in six billion chance
+        self.assertNotEqual([p["id"] for p in first], by_name_order)
+        self.assertEqual([p["number"] for p in first], list(range(1, 14)))
+        # The same every time, in the app and in the flight order
+        self.assertEqual([p["id"] for p in self.listed_photos(self.pilot)], [p["id"] for p in first])
+        names_by_id = {photo.pk: photo.name for photo in Photo.objects.filter(route=self.route)}
+        cells = self.flight_order_cells()
+        self.assertEqual(
+            [path for path, _ in cells], [f"/tmp/{names_by_id[p['id']]}.png" for p in first]
+        )
+        self.assertEqual([caption for _, caption in cells], [str(p["number"]) for p in first])
+
+    def test_the_crew_sees_its_registrations_by_photo_number_too(self):
+        self.add_observation_photos(["Obs 1"])
+        response = self.post(self.pilot, photo=Photo.objects.get(name="Obs 1").pk)
+        self.assertEqual(response.status_code, 201, response.content)
+        # Judging is hidden while the flight is on: the crew's response, listings and photo list use the numbers
+        self.assertEqual(response.json()["photo_name"], "2")
+        listed = self.client.get(self.photos_url()).json()
+        self.assertEqual([o["photo_name"] for o in listed["observations"]], ["2"])
+        # The listing of a public task, where judging is hidden from the crew
+        Contest.objects.filter(pk=self.contest.pk).update(is_public=True)
+        NavigationTask.objects.filter(pk=self.navigation_task.pk).update(is_public=True)
+        self.assertEqual(self.client.get(self.url).json()[0]["photo_name"], "2")
+
     def test_the_photos_of_waypoints_are_not_observation_photos(self):
         from display.services.photo_observations import get_contestant_observation_photos
 
@@ -666,7 +754,7 @@ class ObservationPhotoSelectionTest(PhotoObservationApiTest):
     def test_the_crew_is_only_offered_the_observation_photos(self):
         self.client.force_login(self.pilot)
         url = reverse("all-contestants-observation-photos", kwargs={"pk": self.contestant.pk})
-        self.assertEqual([p["name"] for p in self.client.get(url).json()["photos"]], ["A"])
+        self.assertEqual([p["id"] for p in self.client.get(url).json()["photos"]], [self.photo.pk])
 
     def test_photo_targets_include_observation_photos_on_every_task_type(self):
         from display.services.photo_management import get_navigation_task_photo_targets

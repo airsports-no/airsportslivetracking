@@ -225,6 +225,7 @@ from display.services.photo_management import (
     get_observation_photo_names,
     get_public_photo_names,
     get_unknown_leg_photo_names,
+    ordered_observation_photos,
     photos_visible_to,
     revert_photo_to_satellite,
     sync_navigation_task_photo_targets,
@@ -3959,7 +3960,7 @@ class ContestantViewSet(ModelViewSet):
             if judging_is_hidden(contestant) and not request.user.has_perm(
                 "display.change_contest", contestant.navigation_task.contest
             ):
-                return Response(PhotoObservationCrewSerialiser(observations, many=True).data)
+                return Response(self._crew_observation_data(contestant, observations, many=True))
             return Response(PhotoObservationSerialiser(observations, many=True).data)
 
         contestant = get_object_or_404(
@@ -3987,13 +3988,25 @@ class ContestantViewSet(ModelViewSet):
             return Response({"detail": str(e)}, status=status.HTTP_422_UNPROCESSABLE_ENTITY)
         except PhotoObservationError as e:
             raise ValidationError({"detail": str(e)})
-        serialiser_class = (
-            PhotoObservationCrewSerialiser if not is_manager and judging_is_hidden(contestant) else PhotoObservationSerialiser
-        )
-        return Response(
-            serialiser_class(observation).data,
-            status=status.HTTP_201_CREATED if changed else status.HTTP_200_OK,
-        )
+        if not is_manager and judging_is_hidden(contestant):
+            data = self._crew_observation_data(contestant, observation)
+        else:
+            data = PhotoObservationSerialiser(observation).data
+        return Response(data, status=status.HTTP_201_CREATED if changed else status.HTTP_200_OK)
+
+    @staticmethod
+    def _photo_numbers(contestant) -> dict[int, str]:
+        """The photos' numbers, their place in the flight order (see ordered_observation_photos)."""
+        ordered = ordered_observation_photos(contestant, get_contestant_observation_photos(contestant))
+        return {photo.pk: str(number) for number, photo in enumerate(ordered, start=1)}
+
+    def _crew_observation_data(self, contestant, observations, many=False):
+        """What the crew sees of its registrations, the photos by number: their names could give away the route's order."""
+        data = PhotoObservationCrewSerialiser(observations, many=many).data
+        numbers = self._photo_numbers(contestant)
+        for item in data if many else [data]:
+            item["photo_name"] = numbers.get(item["photo"], item["photo_name"])
+        return data
 
     @action(detail=True, methods=["get"], url_path="observation_photos")
     def observation_photos(self, request, pk=None, **kwargs):
@@ -4016,14 +4029,20 @@ class ContestantViewSet(ModelViewSet):
             raise drf_exceptions.PermissionDenied("You can only see the observation photos of your own flight")
         enabled = contestant.navigation_task.allow_observation_registration
         photos = []
+        numbers = {}
         if enabled:
+            # Named by their place in the order the flight order prints them in (see ordered_observation_photos), so the
+            # crew finds the photo of the flight order here: the real names could give away the order of the route.
+            ordered = ordered_observation_photos(contestant, get_contestant_observation_photos(contestant))
+            numbers = self._photo_numbers(contestant)
             photos = [
                 {
                     "id": photo.pk,
-                    "name": photo.name,
+                    "name": numbers[photo.pk],
+                    "number": number,
                     "file": request.build_absolute_uri(photo.file.url) if photo.file else None,
                 }
-                for photo in sorted(get_contestant_observation_photos(contestant), key=lambda item: item.name)
+                for number, photo in enumerate(ordered, start=1)
             ]
         return Response(
             {
@@ -4035,7 +4054,7 @@ class ContestantViewSet(ModelViewSet):
                 "registration_grace_minutes": int(get_registration_grace_period().total_seconds() // 60),
                 # Only which photos are marked and when: no score, error or projection, the crew gets no feedback.
                 "observations": [
-                    {"id": o.pk, "photo": o.photo_id, "photo_name": o.photo_name, "time": o.time}
+                    {"id": o.pk, "photo": o.photo_id, "photo_name": numbers.get(o.photo_id, o.photo_name), "time": o.time}
                     for o in contestant.photo_observations.all()
                 ],
             }

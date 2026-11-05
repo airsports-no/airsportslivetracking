@@ -1,6 +1,8 @@
 from __future__ import annotations
 
-from typing import Any
+import random
+import re
+from typing import Any, Sequence
 
 from display.models import Photo
 from display.utilities.gate_definitions import DUMMY, SECRETPOINT, UNKNOWN_LEG
@@ -17,6 +19,25 @@ def get_observation_photo_names(navigation_task) -> set[str]:
         for point in editable_route.get_observation_photos()
         if point.get("properties", {}).get("name")
     }
+
+
+def _natural_key(name: str) -> list:
+    """Sorts "Obs 2" before "Obs 10"."""
+    return [int(part) if part.isdigit() else part.lower() for part in re.split(r"(\d+)", name or "")]
+
+
+def ordered_observation_photos(contestant, photos: Sequence) -> list:
+    """
+    The contestant's observation photos in the order the flight order prints them and the app lists them: by name, or,
+    when the task's flight order configuration says so, in an order of this contestant's own. The shuffle is seeded by
+    the contestant, so it is the same every time. The photos are numbered by their place in this list (never by name:
+    "Obs 1" to "Obs 6" would give the order of the route away).
+    """
+    ordered = sorted(photos, key=lambda photo: _natural_key(photo.name))
+    configuration = getattr(contestant.navigation_task, "flightorderconfiguration", None)
+    if configuration is not None and configuration.randomize_observation_photos:
+        random.Random(f"observation-photos-{contestant.pk}").shuffle(ordered)
+    return ordered
 
 
 def get_unknown_leg_photo_names(navigation_task) -> set[str]:

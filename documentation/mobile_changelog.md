@@ -15,6 +15,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-11-05
 #### Backend
+- **Observation photos are numbered by their place in the flight order** instead of by name ("Obs 1" to "Obs 6" gave the order of the route away): the flight order's photo pages and the app's photo list (`name`, plus a new `number`) use the same numbers, and the flight order configuration can randomise each contestant's order. No app change is needed: the apps show `name`.
 - **The live map draws the procedure turns of a precision route** (also in the apps' embedded map), as the navigation map and flight order always have: a turn of 90 degrees or more shows as its turn loop instead of a plain corner.
 
 ### 2026-10-31
