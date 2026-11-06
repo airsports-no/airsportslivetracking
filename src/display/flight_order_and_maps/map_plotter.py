@@ -1789,6 +1789,9 @@ def plot_route(
     vertical_margin_mm: Optional[float] = None,
     # Return the estimated peak memory (MB) instead of the image, without fetching any map tiles
     estimate_only: bool = False,
+    # What the title names instead of "Contestant: <contestant>", for a map that is made for an air speed and wind and not
+    # for a real contestant
+    title_label: Optional[str] = None,
 ):
     route = task.route
     attribution = ""
@@ -2013,8 +2016,11 @@ def plot_route(
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
         plt.title(
-            "Track: '{}' - Contestant: {} - Wind: {:03.0f}/{:02.0f}".format(
-                route.name, contestant, contestant.wind_direction, contestant.wind_speed
+            "Track: '{}' - {} - Wind: {:03.0f}/{:02.0f}".format(
+                route.name,
+                title_label if title_label is not None else f"Contestant: {contestant}",
+                contestant.wind_direction,
+                contestant.wind_speed,
             ),
             y=1,
             pad=-20,

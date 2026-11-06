@@ -464,6 +464,68 @@ export async function fetchMapGenerationStatus(statusCheckUrl: string): Promise<
   return response.json();
 }
 
+export interface SpeedMapsPayload {
+  /** Air speeds in knots, one map each */
+  speeds: number[];
+  wind_speed: number;
+  wind_direction: number;
+}
+
+/** Starts the one-PDF set of the flight order's map for each speed in the wind, made in the background. */
+export async function generateSpeedMaps(
+  contestId: number,
+  navigationTaskId: number,
+  payload: SpeedMapsPayload
+): Promise<GenerateMapResponse> {
+  const url = reverse('navigationtasks-generate-speed-maps', contestId, navigationTaskId);
+  const response = await fetch(url, { method: 'POST', headers: getAuthHeaders(), body: JSON.stringify(payload) });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to start the maps: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+/** Starts the one-PDF set of the turning point images and observation photos, made in the background. */
+export async function generateTaskImages(contestId: number, navigationTaskId: number): Promise<GenerateMapResponse> {
+  const url = reverse('navigationtasks-generate-task-images', contestId, navigationTaskId);
+  const response = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
+  if (!response.ok) {
+    const errorMessages = await getErrorMessages(response);
+    throw new Error(`Failed to start the images: ${errorMessages}`);
+  }
+  return response.json();
+}
+
+const GENERATION_POLL_INTERVAL_MS = 2000;
+const GENERATION_POLL_RETRY_AFTER_ERROR_MS = 5000;
+
+/**
+ * Waits for a document that is made in the background: asks for its status until it is complete or has failed and
+ * returns that (a failed one as an error). Resolves with null if isCancelled says so meanwhile (the dialog was closed).
+ */
+export async function waitForGeneratedPdf(
+  statusCheckUrl: string,
+  isCancelled: () => boolean = () => false,
+  sleep: (milliseconds: number) => Promise<void> = (milliseconds) => new Promise((resolve) => setTimeout(resolve, milliseconds))
+): Promise<MapGenerationStatus | null> {
+  while (!isCancelled()) {
+    let status: MapGenerationStatus;
+    try {
+      status = await fetchMapGenerationStatus(statusCheckUrl);
+    } catch {
+      // A failed request is tried again
+      await sleep(GENERATION_POLL_RETRY_AFTER_ERROR_MS);
+      continue;
+    }
+    if (status.status === 'complete') return status;
+    // A failure the server reports ends the wait
+    if (status.status === 'error') throw new Error(status.message || 'Generation failed');
+    await sleep(GENERATION_POLL_INTERVAL_MS);
+  }
+  return null;
+}
+
 export async function quickAddContestant(
   contestId: number,
   navigationTaskId: number,

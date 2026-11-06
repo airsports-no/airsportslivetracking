@@ -136,6 +136,7 @@ from display.serialisers import (
     OwnFutureFlightSerialiser,
     GateCumulativeScoreSerialiser,
     GenerateNavigationTaskMapSerialiser,
+    SpeedMapsSerialiser,
     GpxTrackSerialiser,
     HighlightedContestSerialiser,
     DuplicateNavigationTaskSerialiser,
@@ -242,6 +243,9 @@ from display.services.token_assignment import assign_token_to_contest, replace_t
 from display.tasks import (
     generate_editable_route_thumbnail,
     generate_map_async,
+    generate_speed_maps_async,
+    generate_task_images_async,
+    prepared_pdf_cache_key,
     import_gpx_track,
     recalculate_existing_positions,
     recalculate_live_data_for_contestant,
@@ -2148,6 +2152,7 @@ class NavigationTaskViewSet(DeleteWhileCalculatorsRunMixin, ModelViewSet):
         "flight_order_configuration": FlightOrderConfigurationSerialiser,
         "update_flight_order_configuration": FlightOrderConfigurationSerialiser,
         "generate_map": GenerateNavigationTaskMapSerialiser,
+        "generate_speed_maps": SpeedMapsSerialiser,
     }
     default_serialiser_class = NavigationTaskNestedTeamRouteSerialiser
     lookup_url_kwarg = "pk"
@@ -2865,6 +2870,66 @@ class NavigationTaskViewSet(DeleteWhileCalculatorsRunMixin, ModelViewSet):
                 )
             },
             status=status.HTTP_202_ACCEPTED,
+        )
+
+    def _prepared_pdf_status_url(self, navigation_task, kind: str) -> str:
+        return reverse(
+            "navigationtasks-prepared-pdf-status",
+            kwargs={"contest_pk": navigation_task.contest_id, "pk": navigation_task.pk},
+        ) + f"?kind={kind}"
+
+    @action(detail=True, methods=["post"])
+    def generate_speed_maps(self, request, *args, **kwargs):
+        """
+        One PDF with the flight order's map (as the flight order configuration makes it, with minute marks and headings)
+        for each of the air speeds in the wind, for printing the maps in advance. It is made in the background: poll
+        ``status_check_url`` (see prepared_pdf_status). Manager-only, like the other flight order actions.
+        """
+        navigation_task = self.get_object()
+        if not request.user.has_perm("change_contest", navigation_task.contest):
+            raise drf_exceptions.PermissionDenied()
+        serialiser = self.get_serializer(data=request.data, context={**self.get_serializer_context()})
+        serialiser.is_valid(raise_exception=True)
+        data = serialiser.validated_data
+        cache.delete(prepared_pdf_cache_key(navigation_task.pk, request.user.id, "speed_maps"))
+        generate_speed_maps_async.delay(
+            navigation_task.pk, sorted(set(data["speeds"])), data["wind_speed"], data["wind_direction"], request.user.id
+        )
+        return Response(
+            {"status_check_url": self._prepared_pdf_status_url(navigation_task, "speed_maps")},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    @action(detail=True, methods=["post"])
+    def generate_task_images(self, request, *args, **kwargs):
+        """
+        One PDF with the turning point images and the observation photos of the task (the pictures of the flight order that
+        are the same for every contestant), made in the background like generate_speed_maps.
+        """
+        navigation_task = self.get_object()
+        if not request.user.has_perm("change_contest", navigation_task.contest):
+            raise drf_exceptions.PermissionDenied()
+        cache.delete(prepared_pdf_cache_key(navigation_task.pk, request.user.id, "task_images"))
+        generate_task_images_async.delay(navigation_task.pk, request.user.id)
+        return Response(
+            {"status_check_url": self._prepared_pdf_status_url(navigation_task, "task_images")},
+            status=status.HTTP_202_ACCEPTED,
+        )
+
+    @action(detail=True, methods=["get"], url_path="prepared-pdf-status")
+    def prepared_pdf_status(self, request, *args, **kwargs):
+        """
+        Where the ``?kind=`` (speed_maps or task_images) document the user asked for stands: pending, or complete with
+        its url (and a warning if it was made with lower settings than asked for), or an error with the reason.
+        """
+        navigation_task = self.get_object()
+        if not request.user.has_perm("change_contest", navigation_task.contest):
+            raise drf_exceptions.PermissionDenied()
+        kind = request.query_params.get("kind")
+        if kind not in ("speed_maps", "task_images"):
+            raise drf_exceptions.ValidationError({"kind": "Must be speed_maps or task_images."})
+        return Response(
+            cache.get(prepared_pdf_cache_key(navigation_task.pk, request.user.id, kind)) or {"status": "pending"}
         )
 
     @action(detail=True, methods=["post"])

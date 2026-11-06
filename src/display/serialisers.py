@@ -1870,6 +1870,37 @@ class FlightOrderConfigurationSerialiser(serializers.ModelSerializer):
         return attrs
 
 
+MAX_PREPARED_MAP_SPEEDS = 20
+
+
+class SpeedMapsSerialiser(serializers.Serializer):
+    """Which air speeds, in which wind, to make the flight order's map for, as one document (to print in advance)."""
+
+    def create(self, validated_data):
+        pass
+
+    def update(self, instance, validated_data):
+        pass
+
+    speeds = serializers.ListField(
+        child=serializers.FloatField(min_value=20, max_value=400),
+        min_length=1,
+        max_length=MAX_PREPARED_MAP_SPEEDS,
+        help_text="Air speeds in knots, one map each.",
+    )
+    wind_speed = serializers.FloatField(min_value=0, max_value=100, help_text="Knots")
+    wind_direction = serializers.FloatField(min_value=0, max_value=360, help_text="Degrees the wind blows from")
+
+    def validate(self, attrs):
+        slowest = min(attrs["speeds"])
+        # The gate times are planned at the ground speed, which the wind must leave positive on every leg
+        if attrs["wind_speed"] >= slowest:
+            raise ValidationError(
+                {"wind_speed": f"The wind speed must be lower than the slowest air speed ({slowest:g} knots)."}
+            )
+        return attrs
+
+
 class GenerateNavigationTaskMapSerialiser(serializers.Serializer):
     """
     Mirrors the now-deleted classic MapForm's field set - the REST equivalent of the

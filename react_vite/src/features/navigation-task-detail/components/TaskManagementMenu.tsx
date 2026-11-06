@@ -2,7 +2,7 @@ import React, { useEffect, useRef, useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { Settings } from 'lucide-react';
 import { generatePath, reverse } from '../../../urls';
-import { deleteNavigationTask, refreshEditableRoute, removeAllContestants } from '../api';
+import { deleteNavigationTask, generateTaskImages, refreshEditableRoute, removeAllContestants, waitForGeneratedPdf } from '../api';
 import { useToast } from '../../competition-map/hooks/useToast';
 import { useMissionDashboardStore } from '../../mission-dashboard/store';
 import { NavigationTaskDetail } from '../types';
@@ -12,6 +12,7 @@ import ContestantFormModal, { ContestantFormModalHandle } from './ContestantForm
 import DuplicateTaskModal, { DuplicateTaskModalHandle } from './DuplicateTaskModal';
 import FlightOrderConfigurationModal, { FlightOrderConfigurationModalHandle } from './FlightOrderConfigurationModal';
 import GenerateNavigationMapModal, { GenerateNavigationMapModalHandle } from './GenerateNavigationMapModal';
+import GenerateSpeedMapsModal, { GenerateSpeedMapsModalHandle } from './GenerateSpeedMapsModal';
 import UpdateTaskDetailsModal from './UpdateTaskDetailsModal';
 
 interface TaskManagementMenuProps {
@@ -26,6 +27,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
   const { showToast, ToastContainer, toasts, removeToast } = useToast();
   const [removingContestants, setRemovingContestants] = useState(false);
   const [reloadingRoute, setReloadingRoute] = useState(false);
+  const [makingImages, setMakingImages] = useState(false);
   const [deleting, setDeleting] = useState(false);
   // The deletion goes on at the server even if the page is left meanwhile: then nobody is sent to the dashboard after.
   const mounted = useRef(true);
@@ -36,6 +38,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
   const updateDetailsModalRef = useRef<HTMLDialogElement>(null);
   const flightOrderConfigModalRef = useRef<FlightOrderConfigurationModalHandle>(null);
   const generateMapModalRef = useRef<GenerateNavigationMapModalHandle>(null);
+  const speedMapsModalRef = useRef<GenerateSpeedMapsModalHandle>(null);
   const addContestantModalRef = useRef<ContestantFormModalHandle>(null);
   const batchUpdateModalRef = useRef<HTMLDialogElement>(null);
   const duplicateModalRef = useRef<DuplicateTaskModalHandle>(null);
@@ -71,6 +74,24 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
       window.alert(err.message || 'Failed to reload the route');
     } finally {
       setReloadingRoute(false);
+    }
+  };
+
+  // The turning point images and observation photos as one PDF, made in the background and downloaded when it is ready
+  const handleTaskImages = async () => {
+    if (makingImages) return;
+    setMakingImages(true);
+    try {
+      const { status_check_url } = await generateTaskImages(contestId, navigationTaskId);
+      const result = await waitForGeneratedPdf(status_check_url, () => !mounted.current);
+      if (result?.url) {
+        window.location.href = result.url;
+        showToast('The images are ready and are being downloaded.', 'success', 8000);
+      }
+    } catch (err: any) {
+      window.alert(err.message || 'Failed to make the images');
+    } finally {
+      if (mounted.current) setMakingImages(false);
     }
   };
 
@@ -157,6 +178,16 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
           </button>
         </li>
         <li>
+          <button type="button" onClick={() => speedMapsModalRef.current?.open()} className="w-full text-left">
+            Maps for several speeds…
+          </button>
+        </li>
+        <li>
+          <button type="button" disabled={makingImages} onClick={handleTaskImages} className="w-full text-left">
+            Turning point and photo images (PDF)
+          </button>
+        </li>
+        <li>
           <a href={reverse('navigationtask_qr', navigationTaskId)}>QR Code</a>
         </li>
         {task.allow_self_management && (
@@ -190,6 +221,17 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
       {reloadingRoute && <BusyOverlay message="Reloading the route…" detail="The task's route is rebuilt from the editable route." />}
       {removingContestants && <BusyOverlay message="Removing all contestants…" detail="This can take a while when they have flown a lot." />}
       <GenerateNavigationMapModal ref={generateMapModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
+      <GenerateSpeedMapsModal
+        ref={speedMapsModalRef}
+        contestId={contestId}
+        navigationTaskId={navigationTaskId}
+        defaultSpeeds={task.contestant_set.map((contestant) => contestant.air_speed)}
+        defaultWindSpeed={task.wind_speed}
+        defaultWindDirection={task.wind_direction}
+      />
+      {makingImages && (
+        <BusyOverlay message="Making the image document…" detail="The turning point images are fetched one by one: this takes a minute or two." />
+      )}
       <DuplicateTaskModal ref={duplicateModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
       <ContestantFormModal
         ref={addContestantModalRef}

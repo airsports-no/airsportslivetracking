@@ -152,6 +152,68 @@ def generate_map_async(task_id: int, contestant_id: Optional[int], map_params: d
         cache.set(cache_key, {"status": "error", "message": str(e)}, timeout=3600)
 
 
+def _store_generated_pdf(task_id: int, user_id: int, kind: str, name: str, pdf: bytes, warning: Optional[str] = None):
+    """Saves a generated document and says where it is for whoever polls the status of ``kind`` of the task."""
+    filename = f"generated_maps/{task_id}/{name}_{int(datetime.datetime.now().timestamp())}.pdf"
+    file_url = default_storage.url(default_storage.save(filename, ContentFile(pdf)))
+    result = {"status": "complete", "url": file_url}
+    if warning:
+        result["warning"] = warning
+    cache.set(prepared_pdf_cache_key(task_id, user_id, kind), result, timeout=3600)
+    logger.info(f"Generated {kind} document for task {task_id}: {file_url}")
+
+
+def prepared_pdf_cache_key(task_id: int, user_id: int, kind: str) -> str:
+    return f"prepared_pdf_{kind}_{task_id}_{user_id}"
+
+
+@app.task
+def generate_speed_maps_async(task_id: int, speeds: list, wind_speed: float, wind_direction: float, user_id: int):
+    """One PDF with the flight order's map for each air speed in the wind (see generate_speed_maps_pdf)."""
+    kind = "speed_maps"
+    try:
+        from display.flight_order_and_maps.generate_flight_orders import generate_speed_maps_pdf
+        from display.models import NavigationTask
+
+        task = NavigationTask.objects.get(pk=task_id)
+        pdf, warning = generate_speed_maps_pdf(task, speeds, wind_speed, wind_direction)
+        _store_generated_pdf(task_id, user_id, kind, f"speed_maps_{slugify(task.name)}", pdf, warning)
+    except ObjectDoesNotExist as e:
+        logger.warning(f"Speed maps skipped - object not found: {e}")
+        cache.set(prepared_pdf_cache_key(task_id, user_id, kind), {"status": "error", "message": str(e)}, timeout=3600)
+    except Exception as e:
+        from display.flight_order_and_maps.map_plotter import MemoryEstimationExceededError
+
+        # Too heavy even at the lowest zoom: the organizer's settings, not a bug - the message tells them what to change
+        if isinstance(e, MemoryEstimationExceededError):
+            logger.warning(f"Speed maps for task {task_id} need too much memory: {e}")
+        else:
+            logger.exception("Failed generating the speed maps")
+        cache.set(prepared_pdf_cache_key(task_id, user_id, kind), {"status": "error", "message": str(e)}, timeout=3600)
+
+
+@app.task
+def generate_task_images_async(task_id: int, user_id: int):
+    """One PDF with the turning point images and the observation photos (see generate_task_images_pdf)."""
+    kind = "task_images"
+    try:
+        from display.flight_order_and_maps.generate_flight_orders import generate_task_images_pdf
+        from display.models import NavigationTask
+
+        task = NavigationTask.objects.get(pk=task_id)
+        pdf = generate_task_images_pdf(task)
+        _store_generated_pdf(task_id, user_id, kind, f"images_{slugify(task.name)}", pdf)
+    except ObjectDoesNotExist as e:
+        logger.warning(f"Task images skipped - object not found: {e}")
+        cache.set(prepared_pdf_cache_key(task_id, user_id, kind), {"status": "error", "message": str(e)}, timeout=3600)
+    except ValueError as e:
+        # Nothing to put in it: said to the organiser as it is
+        cache.set(prepared_pdf_cache_key(task_id, user_id, kind), {"status": "error", "message": str(e)}, timeout=3600)
+    except Exception as e:
+        logger.exception("Failed generating the task images")
+        cache.set(prepared_pdf_cache_key(task_id, user_id, kind), {"status": "error", "message": str(e)}, timeout=3600)
+
+
 @app.on_after_configure.connect
 def setup_periodic_tasks(sender, **kwargs):
     # Executes every morning at 7:30 a.m.

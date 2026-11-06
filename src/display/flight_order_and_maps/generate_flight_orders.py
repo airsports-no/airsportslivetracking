@@ -57,6 +57,36 @@ logger = logging.getLogger(__name__)
 _CONTROL_CHARACTERS = re.compile(r"[\x00-\x08\x0b\x0c\x0e-\x1f]")
 
 
+def _typst_header_footer() -> str:
+    return (
+        "context [#align(center)[#image("
+        + _typst_string("/src/static/img/AirSportsLiveTracking.png")
+        + ", width: 35%)]]"
+    )
+
+
+def _typst_map_footer(flight_order_configuration: FlightOrderConfiguration) -> str:
+    # "Fit page" has no nominal scale to compare against, so the disclaimer only applies
+    # when the user picked a specific fixed scale.
+    scale_disclaimer = (
+        "The scale bar's printed ratio is this map's actual measured scale, which may differ "
+        "very slightly from the scale selected above due to the map projection - this is not an error."
+        if flight_order_configuration.map_scale != SCALE_TO_FIT
+        else ""
+    )
+    return (
+        # Fixed percentage columns, not (1fr, auto): the image's own "width: 30%" is relative
+        # to its grid cell, and an auto-sized cell has no width to be 30% of, which shrank the
+        # logo to near-nothing. A 70%/30% split gives the image cell a real width matching
+        # what the old bare #align(right)[#image(..., width: 30%)] resolved against (the page).
+        "context [#grid(columns: (70%, 30%), align: (left + horizon, right + horizon),"
+        + f"[#text(size: 7pt, style: \"italic\")[{_typst_string(scale_disclaimer)}]],"
+        + "[#align(right)[#image("
+        + _typst_string("/src/static/img/AirSportsLiveTrackingWhiteBG.png")
+        + ", width: 100%)]])]"
+    )
+
+
 def _typst_string(value) -> str:
     """Render a Python value as a literal Typst string expression.
 
@@ -694,30 +724,8 @@ def generate_flight_orders(contestant: "Contestant") -> bytes:
     base_font_size = "12pt" if is_a3 else "11pt"
     paper = "a3" if is_a3 else "a4"
 
-    header_footer = (
-        "context [#align(center)[#image("
-        + _typst_string("/src/static/img/AirSportsLiveTracking.png")
-        + ", width: 35%)]]"
-    )
-    # "Fit page" has no nominal scale to compare against, so the disclaimer only applies
-    # when the user picked a specific fixed scale.
-    scale_disclaimer = (
-        "The scale bar's printed ratio is this map's actual measured scale, which may differ "
-        "very slightly from the scale selected above due to the map projection - this is not an error."
-        if flight_order_configuration.map_scale != SCALE_TO_FIT
-        else ""
-    )
-    map_footer = (
-        # Fixed percentage columns, not (1fr, auto): the image's own "width: 30%" is relative
-        # to its grid cell, and an auto-sized cell has no width to be 30% of, which shrank the
-        # logo to near-nothing. A 70%/30% split gives the image cell a real width matching
-        # what the old bare #align(right)[#image(..., width: 30%)] resolved against (the page).
-        "context [#grid(columns: (70%, 30%), align: (left + horizon, right + horizon),"
-        + f"[#text(size: 7pt, style: \"italic\")[{_typst_string(scale_disclaimer)}]],"
-        + "[#align(right)[#image("
-        + _typst_string("/src/static/img/AirSportsLiveTrackingWhiteBG.png")
-        + ", width: 100%)]])]"
-    )
+    header_footer = _typst_header_footer()
+    map_footer = _typst_map_footer(flight_order_configuration)
 
     waypoints = get_flight_order_visual_waypoints(
         contestant,
@@ -917,3 +925,119 @@ def embed_map_in_pdf(
     else:
         pdf.image(map_image_file, x=10, y=10, w=width_mm)
     return bytes(pdf.output())
+
+
+def speed_wind_stand_in_contestant(navigation_task, air_speed: float, wind_speed: float, wind_direction: float) -> Contestant:
+    """
+    An unsaved contestant that is nothing but an air speed and a wind, to make a map as for a real contestant before there
+    is one. The adaptive start makes the gate times offsets from the start (minute 0 at the starting point), so the
+    map's minute marks and times read the same whenever it is flown.
+    """
+    now = datetime.datetime.now(datetime.timezone.utc)
+    return Contestant(
+        navigation_task=navigation_task,
+        air_speed=air_speed,
+        wind_speed=wind_speed,
+        wind_direction=wind_direction,
+        adaptive_start=True,
+        takeoff_time=now,
+        tracker_start_time=now,
+        finished_by_time=now + datetime.timedelta(hours=1),
+        minutes_to_starting_point=navigation_task.minutes_to_starting_point,
+    )
+
+
+def _compile_typst(source: str) -> bytes:
+    typ_file = NamedTemporaryFile(suffix=".typ", mode="w", delete=False)
+    try:
+        typ_file.write(source)
+        typ_file.close()
+        return typst.compile(typ_file.name, root="/")
+    except typst.TypstError:
+        logger.exception("Something failed when generating a PDF")
+        raise
+    finally:
+        os.remove(typ_file.name)
+
+
+def generate_speed_maps_pdf(
+    navigation_task, air_speeds: List[float], wind_speed: float, wind_direction: float
+) -> Tuple[bytes, Optional[str]]:
+    """
+    One PDF with the flight order's map (as the task's flight order configuration makes it, with the minute marks and
+    headings) for each of the air speeds, all in the same wind, one map to a page, slowest first. For printing the maps in
+    advance. Returns the PDF and a warning if a map had to be made with a lower zoom level than the configuration says.
+    """
+    configuration: FlightOrderConfiguration = navigation_task.flightorderconfiguration
+    is_a3 = configuration.document_size == A3
+    map_width = configuration.page_width_mm - 20
+    map_height = configuration.page_height_mm - 25
+    image_size = (
+        f"height: {map_height}mm" if configuration.map_orientation == LANDSCAPE else f"width: {map_width}mm"
+    )
+    warning = None
+    pages = []
+    image_files = []
+    for air_speed in sorted(set(air_speeds)):
+        contestant = speed_wind_stand_in_contestant(navigation_task, air_speed, wind_speed, wind_direction)
+        map_plot_kwargs = build_flight_order_map_plot_kwargs(navigation_task, configuration, contestant=contestant)
+        # There is no declaration to draw: this is the task's route
+        map_plot_kwargs["include_contestant_declarations"] = False
+        map_plot_kwargs["title_label"] = f"Speed: {air_speed:g} kt"
+        requested_zoom_level = map_plot_kwargs.pop("zoom_level")
+        map_image, zoom_level = plot_route_within_memory_limit(
+            navigation_task, configuration.document_size, requested_zoom_level, **map_plot_kwargs
+        )
+        if zoom_level < requested_zoom_level and warning is None:
+            warning = (
+                f"Zoom level {requested_zoom_level} needs too much memory for this map, so the maps were made with zoom "
+                f"level {zoom_level} (or lower). Choose a smaller scale or page size to keep the higher zoom level."
+            )
+        image_file = NamedTemporaryFile(suffix=".png")
+        image_file.write(map_image.read())
+        image_file.seek(0)
+        image_files.append(image_file)
+        pages.append(f"#align(center + horizon)[#image({_typst_string(image_file.name)}, {image_size})]")
+    page_setup = (
+        f"#set page(paper: {_typst_string('a3' if is_a3 else 'a4')}, "
+        f"margin: (left: 10mm, right: 10mm, top: 10mm, bottom: 15mm), footer: {_typst_map_footer(configuration)})"
+    )
+    source = page_setup + "\n" + "\n#pagebreak()\n".join(pages) + "\n"
+    try:
+        return _compile_typst(source), warning
+    finally:
+        for image_file in image_files:
+            image_file.close()
+
+
+def generate_task_images_pdf(navigation_task) -> bytes:
+    """
+    One PDF with the pictures of the flight order's picture pages that are the same for every contestant: the turning
+    point and time gate images, and the observation photos, in the order and numbered as in the flight orders. The
+    pictures of unknown legs are the contestant's own and not in it.
+    """
+    configuration: FlightOrderConfiguration = navigation_task.flightorderconfiguration
+    is_a3 = configuration.document_size == A3
+    contestant = speed_wind_stand_in_contestant(navigation_task, 100, 0, 0)
+    # The task's own route, not a declaration of a contestant
+    waypoints = get_flight_order_visual_waypoints(contestant, include_contestant_declarations=False)
+    cols, rows = _gallery_columns(configuration)
+    turning_point_cells = _turning_point_gallery_cells(contestant, configuration, waypoints) if waypoints else []
+    photo_cells = _photo_gallery_cells(contestant, configuration) if _route_photos(contestant) else []
+    if not turning_point_cells and not photo_cells:
+        raise ValueError("The task has no turning point images or observation photos to put in a document.")
+    pages = ""
+    if turning_point_cells:
+        pages += _typst_gallery_pages(
+            turning_point_cells, cols, rows, f"{navigation_task.name}: Turning point and time gate images"
+        )
+    if photo_cells:
+        pages += "\n" + _typst_gallery_pages(photo_cells, cols, rows, f"{navigation_task.name}: Photos")
+    # The first page starts the document: _typst_gallery_pages breaks to a new page before each one
+    pages = pages.strip().removeprefix("#pagebreak()")
+    source = f"""
+#set page(paper: {_typst_string("a3" if is_a3 else "a4")}, margin: (left: 10mm, right: 10mm, top: 10mm, bottom: 15mm), footer: {_typst_header_footer()})
+#set text(size: {"12pt" if is_a3 else "11pt"})
+{pages}
+"""
+    return _compile_typst(source)
