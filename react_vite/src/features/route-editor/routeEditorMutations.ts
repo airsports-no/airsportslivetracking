@@ -29,6 +29,17 @@ export function deleteItemById<T extends { id: string }>(items: T[], selectedId:
   return items.filter((item) => item.id !== selectedId);
 }
 
+const METRES_PER_NAUTICAL_MILE = 1852;
+
+/** A gate's width is kept in metres and shown in nautical miles. */
+export const nauticalMilesToMetres = (nauticalMiles: number): number => Math.round(nauticalMiles * METRES_PER_NAUTICAL_MILE);
+export const metresToNauticalMiles = (metres: number): number => metres / METRES_PER_NAUTICAL_MILE;
+
+/** The points with the given ids given the width (in metres); the others are as they were. */
+export function setWidthOfPoints(points: RoutePoint[], ids: ReadonlySet<string>, widthMetres: number): RoutePoint[] {
+  return points.map((point) => (ids.has(point.id) ? { ...point, width: widthMetres } : point));
+}
+
 export function normalizeDeletedBackboneRoutePoints(points: RoutePoint[]): RoutePoint[] {
   if (points.length === 0) return points;
   const normalized = [...points];

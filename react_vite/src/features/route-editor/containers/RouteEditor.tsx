@@ -2,6 +2,7 @@ import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react'
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Toolbar from '../components/Toolbar';
+import GateWidthModal from '../components/GateWidthModal';
 import MapCanvas from '../components/MapCanvas';
 import WizardActionBanner from '../components/WizardActionBanner';
 import { fetchRoute, fetchTaskCompatibility, saveRoute, TaskCompatibilityResult } from '../api';
@@ -24,6 +25,7 @@ import {
   renumberRoutePoints,
   reorderItemsById,
   reverseRoutePoints,
+  setWidthOfPoints,
   updateItemById,
 } from '../routeEditorMutations';
 import { buildRouteEditorSavePayload, validateRouteEditorState } from '../routeEditorValidation';
@@ -84,6 +86,7 @@ export default function RouteEditor() {
 
   const [mode, setMode] = useState<Mode>('view');
   const [tempGatePoint, setTempGatePoint] = useState<LatLng | null>(null);
+  const [gateWidthsOpen, setGateWidthsOpen] = useState(false);
   const [tempPolygonPoints, setTempPolygonPoints] = useState<LatLng[]>([]);
   const [showCorridor, setShowCorridor] = useState(false);
   const [addCurveMode, setAddCurveMode] = useState(false);
@@ -968,6 +971,16 @@ export default function RouteEditor() {
           setTempGatePoint={setTempGatePoint}
           setTempPolygonPoints={setTempPolygonPoints}
           openWizard={() => { setSelectedId(null); setSelectionType('wizard'); }}
+          openGateWidths={() => setGateWidthsOpen(true)}
+        />
+        <GateWidthModal
+          isOpen={gateWidthsOpen}
+          points={routePoints}
+          onApply={(ids, widthMetres) => {
+            setIsDirty(true);
+            setRoutePoints((points) => setWidthOfPoints(points, ids, widthMetres));
+          }}
+          onClose={() => setGateWidthsOpen(false)}
         />
 
         {currentWizardActionLabel && (

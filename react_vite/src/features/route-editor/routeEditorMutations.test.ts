@@ -5,6 +5,9 @@ import {
   normalizeDeletedBackboneRoutePoints,
   renumberRoutePoints,
   reverseRoutePoints,
+  setWidthOfPoints,
+  nauticalMilesToMetres,
+  metresToNauticalMiles,
 } from './routeEditorMutations';
 import type { RoutePoint } from '../../types';
 
@@ -168,4 +171,35 @@ describe('reverseRoutePoints', () => {
     expect(result.map((p) => p.name)).toEqual(['SP', 'MP', 'FP']);
   });
 
+});
+
+describe('setWidthOfPoints', () => {
+  const points = [
+    makePoint({ id: 'sp', type: 'sp', width: 926 }),
+    makePoint({ id: 'tp', type: 'tp', width: 926 }),
+    makePoint({ id: 'secret', type: 'secret', width: 1000 }),
+    makePoint({ id: 'fp', type: 'fp', width: 926 }),
+  ];
+
+  it('gives the chosen points the width and leaves the others and their other fields alone', () => {
+    const result = setWidthOfPoints(points, new Set(['tp', 'secret']), 1852);
+    expect(result.map((point) => point.width)).toEqual([926, 1852, 1852, 926]);
+    expect(result[1]).toEqual({ ...points[1], width: 1852 });
+    expect(result[0]).toBe(points[0]);
+  });
+
+  it('does nothing for no points, and does not change the list it was given', () => {
+    expect(setWidthOfPoints(points, new Set(), 1852)).toEqual(points);
+    setWidthOfPoints(points, new Set(['tp']), 1);
+    expect(points[1].width).toBe(926);
+  });
+});
+
+describe('gate widths in nautical miles', () => {
+  it('are kept in whole metres and read back in nautical miles', () => {
+    expect(nauticalMilesToMetres(0.5)).toBe(926);
+    expect(nauticalMilesToMetres(0.01)).toBe(19);
+    expect(metresToNauticalMiles(1852)).toBe(1);
+    expect(metresToNauticalMiles(926)).toBe(0.5);
+  });
 });

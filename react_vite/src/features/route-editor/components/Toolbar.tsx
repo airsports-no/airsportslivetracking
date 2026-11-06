@@ -6,6 +6,7 @@ import {
   Activity,
   Camera,
   Hexagon,
+  MoveHorizontal,
   Wand2,
 } from 'lucide-react';
 import { Mode, LatLng } from '../../../types';
@@ -17,9 +18,10 @@ interface ToolbarProps {
   setTempGatePoint: (point: LatLng | null) => void;
   setTempPolygonPoints: (points: LatLng[]) => void;
   openWizard: () => void;
+  openGateWidths: () => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ mode, setMode, tempGatePoint, setTempGatePoint, setTempPolygonPoints, openWizard }) => {
+const Toolbar: React.FC<ToolbarProps> = ({ mode, setMode, tempGatePoint, setTempGatePoint, setTempPolygonPoints, openWizard, openGateWidths }) => {
   const helpText = (() => {
     if (mode === 'view') return "Select a point to edit or drag map.";
     if (mode === 'add_point') return "Click map to place next waypoint.";
@@ -98,6 +100,17 @@ const Toolbar: React.FC<ToolbarProps> = ({ mode, setMode, tempGatePoint, setTemp
         >
           <Activity size={18} />
           <span>Take-off</span>
+        </button>
+
+        <div className="w-px h-5 bg-gray-300 mx-1 self-center"></div>
+
+        <button
+          onClick={openGateWidths}
+          className="btn btn-sm rounded-full gap-2 border-none btn-ghost"
+          title="Set the width of several gates at once"
+        >
+          <MoveHorizontal size={18} />
+          <span>Gate widths</span>
         </button>
       </div>
 
