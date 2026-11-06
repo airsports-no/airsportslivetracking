@@ -6,6 +6,8 @@ import {
   getDistance,
   getBearing,
   getDestinationPoint,
+  getIntermediatePoint,
+  getGreatCirclePoints,
   isCollinear,
   getDistanceFromLine,
   isPointInPolygon,
@@ -193,5 +195,84 @@ describe('isPointInPolygon', () => {
 describe('EARTH_RADIUS', () => {
   it('is the standard mean Earth radius in meters', () => {
     expect(EARTH_RADIUS).toBe(6371e3);
+  });
+});
+
+describe('getIntermediatePoint', () => {
+  const a = { lat: 60, lng: 10 };
+  const b = { lat: 60, lng: 11 };
+
+  it('is the ends at 0 and 1 and half the distance from both in the middle', () => {
+    expect(getIntermediatePoint(a, b, 0).lat).toBeCloseTo(60, 9);
+    expect(getIntermediatePoint(a, b, 0).lng).toBeCloseTo(10, 9);
+    expect(getIntermediatePoint(a, b, 1).lng).toBeCloseTo(11, 9);
+    const middle = getIntermediatePoint(a, b, 0.5);
+    expect(getDistance(a, middle)).toBeCloseTo(getDistance(middle, b), 3);
+    // The great circle between two points at the same latitude bulges towards the pole
+    expect(middle.lat).toBeGreaterThan(60);
+  });
+
+  it('copes with two equal points', () => {
+    expect(getIntermediatePoint(a, a, 0.5)).toEqual(a);
+  });
+});
+
+describe('getGreatCirclePoints', () => {
+  const metresAcross = (nauticalMiles: number, lat: number) => nauticalMiles / 60 / Math.cos(toRad(lat));
+
+  it('ends exactly at the end, and is a single point for a short leg', () => {
+    const from = { lat: 60, lng: 10 };
+    const to = { lat: 60.001, lng: 10.001 };
+    expect(getGreatCirclePoints(from, to)).toEqual([{ lat: 60.001, lng: 10.001 }]);
+    const long = getGreatCirclePoints(from, { lat: 60, lng: 10 + metresAcross(25, 60) });
+    expect(long.length).toBeGreaterThan(40);
+    expect(long[long.length - 1]).toEqual({ lat: 60, lng: 10 + metresAcross(25, 60) });
+  });
+
+  it('keeps to the great circle', () => {
+    const from = { lat: 60, lng: 10 };
+    const to = { lat: 60, lng: 10 + metresAcross(25, 60) };
+    getGreatCirclePoints(from, to).forEach((point) => {
+      expect(getDistanceFromLine(point, from, to)).toBeLessThan(0.01);
+    });
+  });
+});
+
+describe('a gate placed on a leg', () => {
+  // How a map draws a line between two points: straight on the flat map (Web Mercator), where one projected metre at
+  // this latitude is cos(latitude) metres on the ground
+  const project = (p: { lat: number; lng: number }): [number, number] => [
+    EARTH_RADIUS * toRad(p.lng),
+    EARTH_RADIUS * Math.log(Math.tan(Math.PI / 4 + toRad(p.lat) / 2)),
+  ];
+  const distanceToSegment = (point: [number, number], start: [number, number], end: [number, number]) => {
+    const [dx, dy] = [end[0] - start[0], end[1] - start[1]];
+    const t = Math.max(0, Math.min(1, ((point[0] - start[0]) * dx + (point[1] - start[1]) * dy) / (dx * dx + dy * dy)));
+    return Math.hypot(point[0] - (start[0] + t * dx), point[1] - (start[1] + t * dy));
+  };
+  const metresOffTheLine = (point: { lat: number; lng: number }, line: { lat: number; lng: number }[]) => {
+    const projected = line.map(project);
+    let nearest = Infinity;
+    for (let i = 0; i < projected.length - 1; i += 1) {
+      nearest = Math.min(nearest, distanceToSegment(project(point), projected[i], projected[i + 1]));
+    }
+    return nearest * Math.cos(toRad(point.lat));
+  };
+
+  const from = { lat: 60, lng: 10 };
+  const to = { lat: 60, lng: 10 + 25 / 60 / Math.cos(toRad(60)) };
+  // Where the editor puts a gate clicked on the leg: on the great circle, so the scored track does not change
+  const gate = getDestinationPoint(from, getDistance(from, to) / 2, getBearing(from, to));
+  const wholeLeg = [from, ...getGreatCirclePoints(from, to)];
+  const legsWithGate = [from, ...getGreatCirclePoints(from, gate), ...getGreatCirclePoints(gate, to)];
+
+  it('is off the straight line a map would draw between the ends (the bend that was seen)', () => {
+    expect(metresOffTheLine(gate, [from, to])).toBeGreaterThan(50);
+  });
+
+  it('does not change the drawn leg when the leg is drawn along the great circle', () => {
+    expect(metresOffTheLine(gate, wholeLeg)).toBeLessThan(0.1);
+    legsWithGate.forEach((point) => expect(metresOffTheLine(point, wholeLeg)).toBeLessThan(0.1));
+    wholeLeg.forEach((point) => expect(metresOffTheLine(point, legsWithGate)).toBeLessThan(0.1));
   });
 });

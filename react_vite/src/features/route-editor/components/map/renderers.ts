@@ -4,9 +4,11 @@ import {
   getBearing,
   getDestinationPoint,
   getDistanceFromLine,
+  getGreatCirclePoints,
+  getIntermediatePoint,
 } from '../../../../utils/geoUtils';
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
-import { RoutePoint, Gate, Polygon, Mode, SelectionType } from '../../../../types';
+import { RoutePoint, Gate, LatLng, Polygon, Mode, SelectionType } from '../../../../types';
 import { UNKNOWN_LEG_TRIGGER_TYPE } from '../../unknownLegWizard';
 
 // CIMA 2.A7 (Circle) default inner/outer radius bounds (metres), matching Scorecard's
@@ -75,6 +77,14 @@ const getPointTooltipLabel = (point: RoutePoint, index: number) => {
   return `${index + 1}. ${point.name}`;
 };
 
+/**
+ * A straight leg of the route as the points to draw it through: along the great circle between its gates, which is where
+ * it is scored (and where a gate placed on it goes), instead of the straight line on the flat map that would bend at
+ * such a gate (see getGreatCirclePoints).
+ */
+export const greatCircleLatLngs = (from: LatLng, to: LatLng): L.LatLng[] =>
+  getGreatCirclePoints(from, to).map((point) => L.latLng(point.lat, point.lng));
+
 export const clearLayers = (markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, polylinesRef: React.MutableRefObject<L.Layer[]>, routeLineRef: React.MutableRefObject<L.Polyline | null>, map: L.Map) => {
   Object.values(markersRef.current).forEach(layer => map.removeLayer(layer));
   polylinesRef.current.forEach(layer => map.removeLayer(layer));
@@ -136,7 +146,7 @@ export const drawRouteLine = (
     }
 
     if (previous.type === UNKNOWN_LEG_TRIGGER_TYPE) {
-      latlngs.push(L.latLng(point.lat, point.lng));
+      latlngs.push(...greatCircleLatLngs(previous, point));
       continue;
     }
 
@@ -144,7 +154,7 @@ export const drawRouteLine = (
       const curvePoints = getQuadraticBezierPoints(previous, point, { lat: point.controlLat, lng: point.controlLng });
       latlngs.push(...curvePoints);
     } else {
-      latlngs.push(L.latLng(point.lat, point.lng));
+      latlngs.push(...greatCircleLatLngs(previous, point));
     }
   }
 
@@ -231,7 +241,9 @@ export const drawRouteLine = (
       const p2 = routePoints[i + 1];
       if (p2.segmentType === 'curved') continue;
 
-      const mid = L.latLng((p1.lat + p2.lat) / 2, (p1.lng + p2.lng) / 2);
+      // Halfway along the leg as drawn: on the great circle, not at the average of the coordinates
+      const middle = getIntermediatePoint(p1, p2, 0.5);
+      const mid = L.latLng(middle.lat, middle.lng);
       const ghost = L.circleMarker(mid, {
         radius: 7,
         color: '#3b82f6',

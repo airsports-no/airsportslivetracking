@@ -6,6 +6,7 @@ import {
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Polygon, ObservationMarker, SelectionType, Mode } from '../../../../types';
 import { nextOnDummyBranch } from '../../unknownLegWizard';
+import { greatCircleLatLngs } from './renderers';
 
 interface useDragHandlersProps {
     mapRef: React.MutableRefObject<L.Map | null>;
@@ -93,7 +94,7 @@ export default function useDragHandlers({
                 const prev = tempPoints[i - 1];
                 newLatLngs.push(...getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng }));
               } else {
-                newLatLngs.push(L.latLng(p.lat, p.lng));
+                newLatLngs.push(...greatCircleLatLngs(tempPoints[i - 1], p));
               }
             }
           });
@@ -123,7 +124,7 @@ export default function useDragHandlers({
                 const prev = tempPoints[i - 1];
                 newLatLngs.push(...getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng }));
               } else {
-                newLatLngs.push(L.latLng(p.lat, p.lng));
+                newLatLngs.push(...greatCircleLatLngs(tempPoints[i - 1], p));
               }
             }
           });
