@@ -194,7 +194,7 @@ def generate_speed_maps_async(task_id: int, speeds: list, wind_speed: float, win
 
 @app.task
 def generate_task_images_async(task_id: int, user_id: int):
-    """One PDF with the turning point images and the observation photos (see generate_task_images_pdf)."""
+    """One PDF with the turning point, unknown leg and observation photo images (see generate_task_images_pdf)."""
     kind = "task_images"
     try:
         from display.flight_order_and_maps.generate_flight_orders import generate_task_images_pdf

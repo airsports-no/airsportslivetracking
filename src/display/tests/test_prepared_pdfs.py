@@ -4,6 +4,7 @@ turning point images and observation photos, each as one PDF."""
 import datetime
 import os
 from io import BytesIO
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from django.contrib.auth import get_user_model
@@ -21,6 +22,7 @@ from display.flight_order_and_maps.generate_flight_orders import (
     speed_wind_stand_in_contestant,
 )
 from display.models import Contest, FlightOrderConfiguration, NavigationTask
+from display.utilities.gate_definitions import UNKNOWN_LEG
 from display.tasks import generate_speed_maps_async, generate_task_images_async, prepared_pdf_cache_key
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
 from utilities.mock_utilities import TraccarMock
@@ -263,9 +265,21 @@ class TaskImagesPdfTest(TestCase):
             self.addCleanup(patcher.stop)
         self.task = make_task("Images day")
 
-    def generate(self, turning_points, photos, route_photos=True):
+    def generate(self, turning_points, photos, route_photos=True, unknown_legs=None):
+        """The document's source; ``unknown_legs`` are the cells of an unknown legs task's pictures (None: not such a task)."""
         compiled = []
+        waypoints = [SimpleNamespace(type=UNKNOWN_LEG, name="UL")] if unknown_legs is not None else None
         with (
+            patch.object(generate_flight_orders, "_unknown_leg_gallery_cells", return_value=unknown_legs or []),
+            patch.object(
+                generate_flight_orders,
+                "get_flight_order_visual_waypoints",
+                side_effect=lambda *args, **kwargs: (
+                    waypoints
+                    if waypoints is not None
+                    else generate_flight_orders.get_effective_route_waypoints(self.task)
+                ),
+            ),
             patch.object(generate_flight_orders, "_turning_point_gallery_cells", return_value=turning_points),
             patch.object(generate_flight_orders, "_photo_gallery_cells", return_value=photos),
             patch.object(generate_flight_orders, "_route_photos", return_value=[MagicMock()] if route_photos else []),
@@ -291,11 +305,34 @@ class TaskImagesPdfTest(TestCase):
         self.assertNotRegex(source, r"#set text\([^\n]*\)\s*#pagebreak\(\)")
         self.assertEqual(source.count("#pagebreak()"), 1, "between the turning points and the photos")
 
+    def test_the_unknown_legs_pictures_come_between_the_turning_points_and_the_photos(self):
+        _, source = self.generate(
+            [("/tmp/a.png", "SP")], [("/tmp/c.png", "1")], unknown_legs=[("/tmp/u1.png", None), ("/tmp/u2.png", None)]
+        )
+        order = [
+            source.index("Turning point and time gate images"),
+            source.index("Images day: Unknown legs images 1/1"),
+            source.index("Images day: Photos"),
+        ]
+        self.assertEqual(order, sorted(order))
+        self.assertEqual(source.count("#pagebreak()"), 2)
+        # The pictures of unknown legs carry no caption: a name could give the route away
+        self.assertIn('#image("/tmp/u1.png"', source)
+
+    def test_a_task_without_unknown_legs_has_no_such_pages(self):
+        _, source = self.generate([("/tmp/a.png", "SP")], [], route_photos=False)
+        self.assertNotIn("Unknown legs", source)
+
+    def test_an_unknown_legs_task_with_nothing_else_still_gets_a_document(self):
+        pdf, source = self.generate([], [], route_photos=False, unknown_legs=[("/tmp/u1.png", None)])
+        self.assertEqual(pdf, b"%PDF-images")
+        self.assertIn("Unknown legs images", source)
+
     def test_a_task_without_photos_gets_only_its_turning_points(self):
         _, source = self.generate([("/tmp/a.png", "SP")], [], route_photos=False)
         self.assertIn("Turning point and time gate images", source)
         self.assertNotIn("Photos", source)
 
     def test_a_task_with_nothing_to_put_in_it_says_so(self):
-        with self.assertRaisesMessage(ValueError, "no turning point images or observation photos"):
+        with self.assertRaisesMessage(ValueError, "no turning point images, unknown leg images or observation photos"):
             self.generate([], [], route_photos=False)

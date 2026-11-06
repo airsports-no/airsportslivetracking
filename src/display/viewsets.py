@@ -2903,8 +2903,8 @@ class NavigationTaskViewSet(DeleteWhileCalculatorsRunMixin, ModelViewSet):
     @action(detail=True, methods=["post"])
     def generate_task_images(self, request, *args, **kwargs):
         """
-        One PDF with the turning point images and the observation photos of the task (the pictures of the flight order that
-        are the same for every contestant), made in the background like generate_speed_maps.
+        One PDF with the turning point images, the unknown leg images and the observation photos of the task (the pictures
+        of the flight order that are the same for every contestant), made in the background like generate_speed_maps.
         """
         navigation_task = self.get_object()
         if not request.user.has_perm("change_contest", navigation_task.contest):

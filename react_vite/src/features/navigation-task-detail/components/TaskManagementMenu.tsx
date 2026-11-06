@@ -184,7 +184,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
         </li>
         <li>
           <button type="button" disabled={makingImages} onClick={handleTaskImages} className="w-full text-left">
-            Turning point and photo images (PDF)
+            Turning point, unknown leg and photo images (PDF)
           </button>
         </li>
         <li>

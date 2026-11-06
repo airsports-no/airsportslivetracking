@@ -1013,8 +1013,8 @@ def generate_speed_maps_pdf(
 def generate_task_images_pdf(navigation_task) -> bytes:
     """
     One PDF with the pictures of the flight order's picture pages that are the same for every contestant: the turning
-    point and time gate images, and the observation photos, in the order and numbered as in the flight orders. The
-    pictures of unknown legs are the contestant's own and not in it.
+    point and time gate images, the pictures of the unknown legs (with the decoys mixed in, as in the flight orders) and
+    the observation photos, in the order and numbered as in the flight orders.
     """
     configuration: FlightOrderConfiguration = navigation_task.flightorderconfiguration
     is_a3 = configuration.document_size == A3
@@ -1023,13 +1023,22 @@ def generate_task_images_pdf(navigation_task) -> bytes:
     waypoints = get_flight_order_visual_waypoints(contestant, include_contestant_declarations=False)
     cols, rows = _gallery_columns(configuration)
     turning_point_cells = _turning_point_gallery_cells(contestant, configuration, waypoints) if waypoints else []
+    unknown_leg_cells = (
+        _unknown_leg_gallery_cells(contestant, configuration, waypoints)
+        if any(waypoint.type == UNKNOWN_LEG for waypoint in waypoints)
+        else []
+    )
     photo_cells = _photo_gallery_cells(contestant, configuration) if _route_photos(contestant) else []
-    if not turning_point_cells and not photo_cells:
-        raise ValueError("The task has no turning point images or observation photos to put in a document.")
+    if not turning_point_cells and not unknown_leg_cells and not photo_cells:
+        raise ValueError("The task has no turning point images, unknown leg images or observation photos to put in a document.")
     pages = ""
     if turning_point_cells:
         pages += _typst_gallery_pages(
             turning_point_cells, cols, rows, f"{navigation_task.name}: Turning point and time gate images"
+        )
+    if unknown_leg_cells:
+        pages += "\n" + _typst_gallery_pages(
+            unknown_leg_cells, cols, rows, f"{navigation_task.name}: Unknown legs images"
         )
     if photo_cells:
         pages += "\n" + _typst_gallery_pages(photo_cells, cols, rows, f"{navigation_task.name}: Photos")
