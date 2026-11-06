@@ -551,6 +551,8 @@ export const drawPolygons = (
     polygonLayer.on('click', (e: L.LeafletMouseEvent) => {
       if (mode !== 'view') return;
       L.DomEvent.stopPropagation(e.originalEvent);
+      // The click that ends a drag of the zone is not a click on it
+      if (dragRef.current?.hasMoved) return;
 
       if (selectedId === poly.id) {
         const clickPt = { lat: e.latlng.lat, lng: e.latlng.lng };
@@ -590,6 +592,109 @@ export const drawPolygons = (
       setMode('view');
     });
 
+    // Dragging the zone moves all of it
+    polygonLayer.on('mousedown', (e: L.LeafletMouseEvent) => {
+      if (mode !== 'view') return;
+      L.DomEvent.stopPropagation(e.originalEvent);
+      map.dragging.disable();
+      dragRef.current = {
+        type: 'poly_body',
+        polyId: poly.id,
+        startLatLng: e.latlng,
+        initialPoints: poly.points,
+        hasMoved: false,
+      };
+      map.on('mousemove', handleDragMove);
+      map.on('mouseup', handleDragEnd);
+    });
+
     markersRef.current[`poly-${poly.id}`] = polygonLayer;
+
+    if (selectedId === poly.id && selectionType === 'polygon') {
+      drawPolygonHandles(map, poly, color, mode, markersRef, dragRef, handleDragMove, handleDragEnd, setPolygons);
+    }
+  });
+};
+
+/**
+ * The selected zone's editing handles, like the route's: a handle on each corner to drag, and (in view mode) a fainter
+ * dot halfway along each edge that adds a corner there when grabbed and drags it straight away.
+ */
+export const drawPolygonHandles = (
+  map: L.Map,
+  poly: Polygon,
+  color: string,
+  mode: Mode,
+  markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>,
+  dragRef: React.MutableRefObject<any>,
+  handleDragMove: (e: L.LeafletMouseEvent) => void,
+  handleDragEnd: (e: L.LeafletMouseEvent) => void,
+  setPolygons: React.Dispatch<React.SetStateAction<Polygon[]>>,
+) => {
+  poly.points.forEach((pt, idx) => {
+    const handle = L.circleMarker([pt.lat, pt.lng], {
+      radius: 6,
+      color: 'white',
+      fillColor: color,
+      fillOpacity: 1,
+      weight: 2,
+      className: 'cursor-grab',
+    }).addTo(map);
+
+    markersRef.current[`poly-handle-${poly.id}-${idx}`] = handle;
+
+    handle.on('mousedown', (e: L.LeafletMouseEvent) => {
+      if (mode !== 'view') return;
+      L.DomEvent.stopPropagation(e.originalEvent);
+      map.dragging.disable();
+      dragRef.current = {
+        type: 'poly_vertex',
+        polyId: poly.id,
+        vertexIndex: idx,
+        startLatLng: e.latlng,
+        hasMoved: false,
+      };
+      map.on('mousemove', handleDragMove);
+      map.on('mouseup', handleDragEnd);
+    });
+  });
+
+  if (mode !== 'view') return;
+  poly.points.forEach((pt, idx) => {
+    const nextPt = poly.points[(idx + 1) % poly.points.length];
+    const mid = L.latLng((pt.lat + nextPt.lat) / 2, (pt.lng + nextPt.lng) / 2);
+
+    const ghost = L.circleMarker(mid, {
+      radius: 6,
+      color: 'white',
+      fillColor: color,
+      opacity: 0.7,
+      fillOpacity: 0.5,
+      weight: 1,
+      className: 'cursor-copy',
+    }).addTo(map);
+
+    ghost.on('mousedown', (e: L.LeafletMouseEvent) => {
+      L.DomEvent.stopPropagation(e.originalEvent);
+
+      const nextPoints = [...poly.points];
+      nextPoints.splice(idx + 1, 0, { lat: mid.lat, lng: mid.lng });
+      setPolygons((prev) => prev.map((p) => (p.id === poly.id ? { ...p, points: nextPoints } : p)));
+
+      // Start dragging the new corner immediately
+      map.dragging.disable();
+      dragRef.current = {
+        type: 'poly_vertex',
+        polyId: poly.id,
+        vertexIndex: idx + 1,
+        startLatLng: e.latlng,
+        initialPoints: nextPoints,
+        hasMoved: true,
+      };
+      map.on('mousemove', handleDragMove);
+      map.on('mouseup', handleDragEnd);
+    });
+
+    markersRef.current[`poly-ghost-${poly.id}-${idx}`] = ghost;
   });
 };

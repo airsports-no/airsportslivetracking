@@ -51,6 +51,9 @@ const EditPolygonView: React.FC<EditPolygonViewProps> = ({ polygon, updatePolygo
       <div className="text-xs text-gray-500 italic">
         Points: {polygon.points.length}
       </div>
+      <div className="text-xs text-gray-500">
+        Drag a corner to move it, or the faint dot on an edge to add a corner there. Drag the zone itself to move all of it.
+      </div>
 
       <button 
         onClick={deletePolygon}
