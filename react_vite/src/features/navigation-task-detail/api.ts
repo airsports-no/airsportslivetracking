@@ -254,20 +254,35 @@ async function postNavigationTaskAction(
   contestId: number,
   navigationTaskId: number,
   failureVerb: string
-): Promise<void> {
+): Promise<Response> {
   const url = reverse(actionUrlName, contestId, navigationTaskId);
   const response = await fetch(url, { method: 'POST', headers: getAuthHeaders() });
   if (!response.ok) {
     const errorMessages = await getErrorMessages(response);
     throw new Error(`Failed to ${failureVerb}: ${errorMessages}`);
   }
+  return response;
 }
 
 export const removeAllContestants = (contestId: number, navigationTaskId: number) =>
   postNavigationTaskAction('navigationtasks-remove-contestants', contestId, navigationTaskId, 'remove all contestants');
 
-export const refreshEditableRoute = (contestId: number, navigationTaskId: number) =>
-  postNavigationTaskAction('navigationtasks-refresh-editable-route', contestId, navigationTaskId, 'reload the route');
+/** What a reload of the route did: reloaded is false when the editable route gave no route and the old one was kept. */
+export interface RouteReloadResult {
+  reloaded: boolean;
+  number_of_waypoints: number | null;
+  route_length_nm: number | null;
+}
+
+export const refreshEditableRoute = async (contestId: number, navigationTaskId: number): Promise<RouteReloadResult> => {
+  const response = await postNavigationTaskAction(
+    'navigationtasks-refresh-editable-route',
+    contestId,
+    navigationTaskId,
+    'reload the route'
+  );
+  return response.json();
+};
 
 export async function deleteNavigationTask(contestId: number, navigationTaskId: number): Promise<void> {
   const url = reverse('navigationtasks-detail', contestId, navigationTaskId);

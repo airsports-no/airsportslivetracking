@@ -2623,14 +2623,22 @@ class NavigationTaskViewSet(DeleteWhileCalculatorsRunMixin, ModelViewSet):
     def refresh_editable_route(self, request, *args, **kwargs):
         """
         Updates the navigation task's Route with any changes made to the linked editable route.
-        Mirrors the classic refresh_editable_route_navigation_task view.
+        Mirrors the classic refresh_editable_route_navigation_task view. It is done when the answer comes: ``reloaded``
+        is false when the editable route gave no route (it has no track), which leaves the old one as it was.
         """
         navigation_task = self.get_object()
         try:
-            navigation_task.refresh_editable_route()
+            route = navigation_task.refresh_editable_route()
         except DjangoValidationError as e:
             raise drf_exceptions.ValidationError(str(e))
-        return Response(status=status.HTTP_200_OK)
+        return Response(
+            {
+                "reloaded": route is not None,
+                "number_of_waypoints": route.number_of_wayoints if route else None,
+                "route_length_nm": round(route.route_length_nm, 1) if route else None,
+            },
+            status=status.HTTP_200_OK,
+        )
 
     @action(detail=True, methods=["post"])
     def remove_contestants(self, request, *args, **kwargs):

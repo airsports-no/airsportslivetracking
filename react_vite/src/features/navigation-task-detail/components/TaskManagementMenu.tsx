@@ -60,8 +60,13 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
     if (reloadingRoute || !window.confirm('Reload the route from the linked editable route?')) return;
     setReloadingRoute(true);
     try {
-      await refreshEditableRoute(contestId, navigationTaskId);
+      const result = await refreshEditableRoute(contestId, navigationTaskId);
       onRefresh();
+      if (result.reloaded) {
+        showToast(`Route reloaded: ${result.number_of_waypoints} waypoints, ${result.route_length_nm} NM.`, 'success', 8000);
+      } else {
+        showToast('The editable route has no track to load, so the route is as it was.', 'warning');
+      }
     } catch (err: any) {
       window.alert(err.message || 'Failed to reload the route');
     } finally {
@@ -182,6 +187,7 @@ const TaskManagementMenu: React.FC<TaskManagementMenuProps> = ({ contestId, navi
       <FlightOrderConfigurationModal ref={flightOrderConfigModalRef} contestId={contestId} navigationTaskId={navigationTaskId} onSaved={() => showToast('Flight order configuration saved.', 'success', 5000)} />
       <ToastContainer toasts={toasts} removeToast={removeToast} />
       {deleting && <BusyOverlay message={`Deleting “${task.name}”…`} />}
+      {reloadingRoute && <BusyOverlay message="Reloading the route…" detail="The task's route is rebuilt from the editable route." />}
       {removingContestants && <BusyOverlay message="Removing all contestants…" detail="This can take a while when they have flown a lot." />}
       <GenerateNavigationMapModal ref={generateMapModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />
       <DuplicateTaskModal ref={duplicateModalRef} contestId={contestId} navigationTaskId={navigationTaskId} />

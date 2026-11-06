@@ -34,7 +34,7 @@ from display.utilities.simulator_policy import SIMULATOR_NOT_ALLOWED, SIMULATOR_
 from display.utilities.task_information import build_navigation_task_information
 
 if typing.TYPE_CHECKING:
-    from display.models import UserUploadedMap
+    from display.models import Route, UserUploadedMap
 
 logger = logging.getLogger(__name__)
 
@@ -439,12 +439,12 @@ class NavigationTask(models.Model):
                 self.tasktest.task.summary_score_sorting_direction = self.score_sorting_direction
                 self.tasktest.task.save(update_fields=["summary_score_sorting_direction"])
 
-    def refresh_editable_route(self):
+    def refresh_editable_route(self) -> typing.Optional["Route"]:
         """
         Create a new Route object to replace the old from the navigation tasks editable route. Typically used when the
         editable rout has been updated and the user wants to update the navigation task without creating a new one.
         Requires that there are no contestants in the navigation task.
-        :return:
+        :return: The new route, or None when the editable route gave none (it has no track) and the old one is kept.
         """
         from display.models import Route
 
@@ -484,6 +484,7 @@ class NavigationTask(models.Model):
             self.route = route
             self.save()
             old_route.delete()
+        return route
 
     def make_public(self):
         """

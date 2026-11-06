@@ -151,6 +151,31 @@ class TestNavigationTaskAndContestantManagementRestActions(APITestCase):
         self.assertEqual(response.status_code, 200, response.content)
         self.navigation_task.refresh_from_db()
         self.assertNotEqual(self.navigation_task.route.pk, old_route_pk)
+        # The answer says what was done, which the page shows
+        route = self.navigation_task.route
+        self.assertEqual(
+            response.json(),
+            {
+                "reloaded": True,
+                "number_of_waypoints": route.number_of_wayoints,
+                "route_length_nm": round(route.route_length_nm, 1),
+            },
+        )
+
+    def test_refresh_editable_route_says_when_there_was_no_route_to_load(self, *args):
+        editable_route = EditableRoute.objects.create(
+            name="No track", route={"type": "FeatureCollection", "features": []}
+        )
+        self.navigation_task.editable_route = editable_route
+        self.navigation_task.save(update_fields=["editable_route"])
+        old_route_pk = self.navigation_task.route.pk
+
+        response = self.client.post(self._url("refresh-editable-route"))
+
+        self.assertEqual(response.status_code, 200, response.content)
+        self.assertEqual(response.json(), {"reloaded": False, "number_of_waypoints": None, "route_length_nm": None})
+        self.navigation_task.refresh_from_db()
+        self.assertEqual(self.navigation_task.route.pk, old_route_pk)
 
     def test_refresh_editable_route_rejects_when_no_editable_route_linked(self, *args):
         response = self.client.post(self._url("refresh-editable-route"))
