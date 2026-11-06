@@ -281,15 +281,8 @@ def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_
     top = int(vertical_centre - vertical)
     bottom = int(vertical_centre + vertical)
     cropped = img2.crop((left, top, right, bottom))
-    draw = ImageDraw.Draw(cropped)
-
-    fnt = ImageFont.truetype("/src/fonts/OpenSans-Bold.ttf", 100)
-    draw.text(
-        (10, 10),
-        f"{photo.name}",
-        font=fnt,
-        fill=(255, 0, 0, 0),
-    )
+    # Nothing is printed on the picture: the photo's name could give away where it is in the route (the flight order
+    # numbers the observation photos by their place instead)
     temporary_file = NamedTemporaryFile(suffix=".png", delete=False)
     cropped.save(temporary_file, "PNG")
     plt.close()

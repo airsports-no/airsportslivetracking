@@ -204,7 +204,8 @@ class Photo(models.Model):
             if os.path.exists(temp_file.name):
                 os.remove(temp_file.name)
 
-    def generate_image(self, force=False):
+    def generate_image(self, force=False) -> bool:
+        """Makes the satellite picture if there is none (or with force). Whether a picture was saved."""
         if (not self.file or force) and self.route:
             from display.flight_order_and_maps.generate_flight_orders import generate_photo
             from types import SimpleNamespace
@@ -232,6 +233,7 @@ class Photo(models.Model):
                 try:
                     temp_file = generate_photo(self, waypoint, meters_across, zoom_level)
                     self._save_generated_image(temp_file)
+                    return True
                 except Exception as e:
                     logger.exception(f"Failed to generate decoy photo image for {self.name}: {e}")
             elif waypoint := self.leg:
@@ -239,7 +241,9 @@ class Photo(models.Model):
                 try:
                     temp_file = generate_photo(self, waypoint, meters_across, zoom_level)
                     self._save_generated_image(temp_file)
+                    return True
                 except Exception as e:
                     logger.exception(f"Failed to generate photo image for {self.name}: {e}")
             else:
                 logger.warning(f"Could not find closest leg for photo {self.name} - image generation skipped")
+        return False

@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-11-06
+#### Backend
+- **The satellite pictures of the route photos no longer have the photo's name printed on them** (it could give away the order of the route), also the ones the app shows for observation photos. Pictures already stored keep the name until `python manage.py regenerate_photo_images` has made them again.
+
 ### 2026-11-05
 #### Backend
 - **Observation photos are numbered by their place in the flight order** instead of by name ("Obs 1" to "Obs 6" gave the order of the route away): the flight order's photo pages and the app's photo list (`name`, plus a new `number`) use the same numbers, and the flight order configuration can randomise the order (the same for every contestant of the task). No app change is needed: the apps show `name`.
