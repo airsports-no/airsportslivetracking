@@ -761,8 +761,12 @@ class EditableRoute(models.Model):
         task_subtype: str | None = None,
     ) -> "Route":
         from display.models import Route
+        from display.services.photo_management import observation_photo_name_problems
         from display.utilities.cima_task_type_definitions import NO_BACKBONE_TASK_SUBTYPES
 
+        # A route saved before names were checked may still have photos of one name: not a task from it until it is fixed
+        if problems := observation_photo_name_problems(self):
+            raise ValidationError(" ".join(problems))
         if task_type in (PRECISION, POKER):
             if task_subtype in NO_BACKBONE_TASK_SUBTYPES:
                 # These subtypes have no authored route backbone: the route

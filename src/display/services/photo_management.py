@@ -97,6 +97,36 @@ def get_navigation_task_photo_targets(navigation_task) -> list[dict[str, Any]]:
     return targets
 
 
+def observation_photo_name_problems(editable_route) -> list[str]:
+    """
+    What is wrong with the names of the route's observation photos: a photo is its name (a route has one photo of a name,
+    which the crew finds by its place in the flight order, and the answer key is by name), so two observation photos
+    cannot have one name, and nor can one have the name of another point that has a photo. Nothing then silently
+    becomes one photo with the position of only one of them.
+    """
+    problems = []
+    names = [
+        (point.get("properties") or {}).get("name")
+        for point in editable_route.get_observation_photos()
+        if (point.get("properties") or {}).get("name")
+    ]
+    for name in sorted({name for name in names if names.count(name) > 1}):
+        problems.append(f'More than one observation photo is named "{name}". Give each its own name.')
+    other_names = set()
+    for features, skipped_types in (
+        (editable_route.get_ordered_track_waypoints(), NOT_PHOTOGRAPHED_POINT_TYPES),
+        (editable_route.get_catalogue_turnpoints(), frozenset()),
+        (editable_route.get_unknown_leg_waypoints(), frozenset()),
+    ):
+        for point in features:
+            properties = point.get("properties") or {}
+            if properties.get("name") and properties.get("pointType") not in skipped_types:
+                other_names.add(properties["name"])
+    for name in sorted(set(names) & other_names):
+        problems.append(f'An observation photo is named "{name}", like a point of the route. Give the photo another name.')
+    return problems
+
+
 def get_public_photo_names(navigation_task) -> set[str]:
     """
     Names of the photos everyone who may see the task may see: its photo targets, except the unknown-leg photos (they

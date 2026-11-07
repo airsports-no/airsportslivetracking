@@ -452,6 +452,10 @@ class NavigationTask(models.Model):
             raise ValidationError("Cannot refresh the route as long as they are contestants")
         if self.editable_route is None:
             raise ValidationError("There is no route to refresh")
+        from display.services.photo_management import observation_photo_name_problems
+
+        if problems := observation_photo_name_problems(self.editable_route):
+            raise ValidationError(" ".join(problems))
         route = None
         if self.scorecard.calculator in (PRECISION, POKER):
             if self.task_subtype in NO_BACKBONE_TASK_SUBTYPES:

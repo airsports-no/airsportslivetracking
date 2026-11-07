@@ -108,6 +108,35 @@ export function validateRouteEditorState(
   return errors;
 }
 
+// The route points that have no picture in the flight order, so their names are free (see NOT_PHOTOGRAPHED_POINT_TYPES in
+// display/services/photo_management.py)
+const POINT_TYPES_WITHOUT_PHOTO = new Set(['secret', 'dummy', 'ul', 'unknown_leg']);
+
+/**
+ * What is wrong with the names of the observation photos: a photo is its name (the answer key is by name, and the crew finds
+ * a photo by its place in the flight order), so two observation photos cannot have one name, and nor can one have the name
+ * of another point that has a photo. The server refuses such a route too.
+ */
+export function observationPhotoNameProblems(
+  routePoints: RoutePoint[],
+  standalonePoints: RoutePoint[],
+  observationMarkers: ObservationMarker[],
+): string[] {
+  const problems: string[] = [];
+  const names = observationMarkers.map((marker) => marker.name.trim()).filter((name) => name.length > 0);
+  Array.from(new Set(names.filter((name) => names.filter((other) => other === name).length > 1))).forEach((name) =>
+    problems.push(`More than one observation photo is named "${name}". Give each its own name.`),
+  );
+  const otherNames = new Set([
+    ...routePoints.filter((point) => !POINT_TYPES_WITHOUT_PHOTO.has(point.type)).map((point) => point.name),
+    ...standalonePoints.filter((point) => point.featureType === 'catalogue_turnpoint').map((point) => point.name),
+  ]);
+  Array.from(new Set(names.filter((name) => otherNames.has(name)))).forEach((name) =>
+    problems.push(`An observation photo is named "${name}", like a point of the route. Give the photo another name.`),
+  );
+  return problems;
+}
+
 export function buildRouteEditorSavePayload(args: {
   routeName: string;
   routePoints: RoutePoint[];

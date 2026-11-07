@@ -9,6 +9,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
+from django.core.exceptions import ValidationError as DjangoValidationError
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from guardian.shortcuts import assign_perm
@@ -16,7 +17,9 @@ from rest_framework.test import APIClient
 
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.models import Contest, EditableRoute, NavigationTask, Photo
-from display.services.photo_management import sync_navigation_task_photo_targets
+from display.serialisers import EditableRouteSerialiser
+from display.services.photo_management import observation_photo_name_problems, sync_navigation_task_photo_targets
+from rest_framework.exceptions import ValidationError as DRFValidationError
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
 
 UTC = datetime.timezone.utc
@@ -136,3 +139,84 @@ class MergeDuplicatePhotosTest(TestCase):
 
     def test_a_real_photo_before_a_decoy(self):
         self.assertEqual(self.keep(self.photo(1, file="a.png", uploaded=True, is_decoy=True), self.photo(2)), 2)
+
+
+def observation(name, n=0):
+    return {
+        "type": "Feature",
+        "properties": {"id": f"obs-{name}-{n}", "name": name, "featureType": "observation_photo"},
+        "geometry": {"type": "Point", "coordinates": [11.0 + n / 100, 60.0]},
+    }
+
+
+def waypoint(name, point_type="tp", sequence=1):
+    return {
+        "type": "Feature",
+        "properties": {
+            "id": f"wp-{name}",
+            "name": name,
+            "featureType": "route_waypoint",
+            "pointType": point_type,
+            "sequence": sequence,
+            "width": 1852,
+        },
+        "geometry": {"type": "Point", "coordinates": [11.0, 60.1]},
+    }
+
+
+def editable(*features) -> EditableRoute:
+    return EditableRoute(name="Names", route={"type": "FeatureCollection", "features": list(features)})
+
+
+class ObservationPhotoNamesTest(TestCase):
+    """A photo is its name, so the observation photos of a route cannot share one, or have the name of a point with a photo."""
+
+    def test_names_of_their_own_are_fine(self):
+        route = editable(observation("Obs 1"), observation("Obs 2", 1), waypoint("TP 1"))
+        self.assertEqual(observation_photo_name_problems(route), [])
+
+    def test_two_observation_photos_of_one_name(self):
+        route = editable(observation("Obs 3"), observation("Obs 3", 1), observation("Obs 4", 2))
+        self.assertEqual(
+            observation_photo_name_problems(route),
+            ['More than one observation photo is named "Obs 3". Give each its own name.'],
+        )
+
+    def test_an_observation_photo_named_like_a_point_that_has_a_photo(self):
+        route = editable(waypoint("TP 1"), observation("TP 1"))
+        self.assertEqual(
+            observation_photo_name_problems(route),
+            ['An observation photo is named "TP 1", like a point of the route. Give the photo another name.'],
+        )
+
+    def test_a_point_without_a_photo_does_not_count(self):
+        # The hidden gates have no picture, so the name is free
+        route = editable(waypoint("Secret 1", "secret"), observation("Secret 1"))
+        self.assertEqual(observation_photo_name_problems(route), [])
+
+    def test_a_route_is_not_saved_with_such_names(self):
+        serialiser = EditableRouteSerialiser()
+        good = {"type": "FeatureCollection", "features": [observation("Obs 1"), observation("Obs 2", 1)]}
+        self.assertEqual(serialiser.validate_route(good), good)
+        bad = {"type": "FeatureCollection", "features": [observation("Obs 1"), observation("Obs 1", 1)]}
+        with self.assertRaises(DRFValidationError) as caught:
+            serialiser.validate_route(bad)
+        self.assertIn('named "Obs 1"', str(caught.exception.detail))
+
+    def test_no_task_is_made_from_such_a_route(self):
+        route = editable(observation("Obs 1"), observation("Obs 1", 1))
+        with self.assertRaisesMessage(DjangoValidationError, 'named "Obs 1"'):
+            route.create_route("precision", get_default_scorecard(), False, 0.5)
+
+    def test_such_a_route_is_not_loaded_into_a_task_either(self):
+        task = make_task("Reload Cup")
+        task.editable_route = EditableRoute.objects.create(
+            name="Clash",
+            route={"type": "FeatureCollection", "features": [observation("Obs 1"), observation("Obs 1", 1)]},
+        )
+        task.save(update_fields=["editable_route"])
+        old_route = task.route
+        with self.assertRaisesMessage(DjangoValidationError, 'named "Obs 1"'):
+            task.refresh_editable_route()
+        task.refresh_from_db()
+        self.assertEqual(task.route_id, old_route.pk)

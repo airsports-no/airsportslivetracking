@@ -1,4 +1,4 @@
-import { validateRouteEditorState, buildRouteEditorSavePayload } from './routeEditorValidation';
+import { validateRouteEditorState, buildRouteEditorSavePayload, observationPhotoNameProblems } from './routeEditorValidation';
 import type { RoutePoint, Gate, ObservationMarker, Polygon } from '../../types';
 
 function makePoint(overrides: Partial<RoutePoint> & { id: string; type: RoutePoint['type'] }): RoutePoint {
@@ -206,5 +206,36 @@ describe('buildRouteEditorSavePayload', () => {
     const coordinates = zoneFeature.geometry.coordinates[0];
     expect(coordinates[0]).toEqual(coordinates[coordinates.length - 1]);
     expect(coordinates).toHaveLength(polygon.points.length + 1);
+  });
+});
+
+describe('observationPhotoNameProblems', () => {
+  const marker = (name: string): ObservationMarker => ({ id: `m-${name}-${Math.random()}`, name, lat: 60, lng: 11, targetName: '' });
+
+  it('has nothing to say about names of their own', () => {
+    expect(observationPhotoNameProblems([sp, tp, fp], [], [marker('Obs 1'), marker('Obs 2')])).toEqual([]);
+  });
+
+  it('says when two observation photos have one name', () => {
+    expect(observationPhotoNameProblems([sp, tp, fp], [], [marker('Obs 3'), marker('Obs 4'), marker('Obs 3')])).toEqual([
+      'More than one observation photo is named "Obs 3". Give each its own name.',
+    ]);
+  });
+
+  it('says when an observation photo has the name of a point that has a photo', () => {
+    const catalogue = makePoint({ id: '9', type: 'catalogue_turnpoint', name: 'Church', featureType: 'catalogue_turnpoint' });
+    expect(observationPhotoNameProblems([sp, tp, fp], [catalogue], [marker('TP'), marker('Church')])).toEqual([
+      'An observation photo is named "TP", like a point of the route. Give the photo another name.',
+      'An observation photo is named "Church", like a point of the route. Give the photo another name.',
+    ]);
+  });
+
+  it('lets a photo have the name of a hidden gate, which has no picture', () => {
+    const secret = makePoint({ id: '8', type: 'secret', name: 'Secret 1' });
+    expect(observationPhotoNameProblems([sp, secret, fp], [], [marker('Secret 1')])).toEqual([]);
+  });
+
+  it('ignores a name that is only spaces', () => {
+    expect(observationPhotoNameProblems([sp, fp], [], [marker(' '), marker('  ')])).toEqual([]);
   });
 });

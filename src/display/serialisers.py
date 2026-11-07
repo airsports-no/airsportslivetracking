@@ -3105,6 +3105,7 @@ Prohibited, penalty, information zones
         turn it into the same GeoJSON shape, so accept it here rather than just rejecting it.
         """
         if isinstance(value, dict) and value.get("type") == "FeatureCollection" and isinstance(value.get("features"), list):
+            self._check_observation_photo_names(value)
             return value
         if isinstance(value, list):
             try:
@@ -3115,6 +3116,15 @@ Prohibited, penalty, information zones
             "route must be a GeoJSON FeatureCollection ({'type': 'FeatureCollection', 'features': [...]}) "
             "or a list of legacy route layer objects (see this field's description)."
         )
+
+    @staticmethod
+    def _check_observation_photo_names(feature_collection: dict):
+        """The route is not saved with observation photos that share a name (see observation_photo_name_problems)."""
+        from display.services.photo_management import observation_photo_name_problems
+
+        problems = observation_photo_name_problems(EditableRoute(route=feature_collection))
+        if problems:
+            raise serializers.ValidationError(problems)
 
     settings = serializers.JSONField()
     editors = serializers.SerializerMethodField("get_editors", read_only=True)

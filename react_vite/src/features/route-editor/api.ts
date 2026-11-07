@@ -18,6 +18,13 @@ async function getErrorMessages(response: Response): Promise<ErrorMessage> {
     } else if (typeof errorData === 'object' && errorData !== null && 'detail' in errorData) {
       return errorData.detail;
     }
+    // Field errors ({"route": ["...", "..."]}) as the sentences they are
+    if (typeof errorData === 'object' && errorData !== null) {
+      const sentences = Object.values(errorData).flat();
+      if (sentences.length > 0 && sentences.every((item) => typeof item === 'string')) {
+        return (sentences as string[]).join(' ');
+      }
+    }
     return JSON.stringify(errorData); // Fallback to stringifying the whole object
   } catch {
     return response.statusText; // Fallback to status text if JSON parsing fails

@@ -163,12 +163,20 @@ export function getMinimumObservationDistance(latlng: LatLng, routePoints: Route
   return minDist;
 }
 
-export function createObservationMarker(latlng: LatLng, markerCount: number): ObservationMarker {
+/** "Obs 1", "Obs 2", ...: the first of them that is not a name already in use (a photo is its name). */
+export function nextObservationName(takenNames: Iterable<string>): string {
+  const taken = new Set(takenNames);
+  let number = 1;
+  while (taken.has(`Obs ${number}`)) number += 1;
+  return `Obs ${number}`;
+}
+
+export function createObservationMarker(latlng: LatLng, takenNames: Iterable<string>): ObservationMarker {
   return {
     id: crypto.randomUUID(),
     lat: latlng.lat,
     lng: latlng.lng,
-    name: `Obs ${markerCount}`,
+    name: nextObservationName(takenNames),
     targetName: '',
   };
 }

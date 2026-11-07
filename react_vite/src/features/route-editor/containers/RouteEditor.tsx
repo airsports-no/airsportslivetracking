@@ -28,7 +28,7 @@ import {
   setWidthOfPoints,
   updateItemById,
 } from '../routeEditorMutations';
-import { buildRouteEditorSavePayload, validateRouteEditorState } from '../routeEditorValidation';
+import { buildRouteEditorSavePayload, observationPhotoNameProblems, validateRouteEditorState } from '../routeEditorValidation';
 import {
   createBackboneRoutePoint,
   createCatalogueTurnpoint,
@@ -497,7 +497,7 @@ export default function RouteEditor() {
         return;
       }
 
-      setObservationMarkers(prev => [...prev, createObservationMarker(latlng, prev.length + 1)]);
+      setObservationMarkers(prev => [...prev, createObservationMarker(latlng, prev.map(marker => marker.name))]);
       setIsDirty(true);
       setCurrentWizardActionLabel(null);
       setWizardPrompt(null);
@@ -785,6 +785,8 @@ export default function RouteEditor() {
     isTimedTurnpointStandaloneTask,
     isCurveRequiredTask,
   ).concat(
+    observationPhotoNameProblems(routePoints, standalonePoints, observationMarkers),
+  ).concat(
     selectedTaskTemplateId === 'cima_a5'
       ? routePoints
           .filter((point) => point.type === 'ul')
@@ -794,7 +796,7 @@ export default function RouteEditor() {
               : [`Unknown-leg trigger "${triggerPoint.name}" must have at least one dummy-branch waypoint.`]
           ))
       : []
-  ), [routePoints, standalonePoints, isThreePointBackboneTask, isCircleStandaloneTask, isTimedTurnpointStandaloneTask, isCurveRequiredTask, selectedTaskTemplateId]);
+  ), [routePoints, standalonePoints, observationMarkers, isThreePointBackboneTask, isCircleStandaloneTask, isTimedTurnpointStandaloneTask, isCurveRequiredTask, selectedTaskTemplateId]);
 
   const stopWizardAction = useCallback(() => {
     setMode('view');
@@ -811,6 +813,13 @@ export default function RouteEditor() {
   const handleSave = async () => {
     if (!routeName || !routeName.trim()) {
       alert('Please enter a route name before saving.');
+      return;
+    }
+
+    // Not to be saved anyway: the server refuses such a route
+    const photoNameProblems = observationPhotoNameProblems(routePoints, standalonePoints, observationMarkers);
+    if (photoNameProblems.length > 0) {
+      alert(`The route cannot be saved:\n\n${photoNameProblems.join('\n')}`);
       return;
     }
 
@@ -847,7 +856,7 @@ export default function RouteEditor() {
       }
     } catch (e) {
       console.error(e);
-      showToast('Error saving route. Your changes are still here; try again.', 'error');
+      showToast(`${e instanceof Error && e.message ? e.message : 'Error saving route.'} Your changes are still here.`, 'error');
     }
   };
 
