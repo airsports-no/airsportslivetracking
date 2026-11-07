@@ -82,6 +82,8 @@ Some task types ask you to declare your route first. The flight order is then se
 
 The timer helps you cross the starting line on a whole minute. It is in the app, and **only for flights with adaptive start**.
 
+![Phone screenshot: the Timer tab before START is pressed, with the countdown buffer and the Flight, Timer and Photos tabs at the bottom](../../assets/img/app_timer.png)
+
 1.  Open the **Timer** tab at the bottom of the screen, next to **Flight**. Also press the **play** button to start tracking before take-off.
 2.  Choose a **countdown buffer** if you want a lead-in. With 2 minutes, the timer starts at -2:00 and counts to 0:00. Tap *What is the countdown buffer?* in the app for an explanation.
 3.  Press **START** when you begin your start procedure. Before you press it, the page shows the minute the timer would start at.

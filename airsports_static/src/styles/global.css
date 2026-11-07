@@ -31,6 +31,9 @@
   }
   .prose-custom ol { @apply list-decimal list-inside mb-8 space-y-3 text-slate-600 font-medium; }
   .prose-custom img { @apply rounded-[2rem] shadow-2xl my-12 border-4 border-white ring-1 ring-slate-200 mx-auto; }
+  /* A phone screenshot is tall and narrow: at the width of the text it would fill several screens. Give an image the alt
+     text "Phone screenshot: ..." to show it at the size of a phone. */
+  .prose-custom img[alt^="Phone screenshot"] { @apply max-w-[20rem] w-full h-auto; }
   .prose-custom code { @apply bg-blue-50 text-blue-700 px-2 py-0.5 rounded-lg text-sm font-mono font-bold border border-blue-100; }
   /* Tables: a header row, a line between rows and every other row shaded, so long rows are easy to follow.
      display:block with overflow lets a wide table scroll sideways on a phone instead of widening the page. */
