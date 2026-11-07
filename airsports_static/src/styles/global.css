@@ -7,6 +7,11 @@
 }
 
 @layer base {
+  /* The header is sticky and 5rem tall: a link to a heading (#anchor) must leave it room, or the heading is hidden behind it */
+  html {
+    scroll-padding-top: 7rem;
+  }
+
   body {
     @apply bg-slate-50 text-slate-900 font-sans;
   }
