@@ -59,7 +59,8 @@ export function createInsertedRoutePoint(
     type: pointType,
     featureType,
     width: 1852,
-    isTiming: pointType === 'tp',
+    // Secret gates are checked and timed from the start (see SECRET_GATE_CHECKS)
+    isTiming: pointType === 'tp' || pointType === 'secret',
     isPassing: true,
     segmentType: 'straight',
   };

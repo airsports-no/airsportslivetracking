@@ -25,6 +25,7 @@ import {
   renumberRoutePoints,
   reorderItemsById,
   reverseRoutePoints,
+  SECRET_GATE_CHECKS,
   setWidthOfPoints,
   updateItemById,
 } from '../routeEditorMutations';
@@ -536,6 +537,10 @@ export default function RouteEditor() {
 
       const newPoints = [...points];
       newPoints[index] = { ...newPoints[index], [field]: value };
+      // A point made a secret gate is checked and timed, as a new secret gate is
+      if (field === 'type' && value === 'secret') {
+        newPoints[index] = { ...newPoints[index], ...SECRET_GATE_CHECKS };
+      }
 
       if (field === 'type' && value === 'secret' && index > 0 && index < newPoints.length - 1) {
         const prev = newPoints[index - 1];

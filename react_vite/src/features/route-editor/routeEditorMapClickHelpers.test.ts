@@ -6,8 +6,13 @@ describe('createInsertedRoutePoint', () => {
     expect(point.isTiming).toBe(true);
   });
 
-  it('defaults isTiming to false for other route-insert pointTypes, e.g. secret', () => {
+  it('defaults isTiming to true for a secret gate: it is checked and timed like any other', () => {
     const point = createInsertedRoutePoint({ lat: 60, lng: 11 }, 'secret', 'route_waypoint', null, 1);
+    expect([point.isTiming, point.isPassing]).toEqual([true, true]);
+  });
+
+  it('defaults isTiming to false for other route-insert pointTypes, e.g. a dummy point', () => {
+    const point = createInsertedRoutePoint({ lat: 60, lng: 11 }, 'dummy', 'route_waypoint', null, 1);
     expect(point.isTiming).toBe(false);
   });
 });

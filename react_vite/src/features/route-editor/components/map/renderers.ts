@@ -219,7 +219,8 @@ export const drawRouteLine = (
         type: insertType,
         featureType: 'route_waypoint',
         width: isSecret ? 1000 : 1852,
-        isTiming: !isSecret,
+        // Checked and timed from the start, a secret gate too (see SECRET_GATE_CHECKS)
+        isTiming: true,
         isPassing: true,
         segmentType: 'straight',
       };

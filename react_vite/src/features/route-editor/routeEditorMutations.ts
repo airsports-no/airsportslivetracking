@@ -29,6 +29,9 @@ export function deleteItemById<T extends { id: string }>(items: T[], selectedId:
   return items.filter((item) => item.id !== selectedId);
 }
 
+/** A secret (hidden) gate is a gate that is checked and timed, like any other: its time check and gate check start on. */
+export const SECRET_GATE_CHECKS = { isTiming: true, isPassing: true } as const;
+
 const METRES_PER_NAUTICAL_MILE = 1852;
 
 /** A gate's width is kept in metres and shown in nautical miles. */
