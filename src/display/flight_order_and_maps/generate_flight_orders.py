@@ -983,7 +983,7 @@ def generate_speed_maps_pdf(
         map_plot_kwargs = build_flight_order_map_plot_kwargs(navigation_task, configuration, contestant=contestant)
         # There is no declaration to draw: this is the task's route
         map_plot_kwargs["include_contestant_declarations"] = False
-        map_plot_kwargs["title_label"] = f"Speed: {air_speed:g} kt"
+        map_plot_kwargs["name_contestant_in_title"] = False
         requested_zoom_level = map_plot_kwargs.pop("zoom_level")
         map_image, zoom_level = plot_route_within_memory_limit(
             navigation_task, configuration.document_size, requested_zoom_level, **map_plot_kwargs

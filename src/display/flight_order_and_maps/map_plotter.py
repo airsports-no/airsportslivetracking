@@ -1760,6 +1760,23 @@ def plot_editable_route(editable_route: EditableRoute) -> BytesIO:
         plt.close(fig)
 
 
+def map_heading(route_name: str, contestant: Contestant, name_contestant: bool = True) -> str:
+    """
+    The heading of a contestant's map: the track, the contestant, and the air speed and wind the map is made for. The
+    speed and wind are on a line of their own when the contestant is named, whose crew and aeroplane can make a long line.
+    """
+    track = [f"Track: '{route_name}'"]
+    if name_contestant:
+        track.append(f"Contestant: {contestant}")
+    conditions = [
+        f"Speed: {contestant.air_speed:.0f} kt",
+        f"Wind: {contestant.wind_direction:03.0f}/{contestant.wind_speed:02.0f} kt",
+    ]
+    if not name_contestant:
+        return " - ".join(track + conditions)
+    return " - ".join(track) + "\n" + " - ".join(conditions)
+
+
 def plot_route(
     task: NavigationTask,
     map_size: str,
@@ -1789,9 +1806,9 @@ def plot_route(
     vertical_margin_mm: Optional[float] = None,
     # Return the estimated peak memory (MB) instead of the image, without fetching any map tiles
     estimate_only: bool = False,
-    # What the title names instead of "Contestant: <contestant>", for a map that is made for an air speed and wind and not
-    # for a real contestant
-    title_label: Optional[str] = None,
+    # False for a map that is made for an air speed and wind and not for a real contestant: the heading then does not name
+    # the contestant (a stand-in without a name)
+    name_contestant_in_title: bool = True,
 ):
     route = task.route
     attribution = ""
@@ -2015,17 +2032,15 @@ def plot_route(
     plot_prohibited_zones(route, imagery.crs, ax)
     buffer = [patheffects.withStroke(linewidth=3, foreground="w")]
     if contestant is not None:
+        heading = map_heading(route.name, contestant, name_contestant_in_title)
         plt.title(
-            "Track: '{}' - {} - Wind: {:03.0f}/{:02.0f}".format(
-                route.name,
-                title_label if title_label is not None else f"Contestant: {contestant}",
-                contestant.wind_direction,
-                contestant.wind_speed,
-            ),
+            heading,
             y=1,
-            pad=-20,
+            # The heading hangs inside the top of the map, each further line a line lower so none is cut off
+            pad=-20 - 16 * heading.count("\n"),
             color="black",
-            fontsize=10,
+            fontsize=11,
+            fontweight="bold",
             path_effects=buffer,
         )
     else:

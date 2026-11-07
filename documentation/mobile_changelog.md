@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-11-07
+#### Backend
+- **The map in a flight order has the air speed and the wind in its heading** ("Speed: 75 kt - Wind: 180/13 kt", on a line under the track and contestant), in bold so it can be read over the map's grid.
+
 ### 2026-11-06
 #### Backend
 - **The satellite pictures of the route photos no longer have the photo's name printed on them** (it could give away the order of the route), also the ones the app shows for observation photos. Pictures already stored keep the name until `python manage.py regenerate_photo_images` has made them again.

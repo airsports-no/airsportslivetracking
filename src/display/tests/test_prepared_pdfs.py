@@ -21,6 +21,7 @@ from display.flight_order_and_maps.generate_flight_orders import (
     generate_task_images_pdf,
     speed_wind_stand_in_contestant,
 )
+from display.flight_order_and_maps.map_plotter import map_heading
 from display.models import Contest, FlightOrderConfiguration, NavigationTask
 from display.utilities.gate_definitions import UNKNOWN_LEG
 from display.tasks import generate_speed_maps_async, generate_task_images_async, prepared_pdf_cache_key
@@ -240,7 +241,8 @@ class SpeedMapsPdfTest(TestCase):
             self.assertEqual(kwargs["annotations"], configuration.map_include_annotations)
             self.assertEqual(kwargs["scale"], configuration.map_scale)
             self.assertFalse(kwargs["include_contestant_declarations"])
-        self.assertEqual([call[2]["title_label"] for call in calls], ["Speed: 80 kt", "Speed: 100 kt"])
+        # The heading has the speed and wind of the stand-in contestant, who has no name to give
+        self.assertTrue(all(call[2]["name_contestant_in_title"] is False for call in calls))
         # One page each, with the flight order's map footer
         self.assertEqual(compiled[0].count("#image("), 2 + 1, "two maps and the footer's logo")
         self.assertEqual(compiled[0].count("#pagebreak()"), 1)
@@ -336,3 +338,25 @@ class TaskImagesPdfTest(TestCase):
     def test_a_task_with_nothing_to_put_in_it_says_so(self):
         with self.assertRaisesMessage(ValueError, "no turning point images, unknown leg images or observation photos"):
             self.generate([], [], route_photos=False)
+
+
+class MapHeadingTest(TestCase):
+    class Flyer:
+        air_speed = 79.6
+        wind_direction = 5.0
+        wind_speed = 5.0
+
+        def __str__(self):
+            return "7 - Pi Lot"
+
+    def test_a_contestants_map_names_the_contestant_and_the_speed_and_wind_on_a_line_of_their_own(self):
+        self.assertEqual(
+            map_heading("Route 1", self.Flyer()),
+            "Track: 'Route 1' - Contestant: 7 - Pi Lot\nSpeed: 80 kt - Wind: 005/05 kt",
+        )
+
+    def test_a_speed_and_wind_map_has_no_contestant_to_name(self):
+        self.assertEqual(
+            map_heading("Route 1", self.Flyer(), name_contestant=False),
+            "Track: 'Route 1' - Speed: 80 kt - Wind: 005/05 kt",
+        )
