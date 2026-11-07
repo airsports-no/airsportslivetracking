@@ -77,6 +77,8 @@ Think of it as two steps: a **team** registers once for the *contest*, then book
 
 You can find open events in the app under **Open for registration today**, or on the website.
 
+> **In a hurry?** [Register for a Navigation Task at Your Airfield](/docs/16_Register_for_a_Navigation_Task) is the short version for a task at your local airfield: register at home, print the flight order, and use the timer and the photos on the day.
+
 ### Step 1: Register for the Contest
 1.  Find your competition on the **Mission Dashboard** at `app.airsports.no` and open its card.
 2.  Select **"Register my team"** and enter your team details: co-pilot (optional), aircraft registration and club. You can change them later with **"Edit team"**, even after booking flights.
