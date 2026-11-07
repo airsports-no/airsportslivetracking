@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
 from django.core.exceptions import ValidationError as DjangoValidationError
+from django.core.files.base import ContentFile
 from django.db import IntegrityError, transaction
 from django.test import TestCase
 from guardian.shortcuts import assign_perm
@@ -220,3 +221,83 @@ class ObservationPhotoNamesTest(TestCase):
             task.refresh_editable_route()
         task.refresh_from_db()
         self.assertEqual(task.route_id, old_route.pk)
+
+
+class MovedPhotoPictureTest(TestCase):
+    """A photo that has moved (its marker was moved, or two photos of one name were merged) must not keep a picture of the old place."""
+
+    def setUp(self):
+        self.task = make_task("Moved Cup")
+        self.sp = self.task.route.waypoints[0]
+        self.generated = []
+
+        def generate_image(photo, force=False):
+            # A new satellite picture, as the real one is saved
+            self.generated.append((photo.name, force))
+            photo.file.save(f"new_{len(self.generated)}.png", ContentFile(b"new picture"), save=True)
+            return True
+
+        patcher = patch.object(Photo, "generate_image", generate_image)
+        patcher.start()
+        self.addCleanup(patcher.stop)
+
+    def photo_of_sp(self, latitude=None, longitude=None, uploaded=False) -> Photo:
+        """The photo of the starting point, with a picture, at the given place (the waypoint's own by default)."""
+        photo = Photo.objects.create(
+            name=self.sp.name,
+            route=self.task.route,
+            latitude=self.sp.latitude if latitude is None else latitude,
+            longitude=self.sp.longitude if longitude is None else longitude,
+            uploaded=uploaded,
+        )
+        photo.file.save("old.png", ContentFile(b"old picture"), save=True)
+        self.generated.clear()
+        return photo
+
+    def sync_sp(self) -> Photo:
+        sync_navigation_task_photo_targets(self.task)
+        return Photo.objects.get(route=self.task.route, name=self.sp.name)
+
+    def pictures_made_for_sp(self) -> list:
+        """The sync also makes the photos of the route's other points, which are new: only the starting point's matter here."""
+        return [made for made in self.generated if made[0] == self.sp.name]
+
+    def test_a_photo_that_has_moved_gets_a_new_picture_and_the_old_file_goes(self):
+        photo = self.photo_of_sp(latitude=self.sp.latitude + 0.01)
+        old_name = photo.file.name
+        photo = self.sync_sp()
+        self.assertEqual(photo.latitude, self.sp.latitude)
+        self.assertEqual(self.pictures_made_for_sp(), [(self.sp.name, True)])
+        self.assertEqual(photo.file.read(), b"new picture")
+        self.assertFalse(photo.file.storage.exists(old_name))
+
+    def test_a_photo_that_has_not_moved_keeps_its_picture(self):
+        self.photo_of_sp()
+        photo = self.sync_sp()
+        self.assertEqual(self.pictures_made_for_sp(), [])
+        self.assertEqual(photo.file.read(), b"old picture")
+
+    def test_a_move_of_less_than_a_metre_is_the_same_place(self):
+        self.photo_of_sp(latitude=self.sp.latitude + 5e-6)
+        photo = self.sync_sp()
+        self.assertEqual(photo.latitude, self.sp.latitude)
+        self.assertEqual(self.pictures_made_for_sp(), [])
+        self.assertEqual(photo.file.read(), b"old picture")
+
+    def test_the_organisers_own_picture_stays_when_the_photo_moves(self):
+        self.photo_of_sp(latitude=self.sp.latitude + 0.01, uploaded=True)
+        photo = self.sync_sp()
+        self.assertEqual(photo.latitude, self.sp.latitude)
+        self.assertEqual(self.pictures_made_for_sp(), [])
+        self.assertEqual(photo.file.read(), b"old picture")
+
+    def test_a_picture_that_cannot_be_made_is_removed_and_made_at_the_next_request(self):
+        photo = self.photo_of_sp(longitude=self.sp.longitude + 0.01)
+        old_name = photo.file.name
+        with patch.object(Photo, "generate_image", return_value=False):
+            photo = self.sync_sp()
+        # No picture of the wrong place
+        self.assertFalse(photo.file)
+        self.assertFalse(photo.file.storage.exists(old_name))
+        photo = self.sync_sp()
+        self.assertEqual(photo.file.read(), b"new picture")

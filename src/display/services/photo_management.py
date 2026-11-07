@@ -159,7 +159,16 @@ def photos_visible_to(user, photos) -> list[Photo]:
     return visible
 
 
+# A photo that has moved less than this (about a metre) is the same place: the satellite picture covers hundreds of metres
+PHOTO_MOVED_DEGREES = 1e-5
+
+
 def sync_navigation_task_photo_targets(navigation_task) -> list[Photo]:
+    """
+    The route's photos as its photo targets are now: a photo for each target, at the target's position. A new photo gets its
+    satellite picture; a photo that has moved gets a new one too (the old one shows the old place), unless the organiser
+    uploaded a picture of their own.
+    """
     targets = get_navigation_task_photo_targets(navigation_task)
     ordered_photos: list[Photo] = []
 
@@ -174,6 +183,10 @@ def sync_navigation_task_photo_targets(navigation_task) -> list[Photo]:
         )
 
         fields_to_update: list[str] = []
+        moved = (
+            abs(photo.latitude - target["latitude"]) > PHOTO_MOVED_DEGREES
+            or abs(photo.longitude - target["longitude"]) > PHOTO_MOVED_DEGREES
+        )
         if photo.latitude != target["latitude"]:
             photo.latitude = target["latitude"]
             fields_to_update.append("latitude")
@@ -187,10 +200,26 @@ def sync_navigation_task_photo_targets(navigation_task) -> list[Photo]:
 
         if created or not photo.file:
             photo.generate_image(force=created)
+        elif moved and not photo.uploaded:
+            _replace_satellite_picture(photo)
 
         ordered_photos.append(photo)
 
     return ordered_photos
+
+
+def _replace_satellite_picture(photo: Photo) -> None:
+    """
+    Makes the satellite picture of a photo that has moved again. If that fails the old picture is removed: it shows the
+    wrong place, which is worse than none, and with none the next request makes a new one.
+    """
+    old_name = photo.file.name
+    if photo.generate_image(force=True):
+        # Storage that does not overwrite gives the new picture a name of its own
+        if photo.file.name != old_name:
+            photo.file.storage.delete(old_name)
+    else:
+        photo.file.delete(save=True)
 
 
 def revert_photo_to_satellite(photo: Photo) -> Photo:
