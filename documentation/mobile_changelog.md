@@ -15,6 +15,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-11-07
 #### Backend
+- **The live map's photos no longer fail for good on a task whose photos were asked for twice at once** (also in the apps' embedded map): a route could get two photos of one name, after which every request for the task's photos failed (migration `0216` merges such duplicates and makes them impossible).
 - **The map in a flight order has the air speed and the wind in its heading** ("Speed: 75 kt - Wind: 180/13 kt", on a line under the track and contestant), in bold so it can be read over the map's grid.
 
 ### 2026-11-06

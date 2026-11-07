@@ -546,12 +546,17 @@ class EditableRoute(models.Model):
         from display.models.route import Photo
 
         for photo in self.get_features_type("observation_photo"):
-            p = Photo.objects.create(
+            # A route has one photo of a name: a second marker of the same name is the same photo
+            p, created = Photo.objects.get_or_create(
                 name=photo["properties"]["name"],
                 route=route,
-                latitude=photo["geometry"]["coordinates"][1],
-                longitude=photo["geometry"]["coordinates"][0],
+                defaults={
+                    "latitude": photo["geometry"]["coordinates"][1],
+                    "longitude": photo["geometry"]["coordinates"][0],
+                },
             )
+            if not created:
+                continue
             try:
                 p.generate_image()
             except:

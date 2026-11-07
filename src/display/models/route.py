@@ -177,6 +177,13 @@ class Photo(models.Model):
         help_text="Course (degrees) printed/oriented on a decoy photo. Only used when is_decoy is true.",
     )
 
+    class Meta:
+        constraints = [
+            # The photos are made when they are first asked for, which takes long: two requests at once must not both
+            # make the same photo (the next request would then find two of it)
+            models.UniqueConstraint(fields=["route", "name"], name="display_photo_unique_name_per_route"),
+        ]
+
     @property
     def leg(self) -> Waypoint | None:
         from display.utilities.route_building_utilities import find_closest_leg_to_point
