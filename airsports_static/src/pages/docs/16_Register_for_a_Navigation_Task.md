@@ -89,7 +89,7 @@ The timer helps you cross the starting line on a whole minute. It is in the app,
 ![Phone screenshot: the Timer tab before START is pressed, with the countdown buffer and the Flight, Timer and Photos tabs at the bottom](../../assets/img/app_timer.png)
 
 1.  Open the **Timer** tab at the bottom of the screen, next to **Flight**. Also press the **play** button to start tracking before take-off.
-2.  Choose a **countdown buffer** if you want a lead-in. With 2 minutes, the timer starts at -2:00 and counts to 0:00. Tap *What is the countdown buffer?* in the app for an explanation.
+2.  Choose a **countdown buffer** if you want a lead-in: tap the cog at the top right of the Timer tab. With 2 minutes, the timer starts at -2:00 and counts to 0:00. Tap *What is the countdown buffer?* in the settings for an explanation.
 3.  Press **START** when you begin your start procedure. Before you press it, the page shows the minute the timer would start at.
 4.  The timer counts from the same whole minute that the system uses as your start time, so you can cross the starting line at 0:00. After that, it shows the time since your start minute. Pressed too early? Tap **Reset** and press **START** again. Tracking is not affected.
 5.  Where the organiser allows training mode, the page also has a **gate countdown** to the next gate's required time. It starts when you cross the starting point.
