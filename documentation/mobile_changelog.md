@@ -16,6 +16,7 @@ that says what a pilot, an organiser or an admin gets.
 ### 2026-11-08
 #### App
 - **Timer page: both timers are on the page, and touching the large one swaps them.** The timer since start is large by default with the countdown to the next gate in a small card below it (or the other way round); the squeezed "Tap to show large" label is gone, and the small card's text ("Waiting for the next gate") shrinks to fit on one line.
+- **Timer page: an optional training aid switches the gate countdown to the large place** a chosen number of seconds (10-120, default 30 when switched on) before each gate, and back a few seconds after it. Off by default: pilots normally compare the clock with the expected crossing time themselves. Touching the large timer during the switch keeps your choice for that gate.
 - **Photos page is more compact:** the rule about marking is a small line instead of a box, the GPS box only shows when something blocks marking, and in the list view Mark, Set time and Cancel sit on one line.
 
 ### 2026-11-07
