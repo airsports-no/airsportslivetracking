@@ -15,7 +15,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-11-08
 #### App
-- **Timer page: the "Tap to show large" label is no longer squeezed** to two letters per line next to the small timer.
+- **Timer page: the small timer has a zoom icon instead of the "Tap to show large" text** (which was squeezed to two letters per line), and its text ("Waiting for the next gate") shrinks to fit on one line while a time is shown larger.
 - **Photos page is more compact:** the rule about marking is a small line instead of a box, the GPS box only shows when something blocks marking, and in the list view Mark, Set time and Cancel sit on one line.
 
 ### 2026-11-07
