@@ -41,7 +41,7 @@ If you are already signed in, you are on the home screen and can go straight to 
 
 1.  On the home screen, tap **Register today**. It lists the events where registration is open, with the nearest first.
 2.  Find the navigation task that is **Open now** and tap **Register a flight**.
-3.  The form opens. Check that these are right:
+3.  The form opens (screenshot below). Check that these are right:
     *   **Aircraft Registration**
     *   **Airspeed** (knots)
     *   **Club** (your flying club)
@@ -50,7 +50,11 @@ If you are already signed in, you are on the home screen and can go straight to 
 6.  Tick **Adaptive Start** (see [below](#use-adaptive-start)).
 7.  Tap **Book start time**.
 
+![Phone screenshot: the registration form with co-pilot, aircraft, airspeed, club, starting point time, wind and the Adaptive Start tick box](../../assets/img/app_register_form.jpg)
+
 The app confirms that your flight is registered, and it now shows under **My flights**, in **Upcoming**. Within a few minutes you get an email with your flight order.
+
+![Phone screenshot: the Flight tab of a registered flight, with the tracking window, adaptive start, airspeed and wind, and the play button to start tracking](../../assets/img/app_my_flight.jpg)
 
 > **On the website instead of the app?** The form also asks "How will you fly this?" Choose *In a real aircraft*. The app chooses for you.
 
