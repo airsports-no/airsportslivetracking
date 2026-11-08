@@ -102,6 +102,8 @@ Tap a timer to show it large. The timer runs on GPS time.
 
 Some tasks have photos you must find along the route. The photos are in your flight order, **numbered 1, 2, 3 and so on**, and the **Photos** tab in the app shows the same numbers. The tab is there only for tasks that use photo observations.
 
+![Phone screenshot: the Photos tab with two photos, each with a Mark button, Set time and Cancel](../../assets/img/app_photos.jpg)
+
 1.  Start tracking before you mark photos. A mark is stamped with your position and time.
 2.  When you see the place of a photo on your track, open the **Photos** tab and tap **Mark** on that photo.
 3.  Missed it? Tap **Set time** and enter the time you saw the place.
