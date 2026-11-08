@@ -13,6 +13,11 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-11-08
+#### App
+- **Timer page: the "Tap to show large" label is no longer squeezed** to two letters per line next to the small timer.
+- **Photos page is more compact:** the rule about marking is a small line instead of a box, the GPS box only shows when something blocks marking, and in the list view Mark, Set time and Cancel sit on one line.
+
 ### 2026-11-07
 #### Backend
 - **The live map's photos no longer fail for good on a task whose photos were asked for twice at once** (also in the apps' embedded map): a route could get two photos of one name, after which every request for the task's photos failed (migration `0216` merges such duplicates and makes them impossible).
