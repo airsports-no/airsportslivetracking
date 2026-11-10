@@ -22,7 +22,9 @@ param(
     # The steps go to recorded\<Name>.chapter.js; npm run replace-chapter puts them into the script.
     [string]$Chapter = "",
     # Start without recording: set the page up by hand, then F10 starts (and pauses) recording
-    [switch]$Paused
+    [switch]$Paused,
+    # Record video frames + timeline.json live in a single pass (no second `npm run record` pass needed!)
+    [switch]$Live
 )
 
 $ErrorActionPreference = "Stop"
@@ -67,10 +69,14 @@ try {
         & npm install --no-audit --no-fund "playwright@$PlaywrightVersion"
         & npx playwright install chromium
     }
-    $Arguments = @("capture.mjs", "--output", $Output, "--url", $Url, "--auth", $AuthFile, "--viewport", $Viewport)
+    $Arguments = @("capture.mjs", "--output", $Output, "--url", $Url, "--auth", $AuthFile, "--viewport", $Viewport, "--script", $Script)
     if ($Geolocation) { $Arguments += @("--geolocation", $Geolocation) }
-    if ($Chapter) { $Arguments += @("--script", $Script, "--chapter", $Chapter) }
+    if ($Chapter) { $Arguments += @("--chapter", $Chapter) }
     if ($Paused) { $Arguments += "--paused" }
+    if ($Live) {
+        $LiveDir = Join-Path (Join-Path (Join-Path $Tutorials "public") "recordings") $Name
+        $Arguments += @("--live", $LiveDir)
+    }
     Write-Host "node $($Arguments -join ' ')"
     & node @Arguments
 }

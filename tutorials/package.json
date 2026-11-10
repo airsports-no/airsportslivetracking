@@ -5,6 +5,7 @@
   "scripts": {
     "login": "tsx src/runner/login.ts",
     "codegen": "tsx src/runner/codegen.ts",
+    "live": "tsx src/runner/codegen.ts --live",
     "record": "tsx src/runner/record.ts",
     "narrate": "tsx src/runner/narrate.ts",
     "voice": "tsx src/runner/voice.ts",

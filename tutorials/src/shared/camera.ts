@@ -44,6 +44,26 @@ function clamp(state: CameraState, viewport: Timeline["viewport"]): CameraState 
   };
 }
 
+// Whether a target box already sits comfortably inside the current zoomed frame, so clicking nearby buttons or fields
+// in the same panel does not nudge the camera on every step
+function isComfortablyFramed(
+  previous: CameraState,
+  box: Box,
+  desired: CameraState,
+  viewport: Timeline["viewport"],
+): boolean {
+  if (previous.zoom <= 1.05 || desired.zoom <= 1.05) return false;
+  if (Math.abs(Math.log(desired.zoom / previous.zoom)) > 0.25) return false;
+  const safeHalfWidth = (viewport.width / (2 * previous.zoom)) * 0.68;
+  const safeHalfHeight = (viewport.height / (2 * previous.zoom)) * 0.68;
+  return (
+    box.x >= previous.cx - safeHalfWidth &&
+    box.x + box.width <= previous.cx + safeHalfWidth &&
+    box.y >= previous.cy - safeHalfHeight &&
+    box.y + box.height <= previous.cy + safeHalfHeight
+  );
+}
+
 export function planCamera(timeline: Timeline, edit: Edit): (outMs: number) => CameraState {
   const { viewport } = timeline;
   const wide: CameraState = { zoom: 1, cx: viewport.width / 2, cy: viewport.height / 2 };
@@ -52,18 +72,18 @@ export function planCamera(timeline: Timeline, edit: Edit): (outMs: number) => C
     return last?.mode === "wide";
   };
   const targets = [
-    // Scrolling moves the page under the camera, it is not something to look at
+    // Scrolling and dragging move the page or pointer continuously, they are not separate targets to re-frame
     ...timeline.actions
-      .filter((action) => action.kind !== "scroll" && !isHidden(timeline, action.t))
+      .filter((action) => action.kind !== "scroll" && action.kind !== "drag" && !isHidden(timeline, action.t))
       .map((action) => ({
-      t: action.t,
-      box: action.box ?? {
-        x: action.x - CAMERA.pointBox.width / 2,
-        y: action.y - CAMERA.pointBox.height / 2,
-        ...CAMERA.pointBox,
-      },
-      endT: action.t,
-    })),
+        t: action.t,
+        box: action.box ?? {
+          x: action.x - CAMERA.pointBox.width / 2,
+          y: action.y - CAMERA.pointBox.height / 2,
+          ...CAMERA.pointBox,
+        },
+        endT: action.t,
+      })),
     ...timeline.highlights
       .filter((item) => !isHidden(timeline, item.t))
       .map((item) => ({ t: item.t, box: item.box, endT: item.t + item.durationMs })),
@@ -72,7 +92,11 @@ export function planCamera(timeline: Timeline, edit: Edit): (outMs: number) => C
   const keyframes: Keyframe[] = [{ t: 0, ...wide }];
   targets.forEach((target, index) => {
     const t = edit.toOut(target.t);
-    const state = isWide(target.t) ? wide : framing(target.box, viewport);
+    const desired = isWide(target.t) ? wide : framing(target.box, viewport);
+    const prev = keyframes[keyframes.length - 1];
+    const state = isComfortablyFramed(prev, target.box, desired, viewport)
+      ? { zoom: prev.zoom, cx: prev.cx, cy: prev.cy }
+      : desired;
     keyframes.push({ t, ...state });
     const next = targets[index + 1];
     const endT = edit.toOut(target.endT);
@@ -83,15 +107,18 @@ export function planCamera(timeline: Timeline, edit: Edit): (outMs: number) => C
 
   keyframes.sort((a, b) => a.t - b.t);
 
-  // Each keyframe is reached at its time, moving there over the transition before it, from wherever the camera is
-  // when that transition starts (a previous move may not have finished)
+  // Each keyframe is reached at its time, moving there over the transition before it (clamped so it never starts
+  // before the keyframe ahead of it when two steps are close together)
+  const transitionStart = (index: number) =>
+    index <= 0 ? 0 : Math.max(keyframes[index - 1].t, keyframes[index].t - CAMERA.transitionMs);
   const startStates: CameraState[] = [keyframes[0]];
   const evaluate = (index: number, outMs: number): CameraState => {
     const current = keyframes[index];
     if (index === 0) return current;
-    const start = current.t - CAMERA.transitionMs;
+    const start = transitionStart(index);
+    const span = Math.max(1, current.t - start);
     const from = startStates[index];
-    const progress = easeInOut(Math.min(1, Math.max(0, (outMs - start) / CAMERA.transitionMs)));
+    const progress = easeInOut(Math.min(1, Math.max(0, (outMs - start) / span)));
     // Zoom moves in log space so zooming in and out feel equally fast
     const zoom = Math.exp(Math.log(from.zoom) + (Math.log(current.zoom) - Math.log(from.zoom)) * progress);
     return clamp(
@@ -100,11 +127,11 @@ export function planCamera(timeline: Timeline, edit: Edit): (outMs: number) => C
     );
   };
   for (let index = 1; index < keyframes.length; index++) {
-    startStates[index] = evaluate(index - 1, keyframes[index].t - CAMERA.transitionMs);
+    startStates[index] = evaluate(index - 1, transitionStart(index));
   }
   return (outMs: number) => {
     let index = 0;
-    while (index + 1 < keyframes.length && keyframes[index + 1].t - CAMERA.transitionMs <= outMs) index++;
+    while (index + 1 < keyframes.length && transitionStart(index + 1) <= outMs) index++;
     return evaluate(index, outMs);
   };
 }

@@ -1,7 +1,7 @@
 import { CAMERA } from "./camera";
-import { DEFAULT_EDIT, isHidden, type Say, type Timeline } from "./timeline";
+import { DEFAULT_EDIT, isHidden, type OverlayPosition, type Say, type Timeline } from "./timeline";
 import type { Pause } from "./captions";
-import { addedLineKeys, type Timing, type Voice } from "./timing";
+import { addedLineKeys, addedOverlayKeys, type Timing, type Voice } from "./timing";
 
 // Which parts of the recording make it into the video, at what speed, and where the narration goes. Anything
 // happening (the screen changing, an action, a highlight, a pause) keeps a stretch; the still stretches between them
@@ -28,6 +28,16 @@ export type PlacedLine = {
 // A chapter where it starts in the video, recorded (chapter()) or added in the timing file
 export type PlacedChapter = { t: number; title: string };
 
+// A text overlay where it appears in the video, recorded (overlay()) or added in the timing file
+export type PlacedOverlay = {
+  step: string;
+  start: number;
+  durationMs: number;
+  text: string;
+  title?: string;
+  position: OverlayPosition;
+};
+
 export type Edit = {
   segments: Segment[];
   durationMs: number;
@@ -35,6 +45,7 @@ export type Edit = {
   jumps: { outMs: number; fromSrcMs: number }[];
   narration: PlacedLine[];
   chapters: PlacedChapter[];
+  overlays: PlacedOverlay[];
   // Steps in the timing file that the recording does not have, and say() lines without a voice yet
   warnings: string[];
   // Recording time to video time (something at a held moment shows after the hold), and back
@@ -78,6 +89,7 @@ export function activeIntervals(timeline: Timeline): Interval[] {
     ...timeline.frames.map((frame): Interval => [frame.t, frame.t + SCREEN_CHANGE_AFTER_MS]),
     ...timeline.actions.map((action): Interval => [action.t - ACTION_BEFORE_MS, action.t + ACTION_AFTER_MS]),
     ...timeline.highlights.map((item): Interval => [item.t, item.t + item.durationMs]),
+    ...(timeline.overlays ?? []).map((item): Interval => [item.t, item.t + item.durationMs]),
     ...timeline.holds.map((item): Interval => [item.t, item.t + item.durationMs]),
   ];
   return merge(intervals.map(([a, b]): Interval => [Math.max(0, a), Math.min(timeline.durationMs, b)]));
@@ -239,6 +251,12 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
     layOut();
   };
   for (const [id, change] of changes) hold(leadOf(id), change.holdMs ?? 0);
+  for (const item of timing.overlays ?? []) {
+    if (item.wait) {
+      const t = stepAnchor(timeline, item.at);
+      if (t !== undefined) hold(t, item.durationMs ?? 3500);
+    }
+  }
   // A click on the page is held for a moment as it was clicked: the page's reaction (a panel opening, a list moving)
   // shows a moment later, so the click is seen on what was clicked. Not on the map (its box is the whole map), where
   // the site marks a click itself. Just after the click, so the cursor presses at the start of the hold.
@@ -325,5 +343,43 @@ export function computeEdit(timeline: Timeline, voice: Voice = { lines: {} }, ti
     title: chapter.title,
   }));
   const chapters = [...recordedChapters, ...addedChapters].sort((a, b) => a.t - b.t);
-  return { segments, durationMs, jumps, narration, chapters, warnings, toOut, toSrc };
+
+  // Text overlays: recorded (overlay()) with any timing changes, plus overlays added in the timing file
+  const overlayKeys = addedOverlayKeys(timing.overlays ?? []);
+  const recordedOverlays: PlacedOverlay[] = (timeline.overlays ?? [])
+    .filter((item) => !isHidden(timeline, item.t))
+    .map((item, index) => {
+      const step = item.step ?? `overlay-${index + 1}`;
+      const change = item.step ? timing.steps?.[item.step] : undefined;
+      const start = Math.max(0, (lineStarts.get(item.t) ?? toOut(item.t)) + (change?.delayMs ?? 0));
+      const durationMs = change?.durationMs ?? item.durationMs;
+      return {
+        step,
+        start,
+        durationMs,
+        text: change?.text ?? item.text,
+        title: change?.title !== undefined ? change.title || undefined : item.title,
+        position: change?.position ?? item.position ?? "top-right",
+      };
+    });
+  const addedOverlays: PlacedOverlay[] = (timing.overlays ?? []).flatMap((item, index) => {
+    const t = stepAnchor(timeline, item.at);
+    if (t === undefined) {
+      warnings.push(`The timing file adds an overlay at a step the recording does not have: ${item.at}`);
+      return [];
+    }
+    const base = addedLineStarts.get(item.at) ?? toOut(t);
+    return [
+      {
+        step: overlayKeys[index],
+        start: Math.max(0, base + (item.delayMs ?? 0)),
+        durationMs: item.durationMs ?? 3500,
+        text: item.text,
+        title: item.title || undefined,
+        position: item.position ?? "top-right",
+      },
+    ];
+  });
+  const overlays = [...recordedOverlays, ...addedOverlays].sort((a, b) => a.start - b.start);
+  return { segments, durationMs, jumps, narration, chapters, overlays, warnings, toOut, toSrc };
 }

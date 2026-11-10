@@ -1,7 +1,8 @@
 # Making a tutorial video: the workflow
 
-This guide walks through making a tutorial video, from idea to finished video. It leaves out how the tools work
-inside; for that, and for the one-time setup, see [README.md](README.md).
+This guide walks through making a tutorial video, from idea to finished video. For a complete structured reference
+(including quick website flows, DaVinci Resolve hybrid workflows, hotkeys, and command cheat sheets), see
+[USER_MANUAL.md](USER_MANUAL.md). For internal architecture and one-time setup, see [README.md](README.md).
 
 ## Getting the music
 
@@ -38,9 +39,15 @@ which you can change and try without recording again.
     gives more room; text looks a little smaller in the video, but the camera zooms in where you work. Resizing the
     browser window while recording does not change it.
 
-## Step 1: Record the clicks (Windows)
+## Step 1: Record the clicks (Linux or Windows)
 
-In PowerShell:
+On **Linux** (or WSL with WSLg):
+
+```bash
+npm run codegen -- my-tutorial
+```
+
+Or on **Windows** in PowerShell:
 
 ```powershell
 powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsportslivetracking\tutorials\windows\codegen.ps1 my-tutorial
@@ -48,6 +55,9 @@ powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf
 
 A browser opens on the site. Click through the task calmly, as in the finished video.
 
+- **Add on-screen text overlays with F7.** Press F7 to add a floating callout card (`top-right`, `top-left`,
+  `bottom-right`, `bottom-left`, or `center`) with an optional heading ("Tip", "Shortcut") and optional narration. You
+  can also add and edit overlays later in the timing editor (`npm run timing`) without re-recording.
 - **Mark each phase with F8.** A box asks for the phase's name ("Placing the points") and, if you like, what should
   be said during it. Type it right away while you know what you are doing, or leave it empty and write it later.
   The box itself is not recorded.
@@ -62,17 +72,25 @@ A browser opens on the site. Click through the task calmly, as in the finished v
 - **Buttons in lists are found by their card.** A button that is one of many alike (the **Create task** of each route)
   is written as the button in the card with that route's name, not as "the 28th", so it is still found when the list
   changes.
-- **Pause with F10.** F10 stops recording until you press it again, for example while you look something up. F8
-  works while paused too: the phase you mark then starts with what you do after you press F10 again. During a hidden
-  part (F9) it starts where the video comes back, when you press F9 again.
-- **Close the browser** when you are done. The steps are in `tutorials/recorded/my-tutorial.js`.
+- **Pause with F10.** F10 stops recording until you press it again, for example while you look something up. F7 and F8
+  work while paused too: the overlay or phase you mark then starts with what you do after you press F10 again. During a
+  hidden part (F9) it starts where the video comes back, when you press F9 again.
+- **Close the browser** when you are done. The steps are in `tutorials/recorded/my-tutorial.js`, and if
+  `tutorials/scripts/my-tutorial.ts` does not exist yet, it is created automatically!
+- **One-off / heavy-download tasks (`-Live` / `npm run live`).** If a task downloads a lot of files (such as the
+  background map generator) and you do not want to run it twice, pass `-Live` (`codegen.ps1 my-tutorial -Live` on
+  Windows, or `npm run live -- my-tutorial` on Linux): it records the 2× screen frames and `timeline.json` in real time
+  while you click once (pausing frame capture whenever the `F7`/`F8` dialog is open so the dialog never appears in the
+  video). When you close the browser, skip `npm run record` and go straight to `npm run timing -- my-tutorial` and
+  `npm run render -- my-tutorial`!
 
 The first time, log in in that browser window; the login is remembered from then on.
 
-## Step 2: Write the script
+## Step 2: Polish the script
 
-Make a copy of `tutorials/scripts/example.ts` called `tutorials/scripts/my-tutorial.ts`, fill in the title and
-paste the recorded steps into it. Then go through it and polish the narration:
+Open `tutorials/scripts/my-tutorial.ts` (created automatically when you closed the browser, or copy
+`tutorials/scripts/example.ts` if starting by hand), fill in the title and subtitle, and polish the narration or
+overlays:
 
 ```ts
 export default defineTutorial({
@@ -100,6 +118,7 @@ What you can use in a script:
 | `await say("...")` | Speaks a sentence, and the next step waits until it is finished (in the video: the recording only marks it) |
 | `await say("...", { wait: false })` | Speaks while the next steps happen (most narration should be like this) |
 | `await chapter("...")` | Starts a new phase: its name appears in the video and becomes a chapter |
+| `await overlay("...", { title: "Tip", position: "top-right" })` | Shows an on-screen text callout card (`"top-right"`, `"top-left"`, `"bottom-right"`, `"bottom-left"`, or `"center"`) without dimming the page |
 | `await highlight(page.getByText("Save Route"), { label: "Save when done" })` | Dims the page around something and points it out |
 | `await pause(2000)` | Keeps a still moment of 2 seconds, for example to let something sink in |
 | `await startHidden()` … `await endHidden()` | The steps in between are performed but cut from the video (F9 writes these) |
@@ -195,13 +214,21 @@ export default defineTutorial({
 
 To redo the clicks of one chapter without recording the whole tutorial again:
 
+On **Linux** (or WSL with WSLg):
+
+```bash
+npm run codegen -- my-tutorial --chapter "Placing the points"
+```
+
+Or on **Windows** in PowerShell:
+
 ```powershell
 powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsportslivetracking\tutorials\windows\codegen.ps1 my-tutorial -Chapter "Placing the points"
 ```
 
 The browser plays back the script's steps before that chapter, quickly and without narration, so the page is in the
 state the chapter starts from. Then recording starts: click through the chapter again and close the browser. The new
-steps are in `recorded/my-tutorial.chapter.js`. Put them into the script, in WSL:
+steps are in `recorded/my-tutorial.chapter.js`. Put them into the script:
 
 ```
 npm run replace-chapter -- my-tutorial "Placing the points"
@@ -212,8 +239,8 @@ ones. The old script is kept as `scripts/my-tutorial.ts.bak`. Run `npm run clean
 before the chapter create things.
 
 If the playback stops (for example because the page changed), set the page up by hand and press **F10** to start
-recording. To set everything up by hand from the start, use `-Paused` instead of `-Chapter`: nothing is recorded until
-you press F10, and F10 pauses again.
+recording. To set everything up by hand from the start, use `--paused` (Linux) or `-Paused` (Windows) instead of
+`--chapter` / `-Chapter`: nothing is recorded until you press F10, and F10 pauses again.
 
 ## Step 3: Make the recording (WSL)
 
@@ -283,24 +310,26 @@ in it by hand are not kept (the file as it was is kept as `my-tutorial.timing.ts
 **Record all** at the top records the whole tutorial again. What a recording prints shows below the video, with
 **Stop**; the editor loads the new recording when it is done.
 
-**Adding chapters and sentences without recording again.** Recorded one long session? Choose a step and press **New
-chapter here** or **New line here**: the chapter or sentence starts as the camera moves to that step, just as a
-`chapter("...")` or `await say("...")` line before that step in the script would. Added chapters show in the list in
-blue, with **rename** and **delete**; added sentences show as their own rows, with the same settings as the others
-and **Delete line**. They are saved in the timing file:
+**Adding chapters, sentences, and text overlays without recording again.** Recorded one long session? Choose a step and
+press **New chapter here**, **New line here**, or **New overlay here**: the chapter, sentence, or callout card starts
+as the camera moves to that step, just as a `chapter("...")`, `await say("...")`, or `await overlay("...")` line before
+that step in the script would. Added chapters show in the list in blue, with **rename** and **delete**; added sentences
+and overlays show as their own rows, with live settings (`position`, `title`, `durationMs`, `delayMs`, `wait`, `text`)
+and **Delete**. They are saved in the timing file:
 
 ```ts
 chapters: [{ at: "Start #14", title: "Placing the points" }],
 lines: [{ at: "Start #14", text: "Now click on the map where the start point should be." }],
+overlays: [{ at: "Start #14", title: "Tip", text: "Click to place each waypoint", position: "top-right" }],
 ```
 
 The steps keep the names the recording gave them, even inside an added chapter. Once you are happy, press **Write
-into the script**: the added chapters and sentences become `chapter("...")` and `await say("...")` lines in the
-script, just before their steps (the old script is kept as `.bak`), the timing file's changes move to the names the
-steps will have, and the editor offers to record again from the first chapter they are in. From then on those
-chapters are real chapters, with **record from here** and **redo clicks**. (This needs a recording that knows the
-script's lines: one made since this button exists. A step on a line that runs more than once, in a loop, is refused:
-put that one in by hand.)
+into the script**: the added chapters, sentences, and overlays become `chapter("...")`, `await say("...")`, and
+`await overlay("...")` lines in the script, just before their steps (the old script is kept as `.bak`), the timing
+file's changes move to the names the steps will have, and the editor offers to record again from the first chapter they
+are in. From then on those chapters are real chapters, with **record from here** and **redo clicks**. (This needs a
+recording that knows the script's lines: one made since this button exists. A step on a line that runs more than once,
+in a loop, is refused: put that one in by hand.)
 
 **Or by hand.** The top left of the picture in Studio (not in the video) shows the name of the step being shown, such
 as `Backbone creation #3`: the third step since `chapter("Backbone creation")`. `npm run steps -- my-tutorial` lists
@@ -315,7 +344,9 @@ as you save:
 | `"Select unknown waypoint #1": { delayMs: -500 }` | A sentence (`say`) starts 0.5 seconds earlier (positive: later) |
 | `"Select unknown waypoint #1": { wait: true }` | The next step waits until the sentence is finished (`false`: it carries on while it is spoken) |
 | `"Flight order #1": { afterLine: true }` | This step waits until the sentence before it is finished, even when that sentence does not make steps wait. Showing a PDF (`showPdf`) does this by default, so the view does not change mid-sentence; `false` turns it off. In the editor: "Before this step" |
-| `"Select unknown waypoint #1": { text: "..." }` | Says something else. Run `npm run narrate -- my-tutorial` to hear it in Studio |
+| `"Select unknown waypoint #1": { text: "..." }` | Says something else (or changes an overlay's text). Run `npm run narrate -- my-tutorial` to hear changed speech in Studio |
+| `"Select unknown waypoint #2": { position: "bottom-right", title: "Tip", durationMs: 4000 }` | Changes a recorded `overlay(...)` step's position, heading, or duration without recording again |
+| `overlays: [{ at: "Start #14", text: "...", title: "Tip", position: "top-right" }]` | Adds a new on-screen text overlay card before a step without recording again |
 | `edit: { minGapMs: 700, keepGapMs: 250 }` | How much stillness is cut (see the table under "What to change where") |
 
 The timing file is in git and is used by every render, also after recording again: the steps keep their names as long
@@ -328,31 +359,41 @@ in that chapter; Studio, `npm run steps` and the render warn about names the rec
 npm run render -- my-tutorial
 ```
 
+(For a quick half-resolution preview without separate audio stems, pass `--draft`: `npm run render -- my-tutorial --draft`.)
+
 In `tutorials/out/` you get:
 
-- `my-tutorial.mp4`: the finished video with voice and music, ready to publish
+- `my-tutorial.mp4`: the finished video with voice, music, captions, and overlays, ready to publish
 - `my-tutorial-chapters.txt`: the chapters with their times, to paste into the YouTube description (when the script
   has phases)
 - `my-tutorial.srt`: subtitles (a long line is split into parts of at most two lines, timed to the voice)
 - `my-tutorial-picture.mp4`, `my-tutorial-voice.wav` and `my-tutorial-music.wav`: picture, voice and music
-  separately, for fine tuning
+  separately, for fine tuning (`--clean-picture` renders `my-tutorial-picture.mp4` without burned-in captions)
+- `my-tutorial-resolve.fcpxml`: a DaVinci Resolve timeline with the picture, every individual spoken sentence as its own
+  clip on Audio 1, background music on Audio 2, and chapter/overlay markers
 
 Rendering does not click through the site again: it makes the video from the last recording, the narration and the
 timing file, so you can render as often as you like.
 
-## Step 6 (optional): Fine tuning in DaVinci Resolve
+## Step 6 (optional): Combining with real video in DaVinci Resolve
 
-Import the picture, voice and music files; they all start at the same moment and line up. Use Resolve for touches
-the toolset cannot do, such as trimming a moment, adding a sound or adjusting the music by hand. Anything done in
-Resolve is lost when the video is made again from the script, so fix what you can in the script and the timing file
-first (trimming a moment is `holdMs` with a minus, see step 4) and keep Resolve for the very last step.
+In DaVinci Resolve, choose **File → Import → Timeline…** and select `out/my-tutorial-resolve.fcpxml`:
+
+- Track V1 has `my-tutorial-picture.mp4` (pass `--clean-picture` when rendering if you want to style or trim subtitles
+  from `my-tutorial.srt` inside Resolve instead of having them burned into the picture).
+- Audio 1 has **each sentence as its own labelled clip**, and every chapter and overlay is marked with a timeline
+  marker. This makes it easy to split the tutorial at a chapter marker and insert real-world camera footage (for example
+  from the briefing room or cockpit) between phases without cutting through a single monolithic voice track.
+- For voiceover of real-world camera segments that have no screen recording, write the lines in a text file (with
+  `# Chapter: ...` and `[pause 1.5s]` if needed) and run `npm run voice -- briefing.txt`: it generates `01.wav`,
+  `02.wav`, `combined.wav`, `subtitles.srt`, and its own `resolve.fcpxml` timeline.
 
 ## Where to make which change
 
 | You want to change | Where | Then |
 |---|---|---|
-| Clicks, typing, narration text, highlights, pauses | `scripts/<name>.ts` | `npm run record -- <name>`, then render |
-| Faster or slower parts, longer or shorter waits, when a sentence starts, a sentence's text | `npm run timing -- <name>` (the timing editor), or `scripts/<name>.timing.ts` by hand | render (both show it live; a new text needs Make voice, or `npm run narrate -- <name>`) |
+| Clicks, typing, narration text, overlays, highlights, pauses | `scripts/<name>.ts` | `npm run record -- <name>`, then render |
+| Faster or slower parts, longer or shorter waits, when a sentence starts, a sentence's text, adding/editing overlays | `npm run timing -- <name>` (the timing editor), or `scripts/<name>.timing.ts` by hand | render (both show it live; a new spoken text needs Make voice, or `npm run narrate -- <name>`) |
 | Phases and their names | `chapter(...)` lines in `scripts/<name>.ts` | record again |
 | What is cut from the video | `startHidden()` … `endHidden()` in `scripts/<name>.ts` (F9 when recording the clicks) | record again |
 | What is deleted before each recording | `cleanUp` in `scripts/<name>.ts` | record again |
@@ -395,4 +436,4 @@ sentence's text in the timing file, pronunciations, the voice itself): run `npm 
 | A render stops saying the music is missing | Fetch it: `npm run fetch-assets` |
 | A sentence is missing from the video | It was spoken inside a hidden part, which is cut with it (the recording, Studio and `npm run steps` warn about this): move the `say` after `endHidden()` |
 | A PDF does not show | PDFs opened by clicking cannot be shown: save the PDF in `tutorials/pdfs/` and use `showPdf("pdfs/<file>.pdf")` |
-| A step fails with "... is not defined" | Check the spelling: `page`, `say`, `map`, `chapter`, `highlight`, `pause`, `camera`, `startHidden`, `endHidden`, `showPdf`, `zoomPdf`, `pdfPage` and `pdfRegion` are available as they are |
+| A step fails with "... is not defined" | Check the spelling: `page`, `say`, `map`, `chapter`, `overlay`, `highlight`, `pause`, `camera`, `startHidden`, `endHidden`, `showPdf`, `zoomPdf`, `pdfPage` and `pdfRegion` are available as they are |

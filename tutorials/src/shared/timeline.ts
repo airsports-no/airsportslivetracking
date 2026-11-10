@@ -5,7 +5,7 @@ export type Box = { x: number; y: number; width: number; height: number };
 
 export type Action = {
   t: number;
-  kind: "click" | "type" | "scroll";
+  kind: "click" | "type" | "scroll" | "drag";
   x: number;
   y: number;
   // The element acted on, which the camera frames
@@ -13,6 +13,18 @@ export type Action = {
 };
 
 export type Highlight = { t: number; durationMs: number; box: Box; label?: string };
+
+export type OverlayPosition = "top-right" | "top-left" | "bottom-left" | "bottom-right" | "center";
+
+// From overlay(): a text card or callout shown over the page (without dimming the rest of the screen)
+export type Overlay = {
+  t: number;
+  step?: string;
+  text: string;
+  title?: string;
+  position?: OverlayPosition;
+  durationMs: number;
+};
 
 // Every line of the script that does something (a click, typing, a map gesture, say, highlight, pause, showPdf), named
 // "<chapter> #<n>": the n-th such line since the chapter("...") line ("Start #<n>" before the first chapter). The
@@ -67,6 +79,7 @@ export type Timeline = {
   frames: Frame[];
   actions: Action[];
   highlights: Highlight[];
+  overlays?: Overlay[];
   // Missing in recordings made before narration was added afterwards: those are recorded again
   steps: Step[];
   says: Say[];

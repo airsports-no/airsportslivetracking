@@ -12,6 +12,10 @@ export default defineTutorial({
   async run() {
     camera("wide");
     await say("Welcome to Air Sports Live Tracking. This short tour shows where to find your contests.");
+    await overlay("Use the top navigation bar to switch between contests, routes, and live tracking.", {
+      title: "Quick tip",
+      position: "top-right",
+    });
     camera("auto");
     await highlight(page.locator("#main-menu"), { label: "The main menu" });
     await say("Everything you manage starts from the menu at the top.", { wait: false });

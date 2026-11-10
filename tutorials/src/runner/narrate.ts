@@ -22,6 +22,25 @@ export function loadTimeline(name: string): Timeline {
   if (!existsSync(file)) throw new Error(`${name} has not been recorded: npm run record -- ${name}`);
   const timeline: Timeline = JSON.parse(readFileSync(file, "utf8"));
   if (!timeline.steps) throw new Error(`${name} was recorded before narration was added afterwards: record it again`);
+  // Sync title/subtitle/series/next from scripts/<name>.ts so changing them (especially after a -Live recording) needs no re-recording
+  const scriptPath = path.join(SCRIPTS_DIR, `${name}.ts`);
+  if (existsSync(scriptPath)) {
+    const source = readFileSync(scriptPath, "utf8");
+    const header = source.slice(0, source.indexOf("async run")).trim() || source;
+    const stringField = (key: string) => {
+      const match = header.match(new RegExp(`\\b${key}:\\s*("(?:\\\\.|[^"\\\\])*"|'(?:\\\\.|[^'\\\\])*')`));
+      if (!match) return undefined;
+      return match[1].startsWith('"') ? JSON.parse(match[1]) : match[1].slice(1, -1).replace(/\\'/g, "'");
+    };
+    const title = stringField("title");
+    const subtitle = stringField("subtitle");
+    const series = stringField("series");
+    const next = stringField("next");
+    if (title !== undefined) timeline.title = title;
+    if (subtitle !== undefined) timeline.subtitle = subtitle;
+    if (series !== undefined) timeline.series = series;
+    if (next !== undefined) timeline.next = next;
+  }
   return timeline;
 }
 
@@ -93,6 +112,10 @@ export default defineTiming({
     // Wait until the narration before this step has been said (showPdf does by default; false: it does not):
     // "Placing the points #5": { afterLine: true },
   },
+  // On-screen text overlay cards added before a step (or add them live in npm run timing -- ${name}):
+  // overlays: [
+  //   { at: "Placing the points #1", title: "Tip", text: "Click on the map to add each waypoint", position: "top-right" },
+  // ],
 });
 `,
   );

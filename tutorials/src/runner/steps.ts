@@ -1,7 +1,7 @@
 import { computeEdit } from "../shared/edit";
 import { INTRO_MS, TRANSITION_MS } from "../shared/layout";
 import { isHidden } from "../shared/timeline";
-import { addedLineKeys } from "../shared/timing";
+import { addedLineKeys, addedOverlayKeys } from "../shared/timing";
 import { tutorialName } from "./config";
 import { loadTiming, loadTimeline, loadVoice, timingFile } from "./narrate";
 
@@ -25,11 +25,18 @@ const clock = (ms: number) => {
 };
 const width = Math.max(...timeline.steps.map((step) => step.id.length));
 const lineKeys = addedLineKeys(timing.lines ?? []);
+const overlayKeys = addedOverlayKeys(timing.overlays ?? []);
 for (const step of timeline.steps) {
   // What the timing file adds before the step
   for (const chapter of (timing.chapters ?? []).filter((item) => item.at === step.id)) {
     console.log(`${"".padStart(7)}  ── chapter: ${chapter.title} (added)`);
   }
+  (timing.overlays ?? []).forEach((item, index) => {
+    if (item.at !== step.id) return;
+    const placed = edit.overlays.find((other) => other.step === overlayKeys[index]);
+    const where = placed ? clock(offset + placed.start) : "-";
+    console.log(`${where.padStart(7)}  ${overlayKeys[index].padEnd(width)}  overlay(${JSON.stringify(item.text)}) (added)`);
+  });
   (timing.lines ?? []).forEach((line, index) => {
     if (line.at !== step.id) return;
     const placed = edit.narration.find((item) => item.step === lineKeys[index]);

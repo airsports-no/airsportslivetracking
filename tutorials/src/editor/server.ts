@@ -4,8 +4,8 @@ import { createServer, type IncomingMessage, type ServerResponse } from "node:ht
 import path from "node:path";
 import { build } from "esbuild";
 import type { Timing } from "../shared/timing";
-import { ROOT, tutorialName } from "../runner/config";
-import { loadTimeline, loadTiming, loadVoice, narrate, timingFile } from "../runner/narrate";
+import { RECORDINGS_DIR, ROOT, tutorialName } from "../runner/config";
+import { loadTimeline, loadTiming, loadVoice, narrate, timingFile, writeTimingTemplate } from "../runner/narrate";
 import { timingFileSource, writeIntoScript } from "../runner/write-script";
 
 // npm run timing -- <tutorial> [--port 3100]
@@ -24,6 +24,15 @@ if (!name) {
 const portArgument = process.argv.indexOf("--port");
 const port = portArgument > 0 ? Number(process.argv[portArgument + 1]) : 3100;
 const PUBLIC_DIR = path.join(ROOT, "public");
+
+// If this recording came from a single-pass live session on Windows (`codegen.ps1 <name> -Live`), synthesise any initial
+// voice lines and create the timing template automatically on startup.
+if (existsSync(path.join(RECORDINGS_DIR, name, "timeline.json"))) {
+  writeTimingTemplate(name);
+  if (!existsSync(path.join(RECORDINGS_DIR, name, "voice.json"))) {
+    await narrate(name);
+  }
+}
 
 // The page's code, bundled once at start: the editor and the video's own components
 const bundle = await build({
@@ -96,7 +105,8 @@ const startJob = (kind: string, chapter: string | undefined, command: string, ar
   });
 };
 const tsx = (script: string, args: string[]) => ["tsx", path.join(ROOT, "src", "runner", script), name, ...args];
-// The click recorder runs on Windows (codegen.ps1), from WSL through powershell.exe
+// On native Linux/macOS (or when TUTORIAL_CAPTURE_OS=linux), run codegen.ts directly; in WSL without override, run codegen.ps1 on Windows
+const useWindowsRecorder = Boolean(process.env.WSL_DISTRO_NAME) && process.env.TUTORIAL_CAPTURE_OS !== "linux";
 const windowsPath = (file: string) => execFileSync("wslpath", ["-w", file]).toString().trim();
 
 let backedUp = false;
@@ -150,15 +160,19 @@ createServer(async (request, response) => {
       const kind = url.pathname.slice("/api/job/".length);
       if (kind === "record") startJob(kind, chapter, "npx", tsx("record.ts", chapter ? ["--from", chapter] : []));
       else if (kind === "clicks" && chapter) {
-        startJob(kind, chapter, "powershell.exe", [
-          "-ExecutionPolicy",
-          "Bypass",
-          "-File",
-          windowsPath(path.join(ROOT, "windows", "codegen.ps1")),
-          name,
-          "-Chapter",
-          chapter,
-        ]);
+        if (useWindowsRecorder) {
+          startJob(kind, chapter, "powershell.exe", [
+            "-ExecutionPolicy",
+            "Bypass",
+            "-File",
+            windowsPath(path.join(ROOT, "windows", "codegen.ps1")),
+            name,
+            "-Chapter",
+            chapter,
+          ]);
+        } else {
+          startJob(kind, chapter, "npx", tsx("codegen.ts", ["--chapter", chapter]));
+        }
       } else if (kind === "replace" && chapter) startJob(kind, chapter, "npx", tsx("replace-chapter.ts", [chapter]));
       else if (kind === "stop") jobProcess?.kill();
       else return send(response, 400, JSON.stringify({ error: `Unknown job ${kind}` }));

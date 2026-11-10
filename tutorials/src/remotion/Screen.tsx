@@ -12,7 +12,7 @@ import {
 } from "remotion";
 import { planCamera } from "../shared/camera";
 import { captionCues } from "../shared/captions";
-import { STEP_LEAD_MS, type Edit } from "../shared/edit";
+import { STEP_LEAD_MS, type Edit, type PlacedOverlay } from "../shared/edit";
 import { HEADER_HEIGHT, VIDEO, WINDOW_MARGIN } from "../shared/layout";
 import { isHidden, type Action, type Box, type Frame, type Timeline } from "../shared/timeline";
 import { brand } from "./brand";
@@ -37,7 +37,17 @@ const lastAtOrBefore = <T extends { t: number }>(items: T[], t: number): T | und
   return found;
 };
 
-export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; edit: Edit; voice?: boolean }) => {
+export const Screen = ({
+  timeline,
+  edit,
+  voice = true,
+  showCaptions,
+}: {
+  timeline: Timeline;
+  edit: Edit;
+  voice?: boolean;
+  showCaptions?: boolean;
+}) => {
   const frame = useCurrentFrame();
   const { fps } = useVideoConfig();
   const outMs = (frame / fps) * 1000;
@@ -153,10 +163,19 @@ export const Screen = ({ timeline, edit, voice = true }: { timeline: Timeline; e
           title={chapter.title}
           sinceMs={outMs - chapter.t}
           left={(VIDEO.width - windowWidth) / 2 + 36}
-          bottom={WINDOW_MARGIN.bottom + 150}
+          bottom={WINDOW_MARGIN.bottom + 205}
         />
       )}
-      {timeline.captions && <Captions edit={edit} outMs={outMs} />}
+      {edit.overlays.map((overlay) => (
+        <OverlayCard
+          key={overlay.step}
+          overlay={overlay}
+          outMs={outMs}
+          windowLeft={(VIDEO.width - windowWidth) / 2}
+          windowWidth={windowWidth}
+        />
+      ))}
+      {(showCaptions ?? timeline.captions) && <Captions edit={edit} outMs={outMs} />}
       {getRemotionEnvironment().isStudio && <StepBadge timeline={timeline} edit={edit} srcMs={srcMs} />}
     </AbsoluteFill>
   );
@@ -166,8 +185,10 @@ const easeInOut = (x: number) => (x < 0.5 ? 4 * x * x * x : 1 - Math.pow(-2 * x 
 
 // How long a click's ripple lasts (the picture is held for the first part of it: clickHoldMs, edit.ts)
 const CLICK_RIPPLE_MS = 700;
+const CURSOR_IDLE_FADE_START_MS = 3200;
+const CURSOR_IDLE_FADE_MS = 500;
 
-// A drawn cursor gliding between the clicks on a slight curve, pressing and rippling on each click
+// A drawn cursor gliding between the clicks on a slight curve, pressing and rippling on each click, and following drags
 const Cursor = ({
   actions,
   outMs,
@@ -184,31 +205,61 @@ const Cursor = ({
   let x = viewport.width / 2;
   let y = viewport.height * 0.7;
   let previousT = -Infinity;
+  let nextMoveStart = Infinity;
+  let dragging = false;
   for (const action of moves) {
-    const travelMs = Math.max(180, Math.min(700, action.t - previousT - 80));
+    const isDrag = action.kind === "drag" && action.t - previousT < 600;
+    const travelMs = isDrag
+      ? Math.max(16, action.t - previousT)
+      : Math.max(180, Math.min(700, action.t - previousT - 80));
     const start = action.t - travelMs;
-    if (outMs < start) break;
-    const progress = easeInOut(Math.min(1, (outMs - start) / travelMs));
-    // Quadratic curve bowing a little to the side of the straight line
-    const dx = action.x - x;
-    const dy = action.y - y;
-    const controlX = x + dx / 2 - dy * 0.15;
-    const controlY = y + dy / 2 + dx * 0.15;
-    const inverse = 1 - progress;
-    const nextX = inverse * inverse * x + 2 * inverse * progress * controlX + progress * progress * action.x;
-    const nextY = inverse * inverse * y + 2 * inverse * progress * controlY + progress * progress * action.y;
-    x = nextX;
-    y = nextY;
+    if (outMs < start) {
+      nextMoveStart = start;
+      break;
+    }
+    if (isDrag) {
+      const progress = Math.min(1, Math.max(0, (outMs - start) / travelMs));
+      x = x + (action.x - x) * progress;
+      y = y + (action.y - y) * progress;
+      dragging = outMs <= action.t + 80;
+    } else {
+      const progress = easeInOut(Math.min(1, (outMs - start) / travelMs));
+      // Quadratic curve bowing a little to the side of the straight line
+      const dx = action.x - x;
+      const dy = action.y - y;
+      const controlX = x + dx / 2 - dy * 0.15;
+      const controlY = y + dy / 2 + dx * 0.15;
+      const inverse = 1 - progress;
+      x = inverse * inverse * x + 2 * inverse * progress * controlX + progress * progress * action.x;
+      y = inverse * inverse * y + 2 * inverse * progress * controlY + progress * progress * action.y;
+      dragging = false;
+    }
     previousT = action.t;
   }
+  // Fade out when the cursor has been idle for a while (or before the first move) so it does not sit frozen over maps or PDFs
+  const sinceLast = previousT === -Infinity ? Infinity : Math.max(0, outMs - previousT);
+  const untilNext = nextMoveStart - outMs;
+  const idleOut =
+    previousT === -Infinity
+      ? 0
+      : interpolate(
+          sinceLast,
+          [CURSOR_IDLE_FADE_START_MS, CURSOR_IDLE_FADE_START_MS + CURSOR_IDLE_FADE_MS],
+          [1, 0],
+          { extrapolateLeft: "clamp", extrapolateRight: "clamp" },
+        );
+  const wakeIn = interpolate(untilNext, [0, 350], [1, 0], { extrapolateLeft: "clamp", extrapolateRight: "clamp" });
+  const cursorOpacity = Math.max(idleOut, wakeIn);
+  if (cursorOpacity <= 0.01) return null;
+
   const lastClick = [...moves].reverse().find((action) => action.kind === "click" && action.t <= outMs + 120);
   const sinceClick = lastClick ? outMs - lastClick.t : Infinity;
-  // Pressed while the picture is held at the click (clickHoldMs, edit.ts), so it is seen what is clicked
-  const press = sinceClick > -60 && sinceClick < 380 ? 0.82 : 1;
+  // Pressed while the picture is held at the click (clickHoldMs, edit.ts) or while dragging
+  const press = (sinceClick > -60 && sinceClick < 380) || dragging ? 0.82 : 1;
   // Keeps a steady size on screen as the camera zooms
   const size = 30 / Math.sqrt(zoom);
   return (
-    <>
+    <div style={{ opacity: cursorOpacity }}>
       {sinceClick >= 0 && sinceClick < CLICK_RIPPLE_MS && lastClick && (
         <div
           style={{
@@ -267,7 +318,7 @@ const Cursor = ({
           strokeLinejoin="round"
         />
       </svg>
-    </>
+    </div>
   );
 };
 
@@ -364,7 +415,10 @@ const Captions = ({ edit, outMs }: { edit: Edit; outMs: number }) => {
       <div
         style={{
           maxWidth: 1400,
-          background: "rgba(2,6,23,0.82)",
+          background: "rgba(10,12,16,0.88)",
+          backdropFilter: "blur(12px)",
+          border: "1px solid rgba(255,255,255,0.12)",
+          boxShadow: "0 14px 36px rgba(0,0,0,0.45)",
           color: "white",
           fontSize: 36,
           lineHeight: 1.35,
@@ -476,16 +530,148 @@ const ChapterLabel = ({ title, sinceMs, left, bottom }: { title: string; sinceMs
         display: "flex",
         alignItems: "stretch",
         boxShadow: "0 16px 40px rgba(0,0,0,0.45)",
+        border: "1px solid rgba(255,255,255,0.12)",
         borderRadius: 12,
         overflow: "hidden",
+        pointerEvents: "none",
       }}
     >
       <div style={{ width: 8, background: theme.accent }} />
-      <div style={{ background: "rgba(10,12,16,0.92)", padding: "16px 28px" }}>
+      <div style={{ background: "rgba(10,12,16,0.92)", backdropFilter: "blur(12px)", padding: "16px 28px" }}>
         <div style={{ color: theme.accent, fontSize: 18, fontWeight: 700, letterSpacing: 3, textTransform: "uppercase" }}>
           Next step
         </div>
         <div style={{ color: theme.text, fontSize: 38, fontWeight: 700, marginTop: 4 }}>{title}</div>
+      </div>
+    </div>
+  );
+};
+
+// A text overlay or callout card over the page (without dimming the whole page), from overlay() or added in the timing editor
+const OverlayCard = ({
+  overlay,
+  outMs,
+  windowLeft,
+  windowWidth,
+}: {
+  overlay: PlacedOverlay;
+  outMs: number;
+  windowLeft: number;
+  windowWidth: number;
+}) => {
+  const sinceMs = outMs - overlay.start;
+  if (sinceMs < 0 || sinceMs > overlay.durationMs) return null;
+  const fadeMs = Math.min(350, overlay.durationMs / 4);
+  const enter = interpolate(sinceMs, [0, fadeMs], [0, 1], { extrapolateRight: "clamp", easing: theme.ease });
+  const leave = interpolate(sinceMs, [overlay.durationMs - fadeMs, overlay.durationMs], [1, 0], {
+    extrapolateLeft: "clamp",
+  });
+  const opacity = Math.min(enter, leave);
+  const isCenter = overlay.position === "center";
+  const isLeft = overlay.position === "top-left" || overlay.position === "bottom-left";
+  const isTop = overlay.position === "top-left" || overlay.position === "top-right";
+  const slideX = isCenter ? 0 : (1 - enter) * (isLeft ? -32 : 32);
+  const slideY = isCenter ? (1 - enter) * 20 : 0;
+
+  const lines = overlay.text
+    .split(/\r?\n/)
+    .map((line) => line.trim())
+    .filter(Boolean);
+
+  if (isCenter) {
+    return (
+      <div
+        style={{
+          position: "absolute",
+          inset: 0,
+          display: "flex",
+          alignItems: "center",
+          justifyContent: "center",
+          opacity,
+          pointerEvents: "none",
+        }}
+      >
+        <div
+          style={{
+            maxWidth: 920,
+            minWidth: 480,
+            background: "rgba(10,12,16,0.94)",
+            backdropFilter: "blur(16px)",
+            border: "1px solid rgba(255,255,255,0.14)",
+            borderTop: `6px solid ${theme.accent}`,
+            borderRadius: 18,
+            padding: "32px 44px",
+            boxShadow: "0 28px 80px rgba(0,0,0,0.65)",
+            transform: `translateY(${slideY}px)`,
+          }}
+        >
+          {overlay.title && (
+            <div
+              style={{
+                color: theme.accent,
+                fontSize: 20,
+                fontWeight: 700,
+                letterSpacing: 3,
+                textTransform: "uppercase",
+                marginBottom: 10,
+              }}
+            >
+              {overlay.title}
+            </div>
+          )}
+          <div style={{ color: theme.text, fontSize: 34, fontWeight: 600, lineHeight: 1.38 }}>
+            {lines.map((line, index) => (
+              <div key={index} style={{ marginTop: index > 0 ? 10 : 0 }}>
+                {line}
+              </div>
+            ))}
+          </div>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div
+      style={{
+        position: "absolute",
+        ...(isLeft ? { left: windowLeft + 36 } : { left: windowLeft + windowWidth - 36 }),
+        ...(isTop ? { top: WINDOW_MARGIN.top + 32 } : { bottom: WINDOW_MARGIN.bottom + 205 }),
+        transform: `translate(${isLeft ? "0" : "-100%"}, 0) translateX(${slideX}px)`,
+        opacity,
+        maxWidth: 620,
+        display: "flex",
+        alignItems: "stretch",
+        boxShadow: "0 18px 48px rgba(0,0,0,0.5)",
+        border: "1px solid rgba(255,255,255,0.14)",
+        borderRadius: 14,
+        overflow: "hidden",
+        pointerEvents: "none",
+      }}
+    >
+      <div style={{ width: 7, background: theme.accent, flexShrink: 0 }} />
+      <div style={{ background: "rgba(10,12,16,0.92)", backdropFilter: "blur(14px)", padding: "18px 26px" }}>
+        {overlay.title && (
+          <div
+            style={{
+              color: theme.accent,
+              fontSize: 17,
+              fontWeight: 700,
+              letterSpacing: 2.5,
+              textTransform: "uppercase",
+              marginBottom: 6,
+            }}
+          >
+            {overlay.title}
+          </div>
+        )}
+        <div style={{ color: theme.text, fontSize: 28, fontWeight: 600, lineHeight: 1.35 }}>
+          {lines.map((line, index) => (
+            <div key={index} style={{ marginTop: index > 0 ? 6 : 0 }}>
+              {line}
+            </div>
+          ))}
+        </div>
       </div>
     </div>
   );

@@ -88,6 +88,7 @@ const timeline: Timeline = {
   frames: [],
   actions: [],
   highlights: [],
+  overlays: [],
   steps: [],
   says: [],
   camera: [],
@@ -124,8 +125,18 @@ await context.addInitScript(`(() => {
   const report = (action) => window.__tutorialAction && window.__tutorialAction(action);
   let lastTyped = { element: null, at: 0 };
   let lastScroll = 0;
-  window.addEventListener("pointerdown", (event) =>
-    report({ kind: "click", x: event.clientX, y: event.clientY, box: boxOf(event.target) }), true);
+  let lastDrag = { x: 0, y: 0, at: 0 };
+  window.addEventListener("pointerdown", (event) => {
+    lastDrag = { x: event.clientX, y: event.clientY, at: Date.now() };
+    report({ kind: "click", x: event.clientX, y: event.clientY, box: boxOf(event.target) });
+  }, true);
+  window.addEventListener("pointermove", (event) => {
+    if (!event.buttons) return;
+    const now = Date.now();
+    if (now - lastDrag.at < 40 || Math.hypot(event.clientX - lastDrag.x, event.clientY - lastDrag.y) < 4) return;
+    lastDrag = { x: event.clientX, y: event.clientY, at: now };
+    report({ kind: "drag", x: event.clientX, y: event.clientY });
+  }, { capture: true, passive: true });
   window.addEventListener("keydown", (event) => {
     const element = event.target;
     // One action per field, not per key
@@ -565,6 +576,21 @@ const tutorialContext: TutorialContext = {
     timeline.highlights.push({ t: now(), durationMs, box, label: options.label });
     if (options.wait ?? true) await page.waitForTimeout(durationMs);
   },
+  async overlay(text, options = {}) {
+    if (hiddenSince !== null) console.warn(`  overlay inside a hidden part, cut from the video with it: ${text}`);
+    const step = recordStep(call("overlay", [text, ...(Object.keys(options).length ? [options] : [])]));
+    const durationMs = options.durationMs ?? 3500;
+    timeline.overlays!.push({
+      t: now(),
+      step,
+      text,
+      title: options.title,
+      position: options.position,
+      durationMs,
+    });
+    if (keeping) console.log(`  ${step} overlay: ${options.title ? `${options.title} — ` : ""}${text}`);
+    if (options.wait) await holdStill(durationMs);
+  },
   async pause(ms) {
     recordStep(`pause(${ms})`);
     await holdStill(ms);
@@ -577,8 +603,8 @@ const tutorialContext: TutorialContext = {
       checkPlayedSteps();
       // What was played before is not kept: the recording starts here, at 0
       keeping = true;
-      for (const list of [timeline.frames, timeline.actions, timeline.highlights, timeline.steps, timeline.says,
-        timeline.camera, timeline.holds, timeline.chapters!, timeline.hidden!]) {
+      for (const list of [timeline.frames, timeline.actions, timeline.highlights, timeline.overlays!, timeline.steps,
+        timeline.says, timeline.camera, timeline.holds, timeline.chapters!, timeline.hidden!]) {
         list.length = 0;
       }
       hiddenSince = null;

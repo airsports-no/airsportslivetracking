@@ -4,8 +4,16 @@ import { createRoot } from "react-dom/client";
 import { TutorialVideo } from "../remotion/TutorialVideo";
 import { computeEdit, STEP_LEAD_MS, stepAnchor, stepOrder } from "../shared/edit";
 import { INTRO_MS, OUTRO_MS, TRANSITION_MS, VIDEO } from "../shared/layout";
-import { DEFAULT_EDIT, type EditSettings, type Step, type Timeline } from "../shared/timeline";
-import { addedLineKeys, type AddedLine, type StepTiming, type Timing, type Voice } from "../shared/timing";
+import { DEFAULT_EDIT, type EditSettings, type OverlayPosition, type Step, type Timeline } from "../shared/timeline";
+import {
+  addedLineKeys,
+  addedOverlayKeys,
+  type AddedLine,
+  type AddedOverlay,
+  type StepTiming,
+  type Timing,
+  type Voice,
+} from "../shared/timing";
 
 // The timing editor's page (served by server.ts): the video as render makes it, the steps beside it, and the
 // timing file's changes for the chosen step. The edit is worked out here as render does (computeEdit), so a change
@@ -16,13 +24,20 @@ type Data = { name: string; timeline: Timeline; voice: Voice; timing: Timing };
 type Job = { kind: "record" | "clicks" | "replace"; chapter?: string; log: string[]; running: boolean; code: number | null };
 const JOB_TITLES = {
   record: (chapter?: string) => (chapter ? `Recording from "${chapter}"` : "Recording all of it"),
-  clicks: (chapter?: string) => `Recording the clicks of "${chapter}" on Windows: close the browser when done`,
+  clicks: (chapter?: string) => `Recording the clicks of "${chapter}": close the browser when done`,
   replace: (chapter?: string) => `Putting the new clicks of "${chapter}" into the script`,
 };
 
 // Where the tutorial starts in the video: after the title screen, less the crossfade
 const OFFSET_MS = INTRO_MS - TRANSITION_MS;
 const SPEEDS = [0.25, 0.5, 0.75, 1.5, 2, 3, 4];
+const OVERLAY_POSITIONS: Array<{ value: OverlayPosition; label: string }> = [
+  { value: "top-right", label: "top-right (card)" },
+  { value: "top-left", label: "top-left (card)" },
+  { value: "bottom-right", label: "bottom-right (card)" },
+  { value: "bottom-left", label: "bottom-left (card)" },
+  { value: "center", label: "center (callout)" },
+];
 
 const clock = (ms: number) => {
   const tenths = Math.max(0, Math.round(ms / 100));
@@ -43,6 +58,7 @@ function tidy(timing: Timing, steps: Step[]): Timing {
         Object.entries(change).filter(([key, value]) => {
           if (value === undefined || value === null || value === "") return false;
           if ((key === "holdMs" || key === "delayMs") && value === 0) return false;
+          if (key === "durationMs" && (typeof value !== "number" || value <= 0)) return false;
           return !(key === "speed" && value === 1);
         }),
       ) as StepTiming;
@@ -52,13 +68,24 @@ function tidy(timing: Timing, steps: Step[]): Timing {
     .filter(([, change]) => Object.keys(change).length > 0)
     .sort(([a], [b]) => (order.get(a) ?? Infinity) - (order.get(b) ?? Infinity));
   if (entries.length > 0) result.steps = Object.fromEntries(entries);
-  // Added chapters and lines in the order they were added: a line's name counts the lines before it at its step
+  // Added chapters, lines, and overlays in the order they were added
   if (timing.chapters?.length) result.chapters = timing.chapters;
   if (timing.lines?.length) {
     result.lines = timing.lines.map((line) => {
       const kept: AddedLine = { at: line.at, text: line.text };
       if (line.wait === false) kept.wait = false;
       if (line.delayMs) kept.delayMs = line.delayMs;
+      return kept;
+    });
+  }
+  if (timing.overlays?.length) {
+    result.overlays = timing.overlays.map((overlay) => {
+      const kept: AddedOverlay = { at: overlay.at, text: overlay.text };
+      if (overlay.title) kept.title = overlay.title;
+      if (overlay.position && overlay.position !== "top-right") kept.position = overlay.position;
+      if (overlay.durationMs && overlay.durationMs > 0) kept.durationMs = overlay.durationMs;
+      if (overlay.delayMs) kept.delayMs = overlay.delayMs;
+      if (overlay.wait) kept.wait = true;
       return kept;
     });
   }
@@ -132,14 +159,21 @@ function App() {
     [data, timeline, voice, tidied],
   );
 
-  // Where each step is in the video: a narration line where it starts, anything else where it happens
+  // Where each step is in the video: a narration line or overlay where it starts, anything else where it happens
   const stepTimes = useMemo(() => {
     const times = new Map<string, number>();
     if (!edit || !timeline) return times;
     const starts = new Map(edit.narration.map((line) => [line.step, line.start]));
-    for (const step of timeline.steps) times.set(step.id, OFFSET_MS + (starts.get(step.id) ?? edit.toOut(step.t)));
+    const overlayStarts = new Map(edit.overlays.map((overlay) => [overlay.step, overlay.start]));
+    for (const step of timeline.steps) {
+      times.set(step.id, OFFSET_MS + (starts.get(step.id) ?? overlayStarts.get(step.id) ?? edit.toOut(step.t)));
+    }
     for (const key of addedLineKeys(tidied.lines ?? [])) {
       const start = starts.get(key);
+      if (start !== undefined) times.set(key, OFFSET_MS + start);
+    }
+    for (const key of addedOverlayKeys(tidied.overlays ?? [])) {
+      const start = overlayStarts.get(key);
       if (start !== undefined) times.set(key, OFFSET_MS + start);
     }
     return times;
@@ -175,7 +209,7 @@ function App() {
   const seekTo = (id: string) => {
     const step = timeline?.steps.find((item) => item.id === id);
     if (!step && stepTimes.has(id)) {
-      // An added line: where it starts
+      // An added line or overlay: where it starts
       player.current?.seekTo(Math.max(0, Math.round(((stepTimes.get(id)! - 300) / 1000) * VIDEO.fps)));
       return;
     }
@@ -192,7 +226,7 @@ function App() {
   const changeEdit = (patch: Partial<EditSettings>) =>
     setTiming((before) => ({ ...before, edit: { ...before.edit, ...patch } }));
 
-  // Chapters and lines added before a step
+  // Chapters, lines, and overlays added before a step
   const addChapter = (at: string) => {
     const title = window.prompt("The new chapter's title (it starts as the camera moves to this step)")?.trim();
     if (title) setTiming((before) => ({ ...before, chapters: [...(before.chapters ?? []), { at, title }] }));
@@ -224,6 +258,22 @@ function App() {
     setTiming((before) => ({ ...before, lines: before.lines?.filter((_, other) => other !== index) }));
     setSelected(null);
   };
+  const addOverlay = (at: string) => {
+    const text = window.prompt("Text shown on screen in the callout card")?.trim();
+    if (!text) return;
+    const overlays = [...(timing.overlays ?? []), { at, text }];
+    setTiming((before) => ({ ...before, overlays }));
+    setSelected(addedOverlayKeys(overlays)[overlays.length - 1]);
+  };
+  const changeOverlay = (index: number, patch: Partial<AddedOverlay>) =>
+    setTiming((before) => ({
+      ...before,
+      overlays: before.overlays?.map((overlay, other) => (other === index ? { ...overlay, ...patch } : overlay)),
+    }));
+  const deleteOverlay = (index: number) => {
+    setTiming((before) => ({ ...before, overlays: before.overlays?.filter((_, other) => other !== index) }));
+    setSelected(null);
+  };
 
   // Whether it was saved: what builds on the saved timing file (writing into the script, the voice) stops when it was not,
   // or it would work from the old file and the additions would be lost.
@@ -243,11 +293,11 @@ function App() {
     }
   }, [tidied, data]);
 
-  // The added chapters and lines into the script, so the next recording has them; then record from the first of them
+  // The added chapters, lines, and overlays into the script, so the next recording has them; then record from the first of them
   const writeIntoScript = async () => {
     if (
       !window.confirm(
-        "Write the added chapters and lines into the script (the old one is kept as .bak)? The timing file then " +
+        "Write the added chapters, lines, and overlays into the script (the old one is kept as .bak)? The timing file then " +
           "names the steps as the next recording will, so record again right after.",
       )
     ) {
@@ -265,7 +315,9 @@ function App() {
     setTiming(tidiedLoaded);
     setSaved(JSON.stringify(tidiedLoaded));
     setSelected(null);
-    setMessage(`Wrote ${result.chapters} chapter(s) and ${result.lines} line(s) into the script`);
+    setMessage(
+      `Wrote ${result.chapters} chapter(s), ${result.lines} line(s), and ${result.overlays ?? 0} overlay(s) into the script`,
+    );
     const from = result.recordFrom ? `from "${result.recordFrom}"` : "all of it";
     if (window.confirm(`Record ${from} now, so the video has them?`)) void startJob("record", result.recordFrom ?? undefined);
   };
@@ -313,6 +365,8 @@ function App() {
   const selectedStep = timeline.steps.find((step) => step.id === selected);
   const lineKeys = addedLineKeys(tidied.lines ?? []);
   const selectedLine = lineKeys.indexOf(selected ?? "");
+  const overlayKeys = addedOverlayKeys(tidied.overlays ?? []);
+  const selectedOverlay = overlayKeys.indexOf(selected ?? "");
   // The chapters in the recording's time, recorded and added (with their index in the timing file), for the list; an
   // added chapter is shown just before its own step, after the step ahead even when stepAnchor puts both at one moment
   const chapterStarts = [
@@ -333,12 +387,12 @@ function App() {
         <div className="actions">
           {message && <span className="message">{message}</span>}
           {busy && <span className="message">{busy}…</span>}
-          {Boolean(tidied.chapters?.length || tidied.lines?.length) && (
+          {Boolean(tidied.chapters?.length || tidied.lines?.length || tidied.overlays?.length) && (
             <button
               type="button"
               onClick={writeIntoScript}
               disabled={busy !== null || job?.running}
-              title="Turn the added chapters and lines into chapter() and say() lines in the script"
+              title="Turn the added chapters, lines, and overlays into chapter(), say(), and overlay() lines in the script"
             >
               Write into the script
             </button>
@@ -388,6 +442,17 @@ function App() {
                 player.current?.play();
               }}
             />
+          ) : selectedOverlay >= 0 && tidied.overlays ? (
+            <OverlayInspector
+              name={overlayKeys[selectedOverlay]}
+              overlay={tidied.overlays[selectedOverlay]}
+              onChange={(patch) => changeOverlay(selectedOverlay, patch)}
+              onDelete={() => deleteOverlay(selectedOverlay)}
+              onPlay={() => {
+                seekTo(overlayKeys[selectedOverlay]);
+                player.current?.play();
+              }}
+            />
           ) : selectedStep ? (
             <Inspector
               step={selectedStep}
@@ -404,6 +469,7 @@ function App() {
               }}
               onAddChapter={() => addChapter(selectedStep.id)}
               onAddLine={() => addLine(selectedStep.id)}
+              onAddOverlay={() => addOverlay(selectedStep.id)}
             />
           ) : (
             <p className="hint">Choose a step in the list to change its timing. The video jumps to it.</p>
@@ -459,7 +525,7 @@ function App() {
         </section>
         <aside ref={stepList}>
           {timeline.steps.map((step, index) => {
-            // The chapters that start before this step, and the lines added before it (an added chapter at the same
+            // The chapters that start before this step, and the lines/overlays added before it (an added chapter at the same
             // moment as this step belongs to a later step: see chapterStarts)
             const headings = [];
             while (
@@ -470,6 +536,9 @@ function App() {
               headings.push(chapterStarts[shownChapter++]);
             }
             const lines = (tidied.lines ?? []).flatMap((line, index) => (line.at === step.id ? [{ line, index }] : []));
+            const overlays = (tidied.overlays ?? []).flatMap((overlay, index) =>
+              overlay.at === step.id ? [{ overlay, index }] : [],
+            );
             const stepChange = tidied.steps?.[step.id];
             return (
               <div key={step.id}>
@@ -489,7 +558,7 @@ function App() {
                         <button
                           type="button"
                           disabled={job?.running}
-                          title="Record this chapter's clicks again on Windows (the steps before it are replayed first)"
+                          title="Record this chapter's clicks again (the steps before it are replayed first)"
                           onClick={() => startJob("clicks", heading.title)}
                         >
                           redo clicks
@@ -523,6 +592,21 @@ function App() {
                     <span className="label">say({JSON.stringify(line.text)})</span>
                   </button>
                 ))}
+                {overlays.map(({ overlay, index }) => (
+                  <button
+                    key={overlayKeys[index]}
+                    type="button"
+                    className={`step added${overlayKeys[index] === selected ? " selected" : ""}`}
+                    onClick={() => {
+                      setSelected(overlayKeys[index]);
+                      seekTo(overlayKeys[index]);
+                    }}
+                  >
+                    <span className="time">{clock(stepTimes.get(overlayKeys[index]) ?? 0)}</span>
+                    <span className="id">+</span>
+                    <span className="label">overlay({JSON.stringify(overlay.text)})</span>
+                  </button>
+                ))}
                 <button
                   type="button"
                   data-step={step.id}
@@ -553,6 +637,9 @@ function ChangeBadges({ change }: { change: StepTiming }) {
   if (change.delayMs) badges.push(`line ${change.delayMs > 0 ? "+" : ""}${(change.delayMs / 1000).toFixed(1)} s`);
   if (change.wait !== undefined) badges.push(change.wait ? "waits" : "no wait");
   if (change.text) badges.push("text");
+  if (change.title) badges.push("title");
+  if (change.position) badges.push(change.position);
+  if (change.durationMs) badges.push(`${(change.durationMs / 1000).toFixed(1)} s`);
   if (change.afterLine !== undefined) badges.push(change.afterLine ? "after the line" : "does not wait");
   return (
     <span className="badges">
@@ -604,6 +691,7 @@ function Inspector({
   onPlay,
   onAddChapter,
   onAddLine,
+  onAddOverlay,
 }: {
   step: Step;
   steps: Step[];
@@ -614,8 +702,10 @@ function Inspector({
   onPlay: () => void;
   onAddChapter: () => void;
   onAddLine: () => void;
+  onAddOverlay: () => void;
 }) {
   const say = timeline.says.find((item) => item.step === step.id);
+  const recordedOverlay = (timeline.overlays ?? []).find((item) => item.step === step.id);
   const later = steps.slice(steps.indexOf(step) + 1);
   return (
     <div className="inspector">
@@ -636,6 +726,9 @@ function Inspector({
         </button>
         <button type="button" onClick={onAddLine}>
           New line here
+        </button>
+        <button type="button" onClick={onAddOverlay}>
+          New overlay here
         </button>
       </div>
       <label>
@@ -670,7 +763,7 @@ function Inspector({
           ))}
         </select>
       </label>
-      {!say && (
+      {!say && !recordedOverlay && (
         <label>
           Before this step
           <select
@@ -713,6 +806,69 @@ function Inspector({
               onChange={(event) => onChange({ text: event.target.value === say.text ? undefined : event.target.value })}
             />
             {change.text && <small>Changed from the script. Make voice to hear it.</small>}
+          </label>
+        </>
+      )}
+      {recordedOverlay && (
+        <>
+          <label>
+            Show the overlay
+            <NumberInput value={change.delayMs} step={250} onChange={(delayMs) => onChange({ delayMs })} />
+            ms later <small>(less than 0: earlier)</small>
+          </label>
+          <label>
+            Duration
+            <NumberInput
+              value={change.durationMs}
+              placeholder={recordedOverlay.durationMs}
+              step={250}
+              onChange={(durationMs) => onChange({ durationMs })}
+            />
+            ms
+          </label>
+          <label>
+            Position
+            <select
+              value={change.position ?? recordedOverlay.position}
+              onChange={(event) =>
+                onChange({
+                  position:
+                    event.target.value === recordedOverlay.position
+                      ? undefined
+                      : (event.target.value as OverlayPosition),
+                })
+              }
+            >
+              {OVERLAY_POSITIONS.map((item) => (
+                <option key={item.value} value={item.value}>
+                  {item.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <label>
+            Card title (optional)
+            <input
+              type="text"
+              value={change.title ?? recordedOverlay.title ?? ""}
+              placeholder="Tip / Key point"
+              onChange={(event) =>
+                onChange({
+                  title:
+                    event.target.value === (recordedOverlay.title ?? "") ? undefined : event.target.value,
+                })
+              }
+            />
+          </label>
+          <label className="text">
+            Overlay text
+            <textarea
+              rows={2}
+              value={change.text ?? recordedOverlay.text}
+              onChange={(event) =>
+                onChange({ text: event.target.value === recordedOverlay.text ? undefined : event.target.value })
+              }
+            />
           </label>
         </>
       )}
@@ -813,6 +969,87 @@ function LineInspector({
         What is said (and shown as captions)
         <textarea rows={3} value={line.text} onChange={(event) => onChange({ text: event.target.value })} />
         <small>Make voice to hear it.</small>
+      </label>
+    </div>
+  );
+}
+
+// An on-screen overlay callout added in the timing file, before the step `at`
+function OverlayInspector({
+  name,
+  overlay,
+  onChange,
+  onDelete,
+  onPlay,
+}: {
+  name: string;
+  overlay: AddedOverlay;
+  onChange: (patch: Partial<AddedOverlay>) => void;
+  onDelete: () => void;
+  onPlay: () => void;
+}) {
+  return (
+    <div className="inspector">
+      <div className="title">
+        <strong>{name}</strong>
+        <span>An overlay card added before {overlay.at}</span>
+        <button type="button" onClick={onPlay}>
+          Play from here
+        </button>
+        <button type="button" onClick={onDelete}>
+          Delete overlay
+        </button>
+      </div>
+      <label>
+        Show the overlay
+        <NumberInput value={overlay.delayMs} step={250} onChange={(delayMs) => onChange({ delayMs })} />
+        ms later <small>(less than 0: earlier)</small>
+      </label>
+      <label>
+        Duration
+        <NumberInput
+          value={overlay.durationMs}
+          placeholder={3500}
+          step={250}
+          onChange={(durationMs) => onChange({ durationMs })}
+        />
+        ms <small>(blank: automatic from text length)</small>
+      </label>
+      <label>
+        Position
+        <select
+          value={overlay.position ?? "top-right"}
+          onChange={(event) => onChange({ position: event.target.value as OverlayPosition })}
+        >
+          {OVERLAY_POSITIONS.map((item) => (
+            <option key={item.value} value={item.value}>
+              {item.label}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label>
+        The next step
+        <select
+          value={String(overlay.wait ?? false)}
+          onChange={(event) => onChange({ wait: event.target.value === "true" })}
+        >
+          <option value="false">carries on while the card is shown</option>
+          <option value="true">holds the picture until the card closes</option>
+        </select>
+      </label>
+      <label>
+        Card title (optional)
+        <input
+          type="text"
+          value={overlay.title ?? ""}
+          placeholder="Tip / Key point"
+          onChange={(event) => onChange({ title: event.target.value || undefined })}
+        />
+      </label>
+      <label className="text">
+        Overlay text (plays at once in the preview above)
+        <textarea rows={2} value={overlay.text} onChange={(event) => onChange({ text: event.target.value })} />
       </label>
     </div>
   );

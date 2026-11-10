@@ -65,6 +65,7 @@ export function joinRecordings(earlier: Earlier, recorded: Timeline): Timeline {
     frames: [...before(full.frames), ...after(recorded.frames)],
     actions: [...before(full.actions), ...after(recorded.actions)],
     highlights: [...before(full.highlights), ...after(recorded.highlights)],
+    overlays: [...before(full.overlays), ...after(recorded.overlays)],
     steps: [...before(full.steps), ...after(recorded.steps)],
     says: [...before(full.says), ...after(recorded.says)],
     camera: [...before(full.camera), ...after(recorded.camera)],

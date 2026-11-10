@@ -18,11 +18,12 @@ export type TutorialProps = {
   voice: Voice;
   timing: Timing;
   audio?: "all" | "voice" | "music";
+  captions?: boolean;
 };
 
 const frames = (ms: number, fps: number) => Math.round((ms / 1000) * fps);
 
-export const TutorialVideo = ({ timeline, voice, timing, audio = "all" }: TutorialProps) => {
+export const TutorialVideo = ({ timeline, voice, timing, audio = "all", captions }: TutorialProps) => {
   const { fps } = useVideoConfig();
   const edit = useMemo(() => computeEdit(timeline, voice, timing), [timeline, voice, timing]);
   const transition = linearTiming({ durationInFrames: frames(TRANSITION_MS, fps) });
@@ -34,7 +35,7 @@ export const TutorialVideo = ({ timeline, voice, timing, audio = "all" }: Tutori
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={transition} />
         <TransitionSeries.Sequence durationInFrames={frames(edit.durationMs, fps)}>
-          <Screen timeline={timeline} edit={edit} voice={audio !== "music"} />
+          <Screen timeline={timeline} edit={edit} voice={audio !== "music"} showCaptions={captions} />
         </TransitionSeries.Sequence>
         <TransitionSeries.Transition presentation={fade()} timing={transition} />
         <TransitionSeries.Sequence durationInFrames={frames(OUTRO_MS, fps)}>

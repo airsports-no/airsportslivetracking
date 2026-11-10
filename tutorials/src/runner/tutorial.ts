@@ -1,5 +1,5 @@
 import type { Locator, Page } from "playwright";
-import type { EditSettings } from "../shared/timeline";
+import type { EditSettings, OverlayPosition } from "../shared/timeline";
 
 export type SayOptions = {
   // false: carry on with the next steps while the line is spoken (the next say() waits for it to finish)
@@ -12,6 +12,14 @@ export type HighlightOptions = {
   label?: string;
   durationMs?: number;
   // false: carry on while the highlight shows
+  wait?: boolean;
+};
+
+export type OverlayOptions = {
+  title?: string;
+  position?: OverlayPosition;
+  durationMs?: number;
+  // true: hold the picture still while the overlay is shown (false by default, so steps continue under it)
   wait?: boolean;
 };
 
@@ -36,6 +44,8 @@ export type TutorialContext = {
   page: Page;
   say(text: string, options?: SayOptions): Promise<void>;
   highlight(target: Locator | string, options?: HighlightOptions): Promise<void>;
+  // Shows a text card or callout over the page without dimming the rest of the screen (F7 when recording the clicks)
+  overlay(text: string, options?: OverlayOptions): Promise<void>;
   // Keep a still moment in the video (stillness is cut otherwise)
   pause(ms: number): Promise<void>;
   // "wide" shows the whole page instead of zooming in, until camera("auto")
@@ -107,6 +117,7 @@ declare global {
   const page: TutorialContext["page"];
   const say: TutorialContext["say"];
   const highlight: TutorialContext["highlight"];
+  const overlay: TutorialContext["overlay"];
   const pause: TutorialContext["pause"];
   const camera: TutorialContext["camera"];
   const chapter: TutorialContext["chapter"];

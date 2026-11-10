@@ -5,8 +5,7 @@ the narration beside them, and the toolset records the screen (`npm run record`)
 dead time, applies the tutorial's timing file and renders a video with automatic zoom, a smooth cursor, highlights
 and captions (`npm run render`, without touching the site again).
 
-**New to this? Start with [GUIDE.md](GUIDE.md)**, the workflow from idea to finished video without the technical
-details. This README covers the setup and how the toolset works.
+**New to this? Start with [USER_MANUAL.md](USER_MANUAL.md) or [GUIDE.md](GUIDE.md)**, which walk through the workflows from idea to finished video (both pure website flows and DaVinci Resolve hybrid videos). This README covers the setup and how the toolset works inside.
 
 The interactive part, clicking through the site to record the steps, happens in a browser on **Windows**.
 Everything else (recording the video, previewing, rendering) runs in **WSL**, headless.
@@ -36,17 +35,35 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
 
 ## Making a tutorial
 
-1. **Record the clicks (Windows).** In PowerShell:
+1. **Record the clicks (Linux or Windows).**
+   On **Linux** (or WSL with WSLg):
+
+   ```bash
+   npm run codegen -- task2.a3
+   ```
+
+   Or on **Windows** in PowerShell:
 
    ```powershell
    powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsportslivetracking\tutorials\windows\codegen.ps1 task2.a3
    ```
 
    A browser opens on the site (with developer tools, which you can close). The first time, log in there: the
-   session is saved to `.auth/state.json` when you close the browser, and every later recording, in Windows or WSL,
+   session is saved to `.auth/state.json` when you close the browser, and every later recording, in Linux, Windows or WSL,
    starts logged in. Click through the task; each step is written live to `recorded/task2.a3.js` and shown in the
-   PowerShell window. Close the browser when done. Options: `-Path /some/page` to start elsewhere, `-BaseUrl` for
-   another site address.
+   terminal. Close the browser when done: if `scripts/task2.a3.ts` does not exist yet, it is created
+   automatically from the recorded steps! Options: `npm run codegen -- task2.a3 /some/page` (or `-Path /some/page` on
+   Windows) to start elsewhere, `--chapter "<title>"` (or `-Chapter "<title>"`) to re-record a chapter, `--paused` (or
+   `-Paused`) to start paused.
+
+   **Add on-screen text overlays with F7.** Press **F7** whenever you want a floating callout card (e.g., a tip, key
+   shortcut, or summary note) to appear over the page without dimming the screen. You can pick a corner (`top-right`,
+   `top-left`, `bottom-right`, `bottom-left`) or `center`, an optional heading, and optional narration to speak while
+   it is shown. Each overlay is written as:
+
+   ```ts
+   await overlay("Press Space to lock the leg angle.", { title: "Tip", position: "top-right" });
+   ```
 
    **Mark the phases as you go.** Press **F8** whenever a new phase starts (finding the right mode in the menus,
    placing the points, switching to the next mode, ...). A box asks for the phase's name and, if you like, the
@@ -66,6 +83,13 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    `recorded/<name>.chapter.js`. `npm run replace-chapter -- <name> "<title>"` replaces the chapter's steps in the
    script with them, keeping its `chapter(...)` line and the narration after it (the old script goes to `.bak`).
    `-Paused` starts without recording, for setting the page up by hand; **F10** starts and pauses recording.
+
+   **Single-pass live recording (`-Live` / `npm run live`).** For tasks that download large files or take a long time
+   (such as the background map generator), pass `-Live` (`codegen.ps1 <name> -Live` on Windows, or
+   `npm run live -- <name>` in WSL/Linux). It captures the 2× high-DPI frames and `public/recordings/<name>/timeline.json`
+   live while you click once (automatically pausing frame capture while `F7`/`F8` dialogs are open so they never appear
+   in the video), so you can skip `npm run record` and go straight to `npm run timing -- <name>` and
+   `npm run render -- <name>`.
 
    **Hide setup with F9.** Press **F9**, do what the tutorial is not about (create a task for the route, generate
    the flight orders, ...), press **F9** again; a red badge shows while hiding is on. The steps are written between
@@ -110,6 +134,9 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
      sounds without changing its caption. A long line is spoken in one go, but its caption is shown in parts of at most two lines, as in
      films, each switched at the pause the voice makes there (`src/shared/captions.ts`).
    - `highlight(locator, { label, durationMs })` dims the page around an element and outlines it.
+   - `overlay(text, { title, position, durationMs })` shows a floating glassmorphic callout card (`"top-right"`,
+     `"top-left"`, `"bottom-right"`, `"bottom-left"`, or `"center"`) without dimming the page or needing an element.
+     Multi-line text (`\n`) is supported. You can also add and edit overlays after recording in `npm run timing`.
    - `startHidden()` and `endHidden()` (F9 when recording the clicks) cut the steps between them from the video:
      they are performed, and the video crossfades from the last picture before to the page after. For setup the
      tutorial is not about, such as creating a task to show a route on the live map.
@@ -167,14 +194,16 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
 
    **The timing editor**, `npm run timing -- <name>` (http://localhost:3100, `--port` for another), is the easy way:
    the video in a player (`@remotion/player`) beside the steps; choosing one jumps to it and gives its hold, speed,
-   line start, wait and text, and every change plays at once (the page works out the edit as the render does). Save
-   writes the timing file (rewriting it: comments are not kept, the old file goes to `.bak`), Make voice runs
-   `npm run narrate` for changed texts. "New chapter here" and "New line here" add a chapter or a narration line
-   before the chosen step, without recording again (`chapters` and `lines` in the timing file, each `at` a step;
-   added lines are named `<step> +<n>` for their voice). It also starts recording again: "Record all", and on each
-   recorded chapter "record from here" (`record --from`) and "redo clicks" (`codegen.ps1 -Chapter` on Windows through
-   `powershell.exe`, then "Use the new clicks": `replace-chapter`, then `record --from`), one job at a time, with its
-   output shown. Or change the timing in `scripts/<name>.timing.ts` (in git)
+   line start, wait, text, and overlay settings, and every change plays at once (the page works out the edit as the
+   render does). Save writes the timing file (rewriting it: comments are not kept, the old file goes to `.bak`), Make
+   voice runs `npm run narrate` for changed texts. "New chapter here", "New line here" and "New overlay here" add a
+   chapter, a narration line or an on-screen text overlay card before the chosen step, without recording again
+   (`chapters`, `lines` and `overlays` in the timing file, each `at` a step; added lines are named `<step> +<n>` for
+   their voice, and added overlays `<step> ~<n>`). "Write into the script" turns added chapters, lines and overlays
+   into `chapter()`, `say()` and `overlay()` lines in `scripts/<name>.ts`. It also starts recording again: "Record all",
+   and on each recorded chapter "record from here" (`record --from`) and "redo clicks" (`codegen.ps1 -Chapter` on Windows
+   through `powershell.exe`, then "Use the new clicks": `replace-chapter`, then `record --from`), one job at a time, with
+   its output shown. Or change the timing in `scripts/<name>.timing.ts` (in git)
    by hand; Studio shows a saved change straight away:
 
    ```ts
@@ -187,6 +216,9 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
        "Select unknown waypoint #1": { delayMs: -500, wait: true, text: "A better line." },  // a say() step
        "Flight order #1": { afterLine: true },             // wait for the line before (showPdf does by default)
      },
+     overlays: [
+       { at: "Backbone creation #3", title: "Tip", text: "Click on the map to add each waypoint", position: "top-right" },
+     ],
    });
    ```
 
@@ -199,8 +231,13 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
    the last recording and the timing file, and writes to `out/`:
    - `<name>.mp4`: the finished video with voice and music
    - `<name>-picture.mp4`, `<name>-voice.wav` and `<name>-music.wav`: picture, voice and music separately, all
-     starting at 0, for fine tuning in DaVinci Resolve (the voice only when there is narration, the music only when
-     there is music)
+     starting at 0, for fine tuning in DaVinci Resolve (`--clean-picture` renders `<name>-picture.mp4` without
+     burned-in captions so you can style or cut subtitles from `<name>.srt` in Resolve; `--draft` renders a fast
+     half-resolution preview of `<name>.mp4` without separate stems)
+   - `<name>-resolve.fcpxml`: a Final Cut Pro XML v1.9 timeline ready to import into DaVinci Resolve (*File → Import →
+     Timeline…*) with `<name>-picture.mp4` on the video track, each individual narration sentence placed as its own
+     labelled clip on Audio 1 (making it easy to split between chapters and insert real camera footage),
+     `<name>-music.wav` on Audio 2, and timeline markers at every chapter and overlay
    - `<name>.srt`: the narration as subtitles, at most two lines at a time like the captions
    - `<name>-chapters.txt`: the chapters with their start times, ready for a YouTube description (only when the
      script has `chapter(...)` steps)
@@ -213,9 +250,9 @@ The tutorials folder is at `\\wsl.localhost\Ubuntu-24.04\home\kolaf\dev\airsport
 
 Only new or changed narration lines are generated: the voice is cached in `.cache/`.
 
-On Linux or macOS with a desktop, `npm run login` and `npm run codegen` (Playwright's codegen, without map positions)
-or `node windows/capture.mjs --output recorded/<name>.js --url http://localhost:8002/ --auth .auth/state.json` work
-too.
+On Linux or macOS with a desktop (or WSLg), `npm run codegen -- <name>` and `npm run live -- <name>` run the exact same
+`windows/capture.mjs` recorder (with map positions, `F7`–`F10` hotkeys, `--chapter`, `--paused`, and auto-script
+generation) directly in Linux Chromium.
 
 ## How it works
 
@@ -308,10 +345,12 @@ Words the voice says wrong go in `pronunciations.json`, spelled the way they sho
 pronunciation needs no new recording: the next render (or `npm run narrate -- <name>`, for Studio) makes the lines
 that changed.
 
-**Narration for a video made elsewhere** (a phone recording edited in DaVinci Resolve, say): write the sentences in a
-text file, one per line (blank lines and `#` lines are skipped), and run `npm run voice -- my-script.txt [folder]`.
-It writes `01.wav`, `02.wav`, ... in the configured voice, with the pronunciations, and an `index.txt` listing each
-file's length and text. The default folder is `out/<script name>-voice`.
+**Narration for a video made elsewhere** (a phone recording or real-world camera footage edited in DaVinci Resolve):
+write the sentences in a text file, one per line (`# Chapter: <title>` or `## <title>` marks a chapter, `[pause 1.5s]`
+adds extra silence, and other `#` lines are skipped), and run `npm run voice -- my-script.txt [folder]`. It writes
+`01.wav`, `02.wav`, ... in the configured voice, `combined.wav` (all clips with natural spacing), `subtitles.srt`
+(two-line captions), `resolve.fcpxml` (a DaVinci Resolve timeline with every voice clip and chapter marker placed on the
+timeline), and `index.txt`. The default folder is `out/<script name>-voice`.
 
 ## Tips
 

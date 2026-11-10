@@ -1,14 +1,15 @@
 import { copyFileSync, readFileSync, writeFileSync } from "node:fs";
 import path from "node:path";
 import type { Timeline } from "../shared/timeline";
-import { addedLineKeys, type StepTiming, type Timing } from "../shared/timing";
+import { addedLineKeys, addedOverlayKeys, type AddedOverlay, type StepTiming, type Timing } from "../shared/timing";
 import { SCRIPTS_DIR } from "./config";
 import { timingFile } from "./narrate";
 
-// The timing file's added chapters and narration lines written into the tutorial script, as chapter("...") and
-// say("...") lines before the steps they are at, so the next recording has them (and the chapters can be recorded
-// from). Each step's line in the script is in the recording (Step.line). The timing file's changes are moved to the
-// names the steps will have then: a new chapter renames the steps after it, a new line is a step of its own.
+// The timing file's added chapters, narration lines, and overlays written into the tutorial script, as chapter("..."),
+// say("..."), and overlay("...") lines before the steps they are at, so the next recording has them (and the chapters
+// can be recorded from). Each step's line in the script is in the recording (Step.line). The timing file's changes are
+// moved to the names the steps will have then: a new chapter renames the steps after it, a new line or overlay is a step
+// of its own.
 
 // The timing file as code, as the first recording starts it: the header, then the changes
 export const timingFileSource = (name: string, timing: Timing) => `import { defineTiming } from "../src/shared/timing";
@@ -25,6 +26,7 @@ export default defineTiming(${
 export type Written = {
   chapters: number;
   lines: number;
+  overlays: number;
   // The recorded chapter the first of them is in: recording from it is enough (null: from the start)
   recordFrom: string | null;
 };
@@ -32,17 +34,29 @@ export type Written = {
 const chapterOf = (id: string) => id.replace(/ #\d+$/, "");
 const baseTitle = (chapter: string) => chapter.replace(/ \(\d+\)$/, "");
 
+const formatOverlayOptions = (overlay: AddedOverlay) => {
+  const parts: string[] = [];
+  if (overlay.title) parts.push(`title: ${JSON.stringify(overlay.title)}`);
+  if (overlay.position && overlay.position !== "top-right") parts.push(`position: ${JSON.stringify(overlay.position)}`);
+  if (overlay.durationMs) parts.push(`durationMs: ${overlay.durationMs}`);
+  if (overlay.wait) parts.push("wait: true");
+  return parts.length > 0 ? `, { ${parts.join(", ")} }` : "";
+};
+
 export function writeIntoScript(name: string, timeline: Timeline, timing: Timing): Written {
   const chapters = timing.chapters ?? [];
   const lines = timing.lines ?? [];
-  if (chapters.length === 0 && lines.length === 0) throw new Error("The timing file adds no chapters or lines");
+  const overlays = timing.overlays ?? [];
+  if (chapters.length === 0 && lines.length === 0 && overlays.length === 0) {
+    throw new Error("The timing file adds no chapters, lines, or overlays");
+  }
   if (timeline.steps.some((step) => step.line === undefined)) {
     throw new Error("The recording does not know the script's lines yet: record it again first, then write");
   }
   const byId = new Map(timeline.steps.map((step) => [step.id, step]));
   const usesOfLine = new Map<number, number>();
   for (const step of timeline.steps) usesOfLine.set(step.line!, (usesOfLine.get(step.line!) ?? 0) + 1);
-  for (const at of [...chapters.map((item) => item.at), ...lines.map((item) => item.at)]) {
+  for (const at of [...chapters.map((item) => item.at), ...lines.map((item) => item.at), ...overlays.map((item) => item.at)]) {
     const step = byId.get(at);
     if (!step) throw new Error(`The timing file adds something at a step the recording does not have: ${at}`);
     if (usesOfLine.get(step.line!)! > 1) {
@@ -50,8 +64,9 @@ export function writeIntoScript(name: string, timeline: Timeline, timing: Timing
     }
   }
 
-  // The names the steps get in the next recording: added chapters start a new count, added lines are steps too
+  // The names the steps get in the next recording: added chapters start a new count, added lines and overlays are steps too
   const lineKeys = addedLineKeys(lines);
+  const overlayKeys = addedOverlayKeys(overlays);
   const renamed = new Map<string, string>();
   const used = new Set<string>();
   const nameFor = (title: string) => {
@@ -78,13 +93,18 @@ export function writeIntoScript(name: string, timeline: Timeline, timing: Timing
     lines.forEach((line, index) => {
       if (line.at === step.id) renamed.set(lineKeys[index], `${current} #${++count}`);
     });
+    overlays.forEach((overlay, index) => {
+      if (overlay.at === step.id) renamed.set(overlayKeys[index], `${current} #${++count}`);
+    });
     renamed.set(step.id, `${current} #${++count}`);
   }
 
   // The script, with the new lines before their steps' lines (from the bottom up, so the line numbers hold)
   const scriptFile = path.join(SCRIPTS_DIR, `${name}.ts`);
   const source = readFileSync(scriptFile, "utf8").split(/\r?\n/);
-  const targets = [...new Set([...chapters, ...lines].map((item) => byId.get(item.at)!.line!))].sort((a, b) => b - a);
+  const targets = [
+    ...new Set([...chapters, ...lines, ...overlays].map((item) => byId.get(item.at)!.line!)),
+  ].sort((a, b) => b - a);
   for (const lineNumber of targets) {
     const indent = source[lineNumber - 1].match(/^\s*/)![0];
     const inserted: string[] = [];
@@ -96,13 +116,16 @@ export function writeIntoScript(name: string, timeline: Timeline, timing: Timing
         const options = line.wait === false ? ", { wait: false }" : "";
         inserted.push(`${indent}await say(${JSON.stringify(line.text)}${options});`);
       }
+      for (const overlay of overlays.filter((item) => item.at === step.id)) {
+        inserted.push(`${indent}await overlay(${JSON.stringify(overlay.text)}${formatOverlayOptions(overlay)});`);
+      }
     }
     source.splice(lineNumber - 1, 0, ...inserted);
   }
   copyFileSync(scriptFile, `${scriptFile}.bak`);
   writeFileSync(scriptFile, source.join("\n"));
 
-  // The timing file under the new names; an added line's start moves to its step
+  // The timing file under the new names; an added line's or overlay's start moves to its step
   const steps: Record<string, StepTiming> = {};
   for (const [id, change] of Object.entries(timing.steps ?? {})) {
     const moved = { ...change };
@@ -112,19 +135,24 @@ export function writeIntoScript(name: string, timeline: Timeline, timing: Timing
   lines.forEach((line, index) => {
     if (line.delayMs) steps[renamed.get(lineKeys[index])!] = { delayMs: line.delayMs };
   });
+  overlays.forEach((overlay, index) => {
+    if (overlay.delayMs) steps[renamed.get(overlayKeys[index])!] = { delayMs: overlay.delayMs };
+  });
   const rest: Timing = { ...timing, steps };
   delete rest.chapters;
   delete rest.lines;
+  delete rest.overlays;
   if (Object.keys(steps).length === 0) delete rest.steps;
   writeFileSync(timingFile(name), timingFileSource(name, rest));
 
-  const first = [...chapters, ...lines]
+  const first = [...chapters, ...lines, ...overlays]
     .map((item) => timeline.steps.findIndex((step) => step.id === item.at))
     .sort((a, b) => a - b)[0];
   const firstChapter = chapterOf(timeline.steps[first].id);
   return {
     chapters: chapters.length,
     lines: lines.length,
+    overlays: overlays.length,
     recordFrom: firstChapter === "Start" ? null : baseTitle(firstChapter),
   };
 }
