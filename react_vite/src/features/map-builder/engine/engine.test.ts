@@ -1,6 +1,6 @@
 import initSqlJs from 'sql.js';
 
-import { composeAttribution, planLayers } from './generate';
+import { composeAttribution, gridKey, planLayers } from './generate';
 import { LAYERS_BY_ID, defaultLayerSelection } from './layers';
 import { MbtilesWriter } from './mbtiles';
 import { levelTransform } from './render';
@@ -70,6 +70,18 @@ describe('tile maths', () => {
         const huge = summariseArea({ bounds: { west: 5, south: 58, east: 12, north: 62 }, minZoom: 13, maxZoom: 13 });
         expect(huge.detailGrid.tileCount).toBeGreaterThan(MAX_DETAIL_TILES);
         expect(huge.tooLarge).toBe(true);
+    });
+});
+
+describe('data cache keys', () => {
+    it('tells apart grids of the same zoom that start elsewhere, even when the coarsest frame is the same', () => {
+        const area = { bounds: OSLO, minZoom: 11, maxZoom: 13 };
+        const shifted = { ...area, bounds: { ...OSLO, west: OSLO.west + 0.03 } };
+        expect(frameForArea(shifted)).toEqual(frameForArea(area));
+        const before = tileGridsForArea(area)[0];
+        const after = tileGridsForArea(shifted)[0];
+        expect(gridKey(after)).not.toBe(gridKey(before));
+        expect(gridKey(before)).toBe(gridKey(tileGridsForArea(area)[0]));
     });
 });
 

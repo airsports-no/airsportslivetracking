@@ -63,8 +63,12 @@ export interface GeneratedMap {
 export interface DataCache {
     key: string;
     features: Map<string, FeaturesByLayer>;
-    elevation: Map<number, Float32Array>;
+    /** Keyed by `gridKey(grid)`: the array layout depends on the grid's origin and size. */
+    elevation: Map<string, Float32Array>;
 }
+
+export const gridKey = (grid: TileGrid): string =>
+    [grid.zoom, grid.tileX0, grid.tileY0, grid.columns, grid.rows].join(',');
 
 export const createDataCache = (): DataCache => ({ key: '', features: new Map(), elevation: new Map() });
 
@@ -256,7 +260,7 @@ export async function generateMap(
             const share = (0.6 * grid.tileCount) / totalTiles;
             let elevation: Float32Array | null = null;
             if (usesTerrain) {
-                elevation = cache.elevation.get(grid.zoom) ?? null;
+                elevation = cache.elevation.get(gridKey(grid)) ?? null;
                 if (elevation) {
                     reporter.log(`Terrain for zoom ${grid.zoom}: reusing the data already downloaded`, 'success');
                 } else {
@@ -265,7 +269,7 @@ export async function generateMap(
                         reporter: slice(reporter, progress, progress + share * 0.3),
                     });
                     elevation = result.values;
-                    if (result.complete) cache.elevation.set(grid.zoom, elevation);
+                    if (result.complete) cache.elevation.set(gridKey(grid), elevation);
                 }
             }
             throwIfCancelled(context.signal);
