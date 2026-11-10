@@ -1,3 +1,4 @@
+import gc
 import io
 import logging
 import threading
@@ -470,6 +471,43 @@ class TileDownsamplingMixin:
                 img = np.array(Image.fromarray(img).resize((new_width, new_height), Image.BILINEAR))
         return img, extent, origin
 
+    def _merge_tiles(self, tiles):
+        """
+        Streams decoded tiles into a single pre-allocated uint8 mosaic (and downsamples inline via
+        PIL if target_pixel_size is smaller) instead of running Cartopy's upstream _merge_tiles(),
+        which builds full-size float64 coordinate arrays and holds multiple copies of all decoded
+        tiles simultaneously.
+        """
+        if not tiles:
+            raise ValueError("No tiles were found to merge.")
+        img0, extent0, _ = tiles[0]
+        channels = img0.shape[2] if img0.ndim == 3 else 1
+        x_ranges = {}
+        y_ranges = {}
+        for _, (x0, x1, y0, y1), _ in tiles:
+            x_ranges[(x0, x1)] = None
+            y_ranges[(y0, y1)] = None
+        sorted_x = sorted(x_ranges.keys(), key=lambda pair: pair[0])
+        sorted_y = sorted(y_ranges.keys(), key=lambda pair: pair[0])
+        x_index = {pair: idx for idx, pair in enumerate(sorted_x)}
+        y_index = {pair: idx for idx, pair in enumerate(sorted_y)}
+        tile_h, tile_w = img0.shape[0], img0.shape[1]
+        total_w = len(sorted_x) * tile_w
+        total_h = len(sorted_y) * tile_h
+        domain_extent = [sorted_x[0][0], sorted_x[-1][1], sorted_y[0][0], sorted_y[-1][1]]
+
+        mosaic_shape = (total_h, total_w, channels) if channels > 1 else (total_h, total_w)
+        mosaic = np.empty(mosaic_shape, dtype=np.uint8)
+        while tiles:
+            tile_img, (x0, x1, y0, y1), origin = tiles.pop()
+            ix = x_index[(x0, x1)] * tile_w
+            iy = y_index[(y0, y1)] * tile_h
+            tile_arr = np.asarray(tile_img, dtype=np.uint8)
+            if origin == "upper":
+                tile_arr = tile_arr[::-1]
+            mosaic[iy : iy + tile_h, ix : ix + tile_w] = tile_arr
+        return mosaic, domain_extent, "lower"
+
 
 def compute_tile_target_pixel_size(
     figure_width_cm: float, figure_height_cm: float, dpi: int, headroom: float = 1.1
@@ -603,26 +641,35 @@ class UserUploadedMBTiles(TileDownsamplingMixin, GoogleWTS):
     def __init__(self, user_uploaded_map: UserUploadedMap, *args, **kwargs):
         super().__init__(*args, **kwargs)
         self.mbtiles_file = user_uploaded_map.get_local_file_path()
+        self._mbtiles_lock = threading.Lock()
+        self._mbtiles_src = None
 
     def _image_url(self, tile):
         return "something"
+
+    def image_for_domain(self, target_domain, target_z):
+        with MBtiles(self.mbtiles_file) as src:
+            self._mbtiles_src = src
+            try:
+                return super().image_for_domain(target_domain, target_z)
+            finally:
+                self._mbtiles_src = None
 
     def get_image(self, tile):
         global first
         x, y, z = tile
         y = (2**z) - y - 1
         try:
-            with MBtiles(self.mbtiles_file) as src:
-                # tiles = src.list_tiles()
-                # for tile in tiles:
-                #     if tile.z == z and first:
-                #         print(tile)
-                # print(f"Has tile: {src.has_tile(z, x, y)}")
-                data = src.read_tile(z=z, x=x, y=y)
-                try:
-                    img = Image.open(BytesIO(data))
-                except PIL.UnidentifiedImageError:
-                    img = Image.fromarray(np.full((256, 256, 3), (250, 250, 250), dtype=np.uint8))
+            if self._mbtiles_src is not None:
+                with self._mbtiles_lock:
+                    data = self._mbtiles_src.read_tile(z=z, x=x, y=y)
+            else:
+                with MBtiles(self.mbtiles_file) as src:
+                    data = src.read_tile(z=z, x=x, y=y)
+            try:
+                img = Image.open(BytesIO(data))
+            except PIL.UnidentifiedImageError:
+                img = Image.fromarray(np.full((256, 256, 3), (250, 250, 250), dtype=np.uint8))
         except ValueError:
             img = Image.fromarray(np.full((256, 256, 3), (255, 255, 255), dtype=np.uint8))
         except Exception:
@@ -1786,8 +1833,9 @@ def plot_route(
     waypoints_only: bool = False,
     annotations: bool = True,
     scale: int = 200,
-    # Default DPI is set to 150 to reduce memory consumption. 300 is suitable for high-quality printing but can be memory-intensive.
-    dpi: int = 150,
+    # 300 DPI matches Zoom 12–13 tile resolution on 1:200,000 / 1:250,000 maps so thin roads and
+    # timing gates stay crisp on paper.
+    dpi: int = 300,
     map_source: str = "osm",
     user_map_source: UserUploadedMap = None,
     line_width: float = 0.5,
@@ -2182,21 +2230,25 @@ def plot_route(
     fig.tight_layout(pad=0)
 
     figdata = BytesIO()
-    plt.savefig(
-        figdata,
-        format="png",
-        dpi=dpi,
-        transparent=True,
-    )
-    plt.clf()
-    plt.close()
+    try:
+        plt.savefig(
+            figdata,
+            format="png",
+            dpi=dpi,
+            transparent=True,
+        )
+    finally:
+        plt.clf()
+        plt.close(fig)
+        gc.collect()
     check_tile_fetch_health(imagery)
     figdata.seek(0)
     if landscape:
-        image = Image.open(figdata)
-        rotated = image.rotate(90, expand=1)
+        with Image.open(figdata) as image:
+            rotated = image.rotate(90, expand=1)
         rotated_data = BytesIO()
         rotated.save(rotated_data, format="PNG")
+        del rotated
         rotated_data.seek(0)
         figdata = rotated_data
     return figdata

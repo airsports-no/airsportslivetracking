@@ -1924,7 +1924,7 @@ class GenerateNavigationTaskMapSerialiser(serializers.Serializer):
     map_source = serializers.CharField()
     include_openaip_overlay = serializers.BooleanField(default=False)
     zoom_level = serializers.IntegerField(default=12)
-    dpi = serializers.IntegerField(min_value=100, max_value=300, default=150)
+    dpi = serializers.IntegerField(min_value=100, max_value=300, default=300)
     line_width = serializers.FloatField(min_value=0.1, max_value=10, default=0.5)
     colour = serializers.CharField(max_length=7, default="#0000ff")
 

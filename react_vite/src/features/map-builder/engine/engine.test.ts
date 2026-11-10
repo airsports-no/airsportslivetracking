@@ -12,6 +12,7 @@ import {
     MAX_DETAIL_TILES,
     SAMPLE_SIDE_TILES,
     TILE_SIZE,
+    frameCovers,
     frameForArea,
     gridBounds,
     latitudeToPixel,
@@ -86,6 +87,11 @@ describe('tile maths', () => {
         // An area already within 3x3 tiles is returned unchanged
         expect(sampleBounds(sample, 13)).toEqual(sample);
         expect(tileKey(13, 4335, 2378)).toBe('13/4335/2378');
+        // The full area's frame covers the shrunk sample's frame at the same zoom, so cached vector features are reused
+        const fullFrame = frameForArea({ bounds: OSLO, minZoom: 12, maxZoom: 13 });
+        const sampleFrame = frameForArea({ bounds: sample, minZoom: 12, maxZoom: 13 });
+        expect(frameCovers(fullFrame, sampleFrame)).toBe(true);
+        expect(frameCovers(sampleFrame, fullFrame)).toBe(false);
     });
 });
 

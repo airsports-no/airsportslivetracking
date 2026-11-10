@@ -24,7 +24,7 @@ class FlightOrderConfiguration(models.Model):
         default=False,
         help_text="If true, OpenAIP is rendered on top of the selected map source in generated maps.",
     )
-    map_dpi = models.IntegerField(default=150, validators=[MinValueValidator(100), MaxValueValidator(300)])
+    map_dpi = models.IntegerField(default=300, validators=[MinValueValidator(100), MaxValueValidator(300)])
     map_zoom_level = models.IntegerField(default=12, choices=[(x, x) for x in range(1, 20)])
     map_orientation = models.CharField(choices=ORIENTATIONS, default=PORTRAIT, max_length=30)
     map_scale = models.IntegerField(

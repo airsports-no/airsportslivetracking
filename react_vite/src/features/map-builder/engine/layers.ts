@@ -75,12 +75,12 @@ export const LAYERS: LayerDefinition[] = [
     { id: 'river', label: 'River', group: 'water', kind: 'line', color: '#3d78c2', width: 2.2, defaultOn: true },
     { id: 'dam', label: 'Dam', group: 'water', kind: 'line', color: '#333333', width: 3, defaultOn: false },
 
-    { id: 'track', label: 'Track', group: 'roads', kind: 'line', color: '#a39472', width: 0.6, defaultOn: true },
-    { id: 'local_road', label: 'Local road', group: 'roads', kind: 'line', color: '#8a8a8a', width: 0.7, defaultOn: true },
-    { id: 'tertiary_road', label: 'Tertiary road', group: 'roads', kind: 'line', color: '#e6b23a', width: 1.6, defaultOn: true },
-    { id: 'secondary_road', label: 'Secondary road', group: 'roads', kind: 'line', color: '#f0a020', width: 2.0, defaultOn: true },
-    { id: 'primary_road', label: 'Primary road', group: 'roads', kind: 'line', color: '#e8602c', width: 2.6, defaultOn: true },
-    { id: 'motorway', label: 'Motorway or trunk road', group: 'roads', kind: 'line', color: '#d7301f', width: 3.2, defaultOn: true },
+    { id: 'track', label: 'Track', group: 'roads', kind: 'line', color: '#7a5230', width: 0.7, dash: [3, 2], defaultOn: true },
+    { id: 'local_road', label: 'Local road', group: 'roads', kind: 'line', color: '#5c3a21', width: 0.85, defaultOn: true },
+    { id: 'tertiary_road', label: 'Tertiary road', group: 'roads', kind: 'line', color: '#d48806', width: 1.4, defaultOn: true },
+    { id: 'secondary_road', label: 'Secondary road', group: 'roads', kind: 'line', color: '#e07a10', width: 1.8, defaultOn: true },
+    { id: 'primary_road', label: 'Primary road', group: 'roads', kind: 'line', color: '#d9481c', width: 2.3, defaultOn: true },
+    { id: 'motorway', label: 'Motorway or trunk road', group: 'roads', kind: 'line', color: '#b81d13', width: 2.8, defaultOn: true },
     { id: 'railway', label: 'Railway', group: 'roads', kind: 'line', color: '#222222', width: 1.6, defaultOn: true },
 
     { id: 'power_line', label: 'High-voltage power line', group: 'infrastructure', kind: 'line', color: '#d0306a', width: 1.0, dash: [9, 6], defaultOn: true },

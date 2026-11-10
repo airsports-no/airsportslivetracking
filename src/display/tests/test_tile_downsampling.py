@@ -90,3 +90,35 @@ class TestTileDownsamplingMixin(SimpleTestCase):
         img, _, _ = imagery.image_for_domain(target_domain=None, target_z=14)
 
         self.assertEqual(img.shape, (6121, 8416, 3))
+
+    def test_merge_tiles_streams_uint8_mosaic_and_pops_tiles_in_place(self):
+        # Verifies that _merge_tiles assembles a contiguous uint8 mosaic in "lower" origin,
+        # flipping any "upper"-origin tiles and emptying the input list as it goes so decoded
+        # tile buffers are freed immediately rather than held alongside the merged array.
+        imagery = _DownsamplingImagery(mosaic=None)
+        t00 = np.full((2, 2, 3), 10, dtype=np.uint8)
+        t10 = np.full((2, 2, 3), 20, dtype=np.uint8)
+        t01 = np.array([[[30, 30, 30], [30, 30, 30]], [[40, 40, 40], [40, 40, 40]]], dtype=np.uint8)
+        t11 = np.full((2, 2, 3), 50, dtype=np.uint8)
+        tiles = [
+            (t00, (0.0, 10.0, 0.0, 10.0), "lower"),
+            (t10, (10.0, 20.0, 0.0, 10.0), "lower"),
+            (t01, (0.0, 10.0, 10.0, 20.0), "upper"),
+            (t11, (10.0, 20.0, 10.0, 20.0), "lower"),
+        ]
+
+        mosaic, extent, origin = imagery._merge_tiles(tiles)
+
+        self.assertEqual(tiles, [])
+        self.assertEqual(mosaic.dtype, np.uint8)
+        self.assertEqual(mosaic.shape, (4, 4, 3))
+        self.assertEqual(extent, [0.0, 20.0, 0.0, 20.0])
+        self.assertEqual(origin, "lower")
+        # Bottom-left (t00) and bottom-right (t10)
+        self.assertTrue(np.all(mosaic[0:2, 0:2] == 10))
+        self.assertTrue(np.all(mosaic[0:2, 2:4] == 20))
+        # Top-left (t01 had origin="upper", so row 0 of t01 becomes the top row of the slice)
+        self.assertTrue(np.all(mosaic[2, 0:2] == 40))
+        self.assertTrue(np.all(mosaic[3, 0:2] == 30))
+        # Top-right (t11)
+        self.assertTrue(np.all(mosaic[2:4, 2:4] == 50))

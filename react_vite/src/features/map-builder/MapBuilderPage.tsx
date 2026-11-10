@@ -140,6 +140,7 @@ const MapBuilderPage: React.FC = () => {
                 {
                     name,
                     area: targetArea,
+                    featureBounds: fullBounds,
                     sourceId: preferredSourceId(targetArea.bounds, settings.sourcePreference),
                     layers: settings.layers,
                     terrain: settings.terrain,

@@ -13,8 +13,8 @@ import { sourcesForLayer } from './sources';
 import type { VectorSource } from './sources';
 import type { HillshadeOptions } from './terrain';
 import { drawContours, fetchElevation, hillshade } from './terrain';
-import type { Frame, MapArea, TileGrid } from './tiles';
-import { MAX_DETAIL_TILES, TILE_SIZE, frameForArea, frameKey, gridBounds, tileGridsForArea } from './tiles';
+import type { Bounds, Frame, MapArea, TileGrid } from './tiles';
+import { MAX_DETAIL_TILES, TILE_SIZE, frameCovers, frameForArea, frameKey, gridBounds, tileGridsForArea } from './tiles';
 import type { Feature, FeaturesByLayer, Reporter, TaskContext } from './types';
 import { sleep, throwIfCancelled } from './types';
 
@@ -35,6 +35,13 @@ export interface TerrainOptions {
 export interface GenerationRequest {
     name: string;
     area: MapArea;
+    /**
+     * Optional full competition bounds when previewing a shrunk 3×3 test section: Overture's
+     * GeoParquet blocks (~50–100 km wide) cover both the test section and the surrounding full
+     * area, so retaining features for the full bounds avoids downloading those blocks a second time
+     * when the user restores the full area.
+     */
+    featureBounds?: Bounds | null;
     sourceId: string;
     /** Layer id -> switched on. */
     layers: Record<string, boolean>;
@@ -66,6 +73,7 @@ export const tileKey = (zoom: number, x: number, y: number): string => `${zoom}/
  */
 export interface DataCache {
     key: string;
+    frame?: Frame | null;
     features: Map<string, FeaturesByLayer>;
     /** Keyed by `gridKey(grid)`: the array layout depends on the grid's origin and size. */
     elevation: Map<string, Float32Array>;
@@ -74,7 +82,7 @@ export interface DataCache {
 export const gridKey = (grid: TileGrid): string =>
     [grid.zoom, grid.tileX0, grid.tileY0, grid.columns, grid.rows].join(',');
 
-export const createDataCache = (): DataCache => ({ key: '', features: new Map(), elevation: new Map() });
+export const createDataCache = (): DataCache => ({ key: '', frame: null, features: new Map(), elevation: new Map() });
 
 /** Reports a sub-task's 0..1 progress as a slice of the overall progress. */
 const slice = (reporter: Reporter, from: number, to: number): Reporter => ({
@@ -231,9 +239,15 @@ export async function generateMap(
     if (grids[0].tileCount > MAX_DETAIL_TILES) {
         throw new Error(`The area is too large for zoom ${area.maxZoom} (at most ${MAX_DETAIL_TILES} tiles)`);
     }
-    const frame = frameForArea(area);
+    const targetFrame = frameForArea(
+        request.featureBounds && request.sourceId === 'osm'
+            ? { bounds: request.featureBounds, minZoom: area.minZoom, maxZoom: area.maxZoom }
+            : area,
+    );
+    const frame = frameCovers(cache.frame, targetFrame) ? cache.frame! : targetFrame;
     if (cache.key !== frameKey(frame)) {
         cache.key = frameKey(frame);
+        cache.frame = frame;
         cache.features.clear();
         cache.elevation.clear();
     }

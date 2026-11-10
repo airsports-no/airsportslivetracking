@@ -146,6 +146,17 @@ export function frameForArea(area: MapArea): Frame {
 export const frameKey = (frame: Frame): string =>
     [frame.zoom, frame.originX, frame.originY, frame.width, frame.height].join(",");
 
+/** True when `cached` is at the same detail zoom and completely covers `inner`. */
+export function frameCovers(cached: Frame | null | undefined, inner: Frame): boolean {
+    if (!cached || cached.zoom !== inner.zoom) return false;
+    return (
+        cached.originX <= inner.originX &&
+        cached.originY <= inner.originY &&
+        cached.originX + cached.width >= inner.originX + inner.width &&
+        cached.originY + cached.height >= inner.originY + inner.height
+    );
+}
+
 export function distanceKm(latitude1: number, longitude1: number, latitude2: number, longitude2: number): number {
     const radians = Math.PI / 180;
     const a =

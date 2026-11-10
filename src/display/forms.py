@@ -91,7 +91,7 @@ class ShareForm(forms.Form):
 
 class ContestantMapForm(forms.Form):
     size = forms.ChoiceField(choices=MAP_SIZES, initial=A4)
-    dpi = forms.IntegerField(initial=150, min_value=100, max_value=300)
+    dpi = forms.IntegerField(initial=300, min_value=100, max_value=300)
     orientation = forms.ChoiceField(choices=ORIENTATIONS, initial=PORTRAIT)
     scale = forms.ChoiceField(choices=SCALES, initial=SCALE_TO_FIT)
     map_source = forms.ChoiceField(choices=[], required=False)
