@@ -43,8 +43,13 @@ def estimate_memory_usage(figure_width_cm, figure_height_cm, dpi):
 # Two fixes already address most of the real underlying cost: TileDownsamplingMixin (below) shrinks
 # the mosaic to the output page's own resolution before matplotlib sees it, and requirements.txt
 # pins matplotlib below 3.10 to avoid an upstream Figure.savefig() memory regression for large
-# imshow() images (~4.2x memory - see https://github.com/matplotlib/matplotlib/issues/29434) that
-# turned out to be the dominant cost, not our own code. Even with both fixes, profiling a real
+# imshow() images (~4.2x memory and ~2.5x slower - see
+# https://github.com/matplotlib/matplotlib/issues/29434, caused by PR #28061 changing default
+# `image.interpolation` and `image.interpolation_stage` to 'auto', which switches downsampled
+# images to RGBA-stage antialiasing; if upgrading to matplotlib>=3.10, set
+# `matplotlib.rcParams["image.interpolation_stage"] = "data"` and
+# `matplotlib.rcParams["image.interpolation"] = "bilinear"` to restore pre-3.10 memory usage).
+# Even with both fixes, profiling a real
 # production task (A3/300dpi/zoom14/scale=0 "zoom to fit", 792 tiles) that was OOM-crashing
 # tracker-celery pods found the naive per-tile estimate (198MB) still ~4.7x under the actual
 # measured peak RSS attributable to the tile pipeline (~1026MB) - fetching/merging/downsampling 792

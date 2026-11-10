@@ -32,9 +32,14 @@ kubernetes==36.0.3
 kubernetes-job==0.3.3
 lxml==6.1.3
 # Pinned below 3.10: matplotlib>=3.10 has an open upstream memory regression in Figure.savefig()
-# for figures containing a large imshow() image (~4.2x memory, see
+# for figures containing a large imshow() image (~4.2x memory and ~2.5x slower, see
 # https://github.com/matplotlib/matplotlib/issues/29434) - confirmed empirically responsible for
-# the bulk of tracker-celery's map-generation OOM crashes. Revisit once that's fixed upstream.
+# the bulk of tracker-celery's map-generation OOM crashes. This was introduced by PR #28061
+# changing the default `image.interpolation` and `image.interpolation_stage` to 'auto', which
+# switches downsampled imshow() images to RGBA-stage antialiasing. If upgrading to matplotlib>=3.10
+# before #29434 is resolved upstream, set `matplotlib.rcParams["image.interpolation_stage"] = "data"`
+# (and `matplotlib.rcParams["image.interpolation"] = "bilinear"` or pass `interpolation="bilinear"`
+# to `ax.add_image(...)` in map_plotter.py) to avoid the 4.2x RGBA resampling spike.
 matplotlib==3.9.4
 mysqlclient==2.2.8
 numpy==2.5.3
