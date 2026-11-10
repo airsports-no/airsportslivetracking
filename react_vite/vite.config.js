@@ -107,6 +107,18 @@ export default defineConfig(({ mode }) => ({
           ) {
             return 'forms';
           }
+          // Only the map builder uses these (Parquet and vector tile readers, SQLite).
+          if (
+            id.includes('/hyparquet') ||
+            id.includes('/sql.js/') ||
+            id.includes('@mapbox/vector-tile') ||
+            id.includes('@mapbox/point-geometry') ||
+            id.includes('/pbf/') ||
+            id.includes('/fzstd/') ||
+            id.includes('/hysnappy/')
+          ) {
+            return 'map-builder';
+          }
           if (id.includes('@tanstack/react-table')) {
             return 'table';
           }
