@@ -22,6 +22,7 @@ const SeriesPage = lazy(() => import("./features/series/SeriesPage"));
 const SquadronsPage = lazy(() => import("./features/squadrons/SquadronsPage"));
 const SquadronDetailPage = lazy(() => import("./features/squadrons/SquadronDetailPage"));
 const SquadronJoinPage = lazy(() => import("./features/squadrons/SquadronJoinPage"));
+const MapBuilderPage = lazy(() => import("./features/map-builder/MapBuilderPage"));
 const UpgradeOrganizer = lazy(() => import("./features/mission-dashboard/UpgradeOrganizer"));
 const UpgradeSuccess = lazy(() => import("./features/mission-dashboard/UpgradeSuccess"));
 const AdminFlightActivityPage = lazy(() => import("./features/admin-dashboard/AdminFlightActivityPage"));
@@ -58,6 +59,7 @@ const AppRoutes = () => {
             <Route path={routes.SERIES_LIST} element={wrap(<SeriesListPage />)} />
             <Route path={routes.SERIES_DETAIL} element={wrap(<SeriesPage />)} />
             <Route path={routes.SQUADRONS} element={wrap(<SquadronsPage />)} />
+            <Route path={routes.MAP_BUILDER} element={wrap(<MapBuilderPage />)} />
             <Route path={routes.SQUADRON_JOIN} element={wrap(<SquadronJoinPage />)} />
             <Route path={routes.SQUADRON_DETAIL} element={wrap(<SquadronDetailPage />)} />
             <Route path={routes.UPGRADE_ORGANIZER} element={wrap(<UpgradeOrganizer />)} />

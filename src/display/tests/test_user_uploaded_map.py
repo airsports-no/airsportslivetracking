@@ -691,6 +691,46 @@ class UserUploadedMapCreateViewTests(TestCase):
         self.assertEqual(created.processing_status, UserUploadedMap.PROCESSING_PENDING)
         self.assertTrue(bool(created.map_file))
 
+    @patch("display.views.process_user_uploaded_map.delay")
+    @patch("display.views.transaction.on_commit", side_effect=lambda fn: fn())
+    def test_create_view_answers_json_for_the_map_builder(self, on_commit_mock, delay_mock):
+        response = self.client.post(
+            reverse("useruploadedmap_add"),
+            {
+                "name": "Generated map",
+                "default_zoom_level": 13,
+                "attribution": "© OpenStreetMap contributors (ODbL)",
+                "user": self.user.pk,
+                "map_file": SimpleUploadedFile("generated.mbtiles", b"placeholder"),
+            },
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 201)
+        created = UserUploadedMap.objects.get(name="Generated map")
+        self.assertEqual(response.json(), {"id": created.pk, "list_url": reverse("useruploadedmap_list")})
+        self.assertEqual(created.processing_status, UserUploadedMap.PROCESSING_PENDING)
+        self.assertTrue(self.user.has_perm("display.view_useruploadedmap", created))
+        delay_mock.assert_called_once_with(created.pk)
+
+    def test_create_view_returns_json_errors_for_the_map_builder(self):
+        UserUploadedMap.objects.create(user=self.user, name="Taken", map_file=SimpleUploadedFile("taken.mbtiles", b"x"))
+        response = self.client.post(
+            reverse("useruploadedmap_add"),
+            {
+                "name": "Taken",
+                "default_zoom_level": 13,
+                "attribution": "",
+                "user": self.user.pk,
+                "map_file": SimpleUploadedFile("generated.mbtiles", b"placeholder"),
+            },
+            HTTP_ACCEPT="application/json",
+        )
+
+        self.assertEqual(response.status_code, 400)
+        self.assertIn("errors", response.json())
+        self.assertEqual(UserUploadedMap.objects.filter(name="Taken").count(), 1)
+
 
 class GetAvailableUserMapsTests(TestCase):
     """

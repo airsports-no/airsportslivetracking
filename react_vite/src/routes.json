@@ -22,6 +22,7 @@
   "SQUADRONS": "squadrons",
   "SQUADRON_DETAIL": "squadrons/:squadronId",
   "SQUADRON_JOIN": "squadrons/join/:token",
+  "MAP_BUILDER": "map-builder",
   "UPGRADE_ORGANIZER": "upgrade-organizer",
   "UPGRADE_SUCCESS": "upgrade-success",
   "ADMIN_FLIGHT_ACTIVITY": "management/flight-activity",

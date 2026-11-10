@@ -1,0 +1,493 @@
+import React, { useEffect, useMemo, useRef, useState } from 'react';
+import { ArrowLeft, Download, Map as MapIcon, Play, Save, Square, Wand2 } from 'lucide-react';
+
+import { reverse } from '../../urls';
+import AreaMap from './AreaMap';
+import LayerList from './LayerList';
+import { MAX_ATTRIBUTION_LENGTH, fileNameFor, saveGeneratedMap } from './api';
+import type { DataCache, GeneratedMap } from './engine/generate';
+import { MAX_FILE_BYTES, createDataCache, generateMap } from './engine/generate';
+import { preferredSourceId, sourcesCovering } from './engine/sources';
+import type { Bounds, MapArea } from './engine/tiles';
+import { MAX_DETAIL_TILES, isValidBounds, summariseArea } from './engine/tiles';
+import type { LogLevel } from './engine/types';
+import { CancelledError } from './engine/types';
+import { loadSqlJs } from './loadSqlJs';
+import type { BuilderSettings } from './settings';
+import { DETAIL_ZOOMS, MAX_EXTRA_LEVELS, loadSettings, saveSettings } from './settings';
+
+interface LogLine {
+    message: string;
+    level: LogLevel;
+}
+
+const LOG_CLASS: Record<LogLevel, string> = {
+    info: '',
+    success: 'text-success',
+    warning: 'text-warning',
+    error: 'text-error',
+};
+
+const megabytes = (bytes: number) => (bytes / 1048576).toFixed(1);
+
+/** The zoom used for printed navigation maps unless the user picks another. */
+const PREFERRED_PRINT_ZOOM = 12;
+
+const Section: React.FC<{ step: number; title: string; children: React.ReactNode }> = ({ step, title, children }) => (
+    <section className="space-y-2">
+        <h2 className="font-semibold flex items-center gap-2">
+            <span className="badge badge-primary badge-sm">{step}</span> {title}
+        </h2>
+        {children}
+    </section>
+);
+
+const MapBuilderPage: React.FC = () => {
+    const [settings, setSettings] = useState<BuilderSettings>(loadSettings);
+    const [running, setRunning] = useState(false);
+    const [progress, setProgress] = useState<number | null>(null);
+    const [status, setStatus] = useState('');
+    const [log, setLog] = useState<LogLine[]>([]);
+    const [result, setResult] = useState<GeneratedMap | null>(null);
+    const [showPreview, setShowPreview] = useState(false);
+    const [printZoom, setPrintZoom] = useState(PREFERRED_PRINT_ZOOM);
+    const [saveState, setSaveState] = useState<{ kind: 'idle' | 'saving' | 'saved' | 'error'; message?: string }>({ kind: 'idle' });
+    const abortRef = useRef<AbortController | null>(null);
+    const cacheRef = useRef<DataCache>(createDataCache());
+    const previewRef = useRef<HTMLCanvasElement>(null);
+    const logRef = useRef<HTMLDivElement>(null);
+
+    useEffect(() => saveSettings(settings), [settings]);
+    useEffect(() => {
+        logRef.current?.scrollTo({ top: logRef.current.scrollHeight });
+    }, [log]);
+    // Stop a running job when leaving the page.
+    useEffect(() => () => abortRef.current?.abort(), []);
+
+    const update = (changes: Partial<BuilderSettings>) => setSettings(current => ({ ...current, ...changes }));
+
+    const bounds: Bounds | null = useMemo(() => {
+        const candidate = {
+            west: parseFloat(settings.west),
+            south: parseFloat(settings.south),
+            east: parseFloat(settings.east),
+            north: parseFloat(settings.north),
+        };
+        return isValidBounds(candidate) ? candidate : null;
+    }, [settings.west, settings.south, settings.east, settings.north]);
+
+    const area: MapArea | null = bounds ? { bounds, minZoom: settings.minZoom, maxZoom: settings.maxZoom } : null;
+    const summary = area ? summariseArea(area) : null;
+    const availableSources = bounds ? sourcesCovering(bounds) : [];
+    const sourceId = bounds ? preferredSourceId(bounds, settings.sourcePreference) : 'osm';
+    const selectedSource = availableSources.find(source => source.id === sourceId);
+    const name = settings.name.trim();
+
+    const setBounds = (value: Bounds) =>
+        update({ west: String(value.west), south: String(value.south), east: String(value.east), north: String(value.north) });
+
+    const setDetailZoom = (maxZoom: number) => {
+        const levels = settings.maxZoom - settings.minZoom;
+        update({ maxZoom, minZoom: maxZoom - levels });
+    };
+
+    const generate = async () => {
+        if (!area || !summary || summary.tooLarge || !name) return;
+        const controller = new AbortController();
+        abortRef.current = controller;
+        setRunning(true);
+        setResult(null);
+        setShowPreview(false);
+        setSaveState({ kind: 'idle' });
+        setLog([]);
+        setProgress(0);
+        const reporter = {
+            log: (message: string, level: LogLevel = 'info') => setLog(lines => [...lines, { message, level }]),
+            progress: (fraction: number) => setProgress(fraction),
+            status: (message: string) => setStatus(message),
+        };
+        try {
+            const SQL = await loadSqlJs();
+            setShowPreview(true);
+            const generated = await generateMap(
+                {
+                    name,
+                    area,
+                    sourceId,
+                    layers: settings.layers,
+                    terrain: settings.terrain,
+                    lowerLevels: settings.lowerLevels,
+                },
+                SQL,
+                cacheRef.current,
+                { signal: controller.signal, reporter },
+                previewRef.current,
+            );
+            setResult(generated);
+            setPrintZoom(Math.min(area.maxZoom, Math.max(area.minZoom, PREFERRED_PRINT_ZOOM)));
+            reporter.log(
+                `Finished: ${generated.tileCount} tiles, ${megabytes(generated.file.length)} MB, in ${generated.seconds.toFixed(0)} s.`,
+                'success',
+            );
+        } catch (error) {
+            setShowPreview(false);
+            if (error instanceof CancelledError || controller.signal.aborted) reporter.log('Cancelled.', 'warning');
+            else {
+                console.error(error);
+                reporter.log(`Error: ${(error as Error).message}`, 'error');
+            }
+        } finally {
+            setRunning(false);
+            setStatus('');
+            setProgress(null);
+            abortRef.current = null;
+        }
+    };
+
+    const download = () => {
+        if (!result) return;
+        const url = URL.createObjectURL(new Blob([result.file as BlobPart], { type: 'application/vnd.sqlite3' }));
+        const link = document.createElement('a');
+        link.href = url;
+        link.download = fileNameFor(result.name);
+        document.body.appendChild(link);
+        link.click();
+        link.remove();
+        setTimeout(() => URL.revokeObjectURL(url), 60000);
+    };
+
+    const save = async () => {
+        if (!result) return;
+        setSaveState({ kind: 'saving' });
+        try {
+            await saveGeneratedMap({ name: result.name, file: result.file, defaultZoom: printZoom, attribution: result.attribution });
+            setSaveState({ kind: 'saved' });
+        } catch (error) {
+            setSaveState({ kind: 'error', message: (error as Error).message });
+        }
+    };
+
+    const tooBigToSave = !!result && result.file.length > MAX_FILE_BYTES;
+    const canGenerate = !!summary && !summary.tooLarge && !!name && !running;
+    const zoomRange = (zoom: number) => (zoom === settings.maxZoom ? `${zoom}` : `${zoom}–${settings.maxZoom}`);
+
+    return (
+        <div className="flex-1 min-h-0 flex flex-col lg:flex-row bg-base-200 text-base-content">
+            <aside className="lg:w-[26rem] shrink-0 overflow-y-auto bg-base-100 border-r border-base-300 p-4 space-y-6 order-2 lg:order-1">
+                <div>
+                    <a href={reverse('useruploadedmap_list')} className="link link-hover text-sm inline-flex items-center gap-1 opacity-70">
+                        <ArrowLeft size={14} /> My maps
+                    </a>
+                    <h1 className="text-xl font-bold flex items-center gap-2 mt-1">
+                        <Wand2 size={22} /> Map builder
+                    </h1>
+                    <p className="text-sm opacity-70">
+                        Compose a map background from open map data and terrain, and save it to My maps to use in
+                        the route editor and on navigation maps. Your browser downloads the data directly from the
+                        map data providers and draws the map itself; this can take a few minutes for large areas.
+                    </p>
+                </div>
+
+                <Section step={1} title="Area and zoom levels">
+                    <p className="text-sm opacity-70">Draw a rectangle on the map, or type the coordinates in decimal degrees.</p>
+                    <div className="grid grid-cols-2 gap-2">
+                        {(['north', 'south', 'west', 'east'] as const).map(side => (
+                            <label key={side} className="form-control">
+                                <span className="label-text text-xs capitalize">{side}</span>
+                                <input
+                                    type="number"
+                                    step="any"
+                                    className="input input-bordered input-sm w-full"
+                                    value={settings[side]}
+                                    disabled={running}
+                                    onChange={event => update({ [side]: event.target.value })}
+                                />
+                            </label>
+                        ))}
+                    </div>
+                    <div className="grid grid-cols-2 gap-2">
+                        <label className="form-control">
+                            <span className="label-text text-xs">Most detailed zoom</span>
+                            <select
+                                className="select select-bordered select-sm w-full"
+                                value={settings.maxZoom}
+                                disabled={running}
+                                onChange={event => setDetailZoom(Number(event.target.value))}
+                            >
+                                {DETAIL_ZOOMS.map(zoom => (
+                                    <option key={zoom} value={zoom}>
+                                        {zoom}
+                                        {zoom === 13 ? ' (recommended)' : ''}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                        <label className="form-control">
+                            <span className="label-text text-xs">Zoom levels in the file</span>
+                            <select
+                                className="select select-bordered select-sm w-full"
+                                value={settings.minZoom}
+                                disabled={running}
+                                onChange={event => update({ minZoom: Number(event.target.value) })}
+                            >
+                                {Array.from({ length: MAX_EXTRA_LEVELS + 1 }, (_, levels) => settings.maxZoom - levels).map(zoom => (
+                                    <option key={zoom} value={zoom}>
+                                        {zoomRange(zoom)}
+                                    </option>
+                                ))}
+                            </select>
+                        </label>
+                    </div>
+                    {settings.minZoom < settings.maxZoom && (
+                        <label className="form-control">
+                            <span className="label-text text-xs">Lower zoom levels</span>
+                            <select
+                                className="select select-bordered select-sm w-full"
+                                value={settings.lowerLevels}
+                                disabled={running}
+                                onChange={event => update({ lowerLevels: event.target.value as BuilderSettings['lowerLevels'] })}
+                            >
+                                <option value="scaled">Shrunk from zoom {settings.maxZoom}: finer lines, less crowded</option>
+                                <option value="redrawn">Redrawn: same line weights, bolder but busier</option>
+                            </select>
+                        </label>
+                    )}
+                    <p className="text-xs opacity-70">
+                        Navigation maps are usually printed at zoom 12. Drawing the map at zoom 13 and including zoom 12
+                        shrunk from it gives the less crowded look of zoom 13 while printing at zoom 12. Each extra level
+                        adds about a third to the download size of the file.
+                    </p>
+                    {!bounds && <div className="text-sm text-warning">Draw an area or enter valid coordinates (west &lt; east, south &lt; north).</div>}
+                    {summary && (
+                        <div className="text-sm">
+                            {summary.widthKm.toFixed(0)} × {summary.heightKm.toFixed(0)} km · {summary.detailGrid.tileCount} tiles at zoom{' '}
+                            {settings.maxZoom} ({summary.totalTiles} in total) · {summary.metresPerPixel.toFixed(1)} m per pixel
+                            {summary.tooLarge ? (
+                                <div role="alert" className="alert alert-error py-2 mt-2 text-sm">
+                                    Too large for zoom {settings.maxZoom}: at most {MAX_DETAIL_TILES} tiles. Make the area smaller or lower the zoom.
+                                </div>
+                            ) : (
+                                summary.detailGrid.tileCount > 600 && (
+                                    <div className="text-warning mt-1">Large area: downloading the data may take several minutes.</div>
+                                )
+                            )}
+                        </div>
+                    )}
+                </Section>
+
+                <Section step={2} title="Map data">
+                    <label className="form-control">
+                        <span className="label-text text-xs">Data source</span>
+                        <select
+                            className="select select-bordered select-sm w-full"
+                            value={sourceId}
+                            disabled={running || availableSources.length < 2}
+                            onChange={event => update({ sourcePreference: event.target.value })}
+                        >
+                            {availableSources.map(source => (
+                                <option key={source.id} value={source.id}>
+                                    {source.name}
+                                </option>
+                            ))}
+                        </select>
+                    </label>
+                    {selectedSource && <p className="text-xs opacity-70">{selectedSource.description}</p>}
+                    <LayerList
+                        selection={settings.layers}
+                        sourceId={sourceId}
+                        disabled={running}
+                        onChange={layers => update({ layers })}
+                    />
+                </Section>
+
+                <Section step={3} title="Terrain">
+                    <label className="flex items-center gap-2 cursor-pointer">
+                        <input
+                            type="checkbox"
+                            className="checkbox checkbox-sm"
+                            checked={settings.terrain.hillshade}
+                            disabled={running}
+                            onChange={event => update({ terrain: { ...settings.terrain, hillshade: event.target.checked } })}
+                        />
+                        <span className="text-sm">Shaded relief</span>
+                    </label>
+                    {settings.terrain.hillshade && (
+                        <div className="space-y-1 pl-7">
+                            <label className="block">
+                                <span className="text-xs flex justify-between">
+                                    Vertical exaggeration <span>{settings.terrain.exaggeration.toFixed(1)}×</span>
+                                </span>
+                                <input
+                                    type="range"
+                                    className="range range-xs"
+                                    min={0.8}
+                                    max={3}
+                                    step={0.1}
+                                    value={settings.terrain.exaggeration}
+                                    disabled={running}
+                                    onChange={event => update({ terrain: { ...settings.terrain, exaggeration: Number(event.target.value) } })}
+                                />
+                            </label>
+                            <label className="block">
+                                <span className="text-xs flex justify-between">
+                                    Shading strength <span>{Math.round(settings.terrain.intensity * 100)}%</span>
+                                </span>
+                                <input
+                                    type="range"
+                                    className="range range-xs"
+                                    min={0.3}
+                                    max={1}
+                                    step={0.02}
+                                    value={settings.terrain.intensity}
+                                    disabled={running}
+                                    onChange={event => update({ terrain: { ...settings.terrain, intensity: Number(event.target.value) } })}
+                                />
+                            </label>
+                        </div>
+                    )}
+                    <div className="flex items-center gap-2">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                            <input
+                                type="checkbox"
+                                className="checkbox checkbox-sm"
+                                checked={settings.terrain.contours}
+                                disabled={running}
+                                onChange={event => update({ terrain: { ...settings.terrain, contours: event.target.checked } })}
+                            />
+                            <span className="text-sm">Contour lines every</span>
+                        </label>
+                        <select
+                            className="select select-bordered select-xs"
+                            value={settings.terrain.contourInterval}
+                            disabled={running || !settings.terrain.contours}
+                            onChange={event => update({ terrain: { ...settings.terrain, contourInterval: Number(event.target.value) } })}
+                        >
+                            <option value={50}>50 m</option>
+                            <option value={10}>10 m (50 m bold)</option>
+                        </select>
+                    </div>
+                </Section>
+
+                <Section step={4} title="Generate">
+                    <label className="form-control">
+                        <span className="label-text text-xs">Map name</span>
+                        <input
+                            type="text"
+                            className="input input-bordered input-sm w-full"
+                            maxLength={200}
+                            placeholder="For example: Nationals 2027 practice area"
+                            value={settings.name}
+                            disabled={running}
+                            onChange={event => update({ name: event.target.value })}
+                        />
+                    </label>
+                    <div className="flex gap-2">
+                        <button type="button" className="btn btn-primary btn-sm" disabled={!canGenerate} onClick={generate}>
+                            <Play size={16} /> Generate map
+                        </button>
+                        {running && (
+                            <button type="button" className="btn btn-sm" onClick={() => abortRef.current?.abort()}>
+                                <Square size={16} /> Cancel
+                            </button>
+                        )}
+                    </div>
+                    {progress !== null && <progress className="progress progress-primary w-full" value={progress * 100} max={100} />}
+                    {status && <div className="text-xs opacity-70">{status}</div>}
+                    {log.length > 0 && (
+                        <div ref={logRef} className="bg-base-200 rounded p-2 max-h-48 overflow-y-auto font-mono text-xs space-y-0.5">
+                            {log.map((line, index) => (
+                                <div key={index} className={`whitespace-pre-wrap ${LOG_CLASS[line.level]}`}>
+                                    {line.message}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+                </Section>
+
+                {result && (
+                    <Section step={5} title="Save">
+                        <div className="text-sm">
+                            {result.name} · zoom {result.area.minZoom === result.area.maxZoom ? result.area.maxZoom : `${result.area.minZoom}–${result.area.maxZoom}`} ·{' '}
+                            {megabytes(result.file.length)} MB
+                        </div>
+                        {result.area.minZoom < result.area.maxZoom && (
+                            <label className="form-control">
+                                <span className="label-text text-xs">Zoom for navigation maps</span>
+                                <select
+                                    className="select select-bordered select-sm w-full"
+                                    value={printZoom}
+                                    onChange={event => setPrintZoom(Number(event.target.value))}
+                                >
+                                    {Array.from({ length: result.area.maxZoom - result.area.minZoom + 1 }, (_, i) => result.area.minZoom + i).map(zoom => (
+                                        <option key={zoom} value={zoom}>
+                                            {zoom}
+                                        </option>
+                                    ))}
+                                </select>
+                            </label>
+                        )}
+                        {tooBigToSave && (
+                            <div role="alert" className="alert alert-warning py-2 text-sm">
+                                The file is larger than the {megabytes(MAX_FILE_BYTES)} MB limit for My maps. Make the area smaller or drop a zoom level.
+                            </div>
+                        )}
+                        {result.attribution.length > MAX_ATTRIBUTION_LENGTH && (
+                            <div className="text-xs text-warning">The attribution will be shortened to {MAX_ATTRIBUTION_LENGTH} characters.</div>
+                        )}
+                        <div className="flex flex-wrap gap-2">
+                            <button
+                                type="button"
+                                className="btn btn-primary btn-sm"
+                                disabled={tooBigToSave || saveState.kind === 'saving' || saveState.kind === 'saved' || !document.configuration.isOrganizer}
+                                onClick={save}
+                            >
+                                {saveState.kind === 'saving' ? <span className="loading loading-spinner loading-xs" /> : <Save size={16} />} Save to My maps
+                            </button>
+                            <button type="button" className="btn btn-sm" onClick={download}>
+                                <Download size={16} /> Download .mbtiles
+                            </button>
+                            <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowPreview(value => !value)}>
+                                <MapIcon size={16} /> {showPreview ? 'Show area map' : 'Show result'}
+                            </button>
+                        </div>
+                        {!document.configuration.isOrganizer && (
+                            <div className="text-xs opacity-70">Saving to My maps needs an organiser account. You can download the file.</div>
+                        )}
+                        {saveState.kind === 'saved' && (
+                            <div role="alert" className="alert alert-success py-2 text-sm">
+                                <span>
+                                    Saved. The map is being processed and shows up in{' '}
+                                    <a className="link" href={reverse('useruploadedmap_list')}>
+                                        My maps
+                                    </a>{' '}
+                                    in a minute.
+                                </span>
+                            </div>
+                        )}
+                        {saveState.kind === 'error' && (
+                            <div role="alert" className="alert alert-error py-2 text-sm">
+                                {saveState.message}
+                            </div>
+                        )}
+                    </Section>
+                )}
+
+                <p className="text-xs opacity-60">
+                    Data: © OpenStreetMap contributors (ODbL), distributed by the Overture Maps Foundation · Terrain:
+                    Mapterhorn (Copernicus GLO-30 © ESA and national elevation models) · Spain: National Topographic Base
+                    © IGN-CNIG (CC BY 4.0). Airspace is added by Air Sports Live Tracking when maps are printed. Not for
+                    real-world air navigation.
+                </p>
+            </aside>
+
+            <div className="flex-1 min-h-[50vh] lg:min-h-0 relative order-1 lg:order-2">
+                <AreaMap bounds={bounds} onDraw={setBounds} />
+                <div className={`absolute inset-0 z-[1100] bg-base-300 overflow-auto ${showPreview ? '' : 'hidden'}`}>
+                    <canvas ref={previewRef} className="block mx-auto max-w-full h-auto" />
+                </div>
+            </div>
+        </div>
+    );
+};
+
+export default MapBuilderPage;
