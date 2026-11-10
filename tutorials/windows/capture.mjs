@@ -505,7 +505,12 @@ export async function startCapture({
   const [width, height] = viewport.split(",").map(Number);
   // Where the browser says it is (the route editor opens a new route's map there): must match TUTORIAL_GEOLOCATION
   const [latitude, longitude] = geolocation ? geolocation.split(",").map(Number) : [];
-  const browser = await chromium.launch({ headless });
+  const browser = await chromium.launch({
+    headless,
+    // Prevent Google / OAuth providers from rejecting the browser as "automated / not trusted"
+    ignoreDefaultArgs: ["--enable-automation"],
+    args: ["--disable-blink-features=AutomationControlled"],
+  });
   const context = await browser.newContext({
     // Steps replayed from a script go to paths on the site ("/...")
     baseURL: new URL(url).origin,
@@ -749,13 +754,19 @@ export async function startCapture({
     })();`);
   }
   await context.addInitScript(PAGE_SCRIPT);
-  // Links and windows that would open a new tab (the live map) open in this one, as when the video is recorded
+  // Links and windows that would open a new tab (the live map) open in this one, as when the video is recorded.
+  // Keep real popup windows (with window features like width/height, e.g. Google/Firebase OAuth sign-in popups) intact.
   await context.addInitScript(`(() => {
+    const origOpen = window.open.bind(window);
     document.addEventListener("click", (event) => {
       const link = event.target && event.target.closest && event.target.closest("a[target]");
       if (link && link.target !== "_self") link.target = "_self";
     }, true);
-    window.open = (url) => { if (url) window.location.assign(url); return window; };
+    window.open = (url, target, features) => {
+      if (features) return origOpen(url, target, features);
+      if (url) window.location.assign(url);
+      return window;
+    };
   })();`);
   const page = await context.newPage();
   // The browser Playwright drives shows no dialogs (confirm, alert, "leave this page?"): they are accepted, here and when
