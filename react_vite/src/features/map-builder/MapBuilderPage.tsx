@@ -1,5 +1,5 @@
 import React, { useEffect, useMemo, useRef, useState } from 'react';
-import { ArrowLeft, Download, Map as MapIcon, Play, Save, Square, Wand2 } from 'lucide-react';
+import { ArrowLeft, Download, FlaskConical, Map as MapIcon, Play, RotateCcw, Save, Square, Wand2 } from 'lucide-react';
 
 import { reverse } from '../../urls';
 import AreaMap from './AreaMap';
@@ -9,7 +9,7 @@ import type { DataCache, GeneratedMap } from './engine/generate';
 import { MAX_FILE_BYTES, createDataCache, generateMap } from './engine/generate';
 import { preferredSourceId, sourcesCovering } from './engine/sources';
 import type { Bounds, MapArea } from './engine/tiles';
-import { MAX_DETAIL_TILES, isValidBounds, summariseArea } from './engine/tiles';
+import { MAX_DETAIL_TILES, SAMPLE_SIDE_TILES, isValidBounds, sampleBounds, summariseArea } from './engine/tiles';
 import type { LogLevel } from './engine/types';
 import { CancelledError } from './engine/types';
 import { loadSqlJs } from './loadSqlJs';
@@ -50,6 +50,7 @@ const MapBuilderPage: React.FC = () => {
     const [log, setLog] = useState<LogLine[]>([]);
     const [result, setResult] = useState<GeneratedMap | null>(null);
     const [showPreview, setShowPreview] = useState(false);
+    const [fullBounds, setFullBounds] = useState<Bounds | null>(null);
     const [printZoom, setPrintZoom] = useState(PREFERRED_PRINT_ZOOM);
     const [saveState, setSaveState] = useState<{ kind: 'idle' | 'saving' | 'saved' | 'error'; message?: string }>({ kind: 'idle' });
     const abortRef = useRef<AbortController | null>(null);
@@ -86,13 +87,39 @@ const MapBuilderPage: React.FC = () => {
     const setBounds = (value: Bounds) =>
         update({ west: String(value.west), south: String(value.south), east: String(value.east), north: String(value.north) });
 
+    const handleDrawBounds = (value: Bounds) => {
+        setFullBounds(null);
+        setBounds(value);
+    };
+
+    const shrinkToTestArea = () => {
+        if (!bounds) return;
+        const sample = sampleBounds(bounds, settings.maxZoom);
+        if (sample === bounds) return;
+        if (!fullBounds) setFullBounds(bounds);
+        setBounds(sample);
+    };
+
+    const restoreFullArea = () => {
+        if (!fullBounds) return;
+        setBounds(fullBounds);
+        setFullBounds(null);
+    };
+
+    const fullAreaSummary = useMemo(
+        () => (fullBounds ? summariseArea({ bounds: fullBounds, minZoom: settings.minZoom, maxZoom: settings.maxZoom }) : null),
+        [fullBounds, settings.minZoom, settings.maxZoom],
+    );
+    const canShrinkToSample = !!bounds && !!summary && summary.detailGrid.tileCount > SAMPLE_SIDE_TILES * SAMPLE_SIDE_TILES;
+
     const setDetailZoom = (maxZoom: number) => {
         const levels = settings.maxZoom - settings.minZoom;
         update({ maxZoom, minZoom: maxZoom - levels });
     };
 
-    const generate = async () => {
-        if (!area || !summary || summary.tooLarge || !name) return;
+    const generateForArea = async (targetArea: MapArea) => {
+        const targetSummary = summariseArea(targetArea);
+        if (targetSummary.tooLarge || !name) return;
         const controller = new AbortController();
         abortRef.current = controller;
         setRunning(true);
@@ -112,8 +139,8 @@ const MapBuilderPage: React.FC = () => {
             const generated = await generateMap(
                 {
                     name,
-                    area,
-                    sourceId,
+                    area: targetArea,
+                    sourceId: preferredSourceId(targetArea.bounds, settings.sourcePreference),
                     layers: settings.layers,
                     terrain: settings.terrain,
                     lowerLevels: settings.lowerLevels,
@@ -124,7 +151,7 @@ const MapBuilderPage: React.FC = () => {
                 previewRef.current,
             );
             setResult(generated);
-            setPrintZoom(Math.min(area.maxZoom, Math.max(area.minZoom, PREFERRED_PRINT_ZOOM)));
+            setPrintZoom(Math.min(targetArea.maxZoom, Math.max(targetArea.minZoom, PREFERRED_PRINT_ZOOM)));
             reporter.log(
                 `Finished: ${generated.tileCount} tiles, ${megabytes(generated.file.length)} MB, in ${generated.seconds.toFixed(0)} s.`,
                 'success',
@@ -142,6 +169,19 @@ const MapBuilderPage: React.FC = () => {
             setProgress(null);
             abortRef.current = null;
         }
+    };
+
+    const generate = () => {
+        if (!area) return;
+        void generateForArea(area);
+    };
+
+    const restoreAndGenerateFull = () => {
+        if (!fullBounds || !name || running) return;
+        const targetBounds = fullBounds;
+        setBounds(targetBounds);
+        setFullBounds(null);
+        void generateForArea({ bounds: targetBounds, minZoom: settings.minZoom, maxZoom: settings.maxZoom });
     };
 
     const download = () => {
@@ -174,7 +214,7 @@ const MapBuilderPage: React.FC = () => {
     return (
         <div className="flex-1 min-h-0 flex flex-col lg:flex-row bg-base-200 text-base-content">
             <aside className="lg:w-[26rem] shrink-0 overflow-y-auto bg-base-100 border-r border-base-300 p-4 space-y-6 order-2 lg:order-1">
-                <div>
+                <div className="space-y-2">
                     <a href={reverse('useruploadedmap_list')} className="link link-hover text-sm inline-flex items-center gap-1 opacity-70">
                         <ArrowLeft size={14} /> My maps
                     </a>
@@ -184,8 +224,25 @@ const MapBuilderPage: React.FC = () => {
                     <p className="text-sm opacity-70">
                         Compose a map background from open map data and terrain, and save it to My maps to use in
                         the route editor and on navigation maps. Your browser downloads the data directly from the
-                        map data providers and draws the map itself; this can take a few minutes for large areas.
+                        map data providers and draws the map itself.
                     </p>
+                    <div className="bg-base-200 rounded-lg p-3 text-xs space-y-1">
+                        <div className="font-semibold">Recommended workflow</div>
+                        <ol className="list-decimal list-inside space-y-0.5 opacity-80">
+                            <li>
+                                <strong>Draw your full competition area</strong> on the map, then click{' '}
+                                <strong>Shrink to small test area</strong>.
+                            </li>
+                            <li>
+                                <strong>Preview &amp; tune on the test area:</strong> generate the small sample in seconds, pan/zoom the
+                                result on the map, and tweak layers or terrain (re-renders use cached data).
+                            </li>
+                            <li>
+                                <strong>Restore full area, generate &amp; save:</strong> expand back to the full competition extent,
+                                generate the final file, and save it to <strong>My maps</strong>.
+                            </li>
+                        </ol>
+                    </div>
                 </div>
 
                 <Section step={1} title="Area and zoom levels">
@@ -273,6 +330,38 @@ const MapBuilderPage: React.FC = () => {
                             )}
                         </div>
                     )}
+                    <div className="bg-base-200 rounded-lg p-2.5 space-y-2 text-xs">
+                        <p className="opacity-80">
+                            <strong>Tip:</strong> Experiment on a small test section first (a few tiles) to preview layers, terrain shading, and
+                            zoom levels interactively. Downloaded data for the test section is cached while you tweak settings; once happy,
+                            restore the full area and generate the final map.
+                        </p>
+                        {(canShrinkToSample || fullBounds) && (
+                            <div className="flex flex-wrap gap-2">
+                                {canShrinkToSample && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-xs btn-outline"
+                                        disabled={running}
+                                        onClick={shrinkToTestArea}
+                                    >
+                                        <FlaskConical size={13} /> Shrink to small test area ({SAMPLE_SIDE_TILES}×{SAMPLE_SIDE_TILES} tiles)
+                                    </button>
+                                )}
+                                {fullBounds && (
+                                    <button
+                                        type="button"
+                                        className="btn btn-xs btn-secondary"
+                                        disabled={running}
+                                        onClick={restoreFullArea}
+                                    >
+                                        <RotateCcw size={13} /> Restore full area
+                                        {fullAreaSummary ? ` (${fullAreaSummary.widthKm.toFixed(0)} × ${fullAreaSummary.heightKm.toFixed(0)} km)` : ''}
+                                    </button>
+                                )}
+                            </div>
+                        )}
+                    </div>
                 </Section>
 
                 <Section step={2} title="Map data">
@@ -381,10 +470,22 @@ const MapBuilderPage: React.FC = () => {
                             onChange={event => update({ name: event.target.value })}
                         />
                     </label>
-                    <div className="flex gap-2">
+                    <div className="flex flex-wrap gap-2">
                         <button type="button" className="btn btn-primary btn-sm" disabled={!canGenerate} onClick={generate}>
-                            <Play size={16} /> Generate map
+                            <Play size={16} />{' '}
+                            {fullBounds && summary ? `Generate test preview (${summary.totalTiles} tiles)` : 'Generate map'}
                         </button>
+                        {fullBounds && !running && (
+                            <button
+                                type="button"
+                                className="btn btn-secondary btn-sm"
+                                disabled={!name || (fullAreaSummary?.tooLarge ?? false)}
+                                onClick={restoreAndGenerateFull}
+                                title="Restore the full competition area and generate the final map"
+                            >
+                                <RotateCcw size={15} /> Restore &amp; generate full map
+                            </button>
+                        )}
                         {running && (
                             <button type="button" className="btn btn-sm" onClick={() => abortRef.current?.abort()}>
                                 <Square size={16} /> Cancel
@@ -405,11 +506,37 @@ const MapBuilderPage: React.FC = () => {
                 </Section>
 
                 {result && (
-                    <Section step={5} title="Save">
+                    <Section step={5} title="Preview and save">
                         <div className="text-sm">
                             {result.name} · zoom {result.area.minZoom === result.area.maxZoom ? result.area.maxZoom : `${result.area.minZoom}–${result.area.maxZoom}`} ·{' '}
                             {megabytes(result.file.length)} MB
                         </div>
+                        <p className="text-xs opacity-70">
+                            Pan and zoom the map on the right to inspect the generated tiles at 1:1 resolution. Use the zoom buttons at the top
+                            of the map to compare each generated zoom level before saving.
+                        </p>
+                        {fullBounds && (
+                            <div role="alert" className="alert alert-info py-2 text-xs flex flex-col items-start gap-1.5">
+                                <span>
+                                    You are currently previewing the small test area (the dashed outline on the map shows your full competition
+                                    area). Once you are satisfied with the look, generate the full area before saving.
+                                </span>
+                                <div className="flex flex-wrap gap-1.5">
+                                    <button
+                                        type="button"
+                                        className="btn btn-xs btn-secondary"
+                                        disabled={running || !name || (fullAreaSummary?.tooLarge ?? false)}
+                                        onClick={restoreAndGenerateFull}
+                                    >
+                                        <Play size={13} /> Restore &amp; generate full area
+                                        {fullAreaSummary ? ` (${fullAreaSummary.widthKm.toFixed(0)} × ${fullAreaSummary.heightKm.toFixed(0)} km)` : ''}
+                                    </button>
+                                    <button type="button" className="btn btn-xs btn-ghost" disabled={running} onClick={restoreFullArea}>
+                                        <RotateCcw size={13} /> Restore full area only
+                                    </button>
+                                </div>
+                            </div>
+                        )}
                         {result.area.minZoom < result.area.maxZoom && (
                             <label className="form-control">
                                 <span className="label-text text-xs">Zoom for navigation maps</span>
@@ -447,7 +574,7 @@ const MapBuilderPage: React.FC = () => {
                                 <Download size={16} /> Download .mbtiles
                             </button>
                             <button type="button" className="btn btn-ghost btn-sm" onClick={() => setShowPreview(value => !value)}>
-                                <MapIcon size={16} /> {showPreview ? 'Show area map' : 'Show result'}
+                                <MapIcon size={16} /> {showPreview ? 'Hide preview on map' : 'Show preview on map'}
                             </button>
                         </div>
                         {!document.configuration.isOrganizer && (
@@ -481,8 +608,15 @@ const MapBuilderPage: React.FC = () => {
             </aside>
 
             <div className="flex-1 min-h-[50vh] lg:min-h-0 relative order-1 lg:order-2">
-                <AreaMap bounds={bounds} onDraw={setBounds} />
-                <div className={`absolute inset-0 z-[1100] bg-base-300 overflow-auto ${showPreview ? '' : 'hidden'}`}>
+                <AreaMap
+                    bounds={bounds}
+                    fullBounds={fullBounds}
+                    onDraw={handleDrawBounds}
+                    preview={result}
+                    showPreview={showPreview}
+                    onTogglePreview={() => setShowPreview(value => !value)}
+                />
+                <div className={`absolute inset-0 z-[1100] bg-base-300 overflow-auto ${running && showPreview ? '' : 'hidden'}`}>
                     <canvas ref={previewRef} className="block mx-auto max-w-full h-auto" />
                 </div>
             </div>

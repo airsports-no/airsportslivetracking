@@ -1,6 +1,6 @@
 import initSqlJs from 'sql.js';
 
-import { composeAttribution, gridKey, planLayers } from './generate';
+import { composeAttribution, gridKey, planLayers, tileKey } from './generate';
 import { LAYERS_BY_ID, defaultLayerSelection } from './layers';
 import { MbtilesWriter } from './mbtiles';
 import { levelTransform } from './render';
@@ -10,6 +10,7 @@ import { sourceTag } from './sources/overture';
 import { clipRing } from './sources/vectorTiles';
 import {
     MAX_DETAIL_TILES,
+    SAMPLE_SIDE_TILES,
     TILE_SIZE,
     frameForArea,
     gridBounds,
@@ -17,6 +18,7 @@ import {
     longitudeToPixel,
     pixelToLatitude,
     pixelToLongitude,
+    sampleBounds,
     summariseArea,
     tileGridForBounds,
     tileGridsForArea,
@@ -70,6 +72,20 @@ describe('tile maths', () => {
         const huge = summariseArea({ bounds: { west: 5, south: 58, east: 12, north: 62 }, minZoom: 13, maxZoom: 13 });
         expect(huge.detailGrid.tileCount).toBeGreaterThan(MAX_DETAIL_TILES);
         expect(huge.tooLarge).toBe(true);
+    });
+
+    it('shrinks a large area to a small centered sample patch of at most 3x3 detail tiles', () => {
+        const sample = sampleBounds(OSLO, 13);
+        expect(sample.west).toBeGreaterThanOrEqual(OSLO.west);
+        expect(sample.east).toBeLessThanOrEqual(OSLO.east);
+        expect(sample.south).toBeGreaterThanOrEqual(OSLO.south);
+        expect(sample.north).toBeLessThanOrEqual(OSLO.north);
+        const grid = tileGridForBounds(sample, 13);
+        expect(grid.columns).toBeLessThanOrEqual(SAMPLE_SIDE_TILES);
+        expect(grid.rows).toBeLessThanOrEqual(SAMPLE_SIDE_TILES);
+        // An area already within 3x3 tiles is returned unchanged
+        expect(sampleBounds(sample, 13)).toEqual(sample);
+        expect(tileKey(13, 4335, 2378)).toBe('13/4335/2378');
     });
 });
 

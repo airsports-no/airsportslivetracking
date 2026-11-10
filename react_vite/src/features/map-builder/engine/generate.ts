@@ -49,12 +49,16 @@ export interface GenerationRequest {
 export interface GeneratedMap {
     name: string;
     file: Uint8Array;
+    /** Rendered PNG tiles keyed by `tileKey(zoom, x, y)` (XYZ numbering), for interactive previewing. */
+    tiles: Map<string, Uint8Array>;
     area: MapArea;
     tileCount: number;
     attribution: string;
     /** How long the generation took. */
     seconds: number;
 }
+
+export const tileKey = (zoom: number, x: number, y: number): string => `${zoom}/${x}/${y}`;
 
 /**
  * Downloaded data for one area, kept between runs so that changing the styling or the layer
@@ -150,6 +154,7 @@ async function renderLevel(
     elevation: Float32Array | null,
     terrain: TerrainOptions,
     writer: MbtilesWriter,
+    tiles: Map<string, Uint8Array>,
     preview: HTMLCanvasElement | null,
     styleScale: number,
     context: TaskContext,
@@ -197,7 +202,11 @@ async function renderLevel(
                 for (let column = 0; column < columns; column++) {
                     tileContext.clearRect(0, 0, TILE_SIZE, TILE_SIZE);
                     tileContext.drawImage(blockCanvas, column * TILE_SIZE, row * TILE_SIZE, TILE_SIZE, TILE_SIZE, 0, 0, TILE_SIZE, TILE_SIZE);
-                    writer.addTile(grid.zoom, grid.tileX0 + blockX + column, grid.tileY0 + blockY + row, await canvasToPng(tileCanvas));
+                    const tileX = grid.tileX0 + blockX + column;
+                    const tileY = grid.tileY0 + blockY + row;
+                    const png = await canvasToPng(tileCanvas);
+                    writer.addTile(grid.zoom, tileX, tileY, png);
+                    tiles.set(tileKey(grid.zoom, tileX, tileY), png);
                     done++;
                 }
             }
@@ -244,6 +253,7 @@ export async function generateMap(
     const attribution = composeAttribution(usedSources, usesTerrain);
     const layers = plan.map(entry => entry.layer);
 
+    const tiles = new Map<string, Uint8Array>();
     const writer = new MbtilesWriter(SQL, {
         name: request.name,
         description: request.name,
@@ -282,6 +292,7 @@ export async function generateMap(
                 elevation,
                 terrain,
                 writer,
+                tiles,
                 grid === grids[0] ? preview : null,
                 request.lowerLevels === 'scaled' ? 2 ** (grid.zoom - area.maxZoom) : 1,
                 { ...context, reporter: slice(reporter, progress + share * 0.3, progress + share) },
@@ -291,7 +302,7 @@ export async function generateMap(
         const tileCount = writer.tileCount;
         const file = writer.finish();
         reporter.progress(1);
-        return { name: request.name, file, area, tileCount, attribution, seconds: (performance.now() - started) / 1000 };
+        return { name: request.name, file, tiles, area, tileCount, attribution, seconds: (performance.now() - started) / 1000 };
     } catch (error) {
         writer.discard();
         throw error;

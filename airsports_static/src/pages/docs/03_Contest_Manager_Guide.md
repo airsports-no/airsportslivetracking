@@ -128,12 +128,19 @@ The Flight Order is the document package (PDF) generated for each contestant. Co
 
 ---
 
-## 7. User Uploaded Maps and Permissions
+## 7. User Uploaded Maps, Map Builder, and Permissions
 
-Organizers can upload their own maps to be used as backgrounds in the tracking map or within the Flight Orders.
+Organizers can upload their own maps or compose custom map backgrounds directly in the browser using the **Map Builder**, and use them as backgrounds on the live tracking map, in the route editor, or within Flight Orders.
+
+### Composing a Map with the Built-in Map Builder
+Under **My maps → Create a map**, the **Map Builder** composes a custom `.mbtiles` map background in your browser from OpenStreetMap (worldwide) or official national vector data (such as IGN in Spain), combined with Mapterhorn shaded relief and optional contour lines:
+1. **Select your full competition area first:** Draw a rectangle covering the entire competition area on the map (or click *Use current view*) and pick your zoom levels (for example, drawing at detail zoom **13** and including zoom **12** shrunk from it for uncluttered printed navigation maps).
+2. **Experiment on a small test area (`3×3` tiles):** Click **Shrink to small test area (3×3 tiles)**. The builder remembers your full competition extent (shown as a dashed outline) while shrinking the active selection to a small center patch that generates in just a few seconds.
+3. **Preview interactively & tune settings:** Click **Generate test preview**. When finished, pan and zoom the generated tiles directly on the map at 1:1 resolution, use the zoom buttons (`12`, `13`, …) at the top of the map to compare each generated zoom level, and adjust layers, shaded relief, or contours. Because downloaded data for the test patch is cached in memory, re-generating after a style tweak takes only a couple of seconds without re-downloading.
+4. **Generate the full extent and save:** Once you are happy with the look, click **Restore & generate full map** to render the entire competition area, choose the default **Zoom for navigation maps**, and click **Save to My maps**.
 
 ### Map Uploads
-*   **Formats:** Supports georeferenced map formats.
+*   **Formats:** Supports georeferenced map formats (`.mbtiles`).
 *   **Size Limit:** The maximum allowed size for map uploads is **100 MB**. For larger maps, consider removing zoom levels or splitting the map into multiple parts.
 *   **Recommended Zoom:** Experience shows that **zoom level 12** is typically the best for navigation maps.
 *   **Source Preference:** You can set an uploaded map as the primary source for a task's Flight Order, overriding the global map defaults.

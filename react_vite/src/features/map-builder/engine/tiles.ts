@@ -11,6 +11,9 @@ export const TILE_SIZE = 256;
 /** The largest number of tiles at the detail (maximum) zoom level a single map may have. */
 export const MAX_DETAIL_TILES = 1000;
 
+/** Default width and height (in detail-zoom tiles) of a small test patch for previewing settings quickly. */
+export const SAMPLE_SIDE_TILES = 3;
+
 export interface Bounds {
     west: number;
     south: number;
@@ -178,4 +181,27 @@ export function summariseArea(area: MapArea): AreaSummary {
         totalTiles: grids.reduce((sum, grid) => sum + grid.tileCount, 0),
         tooLarge: grids[0].tileCount > MAX_DETAIL_TILES,
     };
+}
+
+/**
+ * Picks a small rectangle in the middle of `bounds` covering at most `sideTiles × sideTiles` tiles
+ * at `zoom`, so the user can generate and inspect a representative sample in a few seconds before
+ * generating the full extent.
+ */
+export function sampleBounds(bounds: Bounds, zoom: number, sideTiles = SAMPLE_SIDE_TILES): Bounds {
+    const round = (value: number) => Math.round(value * 100000) / 100000;
+    const grid = tileGridForBounds(bounds, zoom);
+    if (grid.columns <= sideTiles && grid.rows <= sideTiles) return bounds;
+    const cols = Math.min(grid.columns, sideTiles);
+    const rows = Math.min(grid.rows, sideTiles);
+    const startCol = grid.tileX0 + Math.floor((grid.columns - cols) / 2);
+    const endCol = startCol + cols - 1;
+    const startRow = grid.tileY0 + Math.floor((grid.rows - rows) / 2);
+    const endRow = startRow + rows - 1;
+    // Inset by 1 pixel from the tile edges so tileGridForBounds stays within the chosen columns/rows.
+    const west = Math.max(bounds.west, pixelToLongitude(startCol * TILE_SIZE + 1, zoom));
+    const east = Math.min(bounds.east, pixelToLongitude((endCol + 1) * TILE_SIZE - 1, zoom));
+    const north = Math.min(bounds.north, pixelToLatitude(startRow * TILE_SIZE + 1, zoom));
+    const south = Math.max(bounds.south, pixelToLatitude((endRow + 1) * TILE_SIZE - 1, zoom));
+    return { west: round(west), south: round(south), east: round(east), north: round(north) };
 }

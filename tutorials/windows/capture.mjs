@@ -191,28 +191,34 @@ const PAGE_SCRIPT = `(() => {
 
   window.addEventListener("keydown", (event) => {
     if (isOurs(event)) return;
-    if (event.key === "F7") {
+    const isCtrlShift = event.ctrlKey && event.shiftKey && !event.altKey && !event.metaKey;
+    const isPlain = !event.ctrlKey && !event.shiftKey && !event.altKey && !event.metaKey;
+    if ((isCtrlShift && (event.code === "F7" || event.code === "Digit7")) || (isPlain && event.code === "F7")) {
       event.preventDefault();
+      event.stopPropagation();
       openOverlayBox();
       return;
     }
-    if (event.key === "F8") {
+    if ((isCtrlShift && (event.code === "F8" || event.code === "Digit8")) || (isPlain && event.code === "F8")) {
       event.preventDefault();
+      event.stopPropagation();
       openPhaseBox();
       return;
     }
-    if (event.key === "F9") {
+    if ((isCtrlShift && (event.code === "F9" || event.code === "Digit9")) || (isPlain && event.code === "F9")) {
       event.preventDefault();
+      event.stopPropagation();
       toggleHidden();
       return;
     }
-    if (event.key === "F10") {
+    if ((isCtrlShift && (event.code === "F10" || event.code === "Digit0")) || (isPlain && event.code === "F10")) {
       event.preventDefault();
+      event.stopPropagation();
       flushTyping();
       window.__captureToggleRecording && window.__captureToggleRecording();
       return;
     }
-    if (["Enter", "Escape", "Tab"].includes(event.key)) {
+    if (isPlain && ["Enter", "Escape", "Tab"].includes(event.key)) {
       flushTyping();
       emit("await page.keyboard.press(" + quote(event.key) + ");");
     }
@@ -225,17 +231,35 @@ const PAGE_SCRIPT = `(() => {
     const hud = document.createElement("div");
     hud.setAttribute("data-capture-ui", "");
     hud.setAttribute("data-capture-hud", "");
-    hud.textContent = "F7 Overlay · F8 Phase & Voice · F9 Hide setup · F10 Pause";
-    hud.style.cssText = "position:fixed;bottom:10px;left:12px;z-index:2147483647;background:rgba(15,23,42,0.78);" +
-      "color:rgba(248,250,252,0.88);font:500 12px system-ui,sans-serif;padding:4px 10px;border-radius:999px;" +
-      "border:1px solid rgba(255,255,255,0.12);backdrop-filter:blur(6px);pointer-events:none";
+    hud.style.cssText = "position:fixed;bottom:10px;left:12px;z-index:2147483647;background:rgba(15,23,42,0.84);" +
+      "color:rgba(248,250,252,0.92);font:500 12px system-ui,sans-serif;padding:4px 8px;border-radius:999px;" +
+      "border:1px solid rgba(255,255,255,0.14);backdrop-filter:blur(6px);display:flex;gap:4px;align-items:center";
+    const items = [
+      ["Ctrl+Shift+F7 Overlay", openOverlayBox],
+      ["Ctrl+Shift+F8 Phase & Voice", openPhaseBox],
+      ["Ctrl+Shift+F9 Hide setup", () => toggleHidden()],
+      ["Ctrl+Shift+F10 Pause", () => { flushTyping(); window.__captureToggleRecording && window.__captureToggleRecording(); }],
+    ];
+    for (const [label, action] of items) {
+      const btn = document.createElement("button");
+      btn.type = "button";
+      btn.textContent = label;
+      btn.style.cssText = "background:transparent;border:none;color:inherit;font:inherit;padding:2px 6px;" +
+        "border-radius:999px;cursor:pointer";
+      btn.addEventListener("click", (event) => {
+        event.preventDefault();
+        event.stopPropagation();
+        action();
+      });
+      hud.append(btn);
+    }
     document.body.append(hud);
   };
   document.addEventListener("DOMContentLoaded", showControlsHud);
   showControlsHud();
 
-  // F9 starts and ends a hidden part: what you do in between is performed when the video is recorded, but cut from it
-  // (setting something up the tutorial is not about). A badge shows while it is on, and stays on across pages.
+  // Ctrl+Shift+F9 (or F9) starts and ends a hidden part: what you do in between is performed when the video is recorded,
+  // but cut from it (setting something up the tutorial is not about). A badge shows while it is on, and stays on across pages.
   const HIDDEN_KEY = "__captureHidden";
   const PENDING_PHASE_KEY = "__capturePendingPhase";
   const showHiddenBadge = () => {
@@ -252,7 +276,7 @@ const PAGE_SCRIPT = `(() => {
     const badge = document.createElement("div");
     badge.setAttribute("data-capture-ui", "");
     badge.setAttribute("data-capture-badge", "");
-    badge.textContent = "Hidden from the video (F9 to end)";
+    badge.textContent = "Hidden from the video (Ctrl+Shift+F9 / F9 to end)";
     badge.style.cssText = "position:fixed;top:12px;right:12px;z-index:2147483647;background:#e11d24;color:white;" +
       "font:600 13px system-ui,sans-serif;padding:6px 12px;border-radius:999px;box-shadow:0 4px 14px rgba(0,0,0,0.35);" +
       "pointer-events:none";
@@ -263,7 +287,7 @@ const PAGE_SCRIPT = `(() => {
     if (sessionStorage.getItem(HIDDEN_KEY) === "on") {
       sessionStorage.removeItem(HIDDEN_KEY);
       document.querySelectorAll("[data-capture-badge]").forEach((badge) => badge.remove());
-      document.title = document.title.replace(/^\[HIDDEN\]\s*/, "");
+      document.title = document.title.replace(/^\\[HIDDEN\\]\\s*/, "");
       emit("await endHidden();");
       emit("// ── Shown again ──");
       // A phase marked during the hidden part starts here, where the video comes back (its narration would be cut)
@@ -672,7 +696,7 @@ export async function startCapture({
         const badge = document.createElement("div");
         badge.setAttribute("data-capture-ui", "");
         badge.setAttribute("data-capture-paused", "");
-        badge.textContent = "Not recording (F10 to start)";
+        badge.textContent = "Not recording (Ctrl+Shift+F10 / F10 to start)";
         badge.style.cssText = "position:fixed;top:12px;left:50%;transform:translateX(-50%);z-index:2147483647;" +
           "background:#334155;color:white;font:600 13px system-ui,sans-serif;padding:6px 12px;border-radius:999px;" +
           "box-shadow:0 4px 14px rgba(0,0,0,0.35);pointer-events:none";
@@ -681,7 +705,7 @@ export async function startCapture({
       .catch(() => undefined);
   const setRecording = async (target, on) => {
     recording = on;
-    console.log(on ? "Recording." : "Paused: not recording (F10 to start again).");
+    console.log(on ? "Recording." : "Paused: not recording (Ctrl+Shift+F10 / F10 to start again).");
     // Recording starts from the map's exact view, wherever it was set up
     if (on) {
       const view = await target
@@ -731,7 +755,15 @@ export async function startCapture({
         report({ kind: "drag", x: event.clientX, y: event.clientY });
       }, { capture: true, passive: true });
       window.addEventListener("keydown", (event) => {
-        if (isOurs(event) || ["F7", "F8", "F9", "F10"].includes(event.key)) return;
+        if (
+          isOurs(event) ||
+          event.ctrlKey ||
+          event.altKey ||
+          event.metaKey ||
+          ["Control", "Shift", "Alt", "Meta", "F7", "F8", "F9", "F10"].includes(event.key)
+        ) {
+          return;
+        }
         const element = event.target;
         if (lastTyped.element === element && Date.now() - lastTyped.at < 2000) {
           lastTyped.at = Date.now();
@@ -1061,14 +1093,15 @@ if (process.argv[1] && process.argv[1].endsWith("capture.mjs")) {
       console.log(`Now record "${chapter}". Close the browser when you are done.`);
     } catch (error) {
       console.error(`The replay stopped: ${error.message}`);
-      console.log("Set the page up by hand, then press F10 to start recording.");
+      console.log("Set the page up by hand, then press Ctrl+Shift+F10 (or F10) to start recording.");
     }
   } else if (process.argv.includes("--paused")) {
-    console.log("Not recording yet: set the page up, then press F10 to start (and F10 again to pause).");
+    console.log("Not recording yet: set the page up, then press Ctrl+Shift+F10 (or F10) to start (and again to pause).");
   } else {
     console.log(
       `${liveDir ? "LIVE RECORDING (frames + clicks captured in one pass)" : "Recording clicks"}. ` +
-        "Hotkeys: F7 Overlay · F8 Phase & Voice · F9 Hide setup · F10 Pause.",
+        "Hotkeys: Ctrl+Shift+F7 (or Ctrl+Shift+7 / F7) Overlay · Ctrl+Shift+F8 (or Ctrl+Shift+8 / F8) Phase & Voice · " +
+        "Ctrl+Shift+F9 (or Ctrl+Shift+9 / F9) Hide setup · Ctrl+Shift+F10 (or Ctrl+Shift+0 / F10) Pause.",
     );
     console.log("Close the browser window when you are done.");
   }

@@ -93,11 +93,12 @@ powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf
 ```
 
 While clicking through the website:
-- **Log in once** if prompted—your session is saved to `.auth/state.json` when you close the browser.
-- Press **`F8`** at the start of each logical phase to name the chapter and type the voiceover sentence spoken during that phase.
-- Press **`F7`** whenever you want a floating **on-screen text overlay card** (e.g. a tip, keyboard shortcut, or rule summary) to appear on screen.
-- Press **`F9`** before and after any setup actions that should be executed during replay but **cut from the video** (the video crossfades across the hidden section).
-- Press **`F10`** to pause/resume recording clicks while you inspect the page.
+- **Log in once** if prompted (or run `npm run login` beforehand)—your session is saved to `.auth/state.json` when you close the browser.
+- Press **`Ctrl+Shift+F8`** (or **`Ctrl+Shift+8`** / **`F8`**) at the start of each logical phase to name the chapter and type the voiceover sentence spoken during that phase.
+- Press **`Ctrl+Shift+F7`** (or **`Ctrl+Shift+7`** / **`F7`**) whenever you want a floating **on-screen text overlay card** (e.g. a tip, keyboard shortcut, or rule summary) to appear on screen.
+- Press **`Ctrl+Shift+F9`** (or **`Ctrl+Shift+9`** / **`F9`**) before and after any setup actions that should be executed during replay but **cut from the video** (the video crossfades across the hidden section).
+- Press **`Ctrl+Shift+F10`** (or **`Ctrl+Shift+0`** / **`F10`**) to pause/resume recording clicks while you inspect the page.
+- *(In `codegen` mode, you can also click the buttons directly on the bottom-left HUD pill without recording a click.)*
 - **Close the browser** when finished.
 
 Closing the browser saves `recorded/my-tutorial.js` and **automatically creates `scripts/my-tutorial.ts`** if it does not exist yet.
@@ -195,11 +196,11 @@ powershell -ExecutionPolicy Bypass -File \\wsl.localhost\Ubuntu-24.04\home\kolaf
 ### Step 2: Perform the task once in real time
 
 - **2× High-DPI frames & actions are captured live** directly into `public/recordings/bg-map-generator/frames/` and `timeline.json` (while also writing `scripts/bg-map-generator.ts` for reference).
-- **All hotkeys (`F7`–`F10`) work without appearing in the captured video frames**:
-  - **`F7` (Overlay)** and **`F8` (Phase & Voice)**: Frame capture automatically pauses while the input dialog is on screen and resumes after it closes, so the dialog never appears in a single recorded frame.
-  - **`F9` (Hide setup / long wait)** and **`F10` (Pause recording)**: Status indicators are shown in the browser window's title bar (`[HIDDEN]`, `[PAUSED]`) instead of floating on the page, keeping the video frames 100% clean.
+- **All hotkeys (`Ctrl+Shift+F7`–`F10`, `Ctrl+Shift+7`–`0`, or `F7`–`F10`) work without appearing in the captured video frames**:
+  - **`Ctrl+Shift+F7` / `Ctrl+Shift+7` / `F7` (Overlay)** and **`Ctrl+Shift+F8` / `Ctrl+Shift+8` / `F8` (Phase & Voice)**: Frame capture automatically pauses while the input dialog is on screen and resumes after it closes, so the dialog never appears in a single recorded frame.
+  - **`Ctrl+Shift+F9` / `Ctrl+Shift+9` / `F9` (Hide setup / long wait)** and **`Ctrl+Shift+F10` / `Ctrl+Shift+0` / `F10` (Pause recording)**: Status indicators are shown in the browser window's title bar (`[HIDDEN]`, `[PAUSED]`) instead of floating on the page, keeping the video frames 100% clean.
 - **How to handle a long download (two options)**:
-  - **Option A — Cut the middle of the download with a crossfade (`F9`)**: Once the download starts and you have shown the progress indicator for a couple of seconds, press **`F9`**, let the download run, and press **`F9`** again right before it finishes. The rendered video will crossfade smoothly from the start of the download to completion.
+  - **Option A — Cut the middle of the download with a crossfade (`Ctrl+Shift+F9` / `F9`)**: Once the download starts and you have shown the progress indicator for a couple of seconds, press **`Ctrl+Shift+F9`** (or `Ctrl+Shift+9` / `F9`), let the download run, and press it again right before it finishes. The rendered video will crossfade smoothly from the start of the download to completion.
   - **Option B — Fast-forward in the Timing Editor (`×4`)**: Let the download run normally, and in Step 3 select the download step in `npm run timing` and set **Speed to `×4`** (any stretches where the screen is completely still are already shortened automatically by the dead-time cutter).
 - **Close the browser** when done.
 
@@ -273,16 +274,18 @@ When you have a section of real-world camera footage that needs matching AI voic
 
 ---
 
-## 6. Click Recorder Reference, Hotkeys (`F7`–`F10`) & Chapter Re-Recording
+## 6. Click Recorder Reference, Hotkeys (`Ctrl+Shift+F7`–`F10` / `F7`–`F10`) & Chapter Re-Recording
 
-When running `npm run codegen` / `npm run live` (Linux) or `windows\codegen.ps1` (Windows), a subtle HUD pill in the bottom-left corner reminds you of the four recorder hotkeys:
+When running `npm run codegen` / `npm run live` (Linux) or `windows\codegen.ps1` (Windows), a subtle HUD pill in the bottom-left corner reminds you of the four recorder hotkeys (and in `codegen` mode, you can also click the buttons directly on the HUD pill).
+
+To avoid window-manager, laptop media-key, and Chrome DevTools shortcut conflicts on Linux (GNOME/X11) and Windows, each action supports **`Ctrl+Shift+F7`–`F10`**, **`Ctrl+Shift+7`–`0`**, and plain **`F7`–`F10`**:
 
 | Hotkey | Action | What it writes to the script |
 |---|---|---|
-| **`F7`** | **On-Screen Text Overlay** — Opens a dialog for card heading (e.g. `Tip`), position (`top-right`, `top-left`, `bottom-right`, `bottom-left`, `center`), overlay text, and optional simultaneous narration. | `await overlay("...", { title: "Tip", position: "top-right" });` (plus `await say("...", { wait: false });` if narration is entered) |
-| **`F8`** | **New Phase & Voice** — Opens a dialog for the chapter title and the narration spoken during the phase. | `await chapter("...");` and `await say("...", { wait: false });` |
-| **`F9`** | **Toggle Hidden Setup** — Shows a red badge while active. Actions performed while hidden run during `npm run record` to set up state, but are cut from the rendered video with a crossfade. | `await startHidden();` … `await endHidden();` |
-| **`F10`** | **Pause / Resume Recording** — Lets you inspect the page or set things up manually without writing steps. | *(nothing written while paused; on resume, logs `map.view` if on a map)* |
+| **`Ctrl+Shift+F7`** *(or `Ctrl+Shift+7` / `F7`)* | **On-Screen Text Overlay** — Opens a dialog for card heading (e.g. `Tip`), position (`top-right`, `top-left`, `bottom-right`, `bottom-left`, `center`), overlay text, and optional simultaneous narration. | `await overlay("...", { title: "Tip", position: "top-right" });` (plus `await say("...", { wait: false });` if narration is entered) |
+| **`Ctrl+Shift+F8`** *(or `Ctrl+Shift+8` / `F8`)* | **New Phase & Voice** — Opens a dialog for the chapter title and the narration spoken during the phase. | `await chapter("...");` and `await say("...", { wait: false });` |
+| **`Ctrl+Shift+F9`** *(or `Ctrl+Shift+9` / `F9`)* | **Toggle Hidden Setup** — Shows a red badge while active. Actions performed while hidden run during `npm run record` to set up state, but are cut from the rendered video with a crossfade. | `await startHidden();` … `await endHidden();` |
+| **`Ctrl+Shift+F10`** *(or `Ctrl+Shift+0` / `F10`)* | **Pause / Resume Recording** — Lets you inspect the page or set things up manually without writing steps. | *(nothing written while paused; on resume, logs `map.view` if on a map)* |
 
 ### Re-recording a single chapter's clicks
 
