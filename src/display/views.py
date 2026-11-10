@@ -1089,7 +1089,19 @@ class UserUploadedMapCreate(PermissionRequiredMixin, CreateView):
         transaction.on_commit(lambda: process_user_uploaded_map.delay(instance.pk))
 
         self.object = instance
+        if self._wants_json():
+            return JsonResponse({"id": instance.pk, "list_url": self.get_success_url()}, status=201)
         return HttpResponseRedirect(self.get_success_url())
+
+    def form_invalid(self, form):
+        if self._wants_json():
+            return JsonResponse({"errors": {field: list(messages) for field, messages in form.errors.items()}}, status=400)
+        return super().form_invalid(form)
+
+    def _wants_json(self) -> bool:
+        # The in-browser map builder (react_vite/src/features/map-builder) posts here too, and
+        # asks for JSON so it can show the outcome without leaving the page.
+        return "application/json" in self.request.headers.get("Accept", "")
 
     def get_success_url(self):
         return reverse("useruploadedmap_list")
