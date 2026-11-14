@@ -51,6 +51,8 @@ export interface GenerationRequest {
      * lines, uncrowded), 'redrawn' uses the same line weights at every level (bolder, busier).
      */
     lowerLevels: 'scaled' | 'redrawn';
+    /** Overall multiplier for line widths (default 1). */
+    lineScale?: number;
 }
 
 export interface GeneratedMap {
@@ -165,6 +167,7 @@ async function renderLevel(
     tiles: Map<string, Uint8Array>,
     preview: HTMLCanvasElement | null,
     styleScale: number,
+    lineScale: number,
     context: TaskContext,
 ): Promise<void> {
     const transform = levelTransform(frame, grid);
@@ -204,7 +207,7 @@ async function renderLevel(
             if (terrain.contours && elevation) {
                 drawContours(blockContext, elevation, grid, x0, y0, width, height, terrain.contourInterval);
             }
-            drawFeatures(blockContext, x0, y0, width, height, layers, features, transform, styleScale);
+            drawFeatures(blockContext, x0, y0, width, height, layers, features, transform, styleScale, lineScale);
             previewContext?.drawImage(blockCanvas, x0 * previewScale, y0 * previewScale, width * previewScale, height * previewScale);
             for (let row = 0; row < rows; row++) {
                 for (let column = 0; column < columns; column++) {
@@ -309,6 +312,7 @@ export async function generateMap(
                 tiles,
                 grid === grids[0] ? preview : null,
                 request.lowerLevels === 'scaled' ? 2 ** (grid.zoom - area.maxZoom) : 1,
+                request.lineScale ?? 1,
                 { ...context, reporter: slice(reporter, progress + share * 0.3, progress + share) },
             );
             progress += share;

@@ -1,9 +1,10 @@
 import initSqlJs from 'sql.js';
 
 import { composeAttribution, gridKey, planLayers, tileKey } from './generate';
+import type { LineLayer } from './layers';
 import { LAYERS_BY_ID, defaultLayerSelection } from './layers';
 import { MbtilesWriter } from './mbtiles';
-import { levelTransform } from './render';
+import { drawFeatures, levelTransform } from './render';
 import { BASE_SOURCE, preferredSourceId, sourcesCovering, sourcesForLayer } from './sources';
 import { isInSpain } from './sources/ignSpain';
 import { sourceTag } from './sources/overture';
@@ -160,6 +161,57 @@ describe('data sources', () => {
         expect(clipped.every(([x, y]) => x >= 0 && x <= 10 && y >= 0 && y <= 10)).toBe(true);
         expect(clipped.length).toBe(4);
         expect(clipRing([[20, 20], [30, 20], [30, 30]], 0, 0, 10, 10)).toEqual([]);
+    });
+});
+
+describe('road and railway line weights', () => {
+    it('sizes tracks, roads and railways thick enough to print clearly at 1:200,000–1:250,000', () => {
+        const widthOf = (id: string) => (LAYERS_BY_ID[id] as LineLayer).width;
+        expect(widthOf('track')).toBeGreaterThanOrEqual(1.5);
+        expect(widthOf('local_road')).toBeGreaterThan(widthOf('track'));
+        expect(widthOf('tertiary_road')).toBeGreaterThan(widthOf('local_road'));
+        expect(widthOf('secondary_road')).toBeGreaterThan(widthOf('tertiary_road'));
+        expect(widthOf('primary_road')).toBeGreaterThan(widthOf('secondary_road'));
+        expect(widthOf('motorway')).toBeGreaterThan(widthOf('primary_road'));
+        expect(widthOf('railway')).toBeGreaterThanOrEqual(2.5);
+        expect(widthOf('minor_power_line')).toBeGreaterThan(1.0);
+        expect(widthOf('power_line')).toBeGreaterThan(widthOf('minor_power_line'));
+    });
+
+    it('scales line widths and dash patterns by both styleScale and lineScale', () => {
+        const lineWidths: number[] = [];
+        const dashes: number[][] = [];
+        let currentDash: number[] = [];
+        const context = {
+            save: () => {},
+            restore: () => {},
+            beginPath: () => {},
+            moveTo: () => {},
+            lineTo: () => {},
+            stroke: () => dashes.push(currentDash),
+            setLineDash: (pattern: number[]) => {
+                currentDash = pattern;
+            },
+            set lineWidth(value: number) {
+                lineWidths.push(value);
+            },
+            lineJoin: 'round',
+            lineCap: 'round',
+            fillStyle: '',
+            strokeStyle: '',
+        } as unknown as CanvasRenderingContext2D;
+
+        const layers = [LAYERS_BY_ID.local_road, LAYERS_BY_ID.power_line];
+        const features = {
+            local_road: [{ kind: 'line' as const, line: new Float32Array([0, 0, 10, 10]), box: [0, 0, 10, 10] as [number, number, number, number] }],
+            power_line: [{ kind: 'line' as const, line: new Float32Array([0, 0, 10, 10]), box: [0, 0, 10, 10] as [number, number, number, number] }],
+        };
+        drawFeatures(context, 0, 0, 256, 256, layers, features, { scale: 1, offsetX: 0, offsetY: 0 }, 0.5, 1.5);
+
+        expect(lineWidths[0]).toBeCloseTo((LAYERS_BY_ID.local_road as LineLayer).width * 0.75);
+        expect(lineWidths[1]).toBeCloseTo((LAYERS_BY_ID.power_line as LineLayer).width * 0.75);
+        expect(dashes[0]).toEqual([]);
+        expect(dashes[1]).toEqual((LAYERS_BY_ID.power_line as LineLayer).dash!.map(d => d * 0.75));
     });
 });
 

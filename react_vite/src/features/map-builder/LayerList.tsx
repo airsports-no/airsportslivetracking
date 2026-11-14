@@ -5,23 +5,24 @@ import { LAYER_GROUPS, LAYERS } from './engine/layers';
 import { drawSwatch } from './engine/render';
 import { sourcesForLayer } from './engine/sources';
 
-const Swatch: React.FC<{ layer: LayerDefinition }> = ({ layer }) => {
+const Swatch: React.FC<{ layer: LayerDefinition; lineScale: number }> = ({ layer, lineScale }) => {
     const canvasRef = useRef<HTMLCanvasElement>(null);
     useEffect(() => {
-        if (canvasRef.current) drawSwatch(canvasRef.current, layer);
-    }, [layer]);
+        if (canvasRef.current) drawSwatch(canvasRef.current, layer, lineScale);
+    }, [layer, lineScale]);
     return <canvas ref={canvasRef} width={40} height={16} className="rounded-sm border border-base-300 shrink-0" aria-hidden />;
 };
 
 interface Props {
     selection: Record<string, boolean>;
     sourceId: string;
+    lineScale: number;
     disabled: boolean;
     onChange(selection: Record<string, boolean>): void;
 }
 
 /** The map elements, grouped, each with a sample of its style and where its data comes from. */
-const LayerList: React.FC<Props> = ({ selection, sourceId, disabled, onChange }) => (
+const LayerList: React.FC<Props> = ({ selection, sourceId, lineScale, disabled, onChange }) => (
     <div className="space-y-3">
         {LAYER_GROUPS.map(group => {
             const layers = LAYERS.filter(layer => layer.group === group.id)
@@ -41,7 +42,7 @@ const LayerList: React.FC<Props> = ({ selection, sourceId, disabled, onChange })
                                     disabled={disabled}
                                     onChange={event => onChange({ ...selection, [layer.id]: event.target.checked })}
                                 />
-                                <Swatch layer={layer} />
+                                <Swatch layer={layer} lineScale={lineScale} />
                                 <span className="text-sm flex-1">{layer.label}</span>
                                 <span
                                     className="badge badge-ghost badge-xs whitespace-nowrap"

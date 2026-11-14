@@ -94,7 +94,7 @@ export function drawSymbol(
 }
 
 /** A small sample of how a layer is drawn, for the layer list. */
-export function drawSwatch(canvas: HTMLCanvasElement, layer: LayerDefinition): void {
+export function drawSwatch(canvas: HTMLCanvasElement, layer: LayerDefinition, lineScale = 1): void {
     const context = canvas.getContext('2d');
     if (!context) return;
     const { width, height } = canvas;
@@ -109,7 +109,7 @@ export function drawSwatch(canvas: HTMLCanvasElement, layer: LayerDefinition): v
         context.globalAlpha = 1;
     } else if (layer.kind === 'line') {
         context.strokeStyle = layer.color;
-        context.lineWidth = Math.max(1, layer.width);
+        context.lineWidth = Math.min(height - 2, Math.max(1, layer.width * lineScale));
         context.setLineDash(layer.dash ? layer.dash.map(length => length * 0.8) : []);
         context.beginPath();
         context.moveTo(3, height / 2);
@@ -125,10 +125,11 @@ export function drawSwatch(canvas: HTMLCanvasElement, layer: LayerDefinition): v
  * Draws the features of the given layers into a block of one zoom level's grid. The block's
  * top-left corner is (x0, y0) in grid pixels and maps to the canvas origin.
  *
- * Line widths and symbol sizes are multiplied by `styleScale`. With 1, every zoom level uses the
- * same weights in output pixels, so a lower level shows them over a larger area and looks busier,
- * like any tiled map. With the level's own scale factor (0.5 one level below the detail zoom), a
- * lower level looks like the detail level shrunk: finer, less crowded, more detail per pixel.
+ * Line widths and symbol sizes are multiplied by `styleScale` (with `lineScale` applied to line
+ * widths and dash patterns). With `styleScale` = 1, every zoom level uses the same weights in
+ * output pixels, so a lower level shows them over a larger area and looks busier, like any tiled
+ * map. With the level's own scale factor (0.5 one level below the detail zoom), a lower level
+ * looks like the detail level shrunk: finer, less crowded, more detail per pixel.
  */
 export function drawFeatures(
     context: CanvasRenderingContext2D,
@@ -140,6 +141,7 @@ export function drawFeatures(
     features: FeaturesByLayer,
     transform: LevelTransform,
     styleScale = 1,
+    lineScale = 1,
 ): void {
     const { scale } = transform;
     const dx = transform.offsetX - x0;
@@ -188,9 +190,10 @@ export function drawFeatures(
                 for (const ring of feature.rings) trace(ring, true);
                 context.fill('evenodd');
             }
+            const weightScale = styleScale * lineScale;
             context.strokeStyle = layer.color;
-            context.lineWidth = layer.width * styleScale;
-            context.setLineDash((layer.dash ?? []).map(length => length * styleScale));
+            context.lineWidth = layer.width * weightScale;
+            context.setLineDash((layer.dash ?? []).map(length => length * weightScale));
             context.beginPath();
             for (const feature of inBlock) if (feature.kind === 'line') trace(feature.line, false);
             context.stroke();

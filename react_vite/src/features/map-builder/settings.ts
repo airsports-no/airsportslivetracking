@@ -15,6 +15,7 @@ export interface BuilderSettings {
     sourcePreference: string | null;
     terrain: TerrainOptions;
     lowerLevels: 'scaled' | 'redrawn';
+    lineScale: number;
     name: string;
 }
 
@@ -33,7 +34,8 @@ export const DEFAULT_SETTINGS: BuilderSettings = {
     layers: defaultLayerSelection(),
     sourcePreference: null,
     terrain: { hillshade: true, exaggeration: 1.8, intensity: 0.82, contours: false, contourInterval: 50 },
-    lowerLevels: 'scaled',
+    lowerLevels: 'redrawn',
+    lineScale: 1,
     name: '',
 };
 
@@ -52,6 +54,7 @@ export function loadSettings(): BuilderSettings {
         };
         if (!DETAIL_ZOOMS.includes(settings.maxZoom)) settings.maxZoom = DEFAULT_SETTINGS.maxZoom;
         settings.minZoom = Math.min(settings.maxZoom, Math.max(settings.maxZoom - MAX_EXTRA_LEVELS, settings.minZoom));
+        if (!Number.isFinite(settings.lineScale) || settings.lineScale <= 0) settings.lineScale = DEFAULT_SETTINGS.lineScale;
         return settings;
     } catch {
         return DEFAULT_SETTINGS;

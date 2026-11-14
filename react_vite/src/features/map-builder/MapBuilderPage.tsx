@@ -145,6 +145,7 @@ const MapBuilderPage: React.FC = () => {
                     layers: settings.layers,
                     terrain: settings.terrain,
                     lowerLevels: settings.lowerLevels,
+                    lineScale: settings.lineScale,
                 },
                 SQL,
                 cacheRef.current,
@@ -305,15 +306,15 @@ const MapBuilderPage: React.FC = () => {
                                 disabled={running}
                                 onChange={event => update({ lowerLevels: event.target.value as BuilderSettings['lowerLevels'] })}
                             >
+                                <option value="redrawn">Redrawn: same line weights, clearer when printed (recommended)</option>
                                 <option value="scaled">Shrunk from zoom {settings.maxZoom}: finer lines, less crowded</option>
-                                <option value="redrawn">Redrawn: same line weights, bolder but busier</option>
                             </select>
                         </label>
                     )}
                     <p className="text-xs opacity-70">
-                        Navigation maps are usually printed at zoom 12. Drawing the map at zoom 13 and including zoom 12
-                        shrunk from it gives the less crowded look of zoom 13 while printing at zoom 12. Each extra level
-                        adds about a third to the download size of the file.
+                        Navigation maps are usually printed at zoom 12. Redrawing zoom 12 keeps full road and railway
+                        widths so they stay visible when printed at 1:200,000–1:250,000; shrinking from zoom 13 gives
+                        finer lines if the area is dense. Each extra level adds about a third to the file size.
                     </p>
                     {!bounds && <div className="text-sm text-warning">Draw an area or enter valid coordinates (west &lt; east, south &lt; north).</div>}
                     {summary && (
@@ -382,9 +383,25 @@ const MapBuilderPage: React.FC = () => {
                         </select>
                     </label>
                     {selectedSource && <p className="text-xs opacity-70">{selectedSource.description}</p>}
+                    <label className="block">
+                        <span className="text-xs flex justify-between">
+                            Line thickness <span>{settings.lineScale.toFixed(1)}×</span>
+                        </span>
+                        <input
+                            type="range"
+                            className="range range-xs"
+                            min={0.5}
+                            max={2.5}
+                            step={0.1}
+                            value={settings.lineScale}
+                            disabled={running}
+                            onChange={event => update({ lineScale: Number(event.target.value) })}
+                        />
+                    </label>
                     <LayerList
                         selection={settings.layers}
                         sourceId={sourceId}
+                        lineScale={settings.lineScale}
                         disabled={running}
                         onChange={layers => update({ layers })}
                     />
