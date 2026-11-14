@@ -47,3 +47,17 @@ class TestGenerateFlightOrdersVectorTileAlignment(SimpleTestCase):
 
     def test_pseudo_mercator_sphere_is_reexported_from_map_plotter(self):
         self.assertIs(generate_flight_orders.PSEUDO_MERCATOR_SPHERE, PSEUDO_MERCATOR_SPHERE)
+
+    def test_photo_and_turning_point_generators_do_not_use_global_pyplot_state(self):
+        # Regression test for PYTHON-DJANGO-2N: concurrent requests calling plt.close() or
+        # creating standard Axes caused plt.plot(...) (which routes through plt.gca()) to plot
+        # cartopy transforms onto a plain matplotlib.axes._axes.Axes and raise
+        # "ValueError: Axes should be an instance of GeoAxes".
+        for fn in (generate_flight_orders.generate_photo, generate_flight_orders.generate_turning_point_image):
+            source = inspect.getsource(fn)
+            self.assertNotIn("plt.plot", source)
+            self.assertNotIn("plt.figure", source)
+            self.assertNotIn("plt.axes", source)
+            self.assertNotIn("plt.savefig", source)
+            self.assertIn("Figure(", source)
+            self.assertIn("ax.plot(", source)

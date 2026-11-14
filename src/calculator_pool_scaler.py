@@ -36,6 +36,11 @@ logger = logging.getLogger(__name__)
 # (listName: live_calculator in the now-removed ScaledObject).
 LIVE_CALCULATOR_QUEUE_KEY = "live_calculator"
 
+# Transient Kubernetes control-plane hiccups (e.g. GKE master maintenance returning a single
+# ConnectionRefusedError during the 60s poll loop) are expected and self-heal on the next poll;
+# only escalate to ERROR (Sentry) when reconciliation fails repeatedly in a row.
+RECONCILE_FAILURE_ERROR_THRESHOLD = 3
+
 
 def scaling_enabled() -> bool:
     return settings.PRODUCTION and os.environ.get("CALCULATOR_POOL_SCALING_ENABLED", "0") == "1"
@@ -158,10 +163,10 @@ def wake_pool_if_cold():
         if _current_replicas(apps_api, deployment, namespace) == 0:
             logger.info(f"calculator_pool_scaler: waking {deployment} 0 -> 1 (new calculator dispatched, pool was cold)")
             _patch_replicas(apps_api, deployment, namespace, 1)
-    except Exception:
+    except Exception as exc:
         # Never let a Kubernetes API hiccup break position ingestion - the
         # periodic scaler will still catch this contestant on its next poll.
-        logger.exception("calculator_pool_scaler: failed to wake pool")
+        logger.warning(f"calculator_pool_scaler: failed to wake pool: {exc}")
 
 
 def _reconcile_once(apps_api, redis_connection: redis.Redis, cache_redis_connection: redis.Redis, config: dict):
@@ -230,9 +235,21 @@ def run_forever():
             time.sleep(poll_seconds)
 
     logger.info(f"calculator_pool_scaler: starting with {scaler_config}, polling every {poll_seconds}s")
+    consecutive_failures = 0
     while True:
         try:
             _reconcile_once(apps_api, redis_connection, cache_redis_connection, scaler_config)
-        except Exception:
-            logger.exception("calculator_pool_scaler: failed to reconcile replica count")
+            consecutive_failures = 0
+        except Exception as exc:
+            consecutive_failures += 1
+            if consecutive_failures >= RECONCILE_FAILURE_ERROR_THRESHOLD:
+                logger.exception(
+                    f"calculator_pool_scaler: failed to reconcile replica count "
+                    f"({consecutive_failures} consecutive failures)"
+                )
+            else:
+                logger.warning(
+                    f"calculator_pool_scaler: transient failure reconciling replica count "
+                    f"({consecutive_failures}/{RECONCILE_FAILURE_ERROR_THRESHOLD}): {exc}"
+                )
         time.sleep(poll_seconds)

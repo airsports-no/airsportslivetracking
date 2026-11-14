@@ -11,11 +11,18 @@ Fixed by TileDownsamplingMixin.image_for_domain(), which downsamples the merged 
 output page's own pixel size (plus headroom) before matplotlib ever sees it.
 """
 
+from io import BytesIO
+import tempfile
+from unittest.mock import MagicMock, patch
+
 import numpy as np
 from django.test import SimpleTestCase
+from PIL import Image
+from pymbtiles import MBtiles
 
 from display.flight_order_and_maps.map_plotter import (
     TileDownsamplingMixin,
+    UserUploadedMBTiles,
     compute_tile_target_pixel_size,
 )
 
@@ -122,3 +129,25 @@ class TestTileDownsamplingMixin(SimpleTestCase):
         self.assertTrue(np.all(mosaic[3, 0:2] == 30))
         # Top-right (t11)
         self.assertTrue(np.all(mosaic[2:4, 2:4] == 50))
+
+    def test_user_uploaded_mbtiles_image_for_domain_reads_tiles_across_worker_threads(self):
+        # Regression test for PYTHON-DJANGO-2K / PYTHON-DJANGO-2M: UserUploadedMBTiles.image_for_domain()
+        # opens the SQLite MBTiles connection on the calling thread while Cartopy's
+        # GoogleWTS.image_for_domain() dispatches get_image() across a ThreadPoolExecutor.
+        with tempfile.NamedTemporaryFile(suffix=".mbtiles") as tmp:
+            buf = BytesIO()
+            Image.new("RGB", (256, 256), color=(12, 34, 56)).save(buf, format="PNG")
+            tile_bytes = buf.getvalue()
+            with MBtiles(tmp.name, mode="w") as out:
+                out.write_tile(z=2, x=1, y=2, data=tile_bytes)
+
+            uploaded_map = MagicMock()
+            uploaded_map.get_local_file_path.return_value = tmp.name
+            imagery = UserUploadedMBTiles(uploaded_map)
+            with patch.object(imagery, "find_images", return_value=[(1, 1, 2), (2, 1, 2)]):
+                mosaic, _, origin = imagery.image_for_domain(target_domain=None, target_z=2)
+
+            self.assertEqual(origin, "lower")
+            self.assertEqual(mosaic.shape[0], 256)
+            self.assertGreaterEqual(mosaic.shape[1], 511)
+            self.assertIsNone(imagery._mbtiles_src)

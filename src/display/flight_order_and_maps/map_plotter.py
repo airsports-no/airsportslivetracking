@@ -1,6 +1,7 @@
 import gc
 import io
 import logging
+import sqlite3
 import threading
 from io import BytesIO
 
@@ -642,6 +643,27 @@ class AirsportsOSM(MyGoogleWTS):
         return f"https://a.tile.openstreetmap.org/{z}/{x}/{y}.png"
 
 
+class _ThreadSafeMBtiles(MBtiles):
+    """
+    pymbtiles.MBtiles opens sqlite3 with Python's default check_same_thread=True, which raises
+    sqlite3.ProgrammingError when Cartopy's GoogleWTS.image_for_domain() dispatches get_image()
+    across its ThreadPoolExecutor worker threads. Opening the read-only connection with
+    check_same_thread=False (serialized by UserUploadedMBTiles._mbtiles_lock) lets worker threads
+    reuse the single connection safely.
+    """
+
+    def __init__(self, filename):
+        if not os.path.exists(filename):
+            raise OSError(f"mbtiles not found: {filename}")
+        self._db = sqlite3.connect(
+            f"file:{filename}?mode=ro",
+            uri=True,
+            isolation_level=None,
+            check_same_thread=False,
+        )
+        self._cursor = self._db.cursor()
+
+
 class UserUploadedMBTiles(TileDownsamplingMixin, GoogleWTS):
     def __init__(self, user_uploaded_map: UserUploadedMap, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -653,7 +675,7 @@ class UserUploadedMBTiles(TileDownsamplingMixin, GoogleWTS):
         return "something"
 
     def image_for_domain(self, target_domain, target_z):
-        with MBtiles(self.mbtiles_file) as src:
+        with _ThreadSafeMBtiles(self.mbtiles_file) as src:
             self._mbtiles_src = src
             try:
                 return super().image_for_domain(target_domain, target_z)

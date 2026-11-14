@@ -140,6 +140,36 @@ class TestRunForeverStartup:
         assert mock_build_api.call_count == 2
         mock_reconcile.assert_called_once()
 
+    @patch("calculator_pool_scaler.scaling_enabled", return_value=True)
+    @patch("calculator_pool_scaler._build_apps_api", return_value=object())
+    @patch("calculator_pool_scaler.redis.Redis")
+    @patch("calculator_pool_scaler._reconcile_once")
+    @patch("calculator_pool_scaler.time.sleep")
+    @patch("calculator_pool_scaler.logger")
+    def test_transient_reconcile_failures_warn_before_escalating_to_error(
+        self, mock_logger, mock_sleep, mock_reconcile, mock_redis, mock_build_api, mock_enabled
+    ):
+        # Regression test for PYTHON-DJANGO-2P: a single transient GKE API ConnectionRefusedError
+        # during the 60s poll loop should log a warning, and only escalate to logger.exception
+        # after RECONCILE_FAILURE_ERROR_THRESHOLD consecutive failures (resetting after success).
+        class StopLoop(Exception):
+            pass
+
+        mock_reconcile.side_effect = [
+            RuntimeError("transient 1"),
+            None,  # resets consecutive_failures to 0
+            RuntimeError("fail 1"),
+            RuntimeError("fail 2"),
+            RuntimeError("fail 3"),
+        ]
+        mock_sleep.side_effect = [None, None, None, None, StopLoop]
+
+        with pytest.raises(StopLoop):
+            calculator_pool_scaler.run_forever()
+
+        assert mock_logger.warning.call_count == 3
+        mock_logger.exception.assert_called_once()
+
 
 class TestReconcileOnceIndependentFloor:
     """

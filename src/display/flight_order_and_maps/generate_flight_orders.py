@@ -15,6 +15,7 @@ import matplotlib
 
 matplotlib.use("Agg")
 import matplotlib.pyplot as plt
+from matplotlib.figure import Figure
 import typst
 from cartopy import geodesic
 from cartopy.io.img_tiles import GoogleTiles
@@ -205,14 +206,14 @@ def generate_turning_point_image(
     """The parameter waypoints must be the full list of waypoints, otherwise the the plotted track will be wrong."""
     waypoint = waypoints[index]
     imagery = GoogleTiles(style="satellite")
-    plt.figure(figsize=(10, 10))
-    ax = plt.axes(projection=imagery.crs)
+    fig = Figure(figsize=(10, 10))
+    ax = fig.add_subplot(projection=imagery.crs)
     ax.add_image(imagery, zoom_level)
     ax.set_aspect("auto")
-    plt.plot(waypoint.longitude, waypoint.latitude, transform=PSEUDO_MERCATOR_SPHERE)
+    ax.plot(waypoint.longitude, waypoint.latitude, transform=PSEUDO_MERCATOR_SPHERE)
     if not is_unknown_leg:
         if index > 0:
-            plt.plot(
+            ax.plot(
                 [waypoints[index - 1].longitude, waypoints[index].longitude],
                 [waypoints[index - 1].latitude, waypoints[index].latitude],
                 transform=PSEUDO_MERCATOR_SPHERE,
@@ -220,7 +221,7 @@ def generate_turning_point_image(
                 linewidth=2,
             )
         if index < len(waypoints) - 1:
-            plt.plot(
+            ax.plot(
                 [waypoints[index].longitude, waypoints[index + 1].longitude],
                 [waypoints[index].latitude, waypoints[index + 1].latitude],
                 transform=PSEUDO_MERCATOR_SPHERE,
@@ -245,7 +246,8 @@ def generate_turning_point_image(
     geom = Polygon(circle_points)
     ax.add_geometries((geom,), crs=PSEUDO_MERCATOR_SPHERE, facecolor="none", edgecolor="red", linewidth=3)
     figdata = BytesIO()
-    plt.savefig(figdata, format="png", dpi=200, transparent=True)
+    fig.savefig(figdata, format="png", dpi=200, transparent=True)
+    fig.clear()
     figdata.seek(0)
     img = Image.open(figdata, formats=["PNG"])
     if index > 0:
@@ -275,17 +277,16 @@ def generate_turning_point_image(
     image_data = BytesIO()
     cropped.save(image_data, "PNG")
     image_data.seek(0)
-    plt.close()
     return image_data
 
 
 def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_level: int):
     imagery = GoogleTiles(style="satellite")
-    plt.figure(figsize=(10, 10))
-    ax = plt.axes(projection=imagery.crs)
+    fig = Figure(figsize=(10, 10))
+    ax = fig.add_subplot(projection=imagery.crs)
     ax.add_image(imagery, zoom_level)
     ax.set_aspect("auto")
-    plt.plot(photo.longitude, photo.latitude, transform=PSEUDO_MERCATOR_SPHERE)
+    ax.plot(photo.longitude, photo.latitude, transform=PSEUDO_MERCATOR_SPHERE)
     proj = PSEUDO_MERCATOR_SPHERE
     utm = utm_from_lat_lon(photo.latitude, photo.longitude)
     centre_x, centre_y = utm.transform_point(photo.longitude, photo.latitude, proj)
@@ -295,7 +296,8 @@ def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_
     extent = [x0, x1, y0, y1]
     ax.set_extent(extent, crs=PSEUDO_MERCATOR_SPHERE)
     figdata = BytesIO()
-    plt.savefig(figdata, format="png", dpi=200, transparent=True)
+    fig.savefig(figdata, format="png", dpi=200, transparent=True)
+    fig.clear()
     figdata.seek(0)
     img = Image.open(figdata, formats=["PNG"])
     bearing = waypoint.bearing_next if waypoint.bearing_next is not None else 0
@@ -315,7 +317,6 @@ def generate_photo(photo: Photo, waypoint: Waypoint, meters_across: float, zoom_
     # numbers the observation photos by their place instead)
     temporary_file = NamedTemporaryFile(suffix=".png", delete=False)
     cropped.save(temporary_file, "PNG")
-    plt.close()
     temporary_file.seek(0)
     return temporary_file
 
