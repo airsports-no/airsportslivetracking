@@ -25,7 +25,7 @@ class GeneratedPhotoTest(TestCase):
         waypoint = MagicMock(bearing_next=0)
         with (
             patch("display.flight_order_and_maps.generate_flight_orders.GoogleTiles"),
-            patch("display.flight_order_and_maps.generate_flight_orders.plt", figure),
+            patch("display.flight_order_and_maps.generate_flight_orders.Figure", return_value=figure),
         ):
             temporary_file = generate_photo(photo, waypoint, 350, 17)
         with Image.open(temporary_file.name) as image:
