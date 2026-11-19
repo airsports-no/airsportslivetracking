@@ -1,0 +1,334 @@
+---
+import Layout from '../layouts/Layout.astro';
+import { Image } from 'astro:assets';
+import pokerRunImg from '../assets/img/PokerRun.png';
+import anrImg from '../assets/img/ANR.png';
+import precisionImg from '../assets/img/Precision.png';
+import msfsAppImg from '../assets/img/msfs_app.png';
+import taskImg from '../assets/img/task.png';
+import dashboardImg from '../assets/img/dashboard.png';
+import nordic2025 from '../assets/img/nordic2025.png';
+---
+
+<Layout title="For Flying Clubs & Fly-Ins">
+    <main>
+        <!-- Hero Section -->
+        <div class="relative overflow-hidden bg-slate-900 text-white pt-20 pb-24">
+            <div class="absolute inset-0 z-0">
+                <Image src={nordic2025} alt="" class="w-full h-full object-cover opacity-25 mix-blend-luminosity" width={1920} height={1080} />
+                <div class="absolute inset-0 bg-gradient-to-b from-[#2563EB]/85 via-slate-900/80 to-slate-900"></div>
+            </div>
+
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 relative z-10 text-center">
+                <div class="inline-block px-4 py-1.5 mb-6 text-[10px] sm:text-xs font-bold tracking-[0.2em] uppercase bg-white/10 backdrop-blur-md rounded-full border border-white/20 text-blue-100">
+                    For Flying Clubs, CFIs &amp; Fly-In Organizers
+                </div>
+                <h1 class="text-4xl sm:text-5xl md:text-7xl font-extrabold tracking-tighter mb-8 font-lexend italic uppercase leading-tight max-w-5xl mx-auto">
+                    Turn Your Next Club Fly-In Into a <span class="text-blue-300">Live Spectator Sport</span>
+                </h1>
+                <p class="text-lg sm:text-xl text-blue-100 max-w-3xl mx-auto mb-12 leading-relaxed font-medium">
+                    No ground marshals, no logger boxes, and no custom spreadsheets. Run an automated GPS Poker Run, Beginner Corridor Challenge (ANR), Time-Gate (SEMA/CIMA) practice, or Season-Long Club Cup in 15 minutes using just pilots' smartphones.
+                </p>
+
+                <div class="flex flex-wrap justify-center gap-4 sm:gap-6">
+                    <a href="/docs/17_Club_Event_Recipes" class="bg-blue-600 text-white px-8 py-4 rounded-2xl font-extrabold text-sm sm:text-base hover:bg-blue-700 transition-all shadow-2xl shadow-blue-900/30 active:scale-95 uppercase tracking-wider">
+                        Explore the 5 Club Event Recipes →
+                    </a>
+                    <a href="https://app.airsports.no/competition-map/774/2734?mode=playback&time=2025-07-06T11:45:50&speed=40&autoplay=true&rankingExpanded=true" class="bg-orange-500 text-white px-8 py-4 rounded-2xl font-extrabold text-sm sm:text-base hover:bg-orange-600 transition-all shadow-2xl shadow-orange-900/30 active:scale-95 uppercase tracking-wider">
+                        Watch a Live Competition Replay →
+                    </a>
+                    <a href="/docs/12_First_Contest_in_15_Minutes" class="bg-white/10 border-2 border-white/30 text-white px-8 py-4 rounded-2xl font-extrabold text-sm sm:text-base hover:bg-white/20 transition-all active:scale-95 uppercase tracking-wider">
+                        Start Your First Contest in 15 Min
+                    </a>
+                </div>
+            </div>
+        </div>
+
+        <!-- Value Strip -->
+        <div class="bg-slate-950 border-y border-white/10 py-10 text-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-8">
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-blue-600/20 border border-blue-500/30 flex items-center justify-center flex-shrink-0 text-blue-400 font-black font-lexend">01</div>
+                        <div>
+                            <h2 class="text-sm font-extrabold uppercase tracking-wider text-white mb-1">Zero Ground Volunteers Needed</h2>
+                            <p class="text-xs text-slate-400 leading-relaxed">Automated GPS geofences, virtual corridors, and 1-second timing gates replace remote marshals.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-orange-500/20 border border-orange-500/30 flex items-center justify-center flex-shrink-0 text-orange-400 font-black font-lexend">02</div>
+                        <div>
+                            <h2 class="text-sm font-extrabold uppercase tracking-wider text-white mb-1">Just a Smartphone</h2>
+                            <p class="text-xs text-slate-400 leading-relaxed">Pilots use the iOS &amp; Android apps ($8.99/yr to prevent misuse), plus the free MSFS 2020/2024 client.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-indigo-500/20 border border-indigo-500/30 flex items-center justify-center flex-shrink-0 text-indigo-400 font-black font-lexend">03</div>
+                        <div>
+                            <h2 class="text-sm font-extrabold uppercase tracking-wider text-white mb-1">Clubhouse TV Live Map</h2>
+                            <p class="text-xs text-slate-400 leading-relaxed">Open the map with <code class="text-indigo-300">?display=screen</code> to rotate live aircraft and scores automatically.</p>
+                        </div>
+                    </div>
+                    <div class="flex items-start gap-4">
+                        <div class="w-10 h-10 rounded-xl bg-emerald-500/20 border border-emerald-500/30 flex items-center justify-center flex-shrink-0 text-emerald-400 font-black font-lexend">04</div>
+                        <div>
+                            <h2 class="text-sm font-extrabold uppercase tracking-wider text-white mb-1">Adaptive Start &amp; Self-Reg</h2>
+                            <p class="text-xs text-slate-400 leading-relaxed">Pilots scan a printed QR flyer or register on their phone and take off whenever ready.</p>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+
+        <!-- 4 Event Formats Any Club Can Run This Weekend -->
+        <section class="py-24 bg-slate-50">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <div class="inline-block px-4 py-1 mb-4 text-[10px] font-black tracking-[0.2em] uppercase bg-blue-100 text-blue-700 rounded-full">
+                        Built for Grassroots Aviation
+                    </div>
+                    <h2 class="text-3xl md:text-5xl font-extrabold text-slate-900 font-lexend italic uppercase tracking-tight mb-4">
+                        4 Event Formats Any Club Can Run This Weekend
+                    </h2>
+                    <p class="text-slate-600 text-lg max-w-2xl mx-auto font-medium">
+                        Start with a fun fly-in Poker Run or relaxed weekend corridor—then introduce precision timing and landing tasks as your pilots get hooked.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-2 gap-8">
+                    <!-- Format 1: Poker Run -->
+                    <div class="bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-slate-200 flex flex-col group hover:border-blue-400 transition-all">
+                        <div class="h-56 overflow-hidden relative">
+                            <Image src={pokerRunImg} alt="Zero-Volunteer GPS Poker Run" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" width={800} height={450} />
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/20 to-transparent"></div>
+                            <div class="absolute bottom-6 left-8 right-8 flex items-end justify-between">
+                                <div>
+                                    <span class="text-[10px] font-black uppercase tracking-widest text-blue-300">Fly-Ins &amp; Fundraisers</span>
+                                    <h3 class="text-2xl font-bold text-white font-lexend italic uppercase">Zero-Volunteer GPS Poker Run</h3>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="p-8 flex-1 flex flex-col">
+                            <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                                Incentivize pilots to visit 4–5 regional airfields without needing volunteers standing at unmanned strips. Crossing each airfield geofence automatically deals a digital playing card, with optional tactical "Extra Card Gates" between penalty zones.
+                            </p>
+                            <ul class="space-y-2 text-xs font-bold text-slate-700 mb-8">
+                                <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-600"></span> One-click printable Hangar QR Registration Flyer</li>
+                                <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-blue-600"></span> Automatic card dealing and live clubhouse leaderboard</li>
+                            </ul>
+                            <a href="/docs/09_Quick_Start_Poker_Run" class="mt-auto text-blue-600 font-extrabold text-xs uppercase tracking-widest hover:underline">
+                                Read Poker Run Quick Start →
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Format 2: Corridor & Burgers -->
+                    <div class="bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-slate-200 flex flex-col group hover:border-orange-400 transition-all">
+                        <div class="h-56 overflow-hidden relative">
+                            <Image src={anrImg} alt="Corridor and Burgers Beginner ANR" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" width={800} height={450} />
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/20 to-transparent"></div>
+                            <div class="absolute bottom-6 left-8 right-8">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-orange-300">Social Crew Flying</span>
+                                <h3 class="text-2xl font-bold text-white font-lexend italic uppercase">The "Corridor &amp; Burgers" Challenge</h3>
+                            </div>
+                        </div>
+                        <div class="p-8 flex-1 flex flex-col">
+                            <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                                Pair a student or rusty pilot with a navigator on a 30-minute local loop with a forgiving 0.4–0.5 NM beginner corridor (ANR). Crews focus on teamwork, track-keeping, and watching the animated replay together over burgers afterward.
+                            </p>
+                            <ul class="space-y-2 text-xs font-bold text-slate-700 mb-8">
+                                <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-orange-500"></span> Adjustable corridor widths &amp; rounded corners for rookies</li>
+                                <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-orange-500"></span> Real-time corridor exit alerts in post-flight Replay mode</li>
+                            </ul>
+                            <a href="/docs/17_Club_Event_Recipes" class="mt-auto text-orange-600 font-extrabold text-xs uppercase tracking-widest hover:underline">
+                                See Corridor &amp; Burgers Recipe →
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Format 3: SEMA / CIMA & Precision -->
+                    <div class="bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-slate-200 flex flex-col group hover:border-indigo-400 transition-all">
+                        <div class="h-56 overflow-hidden relative">
+                            <Image src={precisionImg} alt="Time-Gate SEMA CIMA Precision Practice" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" width={800} height={450} />
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/20 to-transparent"></div>
+                            <div class="absolute bottom-6 left-8 right-8">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-indigo-300">Airmanship &amp; Proficiency</span>
+                                <h3 class="text-2xl font-bold text-white font-lexend italic uppercase">Time-Gate (SEMA / CIMA) &amp; Precision</h3>
+                            </div>
+                        </div>
+                        <div class="p-8 flex-1 flex flex-col">
+                            <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                                Build sharp dead-reckoning, time-on-target, and spot-landing discipline without ground judges. Use the built-in Task Wizard for Precision tasks, hidden timing gates, or FAI CIMA catalogue tasks (Curve, Contract, Circle, and more) plus Landing scorecards.
+                            </p>
+                            <ul class="space-y-2 text-xs font-bold text-slate-700 mb-8">
+                                <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-indigo-600"></span> Automatic PDF Flight Orders with maps &amp; turnpoint photos</li>
+                                <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-indigo-600"></span> Interactive Task Wizard checks required waypoints live</li>
+                            </ul>
+                            <a href="/docs/11_CIMA_Task_Guide" class="mt-auto text-indigo-600 font-extrabold text-xs uppercase tracking-widest hover:underline">
+                                Explore CIMA &amp; Precision Guide →
+                            </a>
+                        </div>
+                    </div>
+
+                    <!-- Format 4: Season Series & MSFS -->
+                    <div class="bg-white rounded-[2.5rem] overflow-hidden shadow-xl border border-slate-200 flex flex-col group hover:border-emerald-400 transition-all">
+                        <div class="h-56 overflow-hidden relative">
+                            <Image src={msfsAppImg} alt="Club Series and MSFS Nights" class="w-full h-full object-cover group-hover:scale-105 transition-transform duration-700" width={800} height={450} />
+                            <div class="absolute inset-0 bg-gradient-to-t from-slate-900/85 via-slate-900/20 to-transparent"></div>
+                            <div class="absolute bottom-6 left-8 right-8">
+                                <span class="text-[10px] font-black uppercase tracking-widest text-emerald-300">Year-Round Engagement</span>
+                                <h3 class="text-2xl font-bold text-white font-lexend italic uppercase">Club Series &amp; Winter MSFS Nights</h3>
+                            </div>
+                        </div>
+                        <div class="p-8 flex-1 flex flex-col">
+                            <p class="text-slate-600 text-sm leading-relaxed mb-6">
+                                Set up one permanent 30-minute local route that members can fly solo any day of the week—like Strava for your airfield—and rank monthly rounds in a season Series. When weather grounds VFR flying, run the exact same tasks in MSFS 2020 &amp; 2024.
+                            </p>
+                            <ul class="space-y-2 text-xs font-bold text-slate-700 mb-8">
+                                <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-600"></span> Multi-round cup standings with "best N rounds count"</li>
+                                <li class="flex items-center gap-2"><span class="w-2 h-2 rounded-full bg-emerald-600"></span> Free Airsports MSFS client on the Microsoft Store</li>
+                            </ul>
+                            <div class="mt-auto flex flex-wrap gap-6">
+                                <a href="/docs/14_Series" class="text-emerald-700 font-extrabold text-xs uppercase tracking-widest hover:underline">
+                                    Series Guide →
+                                </a>
+                                <a href="/docs/08_MSFS_Integration" class="text-blue-600 font-extrabold text-xs uppercase tracking-widest hover:underline">
+                                    MSFS Guide →
+                                </a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- How It Works on Fly-In Day -->
+        <section class="py-24 bg-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="grid grid-cols-1 lg:grid-cols-2 gap-16 items-center">
+                    <div>
+                        <div class="inline-block px-4 py-1 mb-4 text-[10px] font-black tracking-[0.2em] uppercase bg-orange-100 text-orange-700 rounded-full">
+                            From Idea to Takeoff in 15 Minutes
+                        </div>
+                        <h2 class="text-3xl md:text-5xl font-extrabold text-slate-900 font-lexend italic uppercase tracking-tight mb-10">
+                            How It Works on Fly-In Day
+                        </h2>
+
+                        <div class="space-y-8">
+                            <div class="flex gap-5">
+                                <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 font-extrabold text-lg font-lexend flex items-center justify-center flex-shrink-0">1</div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900 uppercase italic font-lexend mb-1">Draw Your Route in 5 Minutes</h3>
+                                    <p class="text-slate-600 text-sm leading-relaxed">Use the browser-based Route Editor (or import an existing KML/GPX file). Routes are reusable across future fly-ins and monthly cups.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-5">
+                                <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 font-extrabold text-lg font-lexend flex items-center justify-center flex-shrink-0">2</div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900 uppercase italic font-lexend mb-1">Share a Link or Tape Up the QR Flyer</h3>
+                                    <p class="text-slate-600 text-sm leading-relaxed">Turn on self-management so pilots register their aircraft and book an Adaptive Start window right from their phone—no sign-up desk bottlenecks.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-5">
+                                <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 font-extrabold text-lg font-lexend flex items-center justify-center flex-shrink-0">3</div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900 uppercase italic font-lexend mb-1">Fly With the Mobile App</h3>
+                                    <p class="text-slate-600 text-sm leading-relaxed">Pilots tap <strong>Start Tracking</strong> before taxi and place the phone on the glare shield or kneeboard. The screen can stay off during flight to save battery.</p>
+                                </div>
+                            </div>
+                            <div class="flex gap-5">
+                                <div class="w-12 h-12 rounded-2xl bg-blue-50 border border-blue-100 text-blue-600 font-extrabold text-lg font-lexend flex items-center justify-center flex-shrink-0">4</div>
+                                <div>
+                                    <h3 class="text-lg font-bold text-slate-900 uppercase italic font-lexend mb-1">Watch Live on the Clubhouse TV</h3>
+                                    <p class="text-slate-600 text-sm leading-relaxed">Open the Live Map in Screen mode (<code class="text-blue-600 font-semibold">?display=screen</code>) so pilots and guests in the hangar watch live positions, gate crossings, and scores unfold.</p>
+                                </div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="space-y-6">
+                        <div class="bg-slate-100 p-4 rounded-[2.5rem] border border-slate-200 shadow-2xl">
+                            <Image src={taskImg} alt="ASLT Live Competition Map" class="rounded-[1.75rem] w-full h-auto" width={1000} height={600} />
+                        </div>
+                        <div class="bg-slate-100 p-4 rounded-[2.5rem] border border-slate-200 shadow-xl">
+                            <Image src={dashboardImg} alt="ASLT Organizer Dashboard" class="rounded-[1.75rem] w-full h-auto" width={1000} height={600} />
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </section>
+
+        <!-- Transparent Non-Profit Access Model & Club Support CTA -->
+        <section class="py-24 bg-slate-900 text-white">
+            <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+                <div class="text-center mb-16">
+                    <div class="inline-block px-4 py-1 mb-4 text-[10px] font-black tracking-[0.2em] uppercase bg-blue-500/20 text-blue-300 border border-blue-400/30 rounded-full">
+                        Non-Profit &amp; Open Source
+                    </div>
+                    <h2 class="text-3xl md:text-5xl font-extrabold font-lexend italic uppercase tracking-tight mb-4">
+                        Simple, Low-Friction Access for Clubs
+                    </h2>
+                    <p class="text-slate-300 text-lg max-w-2xl mx-auto font-medium">
+                        Supported by European national air sports federations so the platform stays completely free to use—with only a tiny annual mobile app subscription to prevent misuse and help cover telemetry servers.
+                    </p>
+                </div>
+
+                <div class="grid grid-cols-1 md:grid-cols-3 gap-8 mb-16">
+                    <div class="bg-slate-800/70 border border-white/10 rounded-[2rem] p-8 flex flex-col">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-blue-300 mb-2">Free to Organize</span>
+                        <h3 class="text-2xl font-extrabold font-lexend italic uppercase mb-4">100% Free Platform for Clubs &amp; Organizers</h3>
+                        <p class="text-slate-300 text-sm leading-relaxed mb-6 flex-1">
+                            Creating contests, unlimited routes and tasks, custom MBTiles maps, Hangar QR flyers, Series cups, and the Clubhouse TV Live Map are completely free—supported by air sports federation donations.
+                        </p>
+                        <a href="https://app.airsports.no/upgrade-organizer" class="inline-block text-center bg-white/10 hover:bg-white/20 text-white py-3 px-6 rounded-xl font-bold text-xs uppercase tracking-widest transition-all">
+                            Become Organizer Free
+                        </a>
+                    </div>
+
+                    <div class="bg-blue-600 rounded-[2rem] p-8 flex flex-col shadow-2xl shadow-blue-950/50 border border-blue-400/40">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-blue-100 mb-2">Prevent Misuse &amp; Support Servers</span>
+                        <h3 class="text-2xl font-extrabold font-lexend italic uppercase mb-4">$8.99 / Year Pilot Mobile App</h3>
+                        <p class="text-blue-100 text-sm leading-relaxed mb-6 flex-1">
+                            The iOS &amp; Android mobile app has a small $8.99/year subscription via the App Store or Google Play to prevent misuse and help cover telemetry servers (less than two gallons of avgas for a full year).
+                        </p>
+                        <a href="/docs/02_Contestant_Guide" class="inline-block text-center bg-white text-blue-700 hover:bg-blue-50 py-3 px-6 rounded-xl font-extrabold text-xs uppercase tracking-widest transition-all">
+                            Read Pilot Guide
+                        </a>
+                    </div>
+
+                    <div class="bg-slate-800/70 border border-white/10 rounded-[2rem] p-8 flex flex-col">
+                        <span class="text-[10px] font-black uppercase tracking-widest text-orange-300 mb-2">Free Virtual Flying</span>
+                        <h3 class="text-2xl font-extrabold font-lexend italic uppercase mb-4">100% Free MSFS 2020 &amp; 2024 Simulator Client</h3>
+                        <p class="text-slate-300 text-sm leading-relaxed mb-6 flex-1">
+                            Connect Microsoft Flight Simulator 2020 or 2024 to the live scoring engine for free—ideal for winter clubhouse nights and practicing before flying the real route.
+                        </p>
+                        <a href="/docs/08_MSFS_Integration" class="inline-block text-center bg-orange-500 hover:bg-orange-600 text-white py-3 px-6 rounded-xl font-extrabold text-xs uppercase tracking-widest transition-all">
+                            MSFS Setup Guide
+                        </a>
+                    </div>
+                </div>
+
+                <!-- Club Support CTA Box -->
+                <div class="bg-gradient-to-r from-blue-600 via-indigo-600 to-blue-700 rounded-[2.5rem] p-10 md:p-14 border border-white/20 shadow-2xl flex flex-col lg:flex-row items-center justify-between gap-8">
+                    <div class="max-w-2xl">
+                        <div class="text-[10px] font-black uppercase tracking-[0.2em] text-blue-100 mb-2">Grassroots Club Support</div>
+                        <h3 class="text-2xl md:text-4xl font-extrabold font-lexend italic uppercase mb-3">
+                            Want Help Setting Up Your Club's First Route?
+                        </h3>
+                        <p class="text-blue-100 text-base leading-relaxed">
+                            Whether you run a local flying club, university flight team (NIFA), EAA or Ninety-Nines chapter, or SAPFA airfield event, we are happy to help draw a local sample route around your home airport or hop on a 15-minute call to get you started.
+                        </p>
+                    </div>
+                    <div class="flex flex-col sm:flex-row lg:flex-col gap-3 flex-shrink-0 w-full lg:w-auto">
+                        <a href="mailto:support@airsports.no?subject=Help%20Setting%20Up%20Our%20First%20Club%20Route" class="bg-white text-blue-700 hover:bg-blue-50 px-8 py-4 rounded-2xl font-extrabold text-xs sm:text-sm uppercase tracking-wider text-center shadow-xl transition-all">
+                            Email Us for Route Setup Help →
+                        </a>
+                        <a href="/docs/17_Club_Event_Recipes" class="bg-slate-900/40 border border-white/30 text-white hover:bg-slate-900/60 px-8 py-4 rounded-2xl font-bold text-xs sm:text-sm uppercase tracking-wider text-center transition-all">
+                            Read All 5 Club Recipes
+                        </a>
+                    </div>
+                </div>
+            </div>
+        </section>
+    </main>
+</Layout>
