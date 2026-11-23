@@ -49,16 +49,17 @@ spec:
           - secretRef:
               name: pw-secrets
         env:
-          # Skips importing the task code (see live_tracking_map/celery.py): about 120MB instead of 410MB
+          # Reads the settings without loading the application (see live_tracking_map/celery.py): about 120MB, not 410MB
           - name: CELERY_BEAT_ONLY
             value: "1"
         # 50m is the smallest CPU request Autopilot accepts. The process sleeps between the scheduled times,
-        # and measured about 116MB right after start (2026-11-23).
+        # and a real run peaked at 156Mi (2026-11-23); the first limit of 256Mi was set from a measurement
+        # that left Django out, and the pod was OOM-killed on every start.
         resources:
           requests:
             cpu: 50m
-            memory: 160Mi
+            memory: 192Mi
           limits:
             cpu: 100m
-            memory: 256Mi
+            memory: 320Mi
       restartPolicy: Always

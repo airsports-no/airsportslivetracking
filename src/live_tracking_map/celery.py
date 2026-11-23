@@ -15,7 +15,13 @@ import log_configuration
 
 os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
 
-app = Celery("live_tracking_map")
+# The scheduler (tracker-celery-beat) only sends task names from CELERY_BEAT_SCHEDULE and never runs a task. Without
+# celery's Django integration it reads the settings but does not set Django up, so none of the application code
+# (models, admin, matplotlib through the task modules) is loaded: about 120MB instead of 410MB. Skipping
+# autodiscover_tasks alone is not enough, django.setup() imports display.tasks all the same.
+BEAT_ONLY = bool(os.environ.get("CELERY_BEAT_ONLY"))
+
+app = Celery("live_tracking_map", fixups=[]) if BEAT_ONLY else Celery("live_tracking_map")
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.
@@ -23,9 +29,8 @@ app = Celery("live_tracking_map")
 #   should have a `CELERY_` prefix.
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
-# Load task modules from all registered Django app configs. The scheduler (tracker-celery-beat) only sends task
-# names from CELERY_BEAT_SCHEDULE and never runs a task, so it skips the import and the memory that comes with it.
-if not os.environ.get("CELERY_BEAT_ONLY"):
+# Load task modules from all registered Django app configs.
+if not BEAT_ONLY:
     app.autodiscover_tasks()
 
 # Add liveness probe for k8s
