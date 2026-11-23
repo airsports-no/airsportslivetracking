@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-11-23
+#### Backend
+- **Push reminders to pilots are now actually sent on schedule:** the scheduler that triggers them every minute was never running in production; it is now its own `tracker-celery-beat` deployment.
+
 ### 2026-11-08
 #### App
 - **Photos list view is more compact:** the photo number and its Mark, Set time and Cancel buttons are on one line.

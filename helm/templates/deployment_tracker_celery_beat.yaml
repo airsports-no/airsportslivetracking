@@ -1,0 +1,64 @@
+# The scheduler of the periodic celery tasks (CELERY_BEAT_SCHEDULE in settings.py). It only puts task messages
+# on the queue at the scheduled times; the tasks themselves run in the tracker-celery workers.
+#
+# A deployment of its own, with exactly one replica, because tracker-celery is autoscaled (hpa-tracker-celery,
+# 1-10 replicas): a scheduler inside the workers ("-B") would send every task once per pod.
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  labels:
+    service: tracker-celery-beat
+  name: tracker-celery-beat
+spec:
+  replicas: 1
+  # Never two schedulers at once, not even during a rollout: both would send the tasks
+  strategy:
+    type: Recreate
+  selector:
+    matchLabels:
+      service: tracker-celery-beat
+  template:
+    metadata:
+      labels:
+        service: tracker-celery-beat
+        date: "{{ now | unixEpoch }}"
+    spec:
+      terminationGracePeriodSeconds: 10
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 200
+        fsGroup: 200
+      affinity:
+        nodeAffinity:
+          requiredDuringSchedulingIgnoredDuringExecution:
+            nodeSelectorTerms:
+              - matchExpressions:
+                  - key: cloud.google.com/gke-spot
+                    operator: In
+                    values:
+                      - "true"
+      containers:
+      - image: europe-north1-docker.pkg.dev/airsports-613ce/airsports/tracker_base:{{ .Values.image.tag }}
+        # The schedule file only holds when each task last ran. It is lost with the pod, which costs at most
+        # one run of a daily task if the pod happens to be replaced at that very minute.
+        command: [ "bash", "-c", "celery -A live_tracking_map beat -l INFO -s /tmp/celerybeat-schedule --pidfile=" ]
+        name: tracker-celery-beat
+        envFrom:
+          - configMapRef:
+              name: envs-production-other
+          - secretRef:
+              name: pw-secrets
+        env:
+          # Skips importing the task code (see live_tracking_map/celery.py): about 120MB instead of 410MB
+          - name: CELERY_BEAT_ONLY
+            value: "1"
+        # 50m is the smallest CPU request Autopilot accepts. The process sleeps between the scheduled times,
+        # and measured about 116MB right after start (2026-11-23).
+        resources:
+          requests:
+            cpu: 50m
+            memory: 160Mi
+          limits:
+            cpu: 100m
+            memory: 256Mi
+      restartPolicy: Always

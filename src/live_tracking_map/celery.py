@@ -23,8 +23,10 @@ app = Celery("live_tracking_map")
 #   should have a `CELERY_` prefix.
 app.config_from_object("django.conf:settings", namespace="CELERY")
 
-# Load task modules from all registered Django app configs.
-app.autodiscover_tasks()
+# Load task modules from all registered Django app configs. The scheduler (tracker-celery-beat) only sends task
+# names from CELERY_BEAT_SCHEDULE and never runs a task, so it skips the import and the memory that comes with it.
+if not os.environ.get("CELERY_BEAT_ONLY"):
+    app.autodiscover_tasks()
 
 # Add liveness probe for k8s
 app.steps["worker"].add(LivenessProbe)

@@ -7,7 +7,6 @@ import redis_lock
 from django.core.cache import cache
 from django.core.files.base import ContentFile
 from django.db import connections
-from celery.schedules import crontab
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.exceptions import ValidationError as DjangoValidationError
 from rest_framework.exceptions import ValidationError as DRFValidationError
@@ -214,16 +213,17 @@ def generate_task_images_async(task_id: int, user_id: int):
         cache.set(prepared_pdf_cache_key(task_id, user_id, kind), {"status": "error", "message": str(e)}, timeout=3600)
 
 
-@app.on_after_configure.connect
-def setup_periodic_tasks(sender, **kwargs):
-    # Executes every morning at 7:30 a.m.
-    sender.add_periodic_task(
-        crontab(hour=7, minute=30, day_of_week="*"),
-        delete_old_flight_orders.s(),
-    )
-    sender.add_periodic_task(10, debug.s())
-    # Push notifications to the mobile apps (no-ops unless PUSH_NOTIFICATIONS_ENABLED).
-    sender.add_periodic_task(60, send_pilot_push_notifications.s())
+# The schedule of the periodic tasks is CELERY_BEAT_SCHEDULE in settings.py, run by the tracker-celery-beat deployment
+
+
+@app.task
+def check_smtp_credits_task():
+    from display.services.smtp_credit_monitor import check_smtp_credits
+
+    try:
+        check_smtp_credits()
+    except Exception:
+        logger.exception("Failed checking the turboSMTP plan")
 
 
 @app.task

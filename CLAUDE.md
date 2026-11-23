@@ -13,6 +13,7 @@ Air Sports Live Tracking (ASLT) is an online live-scoring platform for aircraft 
 **Three runtime processes** (see `docker-compose.yml`):
 - `tracker_daphne`: Django web server (HTTP + websockets via Channels).
 - `tracker_celery`: background jobs (track recalculation, flight order generation) via Celery.
+- `tracker_celery_beat` is not in docker-compose, but in production the `tracker-celery-beat` deployment (one replica, never autoscaled) is the only place periodic tasks are triggered from. Their schedule is `CELERY_BEAT_SCHEDULE` in `settings.py`, by task name — not `add_periodic_task` in a task module, which the scheduler does not import (`CELERY_BEAT_ONLY` in `live_tracking_map/celery.py`).
 - `tracker_processor`: standalone script (`src/position_processor.py`) that consumes position reports from Traccar/Redis and feeds them to the scoring engine.
 
 In production these run as the `tracker-app`, `tracker-celery` and

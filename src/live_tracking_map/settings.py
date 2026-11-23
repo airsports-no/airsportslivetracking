@@ -15,6 +15,8 @@ import os
 import sys
 import json
 from pathlib import Path
+
+from celery.schedules import crontab
 from django.core.cache import cache
 
 # Build paths inside the project like this: BASE_DIR / 'subdir'.
@@ -274,6 +276,8 @@ EMAIL_HOST_PASSWORD = os.environ.get("AUTHEMAIL_EMAIL_HOST_PASSWORD") or "<YOUR 
 EMAIL_USE_TLS = True
 EMAIL_USE_SSL = False
 DEFAULT_FROM_EMAIL = EMAIL_FROM
+# Who is told when the turboSMTP plan is about to expire or run out (display.services.smtp_credit_monitor)
+SMTP_CREDIT_WARNING_EMAIL = os.environ.get("SMTP_CREDIT_WARNING_EMAIL") or EMAIL_FROM
 
 # Read directly by FirebaseMigrationBackend._initialize_firebase() (auth_backends.py) and by
 # FirebaseTokenAuthentication (authentication.py, via the same helper). Formerly nested inside
@@ -595,7 +599,25 @@ CELERY_RESULT_SERIALIZER = "json"
 CELERY_TASK_SERIALIZER = "json"
 CELERY_TIMEZONE = UTC
 CELERY_ENABLE_UTC = True
-CELERY_BEAT_SCHEDULE = {}
+# Sent by the tracker-celery-beat deployment (helm/templates/deployment_tracker_celery_beat.yaml), the only
+# place the scheduler runs: the workers are autoscaled, and a scheduler in each would send everything once per pod.
+# Declared here by task name, not in display/tasks.py, so that the scheduler does not have to import the task code
+# (CELERY_BEAT_ONLY in celery.py) and stays at about 120MB instead of 410MB.
+CELERY_BEAT_SCHEDULE = {
+    "delete_old_flight_orders": {
+        "task": "display.tasks.delete_old_flight_orders",
+        "schedule": crontab(hour=7, minute=30),
+    },
+    "check_smtp_credits": {
+        "task": "display.tasks.check_smtp_credits_task",
+        "schedule": crontab(hour=6, minute=0),
+    },
+    # Push notifications to the mobile apps (no-ops unless PUSH_NOTIFICATIONS_ENABLED)
+    "send_pilot_push_notifications": {
+        "task": "display.tasks.send_pilot_push_notifications",
+        "schedule": 60.0,
+    },
+}
 
 ASGI_APPLICATION = "live_tracking_map.asgi.application"
 # Exposed under its own name (rather than only inline below) so tests can import the real
