@@ -22,6 +22,10 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
 BEAT_ONLY = bool(os.environ.get("CELERY_BEAT_ONLY"))
 
 app = Celery("live_tracking_map", fixups=[]) if BEAT_ONLY else Celery("live_tracking_map")
+if BEAT_ONLY:
+    # The Django integration is also what keeps the source directory on the import path, which the logging
+    # configuration needs (utilities.logging_filters)
+    sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
 # Using a string here means the worker doesn't have to serialize
 # the configuration object to child processes.
