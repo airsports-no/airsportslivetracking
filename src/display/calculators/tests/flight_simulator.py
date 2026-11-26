@@ -20,6 +20,7 @@ sample lies exactly on a gate line (gate times are whole seconds), which would m
 import bisect
 import datetime
 import math
+import uuid
 from dataclasses import dataclass, field, replace
 from queue import Queue
 from types import SimpleNamespace
@@ -747,6 +748,40 @@ def circle_flight(
 
 
 # ---------------------------------------------------------------------------------------------------------------------
+# Duration flight (task 2.B3)
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+def duration_flight(
+    start_point: tuple[float, float],
+    landing_point: tuple[float, float],
+    *,
+    takeoff_time: datetime.datetime,
+    airborne_s: float,
+    hold_before_s: float = 90.0,
+    hold_after_s: float = 90.0,
+    altitude=1000.0,
+    interval_s: float = 1.0,
+    sample_offset_s: float = 0.5,
+) -> list[SimPosition]:
+    """A flight that stands still at `start_point` for `hold_before_s`, takes off at `takeoff_time`, flies in a straight
+    line at constant speed to `landing_point`, touches down `airborne_s` later and stands still for `hold_after_s`.
+
+    The standstills are what a speed-based take-off and landing inference works from; the flight over a gate crosses
+    it at the speed that follows from the distance and the airborne time."""
+    projector = Projector(*start_point)
+    landing = projector.project_point(*landing_point)
+    end = (landing.projected_x, landing.projected_y)
+    knots = [
+        Knot(0.0, 0.0, -hold_before_s),
+        Knot(0.0, 0.0, 0.0),
+        Knot(end[0], end[1], airborne_s),
+        Knot(end[0], end[1], airborne_s + hold_after_s),
+    ]
+    return sample_plan(Plan(knots, projector, takeoff_time), altitude, interval_s, sample_offset_s)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
 # Measuring a generated track
 # ---------------------------------------------------------------------------------------------------------------------
 
@@ -821,52 +856,301 @@ def line_crossings(
     return crossings
 
 
+@dataclass(frozen=True)
+class Crossing:
+    """One crossing of a gate line: when, in which direction (+1 along the route, -1 against it) and how many seconds
+    after the gate's expected time (None for a gate without one)."""
+
+    time: datetime.datetime
+    direction: int
+    error_s: Optional[float]
+
+
+def gate_crossings(
+    waypoints: Sequence,
+    gate_times: dict,
+    positions: Sequence[SimPosition],
+    projector: Projector,
+    gates: Optional[Iterable[str]] = None,
+) -> dict[str, list[Crossing]]:
+    """Where a track crosses the gate lines of `waypoints`, found from the geometry alone (independent of the
+    calculators). Returns, per gate name, its crossings in time order; a gate never crossed has an empty list.
+    The gate line is `gate_line_xy` through the waypoint, as wide as the waypoint says (`width` in nautical miles)."""
+    wanted = set(gates) if gates is not None else None
+    result: dict[str, list[Crossing]] = {}
+    for index, waypoint_ in enumerate(waypoints):
+        name = waypoint_.name
+        if (wanted is not None and name not in wanted) or name not in gate_times:
+            continue
+        half_width = float(getattr(waypoint_, "width", 1.0) or 1.0) * NAUTICAL_MILE_IN_M / 2.0
+        line = gate_line_xy(waypoints, index, half_width, projector)
+        expected = gate_times.get(name)
+        result[name] = [
+            Crossing(time, direction, (time - expected).total_seconds() if expected else None)
+            for time, direction in sorted(line_crossings(positions, line, projector))
+        ]
+    return result
+
+
 # ---------------------------------------------------------------------------------------------------------------------
 # Building a task the way the wizard does
 # ---------------------------------------------------------------------------------------------------------------------
+
+
+def _route_path_feature(points: Sequence[tuple[float, float]]) -> dict:
+    return {
+        "type": "Feature",
+        "properties": {"featureType": "route_path"},
+        "geometry": {"type": "LineString", "coordinates": [[lon, lat] for lat, lon in points]},
+    }
+
+
+def _route_waypoint_feature(
+    sequence: int,
+    name: str,
+    point_type: str,
+    point: tuple[float, float],
+    width_m: float,
+    timing: bool = True,
+    **extra_properties,
+) -> dict:
+    """A route_waypoint feature with the properties the route editor saves."""
+    return {
+        "type": "Feature",
+        "properties": {
+            "id": f"wp-{sequence}",
+            "name": name,
+            "pointType": point_type,
+            "featureType": "route_waypoint",
+            "width": width_m,
+            "isTiming": timing,
+            "isPassing": True,
+            "sequence": sequence,
+            **extra_properties,
+        },
+        "geometry": {"type": "Point", "coordinates": [point[1], point[0]]},
+    }
 
 
 def precision_route_geojson(
     start: tuple[float, float] = (60.0, 11.0),
     legs: Sequence[tuple[float, float]] = ((90.0, 6000.0), (160.0, 5000.0), (90.0, 6000.0)),
     width_m: float = 1852.0,
+    hidden_gates: Optional[dict[int, Sequence[float]]] = None,
+    hidden_timing: bool = False,
+    hidden_width_m: float = 300.0,
+    untimed: Sequence[str] = (),
+    unknown_legs: Optional[dict[str, Sequence[tuple[float, float]]]] = None,
 ) -> dict:
     """A precision-style EditableRoute: SP at `start`, then one waypoint per (bearing, metres) leg.
 
     Intermediate waypoints are turn points TP1..TPn, the last one is the finish point FP. Features have the shape the
     route editor saves (route_waypoint features with sequence numbers, plus the route_path line).
+
+    `hidden_gates` puts hidden (secret) gates HG1, HG2, ... on the legs, in route order: it maps the number of a leg
+    (0 is SP to TP1) to the fractions of that leg's length at which the gates lie. Hidden gates are not time gates
+    unless `hidden_timing` is set. They are `hidden_width_m` wide: a narrow gate can be missed without a sharp turn.
+    The waypoints named in `untimed` are not time gates. `unknown_legs` turns the named turn points into unknown-leg
+    points (2.A5) and gives each its extension waypoints EXT1, EXT2, ...: (bearing, metres) steps from the point. The
+    extension waypoints are not on the route, which is flown along the backbone.
     """
     points = [start]
     for bearing, distance in legs:
         points.append(project_position_lat_lon(points[-1], bearing, distance))
-    features = [
-        {
-            "type": "Feature",
-            "properties": {"featureType": "route_path"},
-            "geometry": {"type": "LineString", "coordinates": [[lon, lat] for lat, lon in points]},
-        }
-    ]
-    for sequence, (lat, lon) in enumerate(points):
-        name, point_type = ("SP", "sp") if sequence == 0 else (f"TP{sequence}", "tp")
-        if sequence == len(points) - 1:
+    waypoints = []  # (name, point type, point, timing, width)
+    hidden_count = 0
+    for index, point in enumerate(points):
+        name, point_type = ("SP", "sp") if index == 0 else (f"TP{index}", "tp")
+        if index == len(points) - 1:
             name, point_type = "FP", "fp"
-        features.append(
-            {
-                "type": "Feature",
-                "properties": {
-                    "id": f"wp-{sequence}",
-                    "name": name,
-                    "pointType": point_type,
-                    "featureType": "route_waypoint",
-                    "width": width_m,
-                    "isTiming": True,
-                    "isPassing": True,
-                    "sequence": sequence,
-                },
-                "geometry": {"type": "Point", "coordinates": [lon, lat]},
-            }
-        )
+        if name in (unknown_legs or {}):
+            point_type = "ul"
+        waypoints.append((name, point_type, point, name not in untimed, width_m))
+        for fraction in sorted((hidden_gates or {}).get(index, ())):
+            if index == len(points) - 1:
+                raise ValueError("The finish point starts no leg")
+            hidden_count += 1
+            bearing, distance = legs[index]
+            hidden_point = project_position_lat_lon(point, bearing, distance * fraction)
+            waypoints.append((f"HG{hidden_count}", "secret", hidden_point, hidden_timing, hidden_width_m))
+    features = [_route_path_feature([waypoint[2] for waypoint in waypoints])]
+    extension_count = 0
+    for sequence, (name, point_type, point, timing, width) in enumerate(waypoints):
+        extra = {"unknownLegHeading": 90.0} if point_type == "ul" else {}
+        features.append(_route_waypoint_feature(sequence, name, point_type, point, width, timing, **extra))
+        previous = point
+        for branch, (bearing, distance) in enumerate((unknown_legs or {}).get(name, ())):
+            previous = project_position_lat_lon(previous, bearing, distance)
+            extension_count += 1
+            features.append(
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "id": f"ext-{extension_count}",
+                        "name": f"EXT{extension_count}",
+                        "featureType": "dummy_branch_waypoint",
+                        "triggerPointId": f"wp-{sequence}",
+                        "branchSequence": branch,
+                    },
+                    "geometry": {"type": "Point", "coordinates": [previous[1], previous[0]]},
+                }
+            )
     return {"type": "FeatureCollection", "features": features}
+
+
+def local_point(origin: tuple[float, float], along_m: float, across_m: float = 0.0) -> tuple[float, float]:
+    """(lat, lon) `along_m` metres east of `origin` and `across_m` metres south of it (negative: north)."""
+    point = project_position_lat_lon(origin, 90.0, along_m)
+    return project_position_lat_lon(point, 180.0, across_m) if across_m else point
+
+
+def catalogue_turnpoint_feature(name: str, point: tuple[float, float], score_value: Optional[float] = None) -> dict:
+    """A free catalogue turn point (2.A3, 2.A6, 2.B2), optionally with its score value."""
+    properties = {"id": f"cat-{name}", "name": name, "pointType": "tp", "featureType": "catalogue_turnpoint"}
+    if score_value is not None:
+        properties["scoreValue"] = score_value
+    return {
+        "type": "Feature",
+        "properties": properties,
+        "geometry": {"type": "Point", "coordinates": [point[1], point[0]]},
+    }
+
+
+def known_time_gate_feature(name: str, point: tuple[float, float], width_m: float = 1852.0) -> dict:
+    """A standalone timed turn point (the compulsory gates of 2.A6 and 2.B2)."""
+    return {
+        "type": "Feature",
+        "properties": {
+            "id": f"ktg-{name}",
+            "name": name,
+            "pointType": "tp",
+            "featureType": "known_time_gate",
+            "width": width_m,
+        },
+        "geometry": {"type": "Point", "coordinates": [point[1], point[0]]},
+    }
+
+
+def contract_route_geojson(
+    start: tuple[float, float] = (60.0, 11.0),
+    mp_along_m: float = 9260.0,
+    fp_along_m: float = 18520.0,
+    catalogue: Optional[dict[str, tuple[float, float]]] = None,
+    width_m: float = 1852.0,
+) -> dict:
+    """A 2.A3 route: SP, MP and FP on a line east from `start` (the backbone) and the free catalogue turn points,
+    each given as (metres east of SP, metres south of the line)."""
+    backbone = [
+        ("SP", "sp", start),
+        ("MP", "tp", local_point(start, mp_along_m)),
+        ("FP", "fp", local_point(start, fp_along_m)),
+    ]
+    features = [_route_path_feature([point for _, _, point in backbone])]
+    for sequence, (name, point_type, point) in enumerate(backbone):
+        features.append(_route_waypoint_feature(sequence, name, point_type, point, width_m))
+    for name, (along, across) in (catalogue or {}).items():
+        features.append(catalogue_turnpoint_feature(name, local_point(start, along, across)))
+    return {"type": "FeatureCollection", "features": features}
+
+
+def hunt_route_geojson(
+    start: tuple[float, float] = (60.0, 11.0),
+    compulsory: Optional[dict[str, tuple[float, float]]] = None,
+    catalogue: Optional[dict[str, tuple[float, float, Optional[float]]]] = None,
+    width_m: float = 1852.0,
+) -> dict:
+    """A 2.A6 / 2.B2 route: no backbone, three standalone timed turn points (`compulsory`: name -> (metres east of
+    `start`, metres south)) and free catalogue points (`catalogue`: name -> (east, south, score value))."""
+    features = [
+        known_time_gate_feature(name, local_point(start, along, across), width_m)
+        for name, (along, across) in (compulsory or {}).items()
+    ]
+    for name, (along, across, value) in (catalogue or {}).items():
+        features.append(catalogue_turnpoint_feature(name, local_point(start, along, across), value))
+    return {"type": "FeatureCollection", "features": features}
+
+
+def circle_marker_feature(feature_type: str, name: str, point: tuple[float, float], width_m: float = 1852.0) -> dict:
+    """A 2.A7 circle marker. `feature_type` is circle_start_marker, circle_entry_marker, circle_center_marker or
+    circle_exit_marker; the point type is derived from it as the route editor does."""
+    point_type = feature_type.removesuffix("_marker").replace("circle_", "circle_")
+    return {
+        "type": "Feature",
+        "properties": {
+            "id": f"{point_type}-{name}",
+            "name": name,
+            "pointType": point_type,
+            "featureType": feature_type,
+            "width": width_m,
+        },
+        "geometry": {"type": "Point", "coordinates": [point[1], point[0]]},
+    }
+
+
+def circle_route_geojson(
+    centre: tuple[float, float],
+    start_m: tuple[float, float] = (-1000.0, 0.0),
+    entry_m: tuple[float, float] = (500.0, 0.0),
+    exit_m: tuple[float, float] = (0.0, -600.0),
+) -> dict:
+    """A 2.A7 route: the four markers SP, X (entry), CM and WP (exit). The marker positions are (metres east, metres
+    north) of the circle centre `centre`."""
+
+    def at(offset: tuple[float, float]) -> tuple[float, float]:
+        return local_point(centre, offset[0], -offset[1])
+
+    return {
+        "type": "FeatureCollection",
+        "features": [
+            circle_marker_feature("circle_start_marker", "SP", at(start_m)),
+            circle_marker_feature("circle_entry_marker", "X", at(entry_m)),
+            circle_marker_feature("circle_center_marker", "CM", centre),
+            circle_marker_feature("circle_exit_marker", "WP", at(exit_m)),
+        ],
+    }
+
+
+def runway_gate_feature(
+    kind: str, start: tuple[float, float], along_m: float, half_length_m: float = 150.0, name: Optional[str] = None
+) -> dict:
+    """A take-off ("takeoff") or landing ("landing") gate across the route east of `start`, `along_m` metres from it,
+    `half_length_m` to each side, as the route editor saves it. Aircraft flying east cross it in the proper direction."""
+    first, second = local_point(start, along_m, -half_length_m), local_point(start, along_m, half_length_m)
+    return {
+        "type": "Feature",
+        "properties": {
+            "id": f"{kind}-gate",
+            "name": name or f"{kind.title()} 1",
+            "gateType": kind,
+            "featureType": f"{kind}_gate",
+        },
+        "geometry": {"type": "LineString", "coordinates": [[first[1], first[0]], [second[1], second[0]]]},
+    }
+
+
+def landing_area_feature(
+    start: tuple[float, float], along_m: tuple[float, float], across_m: tuple[float, float], name: str = "Landing area"
+) -> dict:
+    """The landing area polygon of 2.B3 (the area between `along_m` metres east of `start` and `across_m` metres
+    south of the line, as (from, to) pairs)."""
+    corners = [
+        local_point(start, along_m[0], across_m[0]),
+        local_point(start, along_m[1], across_m[0]),
+        local_point(start, along_m[1], across_m[1]),
+        local_point(start, along_m[0], across_m[1]),
+    ]
+    ring = [[lon, lat] for lat, lon in corners]
+    ring.append(ring[0])
+    return {
+        "type": "Feature",
+        "properties": {
+            "id": "landing-area",
+            "name": name,
+            "polygonType": "duration_landing_area",
+            "featureType": "zone",
+        },
+        "geometry": {"type": "Polygon", "coordinates": [ring]},
+    }
 
 
 @dataclass
@@ -879,6 +1163,7 @@ class SimulatedTask:
     navigation_task: object
     scorecard: object
     contestant: object
+    whole_second_gate_times: bool = False
 
     @property
     def effective_waypoints(self) -> list:
@@ -902,6 +1187,79 @@ class SimulatedTask:
     def run(self, positions: Sequence[SimPosition]) -> "ScoringResult":
         return run_flight(self.contestant, positions)
 
+    def declare(self, declaration_payload: dict) -> "SimulatedTask":
+        """The same pilot with a (new) declaration compiled, as the declaration page would save it."""
+        from display.models import Contestant
+        from display.services.contestant_task_compiler import ContestantTaskCompiler
+
+        ContestantTaskCompiler(self.contestant).compile(declaration_payload=declaration_payload, force=True)
+        contestant = Contestant.objects.get(pk=self.contestant.pk)
+        if self.whole_second_gate_times:
+            contestant = _round_compiled_gate_times(contestant)
+        return replace(self, contestant=contestant)
+
+    def crossings(self, positions: Sequence[SimPosition], gates: Optional[Iterable[str]] = None) -> dict:
+        """Every crossing of the gate lines in `positions`, per gate name (see `gate_crossings`)."""
+        return gate_crossings(self.effective_waypoints, self.gate_times, positions, self.projector, gates)
+
+
+def _create_contestant(
+    navigation_task,
+    number: int,
+    takeoff_time: datetime.datetime,
+    declaration_payload: Optional[dict],
+    air_speed: float,
+    wind_speed: float,
+    wind_direction: float,
+    minutes_to_starting_point: int,
+    adaptive_start: bool = False,
+):
+    """A compiled contestant on `navigation_task`. Must be called with the Traccar mocks in place."""
+    from display.models import Aeroplane, Contestant, Crew, Person, Team
+    from display.services.contestant_task_compiler import ContestantTaskCompiler
+
+    # Persons need distinct e-mail addresses and aeroplanes distinct registrations, or a second task in one test fails.
+    unique = uuid.uuid4().hex[:8]
+    person = Person.objects.create(first_name="Sim", last_name=f"Pilot {number}", email=f"sim-{unique}@example.com")
+    team = Team.objects.create(
+        crew=Crew.objects.create(member1=person),
+        aeroplane=Aeroplane.objects.create(registration=f"LN-{unique}"),
+    )
+    contestant = Contestant.objects.create(
+        navigation_task=navigation_task,
+        team=team,
+        takeoff_time=takeoff_time,
+        tracker_start_time=takeoff_time - datetime.timedelta(minutes=30),
+        finished_by_time=takeoff_time + datetime.timedelta(hours=2),
+        tracker_device_id=f"simulated-flight-{number}",
+        contestant_number=number,
+        minutes_to_starting_point=minutes_to_starting_point,
+        air_speed=air_speed,
+        wind_direction=wind_direction,
+        wind_speed=wind_speed,
+        adaptive_start=adaptive_start,
+    )
+    ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=True)
+    contestant.refresh_from_db()
+    return contestant
+
+
+def _round_compiled_gate_times(contestant):
+    """Round the compiled gate times to the nearest whole second, as gate times are published in a briefing. The
+    calculated times carry fractions of a second, which makes the timing error of a crossing (measured to the whole
+    second) ambiguous whenever a fraction is close to one half."""
+    from display.models import Contestant
+
+    config = contestant.contestanttaskconfiguration
+    rounded = {}
+    for name, value in (config.compiled_gate_times_payload or {}).items():
+        time = datetime.datetime.fromisoformat(value) if isinstance(value, str) else value
+        whole = time.replace(microsecond=0) + datetime.timedelta(seconds=1 if time.microsecond >= 500_000 else 0)
+        rounded[name] = whole.isoformat()
+    config.compiled_gate_times_payload = rounded
+    config.save(update_fields=["compiled_gate_times_payload"])
+    return Contestant.objects.get(pk=contestant.pk)
+
 
 def build_task(
     route_geojson: dict,
@@ -919,25 +1277,17 @@ def build_task(
     wind_direction: float = 0,
     minutes_to_starting_point: int = 6,
     name: str = "Simulated task",
+    whole_second_gate_times: bool = False,
+    adaptive_start: bool = False,
 ) -> SimulatedTask:
     """Create a compiled contestant on a task the way the wizard does. Needs the test database.
 
     `route_geojson` is the EditableRoute feature collection. `configure_scorecard` may adjust the original scorecard
-    (e.g. set config values) before the task is created; it is saved afterwards.
+    (e.g. set config values) before the task is created; it is saved afterwards. `add_contestant` adds more pilots to
+    the same task. `whole_second_gate_times` rounds the compiled gate times to whole seconds (also after `declare`).
     """
     from display.default_scorecards.create_scorecards import create_scorecards
-    from display.models import (
-        Aeroplane,
-        Contest,
-        Contestant,
-        Crew,
-        EditableRoute,
-        NavigationTask,
-        Person,
-        Scorecard,
-        Team,
-    )
-    from display.services.contestant_task_compiler import ContestantTaskCompiler
+    from display.models import Contest, EditableRoute, NavigationTask, Scorecard
     from display.utilities.navigation_task_type_definitions import PRECISION
     from utilities.mock_utilities import TraccarMock
 
@@ -957,7 +1307,7 @@ def build_task(
         )
         now = datetime.datetime.now(UTC)
         contest = Contest.objects.create(
-            name=f"{name} contest", start_time=now, finish_time=now, time_zone="Europe/Oslo"
+            name=f"{name} contest {uuid.uuid4().hex[:8]}", start_time=now, finish_time=now, time_zone="Europe/Oslo"
         )
         task_arguments = {}
         if task_subtype:
@@ -972,24 +1322,56 @@ def build_task(
             finish_time=now,
             **task_arguments,
         )
-        crew = Crew.objects.create(member1=Person.objects.create(first_name="Sim", last_name="Pilot"))
-        team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration="LN-SIM"))
-        contestant = Contestant.objects.create(
-            navigation_task=navigation_task,
-            team=team,
-            takeoff_time=takeoff_time,
-            tracker_start_time=takeoff_time - datetime.timedelta(minutes=30),
-            finished_by_time=takeoff_time + datetime.timedelta(hours=2),
-            tracker_device_id="simulated-flight",
-            contestant_number=1,
-            minutes_to_starting_point=minutes_to_starting_point,
-            air_speed=air_speed,
-            wind_direction=wind_direction,
-            wind_speed=wind_speed,
+        contestant = _create_contestant(
+            navigation_task,
+            1,
+            takeoff_time,
+            declaration_payload,
+            air_speed,
+            wind_speed,
+            wind_direction,
+            minutes_to_starting_point,
+            adaptive_start,
         )
-        ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=True)
-        contestant.refresh_from_db()
-    return SimulatedTask(contest, editable_route, route, navigation_task, scorecard, contestant)
+        if whole_second_gate_times:
+            contestant = _round_compiled_gate_times(contestant)
+    return SimulatedTask(
+        contest, editable_route, route, navigation_task, scorecard, contestant, whole_second_gate_times
+    )
+
+
+def add_contestant(
+    task: SimulatedTask,
+    *,
+    declaration_payload: Optional[dict] = None,
+    takeoff_time: Optional[datetime.datetime] = None,
+    air_speed: float = 75,
+    wind_speed: float = 0,
+    wind_direction: float = 0,
+    minutes_to_starting_point: int = 6,
+) -> SimulatedTask:
+    """Another pilot on the same task: a new compiled contestant (number 2, 3, ...) sharing the task's route and
+    scorecard. The result is a SimulatedTask for that pilot, so it can generate tracks and run them."""
+    from utilities.mock_utilities import TraccarMock
+
+    number = task.navigation_task.contestant_set.count() + 1
+    with (
+        patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock),
+        patch("display.signals.get_traccar_instance", return_value=TraccarMock),
+    ):
+        contestant = _create_contestant(
+            task.navigation_task,
+            number,
+            takeoff_time or task.contestant.takeoff_time,
+            declaration_payload,
+            air_speed,
+            wind_speed,
+            wind_direction,
+            minutes_to_starting_point,
+        )
+        if task.whole_second_gate_times:
+            contestant = _round_compiled_gate_times(contestant)
+    return replace(task, contestant=contestant)
 
 
 # ---------------------------------------------------------------------------------------------------------------------

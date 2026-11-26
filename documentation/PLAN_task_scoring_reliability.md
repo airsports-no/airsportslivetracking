@@ -123,6 +123,28 @@ descending for quality-score tasks. DNF and DSQ score zero and are labelled.
 | S19 | F15 backtracking flat 200 | 50% percentage penalty for 2.A1–2.A5; verify the calculator against S10 4.24.5 (corridor width, turnpoint exception, rejoin rule) |
 | S20 | F16 2.A8 not verified | Check every value against the catalogue; `P = 1000·Q/2000` as an absolute score |
 
+### Results of Phase 1 (2026-11-26)
+
+S1–S3 are done: 231 tests pass and 64 are strict expected failures, each naming the finding and the slice that fixes it
+(`pytest display/calculators/tests/ -k "simulat or oracle or flight_simulator" -rxX`). A slice is finished when its
+expected failures pass and their markers are removed.
+
+- **F6 was not reproduced.** The 2.A3 check of the MP time follows the declaration, also with an adaptive start. No
+  change needed; the passing test stays.
+- New findings from the scenarios:
+
+| # | Finding | Fixed in |
+|---|---|---|
+| N1 | 2.A8: missing SP sideways costs nothing, and a crossing outside the 0.6 NM time gate counts (`gate_calculator.py`, the infinite starting line is accepted as a crossing); gate width follows the corridor, not 0.6 NM; SP/FP grace is 2 s, catalogue 1 s | S20 |
+| N2 | 2.B2 without a declared sequence: `GateCalculator.create_gates` raises `KeyError` for the free targets, nothing is scored | S16 |
+| N3 | 2.B3: an authored landing gate is never recognised (`takeoff_and_landing_gate_calculator.py` only looks for it after a finish point); the speed-inferred landing is recognised about a minute late | S18 |
+| N4 | 2.A2: a missed hidden gate costs 180 once; the catalogue takes both the gate value and Emax as time error | S12 |
+| N5 | Turnpoint hunts get backtracking penalties the catalogue does not have | S16 |
+| N6 | Backtracking is not limited to the corridor of S10 4.24.5 | S19 |
+
+- Not covered by scenarios yet: photo and marker evidence, quarantine breaches, 2.A8 take-off timing and route to SP,
+  the 2.B2 fuel deadline, 2.A3 "turn points visited once".
+
 ## Phase 5 — Pilot and organiser flow
 
 **S21. Backend.** The flight's own pilot may read and write their declaration until the cut-off (D6); organisers always.

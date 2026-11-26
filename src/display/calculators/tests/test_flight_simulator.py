@@ -26,17 +26,39 @@ from display.calculators.tests.flight_simulator import (
     VisitOrder,
     WrongDirectionCrossing,
     _signed_bearing_change,
+    add_contestant,
     build_task,
+    catalogue_turnpoint_feature,
     circle_flight,
+    circle_route_geojson,
+    contract_route_geojson,
+    duration_flight,
+    gate_crossings,
     gate_line_xy,
     generate_track,
+    hunt_route_geojson,
+    known_time_gate_feature,
+    landing_area_feature,
     line_crossings,
+    local_point,
     make_score_applier,
     precision_route_geojson,
     run_flight,
+    runway_gate_feature,
     waypoint,
 )
-from display.utilities.coordinate_utilities import Projector, calculate_bearing, project_position_lat_lon
+from display.utilities.cima_task_type_definitions import (
+    CIRCLE,
+    CONTRACT_NAVIGATION_TIME_CONTROLS,
+    KNOWN_CIRCUIT,
+    UNKNOWN_LEGS,
+)
+from display.utilities.coordinate_utilities import (
+    Projector,
+    calculate_bearing,
+    calculate_distance_lat_lon,
+    project_position_lat_lon,
+)
 
 START = datetime.datetime(2020, 8, 1, 8, 11, tzinfo=datetime.timezone.utc)
 NAMES = ["SP", "TP1", "TP2", "FP"]
@@ -504,3 +526,321 @@ class DatabaseFlightTest(TestCase):
         result = run_flight(self.task.contestant, [])
         self.assertEqual(result.messages, [])
         self.assertEqual(result.score, self.task.contestant.navigation_task.scorecard.initial_score)
+
+
+def _features(geojson, feature_type):
+    return [f for f in geojson["features"] if f["properties"].get("featureType") == feature_type]
+
+
+def _distance_m(a, b):
+    """The geodesic distance between two (lat, lon) points (the local projection is a little off at 60 degrees)."""
+    return calculate_distance_lat_lon(a, b)
+
+
+class DistanceAssertions:
+    def assertDistance(self, a, b, expected):
+        """The distance is `expected` metres within 0.6% (the position helpers and the distance function differ by
+        0.25% at 60 degrees north)."""
+        self.assertAlmostEqual(_distance_m(a, b), expected, delta=0.006 * expected)
+
+
+class RouteHelpersTest(DistanceAssertions, SimpleTestCase):
+    """The route GeoJSON helpers: what they put on the map."""
+
+    def test_local_point_is_east_and_south_of_the_origin(self):
+        origin = (60.0, 11.0)
+        self.assertDistance(origin, local_point(origin, 3000.0, 0.0), 3000.0)
+        east_south = local_point(origin, 3000.0, 4000.0)
+        self.assertDistance(origin, east_south, 5000.0)
+        self.assertLess(east_south[0], origin[0])  # south
+        self.assertGreater(east_south[1], origin[1])  # east
+        self.assertGreater(local_point(origin, 0.0, -1000.0)[0], origin[0])  # negative: north
+
+    def test_hidden_gates_are_numbered_in_route_order_at_the_given_fractions_of_the_legs(self):
+        geojson = precision_route_geojson(hidden_gates={0: [0.5], 1: [0.25, 0.75]})
+        waypoints = _features(geojson, "route_waypoint")
+        self.assertEqual([w["properties"]["name"] for w in waypoints], ["SP", "HG1", "TP1", "HG2", "HG3", "TP2", "FP"])
+        self.assertEqual([w["properties"]["sequence"] for w in waypoints], list(range(7)))
+        by_name = {w["properties"]["name"]: w for w in waypoints}
+        self.assertEqual(by_name["HG1"]["properties"]["pointType"], "secret")
+
+        def point(name):
+            lon, lat = by_name[name]["geometry"]["coordinates"]
+            return lat, lon
+
+        self.assertDistance(point("SP"), point("HG1"), 3000.0)
+        self.assertDistance(point("TP1"), point("HG2"), 1250.0)
+        self.assertDistance(point("TP1"), point("HG3"), 3750.0)
+        self.assertEqual(len(_features(geojson, "route_path")[0]["geometry"]["coordinates"]), 7)
+
+    def test_hidden_gates_are_narrow_untimed_gates_unless_asked_otherwise(self):
+        waypoints = _features(precision_route_geojson(hidden_gates={0: [0.5]}), "route_waypoint")
+        hidden = next(w for w in waypoints if w["properties"]["name"] == "HG1")["properties"]
+        self.assertEqual((hidden["width"], hidden["isTiming"]), (300.0, False))
+        self.assertTrue(next(w for w in waypoints if w["properties"]["name"] == "TP1")["properties"]["isTiming"])
+        timed = precision_route_geojson(hidden_gates={0: [0.5]}, hidden_timing=True, hidden_width_m=500.0)
+        hidden = next(w for w in _features(timed, "route_waypoint") if w["properties"]["name"] == "HG1")["properties"]
+        self.assertEqual((hidden["width"], hidden["isTiming"]), (500.0, True))
+
+    def test_the_finish_point_starts_no_leg(self):
+        with self.assertRaises(ValueError):
+            precision_route_geojson(hidden_gates={3: [0.5]})
+
+    def test_untimed_waypoints(self):
+        waypoints = _features(precision_route_geojson(untimed=["TP1", "FP"]), "route_waypoint")
+        self.assertEqual(
+            {w["properties"]["name"]: w["properties"]["isTiming"] for w in waypoints},
+            {
+                "SP": True,
+                "TP1": False,
+                "TP2": True,
+                "FP": False,
+            },
+        )
+
+    def test_unknown_leg_points_have_extension_waypoints_that_hang_on_them(self):
+        geojson = precision_route_geojson(unknown_legs={"TP1": [(30.0, 3000.0), (60.0, 2000.0)]})
+        waypoints = {w["properties"]["name"]: w for w in _features(geojson, "route_waypoint")}
+        self.assertEqual(waypoints["TP1"]["properties"]["pointType"], "ul")
+        extensions = _features(geojson, "dummy_branch_waypoint")
+        self.assertEqual([e["properties"]["name"] for e in extensions], ["EXT1", "EXT2"])
+        self.assertEqual(
+            {e["properties"]["triggerPointId"] for e in extensions}, {waypoints["TP1"]["properties"]["id"]}
+        )
+        self.assertEqual([e["properties"]["branchSequence"] for e in extensions], [0, 1])
+        corner = tuple(reversed(waypoints["TP1"]["geometry"]["coordinates"]))
+        first = tuple(reversed(extensions[0]["geometry"]["coordinates"]))
+        self.assertDistance(corner, first, 3000.0)
+        # The extension waypoints are not on the route backbone.
+        self.assertNotIn("EXT1", waypoints)
+
+    def test_contract_route_has_a_three_point_backbone_and_free_catalogue_points(self):
+        geojson = contract_route_geojson(catalogue={"A": (2500.0, -1500.0), "B": (6000.0, 1500.0)})
+        backbone = _features(geojson, "route_waypoint")
+        self.assertEqual(
+            [(w["properties"]["name"], w["properties"]["pointType"]) for w in backbone],
+            [("SP", "sp"), ("MP", "tp"), ("FP", "fp")],
+        )
+        catalogue = _features(geojson, "catalogue_turnpoint")
+        self.assertEqual([c["properties"]["name"] for c in catalogue], ["A", "B"])
+        a = tuple(reversed(catalogue[0]["geometry"]["coordinates"]))
+        self.assertDistance((60.0, 11.0), a, math.hypot(2500.0, 1500.0))
+        self.assertGreater(a[0], 60.0)  # -1500 is north
+
+    def test_hunt_route_has_no_backbone_and_three_timed_points(self):
+        geojson = hunt_route_geojson(
+            compulsory={"CP1": (0.0, 0.0), "CP2": (6000.0, 0.0), "CP3": (12000.0, 0.0)},
+            catalogue={"A": (3000.0, -1500.0, 100)},
+        )
+        self.assertEqual(_features(geojson, "route_path"), [])
+        self.assertEqual(_features(geojson, "route_waypoint"), [])
+        self.assertEqual(
+            [f["properties"]["name"] for f in _features(geojson, "known_time_gate")], ["CP1", "CP2", "CP3"]
+        )
+        (target,) = _features(geojson, "catalogue_turnpoint")
+        self.assertEqual(target["properties"]["scoreValue"], 100)
+
+    def test_catalogue_and_timed_point_features(self):
+        point = (60.0, 11.0)
+        self.assertNotIn("scoreValue", catalogue_turnpoint_feature("A", point)["properties"])
+        feature = known_time_gate_feature("CP1", point, 926.0)
+        self.assertEqual(
+            (feature["properties"]["featureType"], feature["properties"]["width"]), ("known_time_gate", 926.0)
+        )
+        self.assertEqual(feature["geometry"]["coordinates"], [11.0, 60.0])
+
+    def test_circle_route_has_the_four_markers_at_the_given_offsets_from_the_centre(self):
+        centre = (59.9, 10.6)
+        geojson = circle_route_geojson(centre, start_m=(-1000.0, 0.0), entry_m=(150.0, 0.0), exit_m=(0.0, 600.0))
+        markers = {f["properties"]["name"]: f for f in geojson["features"]}
+        self.assertEqual(
+            {name: f["properties"]["featureType"] for name, f in markers.items()},
+            {
+                "SP": "circle_start_marker",
+                "X": "circle_entry_marker",
+                "CM": "circle_center_marker",
+                "WP": "circle_exit_marker",
+            },
+        )
+        self.assertEqual(
+            {name: f["properties"]["pointType"] for name, f in markers.items()},
+            {
+                "SP": "circle_start",
+                "X": "circle_entry",
+                "CM": "circle_center",
+                "WP": "circle_exit",
+            },
+        )
+
+        def point(name):
+            lon, lat = markers[name]["geometry"]["coordinates"]
+            return lat, lon
+
+        self.assertEqual(point("CM"), centre)
+        self.assertDistance(centre, point("SP"), 1000.0)
+        self.assertLess(point("SP")[1], centre[1])  # west
+        self.assertDistance(centre, point("WP"), 600.0)
+        self.assertGreater(point("WP")[0], centre[0])  # north
+
+    def test_runway_gates_and_the_landing_area(self):
+        start = (60.0, 11.0)
+        takeoff = runway_gate_feature("takeoff", start, 0.0)
+        landing = runway_gate_feature("landing", start, 18000.0, 1000.0)
+        self.assertEqual(
+            (takeoff["properties"]["featureType"], takeoff["properties"]["name"]), ("takeoff_gate", "Takeoff 1")
+        )
+        self.assertEqual(
+            (landing["properties"]["featureType"], landing["properties"]["name"]), ("landing_gate", "Landing 1")
+        )
+        first, second = (tuple(reversed(c)) for c in landing["geometry"]["coordinates"])
+        self.assertDistance(first, second, 2000.0)
+        area = landing_area_feature(start, (17000.0, 19000.0), (-500.0, 500.0))
+        self.assertEqual(area["properties"]["polygonType"], "duration_landing_area")
+        ring = area["geometry"]["coordinates"][0]
+        self.assertEqual((len(ring), ring[0] == ring[-1]), (5, True))
+        self.assertDistance(tuple(reversed(ring[0])), tuple(reversed(ring[1])), 2000.0)
+
+
+class GateCrossingsTest(SimpleTestCase):
+    def setUp(self):
+        self.waypoints, self.gate_times = _waypoints_and_times()
+        self.projector = Projector(self.waypoints[0].latitude, self.waypoints[0].longitude)
+
+    def crossings(self, *deviations, gates=None):
+        track = generate_track(self.waypoints, self.gate_times, deviations=deviations)
+        return gate_crossings(self.waypoints, self.gate_times, track, self.projector, gates)
+
+    def test_every_gate_is_crossed_once_along_the_route_on_time(self):
+        for name, found in self.crossings().items():
+            with self.subTest(gate=name):
+                self.assertEqual(len(found), 1)
+                self.assertEqual(found[0].direction, 1)
+                self.assertLess(abs(found[0].error_s), 1.0)
+
+    def test_the_error_is_the_time_after_the_expected_time(self):
+        found = self.crossings(TimeOffset("TP1", 20))["TP1"]
+        self.assertAlmostEqual(found[0].error_s, 20.0, delta=1.0)
+        self.assertEqual(found[0].time - self.gate_times["TP1"], datetime.timedelta(seconds=found[0].error_s))
+
+    def test_a_double_crossing_gives_two_crossings_in_time_order(self):
+        found = self.crossings(DoubleCrossing("TP1", gap_s=60.0))["TP1"]
+        self.assertEqual([c.direction for c in found], [1, 1])
+        self.assertLess(found[0].time, found[1].time)
+        self.assertAlmostEqual((found[1].time - found[0].time).total_seconds(), 60.0, delta=1.5)
+
+    def test_a_wrong_direction_crossing_has_direction_minus_one(self):
+        found = self.crossings(WrongDirectionCrossing("TP1"))["TP1"]
+        self.assertEqual([c.direction for c in found], [-1])
+
+    def test_a_missed_gate_has_no_crossing(self):
+        self.assertEqual(self.crossings(MissGate("TP1"))["TP1"], [])
+
+    def test_only_the_wanted_gates_are_reported(self):
+        self.assertEqual(sorted(self.crossings(gates=["TP2", "FP"])), ["FP", "TP2"])
+
+    def test_gates_without_an_expected_time_are_left_out(self):
+        gate_times = {name: time for name, time in self.gate_times.items() if name != "TP1"}
+        track = generate_track(self.waypoints, self.gate_times)
+        self.assertNotIn("TP1", gate_crossings(self.waypoints, gate_times, track, self.projector))
+
+
+class DurationFlightTest(DistanceAssertions, SimpleTestCase):
+    START = (60.0, 11.0)
+
+    def flight(self, **options):
+        landing = local_point(self.START, 18000.0, 0.0)
+        return duration_flight(self.START, landing, takeoff_time=START, airborne_s=1800.0, **options)
+
+    def test_it_stands_still_flies_and_stands_still_again(self):
+        track = self.flight(hold_before_s=90.0, hold_after_s=100.0)
+        before = [p for p in track if p.time < START]
+        flying = [p for p in track if START <= p.time <= START + datetime.timedelta(seconds=1800)]
+        after = [p for p in track if p.time > START + datetime.timedelta(seconds=1800)]
+        self.assertEqual({p.speed for p in before}, {0.0})
+        self.assertEqual({p.speed for p in after}, {0.0})
+        self.assertAlmostEqual(len(before), 90, delta=1)
+        self.assertAlmostEqual(len(after), 100, delta=1)
+        # 18 km in 1800 s is 10 m/s, 19.4 knots.
+        self.assertTrue(all(abs(p.speed - 19.44) < 0.1 for p in flying[1:-1]))
+
+    def test_it_takes_off_at_the_takeoff_time_and_touches_down_after_the_airborne_time(self):
+        track = self.flight()
+        first_moving = next(p for p in track if p.speed > 1.0)
+        self.assertAlmostEqual((first_moving.time - START).total_seconds(), 0.0, delta=1.0)
+        last_moving = [p for p in track if p.speed > 1.0][-1]
+        self.assertAlmostEqual((last_moving.time - START).total_seconds(), 1800.0, delta=1.0)
+        self.assertDistance(self.START, (last_moving.latitude, last_moving.longitude), 18000.0)
+
+
+class WizardTaskHelpersTest(TestCase):
+    """The additions to build_task: several tasks and pilots in one test, declarations, whole-second times."""
+
+    def test_two_tasks_can_be_built_in_one_test(self):
+        first = build_task(precision_route_geojson())
+        second = build_task(precision_route_geojson())
+        self.assertNotEqual(first.contest.name, second.contest.name)
+        self.assertNotEqual(first.contestant.team_id, second.contestant.team_id)
+
+    def test_another_pilot_shares_the_task_and_gets_a_track_of_their_own(self):
+        task = build_task(precision_route_geojson())
+        other = add_contestant(task)
+        self.assertEqual(other.navigation_task, task.navigation_task)
+        self.assertEqual(other.contestant.contestant_number, 2)
+        self.assertNotEqual(other.contestant.pk, task.contestant.pk)
+        self.assertNotEqual(other.contestant.tracker_device_id, task.contestant.tracker_device_id)
+        third = add_contestant(task)
+        self.assertEqual(third.contestant.contestant_number, 3)
+        self.assertEqual(task.navigation_task.contestant_set.count(), 3)
+        result = other.run(other.generate_track())
+        self.assertEqual(result.missed_gates, [])
+
+    def test_declare_compiles_a_declaration_for_the_pilot(self):
+        task = build_task(
+            precision_route_geojson(hidden_gates={1: [0.5]}),
+            task_subtype=KNOWN_CIRCUIT,
+            scorecard_shortcut="CIMA Precision",
+        )
+        declared_time = task.gate_times["TP2"] + datetime.timedelta(seconds=40)
+        declared = task.declare({"turnpoint_time_overrides": {"TP2": declared_time.isoformat()}})
+        self.assertEqual(declared.gate_times["TP2"], declared_time)
+        self.assertEqual(declared.contestant.pk, task.contestant.pk)
+        self.assertEqual(task.gate_times["TP2"], declared_time - datetime.timedelta(seconds=40))
+
+    def test_whole_second_gate_times(self):
+        task = build_task(
+            precision_route_geojson(hidden_gates={1: [0.5]}),
+            task_subtype=KNOWN_CIRCUIT,
+            scorecard_shortcut="CIMA Precision",
+            whole_second_gate_times=True,
+        )
+        self.assertTrue(all(time.microsecond == 0 for time in task.gate_times.values()))
+        declared = task.declare(
+            {"turnpoint_time_overrides": {"TP2": (task.gate_times["TP2"] + datetime.timedelta(seconds=36)).isoformat()}}
+        )
+        self.assertTrue(all(time.microsecond == 0 for time in declared.gate_times.values()))
+        rough = build_task(precision_route_geojson(), task_subtype=KNOWN_CIRCUIT, scorecard_shortcut="CIMA Precision")
+        self.assertTrue(any(time.microsecond for time in rough.gate_times.values()))
+
+    def test_an_adaptive_start_pilot_has_gate_times_counted_from_midnight_until_the_start(self):
+        task = build_task(
+            contract_route_geojson(catalogue={"A": (2500.0, -1500.0)}),
+            task_subtype=CONTRACT_NAVIGATION_TIME_CONTROLS,
+            scorecard_shortcut="CIMA Precision",
+            adaptive_start=True,
+        ).declare({"declared_sequence": ["A", "MP", "FP"], "declared_t_seconds": 240})
+        self.assertTrue(task.contestant.adaptive_start)
+        self.assertEqual(task.gate_times["SP"].hour, 0)
+        self.assertEqual(task.gate_times["MP"] - task.gate_times["SP"], datetime.timedelta(seconds=240))
+
+    def test_a_circle_task_and_an_unknown_legs_task_build_from_the_helpers(self):
+        circle = build_task(
+            circle_route_geojson((59.9, 10.6)), task_subtype=CIRCLE, scorecard_shortcut="CIMA Precision"
+        )
+        self.assertEqual([w.name for w in circle.effective_waypoints], ["SP", "X", "CM", "WP"])
+        unknown = build_task(
+            precision_route_geojson(unknown_legs={"TP1": [(30.0, 3000.0)]}),
+            task_subtype=UNKNOWN_LEGS,
+            scorecard_shortcut="CIMA Precision",
+        )
+        self.assertTrue(unknown.contestant.contestanttaskconfiguration.is_valid)
+        self.assertEqual([w.name for w in unknown.effective_waypoints], ["SP", "TP1", "TP2", "FP"])
