@@ -1,0 +1,1028 @@
+"""Synthetic flight simulator and scoring runner for backend scoring tests.
+
+Three parts, each usable on its own:
+
+1. Track generation. `generate_track` turns the contestant's effective waypoints and gate times into 1 Hz positions that
+   follow the legs and cross every gate at its expected time, with a lead-in before the first gate and a lead-out after
+   the last one. Small, composable `Deviation` objects (time offset, missed gate, skipped gate, orbit, reversal, double
+   crossing, ...) change the flight; `circle_flight` builds the 2.A7 circle manoeuvre.
+2. Task building. `build_task` creates a task the way the wizard does (EditableRoute -> Route -> NavigationTask ->
+   Contestant -> ContestantTaskCompiler); `precision_route_geojson` gives a simple route to fly.
+3. Scoring. `run_flight` feeds positions through the real calculators (`calculator_factory`, live_processing=False) and
+   applies every emitted score message with the real `ContestantProcessor.update_score_from_thread`, so the result
+   holds both the messages and the final score.
+
+Geometry is done in a local metric frame (east x, north y) from a `Projector`; positive lateral offsets are to the
+right of the direction of flight. Samples are taken half a second off the whole-second grid by default so that no
+sample lies exactly on a gate line (gate times are whole seconds), which would make the crossing ambiguous.
+"""
+
+import bisect
+import datetime
+import math
+from dataclasses import dataclass, field, replace
+from queue import Queue
+from types import SimpleNamespace
+from typing import Callable, Iterable, Optional, Sequence
+from unittest.mock import patch
+
+from display.calculators.calculator_factory import calculator_factory
+from display.calculators.contestant_processor import ContestantProcessor, ScoreAccumulator
+from display.calculators.gate_calculator import GateCalculator
+from display.calculators.update_score_message import UpdateScoreMessage
+from display.models.contestant_utility_models import ContestantReceivedPosition
+from display.utilities.coordinate_utilities import Projector, project_position_lat_lon
+
+KNOT_IN_MS = 1852.0 / 3600.0
+NAUTICAL_MILE_IN_M = 1852.0
+UTC = datetime.timezone.utc
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Small geometry helpers (metric frame: x east, y north)
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+def _unit(dx: float, dy: float) -> tuple[float, float]:
+    length = math.hypot(dx, dy)
+    if length == 0:
+        raise ValueError("Zero-length direction")
+    return dx / length, dy / length
+
+
+def _right(direction: tuple[float, float]) -> tuple[float, float]:
+    """The unit vector to the right of a direction of flight."""
+    return direction[1], -direction[0]
+
+
+def _bearing_deg(dx: float, dy: float) -> float:
+    return math.degrees(math.atan2(dx, dy)) % 360.0
+
+
+def _signed_bearing_change(first: float, second: float) -> float:
+    return (second - first + 540.0) % 360.0 - 180.0
+
+
+def _xy_to_lat_lon(projector: Projector, x: float, y: float) -> tuple[float, float]:
+    lon, lat = projector.from_projection.transform(x, y)
+    return lat, lon
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Positions and altitude
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+@dataclass(frozen=True)
+class SimPosition:
+    """One generated position report. Speed is in knots, course in degrees true."""
+
+    latitude: float
+    longitude: float
+    time: datetime.datetime
+    altitude: float
+    speed: float
+    course: float
+
+    def to_received_position(self, contestant=None) -> ContestantReceivedPosition:
+        """An unsaved ContestantReceivedPosition, as the position processor hands to the orchestrator.
+
+        projected_x/projected_y stay None: the orchestrator projects them itself when it has a projector.
+        """
+        return ContestantReceivedPosition(
+            contestant=contestant,
+            time=self.time,
+            latitude=self.latitude,
+            longitude=self.longitude,
+            altitude=self.altitude,
+            speed=self.speed,
+            course=self.course,
+        )
+
+
+@dataclass(frozen=True)
+class AltitudeSegment:
+    """Fly at `altitude` from `start` until `end` (forever when end is None, i.e. a step)."""
+
+    start: datetime.datetime
+    end: Optional[datetime.datetime]
+    altitude: float
+
+
+@dataclass(frozen=True)
+class AltitudeProfile:
+    """Altitude as a function of time: a base altitude with optional steps and excursions (later ones win)."""
+
+    base: float = 1000.0
+    segments: tuple[AltitudeSegment, ...] = ()
+
+    def at(self, time: datetime.datetime) -> float:
+        altitude = self.base
+        for segment in self.segments:
+            if time >= segment.start and (segment.end is None or time < segment.end):
+                altitude = segment.altitude
+        return altitude
+
+
+def _altitude_function(altitude) -> Callable[[datetime.datetime], float]:
+    if isinstance(altitude, AltitudeProfile):
+        return altitude.at
+    if callable(altitude):
+        return altitude
+    return lambda _time: float(altitude)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# The plan: timed knots joined by straight segments
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+@dataclass
+class Knot:
+    """A point the aircraft passes at time `t` (seconds from the plan's reference time). Named knots are gates."""
+
+    x: float
+    y: float
+    t: float
+    name: Optional[str] = None
+    width_m: float = 0.0
+
+
+class Plan:
+    """The flight as an ordered list of knots, flown at constant speed along straight segments between them."""
+
+    def __init__(self, knots: list[Knot], projector: Projector, reference_time: datetime.datetime):
+        self.knots = knots
+        self.projector = projector
+        self.reference_time = reference_time
+
+    # -- lookups --------------------------------------------------------------------------------------------------
+
+    def index_of(self, name: str) -> int:
+        for index, knot in enumerate(self.knots):
+            if knot.name == name:
+                return index
+        raise ValueError(f"Gate {name!r} is not in the plan")
+
+    def next_named(self, index: int) -> int:
+        for candidate in range(index + 1, len(self.knots)):
+            if self.knots[candidate].name is not None:
+                return candidate
+        return len(self.knots) - 1
+
+    def segment_direction(self, index: int) -> tuple[float, float]:
+        """Unit direction of the segment starting at knot `index`."""
+        start, end = self.knots[index], self.knots[index + 1]
+        return _unit(end.x - start.x, end.y - start.y)
+
+    def segment_speed(self, index: int) -> float:
+        """Speed in m/s along the segment starting at knot `index`."""
+        start, end = self.knots[index], self.knots[index + 1]
+        return math.hypot(end.x - start.x, end.y - start.y) / (end.t - start.t)
+
+    def tangent(self, index: int) -> tuple[float, float]:
+        """Unit direction of flight through a knot: the bisector of the incoming and outgoing segments."""
+        directions = []
+        if index > 0:
+            directions.append(self.segment_direction(index - 1))
+        if index < len(self.knots) - 1:
+            directions.append(self.segment_direction(index))
+        return _unit(sum(d[0] for d in directions), sum(d[1] for d in directions))
+
+    # -- editing --------------------------------------------------------------------------------------------------
+
+    def insert_knot_at(self, t: float) -> int:
+        """Make sure there is a knot at time `t` (interpolated on the segment containing it) and return its index."""
+        times = [knot.t for knot in self.knots]
+        if not times[0] <= t <= times[-1]:
+            raise ValueError(f"Time {t} is outside the flight")
+        index = min(bisect.bisect_right(times, t) - 1, len(self.knots) - 2)
+        if abs(self.knots[index].t - t) < 1e-9:
+            return index
+        if abs(self.knots[index + 1].t - t) < 1e-9:
+            return index + 1
+        start, end = self.knots[index], self.knots[index + 1]
+        fraction = (t - start.t) / (end.t - start.t)
+        self.knots.insert(
+            index + 1, Knot(start.x + fraction * (end.x - start.x), start.y + fraction * (end.y - start.y), t)
+        )
+        return index + 1
+
+    def insert_path(
+        self,
+        after_index: int,
+        points: Sequence[tuple[float, float]],
+        t_start: float,
+        t_end: float,
+        to: Optional[tuple[float, float]] = None,
+    ):
+        """Insert `points` after knot `after_index`, timed by distance travelled from `t_start` to `t_end`.
+
+        The path runs from the knot at `after_index` through `points`. Without `to` the last point is reached at
+        `t_end`; with `to` (a point that already is a knot, reached at `t_end`) the path continues on to it.
+        """
+        origin = self.knots[after_index]
+        chain = [(origin.x, origin.y), *points, *([to] if to else [])]
+        lengths = [math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip(chain, chain[1:])]
+        total = sum(lengths)
+        if total == 0:
+            raise ValueError("Path has no length")
+        travelled = 0.0
+        new_knots = []
+        for point, length in zip(points, lengths):
+            travelled += length
+            new_knots.append(Knot(point[0], point[1], t_start + (t_end - t_start) * travelled / total))
+        self.knots[after_index + 1 : after_index + 1] = new_knots
+
+    def validate(self):
+        """Times must strictly increase: a deviation that does not fit between its neighbours is a ValueError."""
+        for first, second in zip(self.knots, self.knots[1:]):
+            if second.t <= first.t:
+                raise ValueError(
+                    f"Deviations do not fit: {first.name or 'point'} at {first.t:.1f}s is followed by "
+                    f"{second.name or 'point'} at {second.t:.1f}s"
+                )
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Deviations
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+class Deviation:
+    """A change to the flight plan. Deviations are applied in `phase` order (stable within a phase)."""
+
+    phase = 50
+
+    def apply(self, plan: Plan):  # pragma: no cover - interface
+        raise NotImplementedError
+
+
+@dataclass
+class VisitOrder(Deviation):
+    """Visit the named gates in `order` instead of the route order. The gates keep their time slots in sequence."""
+
+    order: Sequence[str]
+    phase = 10
+
+    def apply(self, plan: Plan):
+        indices = sorted(plan.index_of(name) for name in self.order)
+        slots = [plan.knots[index].t for index in indices]
+        sources = {name: plan.knots[plan.index_of(name)] for name in self.order}
+        for index, slot, name in zip(indices, slots, self.order):
+            plan.knots[index] = replace(sources[name], t=slot)
+        plan.validate()
+
+
+@dataclass
+class SkipGate(Deviation):
+    """Fly directly from the previous gate to the next, never visiting `gate`."""
+
+    gate: str
+    phase = 20
+
+    def apply(self, plan: Plan):
+        del plan.knots[plan.index_of(self.gate)]
+        plan.validate()
+
+
+@dataclass
+class LateralOffset(Deviation):
+    """Pass `gate` `metres` to the right of the gate centre (negative: to the left)."""
+
+    gate: str
+    metres: float
+    phase = 30
+
+    def apply(self, plan: Plan):
+        index = plan.index_of(self.gate)
+        normal = _right(plan.tangent(index))
+        plan.knots[index].x += normal[0] * self.metres
+        plan.knots[index].y += normal[1] * self.metres
+
+
+@dataclass
+class MissGate(Deviation):
+    """Pass `gate` outside the end of its gate line, `margin_m` beyond half the gate width."""
+
+    gate: str
+    margin_m: float = 150.0
+    side: str = "right"
+    phase = 30
+
+    def apply(self, plan: Plan):
+        index = plan.index_of(self.gate)
+        distance = plan.knots[index].width_m / 2.0 + self.margin_m
+        LateralOffset(self.gate, distance if self.side == "right" else -distance).apply(plan)
+
+
+@dataclass
+class TimeOffset(Deviation):
+    """Cross `gate` `seconds` late (negative: early). Only that gate moves; the legs on each side are stretched."""
+
+    gate: str
+    seconds: float
+    phase = 40
+
+    def apply(self, plan: Plan):
+        plan.knots[plan.index_of(self.gate)].t += self.seconds
+        plan.validate()
+
+
+def _point_on_leg(plan: Plan, leg: str, fraction: float) -> tuple[int, float]:
+    """Insert a knot at `fraction` (by time) of the leg that starts at gate `leg`; return its index and time."""
+    start = plan.index_of(leg)
+    end = plan.next_named(start)
+    t = plan.knots[start].t + fraction * (plan.knots[end].t - plan.knots[start].t)
+    return plan.insert_knot_at(t), t
+
+
+@dataclass
+class Orbit(Deviation):
+    """A full 360 degree circle of `radius_m` flown at `fraction` of the leg that starts at gate `leg`."""
+
+    leg: str
+    fraction: float = 0.5
+    radius_m: float = 500.0
+    direction: str = "left"
+    speed_kt: Optional[float] = None
+    step_deg: float = 5.0
+
+    def apply(self, plan: Plan):
+        index, t = _point_on_leg(plan, self.leg, self.fraction)
+        heading = plan.segment_direction(index)
+        speed = self.speed_kt * KNOT_IN_MS if self.speed_kt else plan.segment_speed(index)
+        sign = 1.0 if self.direction == "left" else -1.0
+        normal = (-heading[1], heading[0]) if sign > 0 else _right(heading)
+        origin = plan.knots[index]
+        centre = (origin.x + normal[0] * self.radius_m, origin.y + normal[1] * self.radius_m)
+        start_angle = math.atan2(origin.y - centre[1], origin.x - centre[0])
+        steps = round(360.0 / self.step_deg)
+        points = [
+            (
+                centre[0] + self.radius_m * math.cos(start_angle + sign * 2 * math.pi * k / steps),
+                centre[1] + self.radius_m * math.sin(start_angle + sign * 2 * math.pi * k / steps),
+            )
+            for k in range(1, steps + 1)
+        ]
+        plan.insert_path(index, points, t, t + 2 * math.pi * self.radius_m / speed)
+        plan.validate()
+
+
+@dataclass
+class Reverse(Deviation):
+    """Fly backwards along the leg that starts at gate `leg` for `seconds`, then turn round and resume."""
+
+    leg: str
+    seconds: float
+    fraction: float = 0.5
+
+    def apply(self, plan: Plan):
+        index, t = _point_on_leg(plan, self.leg, self.fraction)
+        heading = plan.segment_direction(index)
+        distance = plan.segment_speed(index) * self.seconds
+        origin = plan.knots[index]
+        back = (origin.x - heading[0] * distance, origin.y - heading[1] * distance)
+        plan.insert_path(index, [back, (origin.x, origin.y)], t, t + 2 * self.seconds)
+        plan.validate()
+
+
+@dataclass
+class DoubleCrossing(Deviation):
+    """Cross `gate`, loop back round the end of its gate line and cross it again in the same direction.
+
+    The second crossing is `gap_s` after the first. The loop stays `margin_m` beyond the gate line's end.
+    """
+
+    gate: str
+    gap_s: float = 60.0
+    distance_m: float = 300.0
+    margin_m: float = 300.0
+
+    def apply(self, plan: Plan):
+        index = plan.index_of(self.gate)
+        knot = plan.knots[index]
+        forward = plan.tangent(index)
+        right = _right(forward)
+        side = knot.width_m / 2.0 + self.margin_m
+        d = self.distance_m
+
+        def at(along: float, across: float):
+            return knot.x + forward[0] * along + right[0] * across, knot.y + forward[1] * along + right[1] * across
+
+        loop = [at(d, 0), at(d, side), at(-d, side), at(-d, 0), at(0, 0)]
+        plan.insert_path(index, loop, knot.t, knot.t + self.gap_s)
+        plan.validate()
+
+
+@dataclass
+class WrongDirectionCrossing(Deviation):
+    """Cross `gate` exactly once, flying against the direction of the route.
+
+    The aircraft goes round the end of the gate line to the far side, crosses the gate backwards, and goes round the
+    end of the line again to carry on, so the gate line itself is crossed once, in the wrong direction.
+    """
+
+    gate: str
+    distance_m: float = 300.0
+    margin_m: float = 300.0
+
+    def apply(self, plan: Plan):
+        index = plan.index_of(self.gate)
+        if index == 0 or index == len(plan.knots) - 1:
+            raise ValueError("Gate needs a neighbour on each side")
+        knot = plan.knots[index]
+        forward = plan.tangent(index)
+        right = _right(forward)
+        side = knot.width_m / 2.0 + self.margin_m
+        d = self.distance_m
+
+        def at(along: float, across: float):
+            return knot.x + forward[0] * along + right[0] * across, knot.y + forward[1] * along + right[1] * across
+
+        before = [at(-d, side), at(d, side), at(d, 0)]
+        after = [at(-d, 0), at(-d, side), at(d, side)]
+        previous, following = plan.knots[index - 1], plan.knots[index + 1]
+        # After first so the indices of the earlier insertion stay valid.
+        plan.insert_path(index, after, knot.t, following.t, to=(following.x, following.y))
+        plan.insert_path(index - 1, before, previous.t, knot.t, to=(knot.x, knot.y))
+        plan.validate()
+
+
+@dataclass
+class SidewaysExcursion(Deviation):
+    """Leave the straight leg line sideways by `distance_m` for `duration_s` and return, on the leg from `leg`.
+
+    The aircraft keeps its progress along the leg; it moves out over `ramp_s`, holds, and moves back over `ramp_s`.
+    """
+
+    leg: str
+    distance_m: float
+    duration_s: float
+    fraction: float = 0.5
+    ramp_s: float = 10.0
+    side: str = "right"
+
+    def apply(self, plan: Plan):
+        start_index = plan.index_of(self.leg)
+        end_index = plan.next_named(start_index)
+        t0 = plan.knots[start_index].t + self.fraction * (plan.knots[end_index].t - plan.knots[start_index].t)
+        times = [t0, t0 + self.ramp_s, t0 + self.ramp_s + self.duration_s, t0 + 2 * self.ramp_s + self.duration_s]
+        if times[-1] > plan.knots[end_index].t:
+            raise ValueError("Excursion does not fit on the leg")
+        if any(t0 < knot.t < times[-1] for knot in plan.knots):
+            raise ValueError("Excursion overlaps another deviation")
+        indices = [plan.insert_knot_at(t) for t in times]
+        heading = plan.segment_direction(indices[0])
+        normal = _right(heading) if self.side == "right" else (-_right(heading)[0], -_right(heading)[1])
+        for index in indices[1:3]:
+            plan.knots[index].x += normal[0] * self.distance_m
+            plan.knots[index].y += normal[1] * self.distance_m
+        plan.validate()
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Track generation
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+def build_plan(
+    waypoints: Sequence,
+    gate_times: dict,
+    projector: Projector,
+    lead_in_s: float = 60.0,
+    lead_out_s: float = 60.0,
+) -> Plan:
+    """The undisturbed flight: lead-in, every waypoint at its gate time, lead-out.
+
+    Waypoints without a gate time (e.g. curve points) are timed by distance between their timed neighbours.
+    """
+    if len(waypoints) < 2:
+        raise ValueError("At least two waypoints are needed")
+    xy = []
+    for waypoint in waypoints:
+        point = projector.project_point(waypoint.latitude, waypoint.longitude)
+        xy.append((point.projected_x, point.projected_y))
+    cumulative = [0.0]
+    for a, b in zip(xy, xy[1:]):
+        cumulative.append(cumulative[-1] + math.hypot(b[0] - a[0], b[1] - a[1]))
+    timed = [index for index, waypoint in enumerate(waypoints) if waypoint.name in gate_times]
+    if len(timed) < 2:
+        raise ValueError("At least two waypoints need a gate time")
+    reference_time = gate_times[waypoints[timed[0]].name]
+    seconds = {index: (gate_times[waypoints[index].name] - reference_time).total_seconds() for index in timed}
+    average_speed = (cumulative[timed[-1]] - cumulative[timed[0]]) / (seconds[timed[-1]] - seconds[timed[0]])
+    times = []
+    for index in range(len(waypoints)):
+        if index in seconds:
+            times.append(seconds[index])
+            continue
+        before = [i for i in timed if i < index]
+        after = [i for i in timed if i > index]
+        if before and after:
+            a, b = before[-1], after[0]
+            fraction = (cumulative[index] - cumulative[a]) / (cumulative[b] - cumulative[a])
+            times.append(seconds[a] + fraction * (seconds[b] - seconds[a]))
+        elif before:
+            times.append(seconds[before[-1]] + (cumulative[index] - cumulative[before[-1]]) / average_speed)
+        else:
+            times.append(seconds[after[0]] - (cumulative[after[0]] - cumulative[index]) / average_speed)
+    knots = [
+        Knot(point[0], point[1], t, waypoint.name, float(getattr(waypoint, "width", 0) or 0) * NAUTICAL_MILE_IN_M)
+        for waypoint, point, t in zip(waypoints, xy, times)
+    ]
+    for first, second in zip(knots, knots[1:]):
+        if second.t <= first.t:
+            raise ValueError(f"Gate times are not increasing between {first.name} and {second.name}")
+    first_direction = _unit(knots[1].x - knots[0].x, knots[1].y - knots[0].y)
+    first_speed = math.hypot(knots[1].x - knots[0].x, knots[1].y - knots[0].y) / (knots[1].t - knots[0].t)
+    last_direction = _unit(knots[-1].x - knots[-2].x, knots[-1].y - knots[-2].y)
+    last_speed = math.hypot(knots[-1].x - knots[-2].x, knots[-1].y - knots[-2].y) / (knots[-1].t - knots[-2].t)
+    lead_in = Knot(
+        knots[0].x - first_direction[0] * first_speed * lead_in_s,
+        knots[0].y - first_direction[1] * first_speed * lead_in_s,
+        knots[0].t - lead_in_s,
+    )
+    lead_out = Knot(
+        knots[-1].x + last_direction[0] * last_speed * lead_out_s,
+        knots[-1].y + last_direction[1] * last_speed * lead_out_s,
+        knots[-1].t + lead_out_s,
+    )
+    return Plan([lead_in, *knots, lead_out], projector, reference_time)
+
+
+def sample_plan(
+    plan: Plan,
+    altitude=1000.0,
+    interval_s: float = 1.0,
+    sample_offset_s: float = 0.5,
+) -> list[SimPosition]:
+    """Sample the plan at a fixed rate. Sample times are `sample_offset_s + n * interval_s` from the reference time."""
+    altitude_at = _altitude_function(altitude)
+    knots = plan.knots
+    times = [knot.t for knot in knots]
+    n = math.ceil((times[0] - sample_offset_s) / interval_s - 1e-9)
+    positions = []
+    while True:
+        t = sample_offset_s + n * interval_s
+        n += 1
+        if t > times[-1] + 1e-9:
+            break
+        index = min(max(bisect.bisect_right(times, t) - 1, 0), len(knots) - 2)
+        start, end = knots[index], knots[index + 1]
+        fraction = (t - start.t) / (end.t - start.t)
+        x = start.x + fraction * (end.x - start.x)
+        y = start.y + fraction * (end.y - start.y)
+        length = math.hypot(end.x - start.x, end.y - start.y)
+        lat, lon = _xy_to_lat_lon(plan.projector, x, y)
+        time = plan.reference_time + datetime.timedelta(seconds=t)
+        positions.append(
+            SimPosition(
+                latitude=lat,
+                longitude=lon,
+                time=time,
+                altitude=float(altitude_at(time)),
+                speed=length / (end.t - start.t) / KNOT_IN_MS,
+                course=_bearing_deg(end.x - start.x, end.y - start.y) if length > 0 else 0.0,
+            )
+        )
+    return positions
+
+
+def generate_track(
+    waypoints: Sequence,
+    gate_times: dict,
+    *,
+    deviations: Iterable[Deviation] = (),
+    altitude=1000.0,
+    projector: Optional[Projector] = None,
+    lead_in_s: float = 60.0,
+    lead_out_s: float = 60.0,
+    interval_s: float = 1.0,
+    sample_offset_s: float = 0.5,
+) -> list[SimPosition]:
+    """Generate a flight over `waypoints` that crosses each gate at `gate_times[name]`, with `deviations` applied.
+
+    `waypoints` need name, latitude, longitude and (optionally) width in nautical miles - e.g. the result of
+    `get_effective_route_waypoints`. `altitude` is a number, an `AltitudeProfile` or a function of the time.
+    """
+    projector = projector or Projector(waypoints[0].latitude, waypoints[0].longitude)
+    plan = build_plan(waypoints, gate_times, projector, lead_in_s, lead_out_s)
+    for deviation in sorted(deviations, key=lambda item: item.phase):
+        deviation.apply(plan)
+    plan.validate()
+    return sample_plan(plan, altitude, interval_s, sample_offset_s)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Circle flight (task 2.A7)
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+def circle_flight(
+    start_point: tuple[float, float],
+    centre: tuple[float, float],
+    exit_point: tuple[float, float],
+    *,
+    start_time: datetime.datetime,
+    direction: str = "left",
+    radius_m=500.0,
+    sweep_deg: float = 810.0,
+    speed_kt: float = 75.0,
+    lead_in_m: float = 1500.0,
+    lead_out_m: float = 1500.0,
+    altitude=1000.0,
+    interval_s: float = 1.0,
+    sample_offset_s: float = 0.5,
+) -> list[SimPosition]:
+    """Fly over `start_point` and `centre` in a straight line, circle the centre and leave towards `exit_point`.
+
+    Points are (latitude, longitude). The aircraft continues past the centre to the circle's edge (the entry point on
+    the line start point -> centre), then turns `direction` ("left" is counter-clockwise, "right" clockwise) through
+    `sweep_deg`. `radius_m` is a number or a function of the angle swept so far in degrees. It then flies straight to
+    `exit_point` and `lead_out_m` beyond. `start_time` is the time at the start point. Positions are generated in a
+    projection centred on the circle centre.
+    """
+    radius = radius_m if callable(radius_m) else (lambda _angle: float(radius_m))
+    projector = Projector(*centre)
+
+    def to_xy(point):
+        projected = projector.project_point(*point)
+        return projected.projected_x, projected.projected_y
+
+    start_xy, exit_xy = to_xy(start_point), to_xy(exit_point)
+    approach = _unit(-start_xy[0], -start_xy[1])  # the centre is at the origin
+    entry_bearing = _bearing_deg(*approach)
+    sign = -1.0 if direction == "left" else 1.0
+    points = [
+        (start_xy[0] - approach[0] * lead_in_m, start_xy[1] - approach[1] * lead_in_m),
+        start_xy,
+        (0.0, 0.0),
+    ]
+    steps = max(1, math.ceil(sweep_deg))
+    for k in range(steps + 1):
+        angle = sweep_deg * k / steps
+        bearing = math.radians(entry_bearing + sign * angle)
+        r = radius(angle)
+        points.append((r * math.sin(bearing), r * math.cos(bearing)))
+    out = _unit(exit_xy[0] - points[-1][0], exit_xy[1] - points[-1][1])
+    points.extend([exit_xy, (exit_xy[0] + out[0] * lead_out_m, exit_xy[1] + out[1] * lead_out_m)])
+    deduplicated = [points[0]]
+    for point in points[1:]:
+        if math.hypot(point[0] - deduplicated[-1][0], point[1] - deduplicated[-1][1]) > 1e-6:
+            deduplicated.append(point)
+    speed = speed_kt * KNOT_IN_MS
+    knots = []
+    travelled = 0.0
+    start_distance = None
+    for index, point in enumerate(deduplicated):
+        if index:
+            travelled += math.hypot(point[0] - deduplicated[index - 1][0], point[1] - deduplicated[index - 1][1])
+        if point == start_xy:
+            start_distance = travelled
+        knots.append(Knot(point[0], point[1], travelled / speed))
+    shift = (start_distance or 0.0) / speed
+    for knot in knots:
+        knot.t -= shift
+    plan = Plan(knots, projector, start_time)
+    return sample_plan(plan, altitude, interval_s, sample_offset_s)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Measuring a generated track
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+def gate_line_xy(
+    waypoints: Sequence, index: int, half_width_m: float, projector: Projector
+) -> tuple[tuple[float, float], tuple[float, float]]:
+    """A gate line through waypoint `index`, perpendicular to the bisector of the legs, `half_width_m` each side.
+
+    This is an independent re-derivation for checking the generated track, not the calculators' own gate line.
+    """
+    projected = [projector.project_point(w.latitude, w.longitude) for w in waypoints]
+    directions = []
+    if index > 0:
+        directions.append(
+            _unit(
+                projected[index].projected_x - projected[index - 1].projected_x,
+                projected[index].projected_y - projected[index - 1].projected_y,
+            )
+        )
+    if index < len(waypoints) - 1:
+        directions.append(
+            _unit(
+                projected[index + 1].projected_x - projected[index].projected_x,
+                projected[index + 1].projected_y - projected[index].projected_y,
+            )
+        )
+    forward = _unit(sum(d[0] for d in directions), sum(d[1] for d in directions))
+    right = _right(forward)
+    centre = (projected[index].projected_x, projected[index].projected_y)
+    return (
+        (centre[0] - right[0] * half_width_m, centre[1] - right[1] * half_width_m),
+        (centre[0] + right[0] * half_width_m, centre[1] + right[1] * half_width_m),
+    )
+
+
+def line_crossings(
+    positions: Sequence[SimPosition],
+    line: tuple[tuple[float, float], tuple[float, float]],
+    projector: Projector,
+) -> list[tuple[datetime.datetime, int]]:
+    """Where consecutive positions cross the finite `line` (metric frame): (interpolated time, direction).
+
+    With a line from `gate_line_xy`, +1 means crossing in the direction of the route and -1 against it.
+    """
+    (x1, y1), (x2, y2) = line
+    lx, ly = x2 - x1, y2 - y1
+
+    def side(point):
+        return lx * (point[1] - y1) - ly * (point[0] - x1)
+
+    def xy(position):
+        projected = projector.project_point(position.latitude, position.longitude)
+        return projected.projected_x, projected.projected_y
+
+    crossings = []
+    previous = xy(positions[0])
+    for before, after in zip(positions, positions[1:]):
+        current = xy(after)
+        side_before, side_after = side(previous), side(current)
+        if side_before * side_after < 0:
+            fraction = side_before / (side_before - side_after)
+            point = (
+                previous[0] + fraction * (current[0] - previous[0]),
+                previous[1] + fraction * (current[1] - previous[1]),
+            )
+            along = ((point[0] - x1) * lx + (point[1] - y1) * ly) / (lx * lx + ly * ly)
+            if 0.0 <= along <= 1.0:
+                time = before.time + (after.time - before.time) * fraction
+                crossings.append((time, 1 if side_after > 0 else -1))
+        previous = current
+    return crossings
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Building a task the way the wizard does
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+def precision_route_geojson(
+    start: tuple[float, float] = (60.0, 11.0),
+    legs: Sequence[tuple[float, float]] = ((90.0, 6000.0), (160.0, 5000.0), (90.0, 6000.0)),
+    width_m: float = 1852.0,
+) -> dict:
+    """A precision-style EditableRoute: SP at `start`, then one waypoint per (bearing, metres) leg.
+
+    Intermediate waypoints are turn points TP1..TPn, the last one is the finish point FP. Features have the shape the
+    route editor saves (route_waypoint features with sequence numbers, plus the route_path line).
+    """
+    points = [start]
+    for bearing, distance in legs:
+        points.append(project_position_lat_lon(points[-1], bearing, distance))
+    features = [
+        {
+            "type": "Feature",
+            "properties": {"featureType": "route_path"},
+            "geometry": {"type": "LineString", "coordinates": [[lon, lat] for lat, lon in points]},
+        }
+    ]
+    for sequence, (lat, lon) in enumerate(points):
+        name, point_type = ("SP", "sp") if sequence == 0 else (f"TP{sequence}", "tp")
+        if sequence == len(points) - 1:
+            name, point_type = "FP", "fp"
+        features.append(
+            {
+                "type": "Feature",
+                "properties": {
+                    "id": f"wp-{sequence}",
+                    "name": name,
+                    "pointType": point_type,
+                    "featureType": "route_waypoint",
+                    "width": width_m,
+                    "isTiming": True,
+                    "isPassing": True,
+                    "sequence": sequence,
+                },
+                "geometry": {"type": "Point", "coordinates": [lon, lat]},
+            }
+        )
+    return {"type": "FeatureCollection", "features": features}
+
+
+@dataclass
+class SimulatedTask:
+    """Everything `build_task` created."""
+
+    contest: object
+    editable_route: object
+    route: object
+    navigation_task: object
+    scorecard: object
+    contestant: object
+
+    @property
+    def effective_waypoints(self) -> list:
+        from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
+
+        return get_effective_route_waypoints(self.navigation_task, contestant=self.contestant)
+
+    @property
+    def gate_times(self) -> dict:
+        return self.contestant.gate_times
+
+    @property
+    def projector(self) -> Projector:
+        return self.navigation_task.get_projector()
+
+    def generate_track(self, deviations: Iterable[Deviation] = (), **options) -> list[SimPosition]:
+        """A track over this task's effective waypoints and gate times, flown in the task's own projection."""
+        options.setdefault("projector", self.projector)
+        return generate_track(self.effective_waypoints, self.gate_times, deviations=deviations, **options)
+
+    def run(self, positions: Sequence[SimPosition]) -> "ScoringResult":
+        return run_flight(self.contestant, positions)
+
+
+def build_task(
+    route_geojson: dict,
+    *,
+    task_type: Optional[str] = None,
+    task_subtype: Optional[str] = None,
+    scorecard_shortcut: str = "FAI Precision no procedure turns",
+    configure_scorecard: Optional[Callable] = None,
+    declaration_payload: Optional[dict] = None,
+    rounded_corners: Optional[bool] = None,
+    corridor_width: Optional[float] = None,
+    takeoff_time: datetime.datetime = datetime.datetime(2020, 8, 1, 8, 5, tzinfo=UTC),
+    air_speed: float = 75,
+    wind_speed: float = 0,
+    wind_direction: float = 0,
+    minutes_to_starting_point: int = 6,
+    name: str = "Simulated task",
+) -> SimulatedTask:
+    """Create a compiled contestant on a task the way the wizard does. Needs the test database.
+
+    `route_geojson` is the EditableRoute feature collection. `configure_scorecard` may adjust the original scorecard
+    (e.g. set config values) before the task is created; it is saved afterwards.
+    """
+    from display.default_scorecards.create_scorecards import create_scorecards
+    from display.models import (
+        Aeroplane,
+        Contest,
+        Contestant,
+        Crew,
+        EditableRoute,
+        NavigationTask,
+        Person,
+        Scorecard,
+        Team,
+    )
+    from display.services.contestant_task_compiler import ContestantTaskCompiler
+    from display.utilities.navigation_task_type_definitions import PRECISION
+    from utilities.mock_utilities import TraccarMock
+
+    task_type = task_type or PRECISION
+    with (
+        patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock),
+        patch("display.signals.get_traccar_instance", return_value=TraccarMock),
+    ):
+        create_scorecards()
+        scorecard = Scorecard.get_originals().get(shortcut_name=scorecard_shortcut)
+        if configure_scorecard:
+            configure_scorecard(scorecard)
+            scorecard.save(update_fields=["config"])
+        editable_route = EditableRoute.objects.create(name=f"{name} route", route=route_geojson)
+        route = editable_route.create_route(
+            task_type, scorecard, rounded_corners, corridor_width, task_subtype=task_subtype
+        )
+        now = datetime.datetime.now(UTC)
+        contest = Contest.objects.create(
+            name=f"{name} contest", start_time=now, finish_time=now, time_zone="Europe/Oslo"
+        )
+        task_arguments = {}
+        if task_subtype:
+            task_arguments["task_subtype"] = task_subtype
+        navigation_task = NavigationTask.create(
+            name=name,
+            contest=contest,
+            route=route,
+            editable_route=editable_route,
+            original_scorecard=scorecard,
+            start_time=now,
+            finish_time=now,
+            **task_arguments,
+        )
+        crew = Crew.objects.create(member1=Person.objects.create(first_name="Sim", last_name="Pilot"))
+        team = Team.objects.create(crew=crew, aeroplane=Aeroplane.objects.create(registration="LN-SIM"))
+        contestant = Contestant.objects.create(
+            navigation_task=navigation_task,
+            team=team,
+            takeoff_time=takeoff_time,
+            tracker_start_time=takeoff_time - datetime.timedelta(minutes=30),
+            finished_by_time=takeoff_time + datetime.timedelta(hours=2),
+            tracker_device_id="simulated-flight",
+            contestant_number=1,
+            minutes_to_starting_point=minutes_to_starting_point,
+            air_speed=air_speed,
+            wind_direction=wind_direction,
+            wind_speed=wind_speed,
+        )
+        ContestantTaskCompiler(contestant).compile(declaration_payload=declaration_payload, force=True)
+        contestant.refresh_from_db()
+    return SimulatedTask(contest, editable_route, route, navigation_task, scorecard, contestant)
+
+
+# ---------------------------------------------------------------------------------------------------------------------
+# Running a flight through the real calculators and score application
+# ---------------------------------------------------------------------------------------------------------------------
+
+
+@dataclass
+class ScoringResult:
+    """What a simulated flight produced."""
+
+    messages: list[UpdateScoreMessage]
+    score: float
+    score_by_type: dict[str, float]
+    gate_passing_times: dict[str, Optional[datetime.datetime]] = field(default_factory=dict)
+    missed_gates: list[str] = field(default_factory=list)
+
+    def messages_of_type(self, score_type: str) -> list[UpdateScoreMessage]:
+        return [message for message in self.messages if message.score_type == score_type]
+
+    def summary(self) -> list[tuple]:
+        """The messages as plain tuples, for comparing two runs (messages hold Gate objects)."""
+        return [
+            (
+                message.time,
+                message.gate.name,
+                message.score,
+                message.message,
+                message.score_type,
+                message.annotation_type,
+                message.planned,
+                message.actual,
+            )
+            for message in self.messages
+        ]
+
+
+def make_score_applier(contestant) -> ContestantProcessor:
+    """A bare ContestantProcessor (no Redis/Traccar/threads) that can apply score messages without side effects."""
+    processor = object.__new__(ContestantProcessor)
+    processor.contestant = contestant
+    processor.scorecard = contestant.navigation_task.scorecard
+    processor.accumulated_scores = ScoreAccumulator()
+    processor.gate_scores = {}
+    processor.suppress_side_effects = True
+    processor.score = processor.scorecard.initial_score
+    return processor
+
+
+def run_flight(contestant, positions: Sequence[SimPosition], projector: Optional[Projector] = None) -> ScoringResult:
+    """Feed `positions` through the contestant's calculators and apply every score message.
+
+    Mirrors ContestantProcessor.run: calculate_score per position, finished_processing at the end (only when there
+    were positions), with each emitted UpdateScoreMessage applied by update_score_from_thread in emission order.
+    """
+    projector = projector or contestant.navigation_task.get_projector()
+    queue = Queue()
+    orchestrator = calculator_factory(contestant, queue, live_processing=False, projector=projector)
+    processor = make_score_applier(contestant)
+    messages: list[UpdateScoreMessage] = []
+
+    def apply_queued_messages():
+        while not queue.empty():
+            message = queue.get_nowait()
+            processor.update_score_from_thread(message)
+            messages.append(message)
+
+    for position in positions:
+        orchestrator.calculate_score(position.to_received_position(contestant))
+        apply_queued_messages()
+    if positions:
+        orchestrator.finished_processing()
+        apply_queued_messages()
+
+    passing_times = {}
+    missed = []
+    for calculator in orchestrator.calculators:
+        if isinstance(calculator, GateCalculator):
+            for gate in calculator.gates:
+                passing_times[gate.name] = gate.passing_time
+                if gate.missed:
+                    missed.append(gate.name)
+    return ScoringResult(
+        messages=messages,
+        score=processor.score,
+        score_by_type=dict(processor.accumulated_scores.related_score),
+        gate_passing_times=passing_times,
+        missed_gates=missed,
+    )
+
+
+def waypoint(name: str, latitude: float, longitude: float, width_nm: float = 1.0) -> SimpleNamespace:
+    """A minimal waypoint for generating tracks without a database."""
+    return SimpleNamespace(name=name, latitude=latitude, longitude=longitude, width=width_nm)
