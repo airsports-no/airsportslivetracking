@@ -2,7 +2,7 @@ import logging
 from dataclasses import dataclass
 from typing import Optional
 
-from display.utilities.navigation_task_type_definitions import (
+from display.utilities.navigation_task_type_definitions import (  # noqa: F401  (re-exported)
     AIRSPORT_CHALLENGE,
     AIRSPORTS,
     ANR_CORRIDOR,
@@ -11,70 +11,48 @@ from display.utilities.navigation_task_type_definitions import (
     POKER,
     PRECISION,
 )
+from display.utilities.task_types import (  # noqa: F401  (re-exported, the names are imported from here elsewhere)
+    ANR_CATALOGUE,
+    CIMA_ANR_SCORECARD,
+    CIMA_PRECISION_SCORECARD,
+    CIRCLE,
+    CONTRACT_NAVIGATION_TIME_CONTROLS,
+    CURVE_NAVIGATION_TIME_ESTIMATION,
+    DURATION,
+    KNOWN_CIRCUIT,
+    LEGACY_AIRSPORT_CHALLENGE,
+    LEGACY_AIRSPORTS,
+    LEGACY_ANR_CORRIDOR,
+    LEGACY_LANDING,
+    LEGACY_POKER,
+    LEGACY_PRECISION,
+    LIMITED_FUEL_TURNPOINT_HUNT,
+    PRECISION_NAVIGATION,
+    TASK_TYPE_REGISTRY,
+    TURNPOINT_HUNT,
+    UNKNOWN_LEGS,
+    TaskTypeDefinition,
+    task_types_in_family,
+)
 
 logger = logging.getLogger(__name__)
 
-CURVE_NAVIGATION_TIME_ESTIMATION = "curve_navigation_time_estimation"
-PRECISION_NAVIGATION = "precision_navigation"
-CONTRACT_NAVIGATION_TIME_CONTROLS = "contract_navigation_time_controls"
-KNOWN_CIRCUIT = "known_circuit"
-UNKNOWN_LEGS = "unknown_legs"
-TURNPOINT_HUNT = "turnpoint_hunt"
-CIRCLE = "circle"
-ANR_CATALOGUE = "anr_catalogue"
-LIMITED_FUEL_TURNPOINT_HUNT = "limited_fuel_turnpoint_hunt"
-DURATION = "duration"
+# The tables below are views derived from display.utilities.task_types.TASK_TYPE_REGISTRY, the single source of truth.
 
-# Task subtypes with no authored route backbone: the route consists entirely
-# of free-map markers (catalogue turnpoints, timed turnpoints, circle
-# markers, take-off/landing gates, ...), so no Route.waypoints can be derived
-# from the editable route's track. These get an empty placeholder Route
-# instead of going through create_precision_route (which requires a track and
-# returns None without one).
-NO_BACKBONE_TASK_SUBTYPES = (CIRCLE, TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT, DURATION)
+# Task subtypes with no authored route backbone: the route consists entirely of free-map markers, so no Route.waypoints
+# can be derived from the editable route's track. These get an empty placeholder Route.
+NO_BACKBONE_TASK_SUBTYPES = tuple(key for key, item in TASK_TYPE_REGISTRY.items() if not item.has_backbone)
 
-# Task subtypes whose declaration records predicted gate times as absolute timestamps rather
-# than offsets from takeoff (contract navigation's declared_t_seconds is the one declaration
-# format that's relative, so it's deliberately excluded here). Once such a declaration has been
-# compiled, rescheduling the contestant's takeoff/finish time would leave those predicted times
-# stale without invalidating them - Contestant.get_declared_absolute_times() uses this map to know,
-# per subtype, which declaration_payload key holds the times to check against the new window.
-#
-# Known circuit's turnpoint_time_overrides is the one entry here that's optional rather than
-# required (see KnownCircuitStrategy) - most of its points are speed-derived and move with the
-# schedule automatically, only the explicitly overridden points are absolute and need protecting.
-# Contestant.get_declared_absolute_times() naturally returns an empty list when no overrides were
-# set, so the lock only engages once the contestant has actually declared one.
+# Task subtype -> the declaration_payload key holding predicted gate times as absolute timestamps.
+# See TaskTypeDefinition.absolute_time_declaration_key.
 ABSOLUTE_TIME_DECLARATION_SUBTYPES = {
-    TURNPOINT_HUNT: "compulsory_point_times",
-    LIMITED_FUEL_TURNPOINT_HUNT: "compulsory_point_times",
-    PRECISION_NAVIGATION: "known_time_gate_predictions",
-    CURVE_NAVIGATION_TIME_ESTIMATION: "known_time_gate_predictions",
-    KNOWN_CIRCUIT: "turnpoint_time_overrides",
+    key: item.absolute_time_declaration_key
+    for key, item in TASK_TYPE_REGISTRY.items()
+    if item.absolute_time_declaration_key is not None
 }
 
-# Task subtypes where the contestant must declare (a sequence, predicted times, ...) before
-# flying: ContestantTaskConfiguration.is_valid stays False until they have. Limited fuel turnpoint
-# hunt is deliberately absent although it shares TurnpointHuntStrategy with plain turnpoint hunt:
-# its declaration is entirely optional (minimum_required=0), so it never fails validation.
-DECLARATION_REQUIRED_SUBTYPES = frozenset(
-    {
-        CURVE_NAVIGATION_TIME_ESTIMATION,
-        PRECISION_NAVIGATION,
-        CONTRACT_NAVIGATION_TIME_CONTROLS,
-        TURNPOINT_HUNT,
-    }
-)
-
-CIMA_PRECISION_SCORECARD = "CIMA Precision"
-CIMA_ANR_SCORECARD = "CIMA ANR"
-
-LEGACY_PRECISION = "legacy_precision"
-LEGACY_ANR_CORRIDOR = "legacy_anr_corridor"
-LEGACY_AIRSPORTS = "legacy_airsports"
-LEGACY_AIRSPORT_CHALLENGE = "legacy_airsport_challenge"
-LEGACY_POKER = "legacy_poker"
-LEGACY_LANDING = "legacy_landing"
+# Task subtypes where the contestant must declare before flying.
+DECLARATION_REQUIRED_SUBTYPES = frozenset(key for key, item in TASK_TYPE_REGISTRY.items() if item.declaration_required)
 
 
 @dataclass(frozen=True)
@@ -94,184 +72,27 @@ class TaskSubtypeDefinition:
     # coarse family that no subtype claims (the legacy ones).
     scorecard_shortcut_name: str | None = None
 
+    @classmethod
+    def from_task_type(cls, item: TaskTypeDefinition) -> "TaskSubtypeDefinition":
+        return cls(
+            key=item.key,
+            display_name=item.display_name,
+            coarse_family=item.coarse_family,
+            requires_contestant_configuration=item.requires_contestant_configuration,
+            required_primitives=item.required_primitives,
+            forbidden_primitives=item.forbidden_primitives,
+            declaration_schema_key=item.declaration_schema_key,
+            scoring_modules=item.scoring_modules,
+            scorecard_shortcut_name=item.scorecard_shortcut_name,
+        )
+
 
 TASK_SUBTYPE_DEFINITIONS: dict[str, TaskSubtypeDefinition] = {
-    LEGACY_PRECISION: TaskSubtypeDefinition(
-        key=LEGACY_PRECISION,
-        display_name="Legacy precision navigation",
-        coarse_family=PRECISION,
-        required_primitives=("route_path", "route_waypoint"),
-    ),
-    LEGACY_ANR_CORRIDOR: TaskSubtypeDefinition(
-        key=LEGACY_ANR_CORRIDOR,
-        display_name="Legacy ANR corridor",
-        coarse_family=ANR_CORRIDOR,
-        required_primitives=("route_path", "route_waypoint"),
-        forbidden_primitives=("dummy_waypoint", "unknown_leg"),
-    ),
-    LEGACY_AIRSPORTS: TaskSubtypeDefinition(
-        key=LEGACY_AIRSPORTS,
-        display_name="Legacy Air Sports Race",
-        coarse_family=AIRSPORTS,
-        required_primitives=("route_path", "route_waypoint"),
-        forbidden_primitives=("dummy_waypoint", "unknown_leg"),
-    ),
-    LEGACY_AIRSPORT_CHALLENGE: TaskSubtypeDefinition(
-        key=LEGACY_AIRSPORT_CHALLENGE,
-        display_name="Legacy Air Sport Challenge",
-        coarse_family=AIRSPORT_CHALLENGE,
-        required_primitives=("route_path", "route_waypoint"),
-        forbidden_primitives=("dummy_waypoint", "unknown_leg"),
-    ),
-    LEGACY_POKER: TaskSubtypeDefinition(
-        key=LEGACY_POKER,
-        display_name="Legacy poker run",
-        coarse_family=POKER,
-        required_primitives=("route_path", "route_waypoint"),
-    ),
-    LEGACY_LANDING: TaskSubtypeDefinition(
-        key=LEGACY_LANDING,
-        display_name="Legacy landing",
-        coarse_family=LANDING,
-        required_primitives=("landing_gate",),
-    ),
-    CURVE_NAVIGATION_TIME_ESTIMATION: TaskSubtypeDefinition(
-        key=CURVE_NAVIGATION_TIME_ESTIMATION,
-        display_name="2.A1 Curve navigation with time estimation",
-        coarse_family=PRECISION,
-        requires_contestant_configuration=True,
-        # known_time_gate/hidden_gate are not required on the route itself for typical
-        # precision-like navigation tasks - there is no structural check for them.
-        required_primitives=("route_path", "route_waypoint"),
-        declaration_schema_key=CURVE_NAVIGATION_TIME_ESTIMATION,
-        scoring_modules=("visible_time_gates", "hidden_gate_sequence", "backtracking"),
-        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
-    ),
-    PRECISION_NAVIGATION: TaskSubtypeDefinition(
-        key=PRECISION_NAVIGATION,
-        display_name="2.A2 Precision navigation",
-        coarse_family=PRECISION,
-        requires_contestant_configuration=True,
-        # Hidden gates are never required on the route itself - they are optional, not a
-        # structural prerequisite (applies to every task type, not just this one).
-        required_primitives=("route_path", "route_waypoint"),
-        declaration_schema_key=PRECISION_NAVIGATION,
-        scoring_modules=("visible_eta", "hidden_gate_sequence", "backtracking"),
-        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
-    ),
-    CONTRACT_NAVIGATION_TIME_CONTROLS: TaskSubtypeDefinition(
-        key=CONTRACT_NAVIGATION_TIME_CONTROLS,
-        display_name="2.A3 Contract navigation with time controls",
-        coarse_family=PRECISION,
-        requires_contestant_configuration=True,
-        required_primitives=("route_path", "route_waypoint", "catalogue_turnpoint"),
-        declaration_schema_key=CONTRACT_NAVIGATION_TIME_CONTROLS,
-        scoring_modules=("declared_sequence", "mandatory_time_points", "backtracking"),
-        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
-    ),
-    KNOWN_CIRCUIT: TaskSubtypeDefinition(
-        key=KNOWN_CIRCUIT,
-        display_name="2.A4 Navigation over a known circuit",
-        coarse_family=PRECISION,
-        # The contestant may optionally declare specific times at individual
-        # turnpoints, overriding the declared-groundspeed-derived time for
-        # just that point (see KnownCircuitStrategy).
-        requires_contestant_configuration=True,
-        # Observation photos and hidden gates are never required on the route itself - they are
-        # optional, not a structural prerequisite.
-        required_primitives=("route_path", "route_waypoint"),
-        scoring_modules=("observation_evidence", "hidden_gate_sequence", "backtracking"),
-        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
-    ),
-    UNKNOWN_LEGS: TaskSubtypeDefinition(
-        key=UNKNOWN_LEGS,
-        display_name="2.A5 Navigation with unknown legs",
-        coarse_family=PRECISION,
-        requires_contestant_configuration=False,
-        # Observation photos are optional evidence, not a structural prerequisite. The defining
-        # feature of an unknown-legs route is a backbone waypoint of pointType "unknown_leg" -
-        # see TaskCompiler._validate_unknown_legs_structure, which already enforces this.
-        required_primitives=("route_path", "route_waypoint", "unknown_leg"),
-        scoring_modules=("unknown_leg_sequence", "observation_evidence", "backtracking"),
-        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
-    ),
-    TURNPOINT_HUNT: TaskSubtypeDefinition(
-        key=TURNPOINT_HUNT,
-        display_name="2.A6 Turnpoint hunt",
-        coarse_family=PRECISION,
-        requires_contestant_configuration=True,
-        # No route backbone: exactly three standalone timed turnpoints
-        # (known_time_gate primitive) plus free catalogue turnpoints.
-        required_primitives=("catalogue_turnpoint", "known_time_gate"),
-        declaration_schema_key=TURNPOINT_HUNT,
-        scoring_modules=("predicted_sequence", "compulsory_timing_gates", "observation_evidence", "backtracking"),
-        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
-    ),
-    CIRCLE: TaskSubtypeDefinition(
-        key=CIRCLE,
-        display_name="2.A7 Circle",
-        coarse_family=PRECISION,
-        requires_contestant_configuration=False,
-        required_primitives=(
-            "circle_center_marker",
-            "circle_start_marker",
-            "circle_entry_marker",
-            "circle_exit_marker",
-        ),
-        scoring_modules=("circle_entry", "circle_radius", "circle_direction", "altitude_spread"),
-        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
-    ),
-    ANR_CATALOGUE: TaskSubtypeDefinition(
-        key=ANR_CATALOGUE,
-        display_name="2.A8 Precision navigation Air Nav Race (ANR)",
-        coarse_family=ANR_CORRIDOR,
-        requires_contestant_configuration=False,
-        # route_to_sp_path/route_from_fp_path are optional auxiliary compliance features (see
-        # anr_corridor_calculator.py) that most routes never author - they are not required for
-        # a route to support this task type.
-        required_primitives=("route_path", "route_waypoint"),
-        scoring_modules=("route_to_sp", "route_from_fp", "takeoff_timing", "quarantine"),
-        scorecard_shortcut_name=CIMA_ANR_SCORECARD,
-    ),
-    LIMITED_FUEL_TURNPOINT_HUNT: TaskSubtypeDefinition(
-        key=LIMITED_FUEL_TURNPOINT_HUNT,
-        display_name="2.B2 Limited fuel turnpoint hunt",
-        coarse_family=PRECISION,
-        requires_contestant_configuration=True,
-        # No route backbone: exactly three standalone timed turnpoints
-        # (known_time_gate primitive) plus free catalogue turnpoints.
-        required_primitives=("catalogue_turnpoint", "known_time_gate"),
-        declaration_schema_key=LIMITED_FUEL_TURNPOINT_HUNT,
-        scoring_modules=(
-            "all_gate_crossings",
-            "compulsory_timing_gates",
-            "observation_evidence",
-            "fuel_compliance",
-            "backtracking",
-        ),
-        scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
-    ),
-    DURATION: TaskSubtypeDefinition(
-        key=DURATION,
-        display_name="2.B3 Duration",
-        coarse_family=PRECISION,
-        requires_contestant_configuration=False,
-        # No takeoff_gate/landing_gate requirement: calculator_factory.py always adds
-        # SpeedInferredTakeoffLandingCalculator for DURATION tasks specifically as "a fallback
-        # source of TakeoffPassedEvent/LandingPassedEvent for routes with no authored
-        # takeoff/landing gates" - the route-editor wizard guide already documents both gates as
-        # optional for this reason (see taskTemplates.ts's cima_b3 template).
-    ),
+    key: TaskSubtypeDefinition.from_task_type(item) for key, item in TASK_TYPE_REGISTRY.items()
 }
 
-
 LEGACY_DEFAULT_SUBTYPE_BY_FAMILY: dict[str, str] = {
-    PRECISION: LEGACY_PRECISION,
-    ANR_CORRIDOR: LEGACY_ANR_CORRIDOR,
-    AIRSPORTS: LEGACY_AIRSPORTS,
-    AIRSPORT_CHALLENGE: LEGACY_AIRSPORT_CHALLENGE,
-    POKER: LEGACY_POKER,
-    LANDING: LEGACY_LANDING,
+    item.coarse_family: item.key for item in TASK_TYPE_REGISTRY.values() if item.default_for_family
 }
 
 
@@ -316,7 +137,7 @@ def is_valid_task_subtype(key: str | None) -> bool:
 
 
 def get_task_subtypes_for_family(coarse_family: str) -> list[TaskSubtypeDefinition]:
-    return [item for item in TASK_SUBTYPE_DEFINITIONS.values() if item.coarse_family == coarse_family]
+    return [TASK_SUBTYPE_DEFINITIONS[item.key] for item in task_types_in_family(coarse_family)]
 
 
 def validate_subtype_family_compatibility(subtype: str | None, coarse_family: str) -> None:
@@ -350,70 +171,18 @@ def scorecard_suits_task_subtype(shortcut_name: str, subtype: str | None) -> boo
     return shortcut_name not in SUBTYPE_SCORECARD_SHORTCUT_NAMES
 
 
-# The catalogue's per-task maximum score, for subtypes where that maximum is a fixed constant
-# (not route-/declaration-dependent) and where the scoring calculator has been confirmed to emit
-# properly-signed penalty magnitudes (see contestant_processor.update_score_from_thread's
-# desc-sign handling): (score_sorting_direction, initial_score).
-#
-# - 2.A1-2.A5 (CURVE_NAVIGATION_TIME_ESTIMATION..UNKNOWN_LEGS): the catalogue normalizes every
-#   one of these onto a fixed 0-1000 scale ("P = 1000 x Q / Qmax") - gate_calculator.py /
-#   backtracking_and_procedure_turns.py, which score all of them, only ever emit positive
-#   penalty magnitudes (no positive "achievement" values mixed in), so this is a safe default.
-# - CIRCLE (2.A7): Pmax = 250 (documentation/cima/cima_task_catalog.md), matches
-#   circle_calculator.py's CIRCLE_MAXIMUM_SCORE.
-# - ANR_CATALOGUE (2.A8): "the competitor will start with 2.000 points" (cima_task_catalog.md) -
-#   that's the catalogue's intermediate Q, not its final "P = 1000 * Q / Qmax" (Qmax fixed at
-#   2000, not route-dependent - unlike 2.A1-2.A5's Qmax, none of ANR's penalty terms
-#   (Pnav/Ptime/Pfpr/Pto/Prr/Pbc) are counted per-gate the way Qh/Qt are, so there's no route
-#   configuration to derive a ceiling from). initial_score=1000 here (not 2000) plus
-#   get_cima_fixed_scale_factor halving every ANR score message reproduces the full formula
-#   exactly: 1000 - sum(halved penalties) == (2000 - sum(penalties)) / 2. anr_corridor_calculator.py
-#   only ever emits positive penalty magnitudes.
-# - TURNPOINT_HUNT / LIMITED_FUEL_TURNPOINT_HUNT (2.A6/2.B2): unlike every subtype above, this is
-#   an ADDITIVE-from-zero model, not "start at a ceiling, subtract" - the catalogue's maximum is
-#   route-dependent (100/photo + 200/gate + a sequence bonus, growing with however many
-#   photos/gates the organizer places), so there is no fixed ceiling to start from at all.
-#   initial_score=0 with desc here means "climb from 0, higher final score wins" - see
-#   contestant_processor.ACHIEVEMENT_SCORE_TYPES for how update_score_from_thread tells this
-#   apart from the "start at max, subtract" subtypes above (both use score_sorting_direction=desc,
-#   but must NOT both sign-flip incoming scores the same way). gate_calculator.py's
-#   _score_turnpoint_hunt_target_value (achievement, added as-is) and
-#   _score_turnpoint_hunt_sequence_bonus (achievement, added as-is) are the only two score_types
-#   that must be exempted from the sign flip; every other turnpoint-hunt score_type
-#   (GATE_SCORE_TYPE, turnpoint_hunt_compulsory_timing, limited_fuel_deadline_exceeded,
-#   turnpoint_hunt_maximum_duration_exceeded) is a genuine penalty and must still flip-and-subtract
-#   like every other desc subtype. Final P = 1000*Q/Qmax normalization applies ONLY to the
-#   achievement component (cima_score_normalization.get_cima_achievement_qmax - sum of every
-#   declared target's score_value, plus the sequence bonus): the two are independent streams by
-#   design, so there's no double-counting question to resolve - a missed target's GATE_SCORE_TYPE
-#   penalty (if the organizer configures one) still applies as a completely separate, linear
-#   deduction on top, exactly like backtracking does for 2.A1-2.A5.
-#
-# Deliberately excluded - do not add without also confirming/fixing the underlying calculator:
-# - DURATION (2.B3): duration_calculator.py mixes a positive "achievement" value (more minutes
-#   flown = better, meant to add) with a positive-penalty landing-area-outside deduction (meant
-#   to subtract) using the same unconditional-positive convention as circle_calculator.py used
-#   to before its fix - flipping this default without first giving duration_calculator.py the
-#   same treatment would make an out-of-area landing score *better* under a descending scorecard.
+# (score_sorting_direction, initial_score) of the task scorecard copy, for the subtypes whose catalogue maximum is a
+# fixed constant and whose calculators emit properly signed penalty magnitudes. See
+# TaskTypeDefinition.scoring_baseline and fixed_scale_factor.
 CIMA_SCORING_BASELINE: dict[str, tuple[str, float]] = {
-    CURVE_NAVIGATION_TIME_ESTIMATION: ("desc", 1000),
-    PRECISION_NAVIGATION: ("desc", 1000),
-    CONTRACT_NAVIGATION_TIME_CONTROLS: ("desc", 1000),
-    KNOWN_CIRCUIT: ("desc", 1000),
-    UNKNOWN_LEGS: ("desc", 1000),
-    CIRCLE: ("desc", 250),
-    ANR_CATALOGUE: ("desc", 1000),
-    TURNPOINT_HUNT: ("desc", 0),
-    LIMITED_FUEL_TURNPOINT_HUNT: ("desc", 0),
+    key: item.scoring_baseline for key, item in TASK_TYPE_REGISTRY.items() if item.scoring_baseline is not None
 }
 
-# Uniform per-message scale factor for subtypes whose catalogue Qmax is a FIXED constant rather
-# than route-dependent (see ANR_CATALOGUE's comment above) - applied to every score message
-# regardless of score_type, unlike get_cima_gate_qmax/get_cima_achievement_qmax's component-
-# specific normalization, because ANR's Q formula already sums every one of its penalty terms
-# together with no separate "excluded, linear" bucket the way backtracking is for 2.A1-2.A5.
+# Uniform per-message scale factor for subtypes whose catalogue Qmax is a fixed constant rather than route-dependent.
+# 2.A8 starts at 2000 points and P = 1000 * Q / 2000: the scorecard starts at 1000 and every score message is halved,
+# so 1000 - sum(halved penalties) == (2000 - sum(penalties)) / 2.
 CIMA_FIXED_SCALE_FACTORS: dict[str, float] = {
-    ANR_CATALOGUE: 0.5,
+    key: item.fixed_scale_factor for key, item in TASK_TYPE_REGISTRY.items() if item.fixed_scale_factor is not None
 }
 
 

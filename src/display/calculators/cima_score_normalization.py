@@ -89,30 +89,14 @@ from __future__ import annotations
 import typing
 
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
-from display.utilities.cima_task_type_definitions import (
-    CONTRACT_NAVIGATION_TIME_CONTROLS,
-    CURVE_NAVIGATION_TIME_ESTIMATION,
-    KNOWN_CIRCUIT,
-    LIMITED_FUEL_TURNPOINT_HUNT,
-    PRECISION_NAVIGATION,
-    TURNPOINT_HUNT,
-    UNKNOWN_LEGS,
-)
 from display.utilities.gate_definitions import DUMMY, LANDING_GATE, TAKEOFF_GATE
+from display.utilities.task_types import TASK_TYPE_REGISTRY
 
 if typing.TYPE_CHECKING:
     from display.models import Contestant
 
 # See this module's docstring for why only these five, and why not e.g. 2.A6/2.B2.
-_QMAX_ELIGIBLE_SUBTYPES = frozenset(
-    {
-        CURVE_NAVIGATION_TIME_ESTIMATION,
-        PRECISION_NAVIGATION,
-        CONTRACT_NAVIGATION_TIME_CONTROLS,
-        KNOWN_CIRCUIT,
-        UNKNOWN_LEGS,
-    }
-)
+_QMAX_ELIGIBLE_SUBTYPES = frozenset(key for key, item in TASK_TYPE_REGISTRY.items() if item.gate_qmax_eligible)
 
 
 def _worst_case_penalty(scorecard, gate_type: str, *, gate_check: bool, time_check: bool) -> float:
@@ -175,7 +159,9 @@ def get_cima_gate_qmax(contestant: "Contestant") -> float | None:
     return total if total > 0 else None
 
 
-_ACHIEVEMENT_QMAX_ELIGIBLE_SUBTYPES = frozenset({TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT})
+_ACHIEVEMENT_QMAX_ELIGIBLE_SUBTYPES = frozenset(
+    key for key, item in TASK_TYPE_REGISTRY.items() if item.achievement_qmax_eligible
+)
 
 
 def get_cima_achievement_qmax(contestant: "Contestant") -> float | None:
