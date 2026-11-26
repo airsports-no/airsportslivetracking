@@ -388,6 +388,64 @@ class Reverse(Deviation):
 
 
 @dataclass
+class ProcedureTurn(Deviation):
+    """Fly a procedure turn at `gate`: carry on `overshoot_m` past it, turn the long way round and rejoin the route.
+
+    The loop turns the opposite way to the route's own turn at the gate (a 160 degree right turn becomes a 200 degree
+    left turn), with a circle of `radius_m`, and ends on the heading that points at the next gate. `direction` forces
+    "left" or "right" instead (which makes it a wrong-way procedure turn). The path is flown at the leg's speed, so
+    it has to fit before the next gate time.
+    """
+
+    gate: str
+    radius_m: float = 300.0
+    overshoot_m: float = 600.0
+    direction: Optional[str] = None
+    step_deg: float = 5.0
+
+    def apply(self, plan: Plan):
+        index = plan.index_of(self.gate)
+        if index == 0 or index == len(plan.knots) - 1:
+            raise ValueError("Gate needs a neighbour on each side")
+        knot, following = plan.knots[index], plan.knots[index + 1]
+        heading_in = plan.segment_direction(index - 1)
+        route_turn = _signed_bearing_change(
+            _bearing_deg(*heading_in), _bearing_deg(*plan.segment_direction(index))
+        )  # positive: right
+        if self.direction:
+            sign = 1.0 if self.direction == "right" else -1.0
+        else:
+            sign = -1.0 if route_turn > 0 else 1.0
+        start = (knot.x + heading_in[0] * self.overshoot_m, knot.y + heading_in[1] * self.overshoot_m)
+        normal = _right(heading_in) if sign > 0 else (-_right(heading_in)[0], -_right(heading_in)[1])
+        centre = (start[0] + normal[0] * self.radius_m, start[1] + normal[1] * self.radius_m)
+        start_angle = math.atan2(start[1] - centre[1], start[0] - centre[0])
+
+        def point_at(angle_deg: float) -> tuple[float, float]:
+            angle = start_angle - sign * math.radians(angle_deg)
+            return centre[0] + self.radius_m * math.cos(angle), centre[1] + self.radius_m * math.sin(angle)
+
+        heading_start = _bearing_deg(heading_in[0], heading_in[1])
+
+        def aims_at_next_gate(angle_deg: float) -> bool:
+            """True once the turn has swept round at least as far as the bearing of the next gate from here."""
+            point = point_at(angle_deg)
+            target = _bearing_deg(following.x - point[0], following.y - point[1])
+            return angle_deg >= (sign * (target - heading_start)) % 360.0
+
+        finish = next((a for a in range(1, 721) if aims_at_next_gate(a)), None)
+        if finish is None:
+            raise ValueError("The procedure turn does not come round to the next gate")
+        steps = int(finish // self.step_deg)
+        points = [start, *(point_at(k * self.step_deg) for k in range(1, steps + 1))]
+        if finish - steps * self.step_deg > 1e-6:
+            points.append(point_at(finish))
+        length = sum(math.hypot(b[0] - a[0], b[1] - a[1]) for a, b in zip([(knot.x, knot.y), *points], points))
+        plan.insert_path(index, points, knot.t, knot.t + length / plan.segment_speed(index))
+        plan.validate()
+
+
+@dataclass
 class DoubleCrossing(Deviation):
     """Cross `gate`, loop back round the end of its gate line and cross it again in the same direction.
 

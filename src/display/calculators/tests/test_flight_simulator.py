@@ -18,6 +18,7 @@ from display.calculators.tests.flight_simulator import (
     LateralOffset,
     MissGate,
     Orbit,
+    ProcedureTurn,
     Reverse,
     SidewaysExcursion,
     SkipGate,
@@ -287,6 +288,67 @@ class TrackGenerationTest(SimpleTestCase):
             ),
             delta=1.0,
         )
+
+
+class ProcedureTurnTest(SimpleTestCase):
+    """Turns of 160 degrees at TP1 and TP2 (a 400 s leg at 20 m/s each), flown with and without procedure turns."""
+
+    def setUp(self):
+        geojson = precision_route_geojson(legs=((90.0, 8000.0), (250.0, 8000.0), (90.0, 8000.0)))
+        points = [f["geometry"]["coordinates"] for f in geojson["features"] if f["geometry"]["type"] == "Point"]
+        self.waypoints = [waypoint(name, lat, lon) for name, (lon, lat) in zip(NAMES, points)]
+        self.gate_times = {name: START + datetime.timedelta(seconds=400 * i) for i, name in enumerate(NAMES)}
+        self.projector = Projector(self.waypoints[0].latitude, self.waypoints[0].longitude)
+
+    def track(self, *deviations):
+        return generate_track(self.waypoints, self.gate_times, deviations=deviations, projector=self.projector)
+
+    def xy(self, position):
+        point = self.projector.project_point(position.latitude, position.longitude)
+        return point.projected_x, point.projected_y
+
+    def distance_to(self, position, gate):
+        centre = self.projector.project_point(
+            self.waypoints[NAMES.index(gate)].latitude, self.waypoints[NAMES.index(gate)].longitude
+        )
+        x, y = self.xy(position)
+        return math.hypot(x - centre.projected_x, y - centre.projected_y)
+
+    def sample_at(self, track, gate):
+        return min(track, key=lambda position: abs((position.time - self.gate_times[gate]).total_seconds()))
+
+    def turned_between(self, track, first_gate, second_gate):
+        """The signed change of course (positive: right) between the samples at two gate times."""
+        window = [p for p in track if self.gate_times[first_gate] <= p.time <= self.gate_times[second_gate]]
+        return sum(_signed_bearing_change(a.course, b.course) for a, b in zip(window, window[1:]))
+
+    def test_the_gate_is_passed_on_time_and_the_next_gate_is_reached_on_time(self):
+        track = self.track(ProcedureTurn("TP1"))
+        self.assertLess(self.distance_to(self.sample_at(track, "TP1"), "TP1"), 25)
+        self.assertLess(self.distance_to(self.sample_at(track, "TP2"), "TP2"), 25)
+
+    def test_the_default_procedure_turn_goes_the_long_way_round(self):
+        # A 160 degree right turn at TP1 is flown as a 200 degree left turn.
+        self.assertAlmostEqual(self.turned_between(self.track(ProcedureTurn("TP1")), "TP1", "TP2"), -200.0, delta=12.0)
+        # A 160 degree left turn at TP2 is flown as a 200 degree right turn.
+        self.assertAlmostEqual(self.turned_between(self.track(ProcedureTurn("TP2")), "TP2", "FP"), 200.0, delta=12.0)
+
+    def test_forcing_the_direction_makes_the_short_turn(self):
+        track = self.track(ProcedureTurn("TP1", direction="right"))
+        self.assertAlmostEqual(self.turned_between(track, "TP1", "TP2"), 160.0, delta=12.0)
+
+    def test_the_aircraft_overshoots_the_gate_before_turning(self):
+        track = self.track(ProcedureTurn("TP1", overshoot_m=600.0))
+        after = [
+            p
+            for p in track
+            if self.gate_times["TP1"] <= p.time <= self.gate_times["TP1"] + datetime.timedelta(seconds=40)
+        ]
+        self.assertGreater(max(self.distance_to(p, "TP1") for p in after), 550)
+
+    def test_a_procedure_turn_that_does_not_fit_before_the_next_gate_is_rejected(self):
+        with self.assertRaises(ValueError):
+            self.track(ProcedureTurn("TP1", radius_m=4000.0))
 
 
 class CircleFlightTest(SimpleTestCase):
