@@ -12,3 +12,10 @@ NAVIGATION_TASK_TYPES = (
     (POKER, "Poker run"),
     (LANDING, "Landing"),
 )
+
+# The scorecard (by shortcut_name) a new task of a family is given unless the organiser picks another one: it is listed
+# first in the scorecard picker, which preselects the first entry. A family without an entry lists the newest scorecard
+# first (Scorecard.Meta.ordering).
+DEFAULT_SCORECARD_SHORTCUT_NAMES = {
+    AIRSPORTS: "Air Sports Race 2025",
+}

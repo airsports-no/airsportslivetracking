@@ -253,6 +253,7 @@ from display.tasks import (
 from display.utilities.calculator_running_utilities import is_calculator_running, is_dispatch_pending
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS, scorecard_suits_task_subtype
+from display.utilities.navigation_task_type_definitions import DEFAULT_SCORECARD_SHORTCUT_NAMES
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map import settings
@@ -1987,6 +1988,9 @@ class GetScorecardsViewSet(ReadOnlyModelViewSet):
                 if task_type in scorecard.task_type
                 and scorecard_suits_task_subtype(scorecard.shortcut_name, task_subtype)
             ]
+            # The family's default scorecard first: the picker preselects the first entry.
+            default_shortcut_name = DEFAULT_SCORECARD_SHORTCUT_NAMES.get(task_type)
+            scorecards.sort(key=lambda scorecard: scorecard.shortcut_name != default_shortcut_name)
         return Response(
             [
                 {"shortcut_name": scorecard.shortcut_name, "name": scorecard.name, "task_type": scorecard.task_type}
