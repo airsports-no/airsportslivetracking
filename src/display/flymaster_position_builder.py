@@ -40,7 +40,9 @@ def build_positions_from_flymaster(file_data: str) -> tuple["Contestant| None", 
                     "device_time": timestamp,
                     "latitude": float(latitude),
                     "longitude": float(longitude),
-                    "altitude": float(altitude) * 3.281,  # metres to feet
+                    # Metres, as the file gives it: every source stores positions in the units of
+                    # ContestantReceivedPosition (metres, knots); feet are a display conversion.
+                    "altitude": float(altitude),
                     "speed": float(speed) / 1.852,  # km/h to knots
                     "course": float(heading),
                     "attributes": {"battery_level": -1.0},
