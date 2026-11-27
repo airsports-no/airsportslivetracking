@@ -326,6 +326,8 @@ class ScorecardAdminForm(forms.ModelForm):
     duration_residual_fuel_required = forms.BooleanField(required=False)
     circle_radius_min_m = forms.FloatField(required=False)
     circle_radius_max_m = forms.FloatField(required=False)
+    circle_altitude_band_ft = forms.FloatField(required=False, min_value=0)
+    circle_altitude_penalty_percent = forms.FloatField(required=False, min_value=0, max_value=100)
     speed_keeping_enabled = forms.BooleanField(required=False)
     speed_keeping_tolerance_kt = forms.FloatField(required=False)
     speed_keeping_penalty_per_kt = forms.FloatField(required=False)

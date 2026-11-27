@@ -309,6 +309,8 @@ class TaskCompiler:
             getattr(scorecard, "duration_residual_fuel_required", None),
             getattr(scorecard, "circle_radius_min_m", None),
             getattr(scorecard, "circle_radius_max_m", None),
+            getattr(scorecard, "circle_altitude_band_ft", None),
+            getattr(scorecard, "circle_altitude_penalty_percent", None),
             getattr(scorecard, "anr_route_to_sp_penalty", None),
             getattr(scorecard, "anr_route_from_fp_penalty", None),
         )

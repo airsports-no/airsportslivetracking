@@ -59,6 +59,8 @@ export interface ScorecardData {
     duration_residual_fuel_required?: boolean;
     circle_radius_min_m?: number;
     circle_radius_max_m?: number;
+    circle_altitude_band_ft?: number;
+    circle_altitude_penalty_percent?: number;
     // 2.A4: the speed-keeping deviation penalty is off unless enabled; speed_term_value is Vs of Qv = Vs x S / Smax.
     speed_keeping_enabled?: boolean;
     speed_keeping_tolerance_kt?: number;

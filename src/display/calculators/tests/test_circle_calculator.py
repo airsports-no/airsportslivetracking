@@ -1,4 +1,5 @@
 import datetime
+import math
 from queue import Queue
 from unittest.mock import MagicMock, patch
 
@@ -6,8 +7,9 @@ from django.test import TestCase
 
 from display.calculators.calculator import GatePassedEvent, OrchestratorState
 from display.calculators.calculator_factory import calculator_factory
-from display.calculators.circle_calculator import CIRCLE_MAXIMUM_SCORE, CircleCalculator
+from display.calculators.circle_calculator import CIRCLE_MAXIMUM_SCORE, FEET_PER_METRE, CircleCalculator
 from display.default_scorecards.create_scorecards import create_scorecards
+from display.calculators.update_score_message import PENALTY, PERCENTAGE_PENALTY
 from display.models import Aeroplane, Contest, Contestant, Crew, EditableRoute, NavigationTask, Person, Scorecard, Team
 from display.utilities.task_types import CIRCLE
 from display.utilities.coordinate_utilities import project_position_lat_lon
@@ -165,65 +167,6 @@ class TestCircleCalculator(TestCase):
         )
         self.assertTrue(any(isinstance(item, CircleCalculator) for item in orchestrator.calculators))
 
-    def test_circle_calculator_emits_start_entry_and_exit_messages(self):
-        self.navigation_task.scorecard.circle_radius_min_m = 0
-        self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["config"])
-        self.contestant.navigation_task = self.navigation_task
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        with (
-            patch.object(calculator, "_is_clockwise_turn", return_value=False),
-            patch.object(calculator, "_is_radius_outside_limits", return_value=False),
-            patch.object(calculator, "_has_invalid_score_ratio", return_value=False),
-            patch.object(calculator, "_has_completed_scored_arc", return_value=True),
-            patch.object(calculator, "_is_center_outside_flown_circle", return_value=False),
-        ):
-            calculator.on_gate_passed(
-                self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
-            )
-            calculator.on_gate_passed(
-                self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
-            )
-            calculator.on_gate_passed(
-                self._make_event(
-                    "WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.2015, 11.2015
-                )
-            )
-
-        first = calculator.score_processing_queue.get_nowait()
-        second = calculator.score_processing_queue.get_nowait()
-        third = calculator.score_processing_queue.get_nowait()
-
-        self.assertEqual(first.score_type, "circle_start")
-        self.assertEqual(first.message, "circle start passed")
-        self.assertEqual(second.score_type, "circle_entry")
-        self.assertEqual(second.message, "circle entry passed")
-        self.assertEqual(third.score_type, "circle_score")
-        self.assertGreaterEqual(third.score, 0)
-        fourth = calculator.score_processing_queue.get_nowait()
-        self.assertEqual(fourth.score_type, "circle_exit")
-        self.assertEqual(fourth.message, "circle exit passed")
-
-    def test_circle_calculator_score_prefers_progress_samples(self):
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        calculator.progress_radius_samples = [200.0, 400.0]
-        calculator.radius_samples_m = [200.0, 700.0]
-        self.assertEqual(calculator._calculate_circle_score(), 0.0)
-
     def test_circle_calculator_marks_exit_before_entry_as_anomaly(self):
         calculator = CircleCalculator(
             self.contestant,
@@ -309,274 +252,30 @@ class TestCircleCalculator(TestCase):
         )
         self.assertFalse(calculator.score_processing_queue.empty())
 
-    def test_circle_calculator_marks_clockwise_turn_as_anomaly(self):
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        calculator.on_gate_passed(
-            self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
-        )
-        calculator.on_gate_passed(
-            self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
-        )
-        calculator.on_gate_passed(
-            self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.15, 11.35)
-        )
+    # --- The flight itself: positions around CM through calculate_enroute, the gates as events. ---------------------
+    #
+    # Coordinates below are metres in the frame of the circle: `along` is the direction of the straight run (SP to CM
+    # and beyond) and `left` is to its left; CM is the origin. A left circle runs counter-clockwise in this frame.
 
-        first = calculator.score_processing_queue.get_nowait()
-        second = calculator.score_processing_queue.get_nowait()
-        third = calculator.score_processing_queue.get_nowait()
-        self.assertEqual(first.score_type, "circle_start")
-        self.assertEqual(second.score_type, "circle_entry")
-        self.assertEqual(third.score_type, "circle_invalid_direction")
-        self.assertEqual(third.annotation_type, "anomaly")
-        self.assertEqual(third.message, "circle flown clockwise")
-
-    def test_circle_calculator_marks_radius_outside_limits_as_anomaly(self):
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        calculator.on_gate_passed(
-            self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
-        )
-        calculator.on_gate_passed(
-            self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
-        )
-        calculator.on_gate_passed(
-            self._make_event("WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.8, 11.8)
-        )
-
-        first = calculator.score_processing_queue.get_nowait()
-        second = calculator.score_processing_queue.get_nowait()
-        third = calculator.score_processing_queue.get_nowait()
-        self.assertEqual(first.score_type, "circle_start")
-        self.assertEqual(second.score_type, "circle_entry")
-        self.assertEqual(third.score_type, "circle_invalid_radius")
-        self.assertEqual(third.annotation_type, "anomaly")
-        self.assertEqual(third.message, "circle radius outside allowed limits")
-
-    def test_circle_calculator_marks_invalid_score_ratio_as_anomaly(self):
-        self.navigation_task.scorecard.circle_radius_min_m = 0
-        self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["config"])
+    def _calculator(self, **scorecard_values):
+        scorecard = self.navigation_task.scorecard
+        for key, value in scorecard_values.items():
+            setattr(scorecard, key, value)
+        if scorecard_values:
+            scorecard.save(update_fields=["config"])
         self.contestant.navigation_task = self.navigation_task
         calculator = CircleCalculator(
             self.contestant,
-            self.scorecard,
+            scorecard,
             self.route,
             Queue(),
             live_processing=False,
             projector=self.navigation_task.get_projector(),
         )
-        with (
-            patch.object(calculator, "_is_clockwise_turn", return_value=False),
-            patch.object(calculator, "_is_radius_outside_limits", return_value=False),
-            patch.object(calculator, "_has_invalid_score_ratio", return_value=True),
-        ):
-            calculator.progress_radius_samples = [200.0, 450.0]
-            calculator.on_gate_passed(
-                self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
-            )
-            calculator.on_gate_passed(
-                self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
-            )
-            calculator.on_gate_passed(
-                self._make_event(
-                    "WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.2015, 11.2015
-                )
-            )
-
-        first = calculator.score_processing_queue.get_nowait()
-        second = calculator.score_processing_queue.get_nowait()
-        third = calculator.score_processing_queue.get_nowait()
-        self.assertEqual(first.score_type, "circle_start")
-        self.assertEqual(second.score_type, "circle_entry")
-        self.assertEqual(third.score_type, "circle_invalid_score_ratio")
-        self.assertEqual(third.annotation_type, "anomaly")
-        self.assertEqual(third.message, "circle score ratio outside allowed limits")
-
-    def test_circle_calculator_marks_center_outside_flown_circle_as_anomaly(self):
-        self.navigation_task.scorecard.circle_radius_min_m = 0
-        self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["config"])
-        self.contestant.navigation_task = self.navigation_task
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        with (
-            patch.object(calculator, "_is_clockwise_turn", return_value=False),
-            patch.object(calculator, "_is_radius_outside_limits", return_value=False),
-            patch.object(calculator, "_has_invalid_score_ratio", return_value=False),
-            patch.object(calculator, "_has_completed_scored_arc", return_value=True),
-            patch.object(calculator, "_is_center_outside_flown_circle", return_value=True),
-        ):
-            calculator.progress_radius_samples = [250.0, 260.0, 255.0]
-            calculator.on_gate_passed(
-                self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
-            )
-            calculator.on_gate_passed(
-                self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
-            )
-            calculator.on_gate_passed(
-                self._make_event(
-                    "WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.3015, 11.3315
-                )
-            )
-
-        first = calculator.score_processing_queue.get_nowait()
-        second = calculator.score_processing_queue.get_nowait()
-        third = calculator.score_processing_queue.get_nowait()
-        self.assertEqual(first.score_type, "circle_start")
-        self.assertEqual(second.score_type, "circle_entry")
-        self.assertEqual(third.score_type, "circle_invalid_center")
-        self.assertEqual(third.annotation_type, "anomaly")
-        self.assertEqual(third.message, "circle center marker outside flown circle")
-
-    def test_circle_calculator_applies_altitude_spread_penalty(self):
-        self.navigation_task.scorecard.circle_radius_min_m = 0
-        self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["config"])
-        self.contestant.navigation_task = self.navigation_task
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        with (
-            patch.object(calculator, "_is_clockwise_turn", return_value=False),
-            patch.object(calculator, "_is_radius_outside_limits", return_value=False),
-            patch.object(calculator, "_has_invalid_score_ratio", return_value=False),
-            patch.object(calculator, "_has_completed_scored_arc", return_value=True),
-            patch.object(calculator, "_is_center_outside_flown_circle", return_value=False),
-        ):
-            calculator.on_gate_passed(
-                self._make_event(
-                    "SP-C",
-                    datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc),
-                    60.1,
-                    11.1,
-                    altitude=1000,
-                )
-            )
-            calculator.on_gate_passed(
-                self._make_event(
-                    "X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3, altitude=1000
-                )
-            )
-            calculator.altitude_samples_ft.extend([1000.0, 1305.0])
-            calculator.on_gate_passed(
-                self._make_event(
-                    "WP",
-                    datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc),
-                    60.2015,
-                    11.2015,
-                    altitude=1305,
-                )
-            )
-
-        first = calculator.score_processing_queue.get_nowait()
-        second = calculator.score_processing_queue.get_nowait()
-        third = calculator.score_processing_queue.get_nowait()
-        fourth = calculator.score_processing_queue.get_nowait()
-        fifth = calculator.score_processing_queue.get_nowait()
-        self.assertEqual(first.score_type, "circle_start")
-        self.assertEqual(second.score_type, "circle_entry")
-        self.assertEqual(third.score_type, "circle_score")
-        self.assertEqual(fourth.score_type, "circle_altitude_penalty")
-        self.assertEqual(fourth.annotation_type, "anomaly")
-        self.assertEqual(fourth.message, "circle altitude spread penalty")
-        # third.score is the penalty magnitude emitted for "circle_score" (CIRCLE_MAXIMUM_SCORE
-        # minus the achieved value, not the achieved value itself - see circle_calculator.py's
-        # on_gate_passed), so recover the achieved value before checking the 20% relationship.
-        achieved_circle_score = CIRCLE_MAXIMUM_SCORE - third.score
-        self.assertAlmostEqual(fourth.score, round(achieved_circle_score * 0.2, 1))
-        self.assertEqual(fifth.score_type, "circle_exit")
-
-    def test_circle_calculator_marks_incomplete_scored_arc_as_anomaly(self):
-        self.navigation_task.scorecard.circle_radius_min_m = 0
-        self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["config"])
-        self.contestant.navigation_task = self.navigation_task
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        with (
-            patch.object(calculator, "_is_clockwise_turn", return_value=False),
-            patch.object(calculator, "_is_radius_outside_limits", return_value=False),
-            patch.object(calculator, "_has_invalid_score_ratio", return_value=False),
-        ):
-            calculator.on_gate_passed(
-                self._make_event("SP-C", datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc), 60.1, 11.1)
-            )
-            calculator.on_gate_passed(
-                self._make_event("X", datetime.datetime(2020, 8, 1, 8, 12, tzinfo=datetime.timezone.utc), 60.3, 11.3)
-            )
-            calculator.on_gate_passed(
-                self._make_event(
-                    "WP", datetime.datetime(2020, 8, 1, 8, 18, tzinfo=datetime.timezone.utc), 60.2015, 11.2015
-                )
-            )
-
-        first = calculator.score_processing_queue.get_nowait()
-        second = calculator.score_processing_queue.get_nowait()
-        third = calculator.score_processing_queue.get_nowait()
-        self.assertEqual(first.score_type, "circle_start")
-        self.assertEqual(second.score_type, "circle_entry")
-        self.assertEqual(third.score_type, "circle_incomplete_scored_arc")
-        self.assertEqual(third.annotation_type, "anomaly")
-        self.assertEqual(third.message, "circle scored arc not completed")
-
-    def test_circle_calculator_records_progress_and_ignores_first_180_degrees(self):
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        for bearing, radius in [(0, 220), (90, 240), (180, 260), (225, 300), (270, 320), (315, 340), (360, 360)]:
-            pos = self._circle_position(bearing, radius)
-            calculator._record_progress_sample(pos)
-
-        self.assertGreaterEqual(calculator.cumulative_progress_deg, 360)
-        self.assertEqual([round(value) for value in calculator.progress_radius_samples], [301, 321, 341, 360])
-
-    def test_circle_calculator_calculate_enroute_accumulates_progress_samples(self):
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        calculator.entered = True
-        calculator.entry_position = type("Pos", (), {"latitude": 60.3, "longitude": 11.3})()
-        state = OrchestratorState(
+        self.assertTrue(calculator._frame_ready)
+        self._clock = datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc)
+        self._track = []
+        self._state = OrchestratorState(
             last_gate=None,
             last_visible_gate=None,
             next_gate=None,
@@ -585,305 +284,286 @@ class TestCircleCalculator(TestCase):
             has_passed_finishpoint=False,
             recalculation_completed=True,
         )
-        track = []
-        for bearing, radius in [(0, 220), (90, 240), (180, 260), (225, 300), (270, 320), (315, 340), (360, 360)]:
-            track.append(self._circle_position(bearing, radius, altitude=1000 + bearing))
-            calculator.calculate_enroute(track, state)
+        return calculator
 
-        self.assertGreaterEqual(calculator.cumulative_progress_deg, 360)
-        self.assertEqual([round(value) for value in calculator.progress_radius_samples], [301, 321, 341, 360])
-        self.assertGreaterEqual(len(calculator.altitude_samples_ft), 4)
+    def _frame_position(self, calculator, along, left, altitude=1000.0):
+        """A position `along` and `left` metres from CM in the frame of the straight run."""
+        ux, uy = calculator._approach
+        x = calculator._cm[0] + along * ux - left * uy
+        y = calculator._cm[1] + along * uy + left * ux
+        longitude, latitude = self.projector.from_projection.transform(x, y)
+        self._clock += datetime.timedelta(seconds=1)
+        position = MagicMock()
+        position.time = self._clock
+        position.latitude = latitude
+        position.longitude = longitude
+        position.altitude = altitude
+        position.projected_x = x
+        position.projected_y = y
+        return position
 
-    def test_circle_calculator_final_score_requires_completed_scored_arc(self):
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        calculator.progress_radius_samples = [300.0, 320.0, 340.0, 360.0]
-        calculator.final_score_ready = False
-        self.assertFalse(calculator._has_completed_scored_arc())
-        calculator.final_score_ready = True
-        self.assertTrue(calculator._has_completed_scored_arc())
+    def _fly_to(self, calculator, along, left, altitude=1000.0):
+        position = self._frame_position(calculator, along, left, altitude)
+        self._track.append(position)
+        calculator.calculate_enroute(self._track, self._state)
+        return position
 
-    # --- Boundary / lifecycle tests added to close the "no real flight data"
-    # gap for this new CIMA calculator (see synthetic_helpers.py module
-    # docstring for the general test-writing methodology). ---
+    def _gate(self, calculator, name, position):
+        gate = MagicMock()
+        gate.name = name
+        calculator.on_gate_passed(GatePassedEvent(gate, position, position.time, previous_gate=None))
 
-    def test_circle_calculator_540_degree_progress_boundary(self):
-        """final_score_ready flips exactly when cumulative progress reaches
-        540 degrees (_record_progress_sample, circle_calculator.py:213-214),
-        not before."""
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        # Each step below is a 90 degree increment around the circle center;
-        # cumulative_progress_deg after N steps is 90*N.
-        bearings = [
-            0,
-            90,
-            180,
-            270,
-            360,
-            450,
-            540,
-        ]  # cumulative: 90,180,270,360,450,540,630 (first sample is baseline, contributes 0)
-        for bearing in bearings[:-1]:
-            pos = self._circle_position(bearing, 260)
-            calculator._record_progress_sample(pos)
-            self.assertLess(calculator.cumulative_progress_deg, 540)
-            self.assertFalse(
-                calculator.final_score_ready, f"should not be ready at {calculator.cumulative_progress_deg} degrees"
-            )
-        # One more 90 degree step: cumulative goes from 540 to 630, crossing the boundary.
-        pos = self._circle_position(bearings[-1], 260)
-        calculator._record_progress_sample(pos)
-        self.assertGreaterEqual(calculator.cumulative_progress_deg, 540)
-        self.assertTrue(calculator.final_score_ready)
+    def _start_and_straight_run(self, calculator, run_to=400.0, straight=True):
+        """SP crossed, then the straight run over CM; X is crossed on the run beyond CM."""
+        start = self._frame_position(calculator, -1000.0, 0.0 if straight else 400.0)
+        self._gate(calculator, "SP-C", start)
+        for along in range(-900, int(run_to) + 1, 100):
+            position = self._fly_to(calculator, float(along), 0.0 if straight else 400.0)
+            if along == 100:
+                self._gate(calculator, "X", position)
 
-    def test_circle_calculator_180_degree_collection_lower_bound(self):
-        """Radius samples for scoring are only collected once cumulative
-        progress exceeds 180 degrees (circle_calculator.py:218-219) - the
-        first half-turn is deliberately ignored (entry transient)."""
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        # First sample only sets the baseline angle (no delta yet, per the
-        # `if self.last_circle_angle_deg is None: return` early exit).
-        calculator._record_progress_sample(self._circle_position(0, 260))
-        self.assertEqual(calculator.progress_radius_samples, [])
+    def _circle(
+        self,
+        calculator,
+        radius=500.0,
+        degrees=540.0,
+        clockwise=False,
+        altitude=1000.0,
+        centre=(0.0, 0.0),
+        step_deg=5.0,
+    ):
+        """The circle from the end of the straight run: `radius` and `altitude` may be functions of the angle."""
+        sign = -1.0 if clockwise else 1.0
+        angle = step_deg
+        while angle <= degrees + 1e-9:
+            r = radius(angle) if callable(radius) else radius
+            a = altitude(angle) if callable(altitude) else altitude
+            theta = math.radians(sign * angle)
+            self._fly_to(calculator, centre[0] + r * math.cos(theta), centre[1] + r * math.sin(theta), a)
+            angle += step_deg
+        return self._track[-1]
 
-        # +90: cumulative=90, still <=180 -> no radius sample collected yet.
-        calculator._record_progress_sample(self._circle_position(90, 260))
-        self.assertLessEqual(calculator.cumulative_progress_deg, 180)
-        self.assertEqual(calculator.progress_radius_samples, [])
+    def _messages(self, calculator):
+        messages = []
+        while not calculator.score_processing_queue.empty():
+            messages.append(calculator.score_processing_queue.get_nowait())
+        return messages
 
-        # +91 more (cumulative=181): now just past the 180 threshold -> this
-        # sample (and only this one so far) should start being collected.
-        calculator._record_progress_sample(self._circle_position(181, 260))
-        self.assertGreater(calculator.cumulative_progress_deg, 180)
-        self.assertEqual(len(calculator.progress_radius_samples), 1)
+    def _exit(self, calculator, last):
+        self._gate(calculator, "WP", last)
 
-    def test_circle_calculator_540_degree_collection_upper_bound(self):
-        """Radius-sample collection stops once cumulative progress exceeds
-        540 degrees (circle_calculator.py:220-221) - samples past 1.5 turns
-        are excluded from scoring."""
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        # Walk from 0 to 530 degrees in 90-degree steps (stays comfortably
-        # inside the 180-540 collection window for the last few samples),
-        # then take one final step that pushes cumulative past 540.
-        for bearing in [0, 90, 180, 270, 360, 450, 530]:
-            calculator._record_progress_sample(self._circle_position(bearing, 260))
-        samples_before_boundary = len(calculator.progress_radius_samples)
-        self.assertGreater(samples_before_boundary, 0)
-        self.assertLessEqual(calculator.cumulative_progress_deg, 540)
+    def _scored(self, messages):
+        return {m.score_type: m for m in messages}
 
-        # +20 more: cumulative now 550, past 540 -> this sample must NOT be collected.
-        calculator._record_progress_sample(self._circle_position(550, 260))
-        self.assertGreater(calculator.cumulative_progress_deg, 540)
-        self.assertEqual(len(calculator.progress_radius_samples), samples_before_boundary)
-
-    def test_circle_calculator_altitude_spread_boundary(self):
-        """Altitude spread of exactly 200ft incurs no penalty; 201ft does
-        (circle_calculator.py:270-273, `spread <= 200`)."""
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        calculator.altitude_samples_ft = [1000.0, 1200.0]  # spread == 200
-        self.assertEqual(calculator._calculate_altitude_penalty(100.0), 0.0)
-
-        calculator.altitude_samples_ft = [1000.0, 1201.0]  # spread == 201
-        self.assertEqual(calculator._calculate_altitude_penalty(100.0), round(100.0 * 0.2, 1))
-
-    def test_circle_calculator_clockwise_epsilon_boundary(self):
-        """_is_clockwise_turn only flags direction once the signed angular
-        delta is meaningfully negative (circle_calculator.py:172,
-        `delta < -1e-6`) - a position essentially on the entry radial (delta
-        ~ 0) must not be flagged as clockwise."""
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        calculator.start_position = self._circle_position(0, 260)
-        calculator.entry_position = self._circle_position(0, 260)
-        # Essentially the same angle as entry (well within float noise) -> not clockwise.
-        self.assertFalse(calculator._is_clockwise_turn(self._circle_position(0.0000001, 260)))
-        # A small but real increasing-compass-bearing step (clockwise on a
-        # compass) -> flagged.
-        self.assertTrue(calculator._is_clockwise_turn(self._circle_position(5, 260)))
-
-    def test_circle_calculator_degenerate_single_sample_fallback(self):
-        """When entry is immediately followed by exit with no progress
-        samples collected (the entry-to-exit turn stayed under the 180
-        degree collection threshold), _calculate_circle_score falls back to
-        radius_samples_m, which at exit contains exactly the one exit-time
-        sample (circle_calculator.py:229-231). With a single sample,
-        rmin == rmax, so the ratio is 1.0 and the score is the maximum 250.
-
-        CURRENT BEHAVIOR (flagged, not a locked-in "this is correct" test):
-        an near-instantaneous circle - one that barely turns before exiting -
-        scores full marks under this fallback, since there's no second sample
-        to reveal an inconsistent radius. Whether that's the intended
-        design (vs. e.g. treating too little arc as automatically
-        "incomplete", which the separate _has_completed_scored_arc check
-        already partially guards against via `final_score_ready`) is a
-        question for the domain owner, not something this test asserts is
-        "right" - it only pins down what the code currently does.
-        """
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        calculator.progress_radius_samples = []
-        calculator.radius_samples_m = [260.0]
-        self.assertFalse(calculator._has_invalid_score_ratio())
-        self.assertEqual(calculator._calculate_circle_score(), 250.0)
-
-    def test_circle_calculator_happy_path_full_lifecycle(self):
-        """The canonical correct-contestant scenario: start -> valid straight
-        entry -> just under two full turns at a constant radius -> exit.
-        Asserts the exact ordered emission with no anomalies, exercising the
-        state machine end to end rather than isolating one anomaly branch
-        at a time like the existing tests do."""
-        self.navigation_task.scorecard.circle_radius_min_m = 0
-        self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["config"])
-        self.contestant.navigation_task = self.navigation_task
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        state = OrchestratorState(
-            last_gate=None,
-            last_visible_gate=None,
-            next_gate=None,
-            in_range_of_gate=None,
-            projector=self.projector,
-            has_passed_finishpoint=False,
-            recalculation_completed=True,
-        )
-        radius = 260
-        start_time = datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc)
-        entry_time = start_time + datetime.timedelta(minutes=2)
-        calculator.on_gate_passed(self._make_event("SP-C", start_time, 60.1, 11.1))
-        calculator.on_gate_passed(self._make_event("X", entry_time, 60.3, 11.3))
-
-        # Constant-radius flight around the circle for just under 2 full
-        # turns (700 degrees), well past the 540 degree scoring threshold.
-        # Compass bearing decreasing == counter-clockwise (the required
-        # direction; increasing bearing is clockwise and correctly rejected
-        # by _is_clockwise_turn).
-        track = []
-        for bearing in range(700, 0, -20):
-            track.append(self._circle_position(bearing, radius))
-            calculator.calculate_enroute(track, state)
-
-        # Exit exactly where the flown circle left off (NOT the circle
-        # center - passing the center degenerates the angle computation
-        # used by _is_clockwise_turn/_calculate_radius_m).
-        exit_time = entry_time + datetime.timedelta(minutes=6)
-        last_position = track[-1]
-        calculator.on_gate_passed(self._make_event("WP", exit_time, last_position.latitude, last_position.longitude))
-
-        messages = [calculator.score_processing_queue.get_nowait() for _ in range(4)]
+    def test_a_perfect_circle_loses_nothing(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        last = self._circle(calculator)
+        self._exit(calculator, last)
+        messages = self._messages(calculator)
         self.assertEqual(
-            [m.score_type for m in messages], ["circle_start", "circle_entry", "circle_score", "circle_exit"]
+            ["circle_start", "circle_entry", "circle_score", "circle_exit"], [m.score_type for m in messages]
         )
-        # Near-constant radius (real geodesic placement introduces a little
-        # noise, a few tenths of a meter) -> ratio close to but not
-        # necessarily exactly 1.0 -> near-max achieved score -> near-zero
-        # penalty (messages[2].score is CIRCLE_MAXIMUM_SCORE minus the
-        # achieved value, not the achieved value itself - see
-        # circle_calculator.py's on_gate_passed).
-        self.assertLessEqual(messages[2].score, 5.0)
-        self.assertTrue(calculator.score_processing_queue.empty())
+        score = messages[2]
+        self.assertEqual(PENALTY, score.kind)
+        # the points lost of the 250; the crossing of X lies on the chord between two samples
+        self.assertLess(score.score, 0.5)
+        self.assertIn("Rmin 500 m, Rmax 500 m", score.message)
 
-    def test_circle_calculator_deviation_path_invalid_ratio_blocks_score(self):
-        """Deviation scenario: the contestant does not hold a constant
-        radius (varies enough that rmin/rmax <= 0.5), so the flight is
-        invalid and no circle_score is ever emitted - confirming the
-        anomaly-before-score ordering for a genuinely varying flown path
-        (not a patched-out anomaly check like the other anomaly tests)."""
-        self.navigation_task.scorecard.circle_radius_min_m = 0
-        self.navigation_task.scorecard.circle_radius_max_m = 2000
-        self.navigation_task.scorecard.save(update_fields=["config"])
-        self.contestant.navigation_task = self.navigation_task
-        calculator = CircleCalculator(
-            self.contestant,
-            self.scorecard,
-            self.route,
-            Queue(),
-            live_processing=False,
-            projector=self.navigation_task.get_projector(),
-        )
-        state = OrchestratorState(
-            last_gate=None,
-            last_visible_gate=None,
-            next_gate=None,
-            in_range_of_gate=None,
-            projector=self.projector,
-            has_passed_finishpoint=False,
-            recalculation_completed=True,
-        )
-        start_time = datetime.datetime(2020, 8, 1, 8, 10, tzinfo=datetime.timezone.utc)
-        entry_time = start_time + datetime.timedelta(minutes=2)
-        calculator.on_gate_passed(self._make_event("SP-C", start_time, 60.1, 11.1))
-        calculator.on_gate_passed(self._make_event("X", entry_time, 60.3, 11.3))
+    def test_the_score_is_the_formula_over_the_scored_arc(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        # 450 m at 180 degrees, 550 m at 360 degrees: Rmin/Rmax = 0.818, P = 159.1
+        last = self._circle(calculator, radius=lambda angle: 500.0 + 50.0 * math.cos(math.radians(angle)))
+        self._exit(calculator, last)
+        score = self._scored(self._messages(calculator))["circle_score"]
+        self.assertAlmostEqual(CIRCLE_MAXIMUM_SCORE - score.score, (450.0 / 550.0 - 0.5) * 500.0, delta=0.5)
 
-        # Radius swings between 200 and 500 (ratio 0.4, well under the 0.5
-        # threshold) over just under two turns, flown counter-clockwise
-        # (decreasing compass bearing).
-        track = []
-        for i, bearing in enumerate(range(700, 0, -20)):
-            radius = 200 if i % 2 == 0 else 500
-            track.append(self._circle_position(bearing, radius))
-            calculator.calculate_enroute(track, state)
+    def test_the_radius_limits_apply_over_the_whole_scored_arc(self):
+        for label, radius, expected in [
+            ("too small at one point", lambda angle: 150.0 if 300.0 <= angle <= 305.0 else 500.0, "Rmin 150 m"),
+            ("too large at one point", lambda angle: 800.0 if 400.0 <= angle <= 405.0 else 500.0, "Rmax 800 m"),
+        ]:
+            with self.subTest(label):
+                self._track = []
+                calculator = self._calculator()
+                self._start_and_straight_run(calculator, run_to=500)
+                last = self._circle(calculator, radius=radius, step_deg=1.0)
+                self._exit(calculator, last)
+                messages = self._messages(calculator)
+                self.assertEqual(
+                    ["circle_start", "circle_entry", "circle_invalid_radius"], [m.score_type for m in messages]
+                )
+                self.assertEqual(CIRCLE_MAXIMUM_SCORE, messages[2].score)
+                self.assertIn(expected, messages[2].message)
+                self.assertIn("200-750 m", messages[2].message)
 
-        exit_time = entry_time + datetime.timedelta(minutes=6)
-        last_position = track[-1]
-        calculator.on_gate_passed(self._make_event("WP", exit_time, last_position.latitude, last_position.longitude))
-
-        messages = [calculator.score_processing_queue.get_nowait() for _ in range(3)]
+    def test_a_radius_outside_the_limits_in_the_first_180_degrees_or_after_the_arc_is_not_scored(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        # 800 m in the unscored half turn, 100 m after the second crossing of X: neither is part of the scored arc
+        radius = lambda angle: 800.0 if angle <= 150.0 else (100.0 if angle > 545.0 else 500.0)  # noqa: E731
+        altitude = lambda angle: 1300.0 if angle <= 150.0 or angle > 545.0 else 1000.0  # noqa: E731
+        last = self._circle(calculator, radius=radius, altitude=altitude, degrees=700.0)
+        self._exit(calculator, last)
+        messages = self._messages(calculator)
         self.assertEqual(
-            [m.score_type for m in messages], ["circle_start", "circle_entry", "circle_invalid_score_ratio"]
+            ["circle_start", "circle_entry", "circle_score", "circle_exit"], [m.score_type for m in messages]
         )
-        self.assertTrue(calculator.score_processing_queue.empty())
-        for message in messages:
-            self.assertNotEqual(message.score_type, "circle_score")
+        self.assertLess(messages[2].score, 0.5)
+
+    def test_a_clockwise_circle_loses_the_whole_task(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        last = self._circle(calculator, clockwise=True)
+        self._exit(calculator, last)
+        messages = self._messages(calculator)
+        self.assertEqual(["circle_start", "circle_entry", "circle_invalid_direction"], [m.score_type for m in messages])
+        self.assertEqual(CIRCLE_MAXIMUM_SCORE, messages[2].score)
+        self.assertIn("clockwise", messages[2].message)
+
+    def test_a_left_circle_is_left_whichever_way_it_leaves(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        self._circle(calculator)
+        # leaves to the opposite side of where it entered
+        last = self._fly_to(calculator, -300.0, -300.0)
+        self._exit(calculator, last)
+        self.assertEqual(
+            ["circle_start", "circle_entry", "circle_score", "circle_exit"],
+            [m.score_type for m in self._messages(calculator)],
+        )
+
+    def test_a_circle_around_another_point_than_cm_does_not_complete_the_scored_arc(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        # Radius 300 m around a point 450 m to the left of CM: CM is outside the flown circle, the aircraft never goes
+        # round it
+        last = self._circle(calculator, radius=300.0, centre=(0.0, 450.0), degrees=540.0)
+        self._exit(calculator, last)
+        messages = self._messages(calculator)
+        self.assertEqual("circle_incomplete_scored_arc", messages[-1].score_type)
+        self.assertEqual(CIRCLE_MAXIMUM_SCORE, messages[-1].score)
+        self.assertIn("scored arc not completed", messages[-1].message)
+        self.assertNotIn("circle_score", [m.score_type for m in messages])
+
+    def test_x_crossed_once_is_an_incomplete_circle(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        last = self._circle(calculator, degrees=300.0)  # past 180 degrees and no further than X again at 360
+        self._exit(calculator, last)
+        messages = self._messages(calculator)
+        self.assertEqual("circle_incomplete_scored_arc", messages[-1].score_type)
+        self.assertIn("crossed once and not again", messages[-1].message)
+        self.assertEqual(CIRCLE_MAXIMUM_SCORE, messages[-1].score)
+
+    def test_x_never_crossed_is_an_incomplete_circle(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        last = self._circle(calculator, degrees=120.0)
+        self._exit(calculator, last)
+        messages = self._messages(calculator)
+        self.assertEqual("circle_incomplete_scored_arc", messages[-1].score_type)
+        self.assertIn("not crossed after the first 180 degrees", messages[-1].message)
+
+    def test_a_flight_that_never_reaches_the_exit_is_still_scored_by_finalise(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        self._circle(calculator, degrees=300.0)
+        self.assertEqual(["circle_start", "circle_entry"], [m.score_type for m in self._messages(calculator)])
+        calculator.finalise(self._track)
+        messages = self._messages(calculator)
+        self.assertEqual(["circle_incomplete_scored_arc"], [m.score_type for m in messages])
+        self.assertEqual(CIRCLE_MAXIMUM_SCORE, messages[0].score)
+        calculator.finalise(self._track)  # once only
+        self.assertEqual([], self._messages(calculator))
+
+    def test_a_completed_circle_without_an_exit_is_scored_by_finalise(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        self._circle(calculator)
+        self._messages(calculator)
+        calculator.finalise(self._track)
+        self.assertEqual(["circle_score"], [m.score_type for m in self._messages(calculator)])
+
+    def test_a_flight_that_never_passed_sp_is_explained_at_finalise(self):
+        calculator = self._calculator()
+        calculator.finalise([self._frame_position(calculator, -800.0, 0.0)])
+        messages = self._messages(calculator)
+        self.assertEqual(["circle_incomplete_scored_arc"], [m.score_type for m in messages])
+        self.assertIn("circle start (SP) was not passed", messages[0].message)
+        calculator = self._calculator()
+        calculator.finalise([])  # no positions, nothing to explain
+        self.assertEqual([], self._messages(calculator))
+
+    def test_entry_beside_cm_loses_the_whole_task(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500, straight=False)
+        messages = self._messages(calculator)
+        self.assertEqual(["circle_start", "circle_invalid_entry_line"], [m.score_type for m in messages])
+        last = self._circle(calculator)
+        self._exit(calculator, last)
+        self.assertEqual([], self._messages(calculator))  # the circle after it adds nothing
+
+    def test_the_entry_is_judged_from_the_track_when_the_x_gate_is_never_crossed(self):
+        for straight, expected in [(True, ["circle_start", "circle_score", "circle_exit"]), (False, None)]:
+            with self.subTest(straight=straight):
+                self._track = []
+                calculator = self._calculator()
+                start = self._frame_position(calculator, -1000.0, 0.0 if straight else 400.0)
+                self._gate(calculator, "SP-C", start)
+                for along in range(-900, 501, 100):
+                    self._fly_to(calculator, float(along), 0.0 if straight else 400.0)
+                last = self._circle(calculator, centre=(0.0, 0.0))
+                self._exit(calculator, last)
+                types = [m.score_type for m in self._messages(calculator)]
+                if expected:
+                    self.assertEqual(expected, types)
+                else:
+                    self.assertEqual(["circle_start", "circle_invalid_entry_line"], types)
+
+    def test_the_altitude_rule_is_a_percentage_penalty_on_the_spread_in_feet_of_metres(self):
+        # (spread in metres, penalised): 200 ft is 60.96 m. 70 m would be under the band if it were read as feet.
+        cases = [(0.0, False), (50.0, False), (60.0, False), (62.0, True), (70.0, True), (300.0, True)]
+        for spread_m, penalised in cases:
+            with self.subTest(spread_m=spread_m):
+                self._track = []
+                calculator = self._calculator()
+                self._start_and_straight_run(calculator, run_to=500)
+                altitude = lambda angle: 1000.0 + (spread_m if 300.0 <= angle <= 310.0 else 0.0)  # noqa: E731
+                last = self._circle(calculator, altitude=altitude)
+                self._exit(calculator, last)
+                messages = self._scored(self._messages(calculator))
+                if not penalised:
+                    self.assertNotIn("circle_altitude_penalty", messages)
+                    continue
+                penalty = messages["circle_altitude_penalty"]
+                self.assertEqual(PERCENTAGE_PENALTY, penalty.kind)
+                self.assertEqual(20, penalty.score)
+                self.assertIn(f"{spread_m * FEET_PER_METRE:.0f} ft", penalty.message)
+                self.assertIn("200 ft band", penalty.message)
+
+    def test_the_altitude_band_and_percentage_come_from_the_scorecard(self):
+        calculator = self._calculator(circle_altitude_band_ft=100, circle_altitude_penalty_percent=35)
+        self._start_and_straight_run(calculator, run_to=500)
+        last = self._circle(calculator, altitude=lambda angle: 1000.0 + (40.0 if 300.0 <= angle <= 310.0 else 0.0))
+        self._exit(calculator, last)
+        penalty = self._scored(self._messages(calculator))["circle_altitude_penalty"]
+        self.assertEqual((PERCENTAGE_PENALTY, 35), (penalty.kind, penalty.score))
+        self.assertIn("100 ft band", penalty.message)
+
+    def test_altitude_outside_the_scored_arc_does_not_count(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        altitude = lambda angle: 1000.0 + (200.0 if angle <= 150.0 or angle > 545.0 else 0.0)  # noqa: E731
+        last = self._circle(calculator, altitude=altitude, degrees=700.0)
+        self._exit(calculator, last)
+        self.assertNotIn("circle_altitude_penalty", self._scored(self._messages(calculator)))
+
+    def test_the_work_per_position_does_not_grow_with_the_track(self):
+        calculator = self._calculator()
+        self._start_and_straight_run(calculator, run_to=500)
+        self._circle(calculator, step_deg=0.5, degrees=540.0)
+        for name, value in vars(calculator).items():
+            if isinstance(value, (list, dict, set)) and name not in ("start_names", "entry_names", "exit_names"):
+                self.assertLessEqual(len(value), 10, name)

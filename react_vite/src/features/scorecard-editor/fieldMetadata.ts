@@ -72,7 +72,7 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
     },
     {
         title: 'Circle',
-        fields: ['circle_radius_min_m', 'circle_radius_max_m'],
+        fields: ['circle_radius_min_m', 'circle_radius_max_m', 'circle_altitude_band_ft', 'circle_altitude_penalty_percent'],
     },
     {
         title: 'Speed keeping',
@@ -186,6 +186,21 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
     duration_residual_fuel_required: { label: 'Duration residual fuel required', kind: 'boolean' },
     circle_radius_min_m: { label: 'Circle radius min', kind: 'number', unit: 'm', min: 0 },
     circle_radius_max_m: { label: 'Circle radius max', kind: 'number', unit: 'm', min: 0 },
+    circle_altitude_band_ft: {
+        label: 'Circle altitude band',
+        kind: 'number',
+        unit: 'ft',
+        min: 0,
+        help: 'Circle (2.A7): the most the aircraft may climb or descend between the lowest and the highest point of the scored circle (200 ft / 61 m).',
+    },
+    circle_altitude_penalty_percent: {
+        label: 'Circle altitude penalty',
+        kind: 'number',
+        unit: '%',
+        min: 0,
+        max: 100,
+        help: 'Circle (2.A7): the percentage of the task score lost when the altitude band is exceeded (20%).',
+    },
     speed_term_value: {
         label: 'Speed term value (Vs)',
         kind: 'number',

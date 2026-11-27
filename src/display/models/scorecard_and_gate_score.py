@@ -51,6 +51,8 @@ SCORECARD_CONFIG_FIELDS = [
     "duration_residual_fuel_required",
     "circle_radius_min_m",
     "circle_radius_max_m",
+    "circle_altitude_band_ft",
+    "circle_altitude_penalty_percent",
     "speed_keeping_enabled",
     "speed_keeping_tolerance_kt",
     "speed_keeping_penalty_per_kt",
@@ -287,6 +289,10 @@ class Scorecard(models.Model):
     duration_residual_fuel_required = ConfigField(False)
     circle_radius_min_m = ConfigField(200)
     circle_radius_max_m = ConfigField(750)
+    # 2.A7: the circle may span at most circle_altitude_band_ft between its lowest and highest point (200 ft / 61 m),
+    # otherwise circle_altitude_penalty_percent of the task score is lost (20%).
+    circle_altitude_band_ft = ConfigField(200)
+    circle_altitude_penalty_percent = ConfigField(20)
     # 2.A4: the speed-keeping rule (a penalty for every leg flown off the declared speed) is the application's own and
     # not part of the catalogue, so it is off unless the organiser turns it on.
     speed_keeping_enabled = ConfigField(False)

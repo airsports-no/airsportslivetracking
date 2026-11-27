@@ -7,16 +7,12 @@ with Rmin and Rmax from the scored circle, at most 250, an absolute score. A 20%
 overflown, the aircraft leaves the radius limits (200-750 m) or Rmin/Rmax is 0.5 or smaller.
 
 The flights are generated with `circle_flight`: straight from SP (1000 m west of CM) over CM to the edge of the circle,
-a left turn of 540 degrees (180 not scored and 360 scored) and out to WP. Whether the unit of the altitude is feet or
-metres is open (D5), so the altitude scenarios use spreads far from the band either way (30 against 300).
-
-Tests marked xfail(strict=True) are known disagreements of the application, with the finding and the slice of
-docs/PLAN_task_scoring_reliability.md that will fix them.
+a left turn of 540 degrees (180 not scored and 360 scored) and out to WP. The altitude of a position is in metres (D5,
+see FEET_PER_METRE in circle_calculator.py), so the spreads of 30 and 300 are 98 ft and 984 ft against the band of
+200 ft.
 """
 
 import math
-
-import pytest
 
 from display.calculators.tests import catalogue_oracle as oracle
 from display.calculators.tests.cima_scenario_support import CimaScenarioCase
@@ -93,12 +89,6 @@ class CircleFlightsTest(CimaScenarioCase):
         self.assertEqual("desc", task.navigation_task.scorecard.score_sorting_direction)
         self.assertEqual((250, 250), quality_baseline(task.contestant))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F12 / S17: the scored arc is measured as 540 degrees from the entry "
-        "crossing around CM and includes the approach over CM, so the radius samples "
-        "of a correct circle spread (239.7 points instead of 250)",
-    )
     def test_a_catalogue_shaped_circle_of_constant_radius_scores_the_maximum(self):
         self.build()
         result = self.fly(radius=500.0)
@@ -119,12 +109,6 @@ class CircleFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 159)
         self.assert_final_score(result, expected, "radius 450-550 m")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F13 / S17: the direction is judged from the entry position and the position "
-        "of the exit crossing only; a clockwise circle that leaves to the north "
-        "looks counter-clockwise and scores the maximum (250)",
-    )
     def test_a_circle_flown_clockwise_scores_zero(self):
         self.build()
         result = self.fly(radius=500.0, direction="right")
@@ -132,12 +116,6 @@ class CircleFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 0)
         self.assert_final_score(result, expected, "clockwise")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F13 / S17: the direction is judged from the entry position and the position "
-        "of the exit crossing only, so a left circle that leaves to the south is "
-        "taken for a clockwise one and scores zero",
-    )
     def test_a_left_circle_is_not_clockwise_whichever_way_it_leaves(self):
         self.build(exit_m=(0.0, -600.0))
         result = self.fly(radius=500.0, exit_m=(0.0, -600.0))
@@ -145,12 +123,6 @@ class CircleFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 250)
         self.assert_final_score(result, expected, "left circle leaving to the south")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F13 / S17: the radius limits are only checked at the exit crossing; a "
-        "circle that bulges to 800 m on the south side and is back at 500 m when "
-        "it leaves is not invalidated (59.8 points)",
-    )
     def test_leaving_the_radius_limits_during_the_circle_scores_zero(self):
         self.build()
 
@@ -202,12 +174,6 @@ class CircleFlightsTest(CimaScenarioCase):
         self.assertEqual(within.score, flat.score)
         self.assertAlmostEqual(exceeded.score, 0.8 * flat.score, delta=0.2)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F12 / S17: the circle of a correct flight scores 239.7 instead of 250 "
-        "(see the constant-radius scenario), so with the altitude penalty the "
-        "application gives 191.8 and the catalogue 200",
-    )
     def test_an_altitude_band_exceeded_costs_twenty_percent(self):
         task = self.build()
         result = self.fly(radius=500.0, altitude=wavy_altitude(task, BAND_EXCEEDED_AMPLITUDE))
@@ -215,10 +181,6 @@ class CircleFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 200)
         self.assert_final_score(result, expected, "300 ft spread")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F12 / S17: the constant circle scores 239.7 instead of 250",
-    )
     def test_the_score_is_absolute_and_not_divided_by_the_best_pilot(self):
         task = self.build()
         second = add_contestant(task)

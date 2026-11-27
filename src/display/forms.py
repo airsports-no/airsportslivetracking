@@ -768,6 +768,8 @@ class ScorecardForm(forms.ModelForm):
     duration_residual_fuel_required = forms.BooleanField(required=False)
     circle_radius_min_m = forms.FloatField()
     circle_radius_max_m = forms.FloatField()
+    circle_altitude_band_ft = forms.FloatField(min_value=0)
+    circle_altitude_penalty_percent = forms.FloatField(min_value=0, max_value=100)
     speed_keeping_enabled = forms.BooleanField(required=False)
     speed_keeping_tolerance_kt = forms.FloatField()
     speed_keeping_penalty_per_kt = forms.FloatField()
@@ -894,6 +896,8 @@ class ScorecardForm(forms.ModelForm):
                     "Circle configuration",
                     "circle_radius_min_m",
                     "circle_radius_max_m",
+                    "circle_altitude_band_ft",
+                    "circle_altitude_penalty_percent",
                 ]
             )
         if navigation_task and stored_task_type(navigation_task).scores_speed_keeping:

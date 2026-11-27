@@ -54,6 +54,8 @@ class CimaScoringConfig:
     duration_residual_fuel_required: bool = False
     circle_radius_min_m: float = 200
     circle_radius_max_m: float = 750
+    circle_altitude_band_ft: float = 200
+    circle_altitude_penalty_percent: float = 20
     speed_keeping_enabled: bool = False
     speed_keeping_tolerance_kt: float = 5
     speed_keeping_penalty_per_kt: float = 1
@@ -74,6 +76,8 @@ class CimaScoringConfig:
             duration_residual_fuel_required=scorecard.duration_residual_fuel_required,
             circle_radius_min_m=scorecard.circle_radius_min_m,
             circle_radius_max_m=scorecard.circle_radius_max_m,
+            circle_altitude_band_ft=scorecard.circle_altitude_band_ft,
+            circle_altitude_penalty_percent=scorecard.circle_altitude_penalty_percent,
             speed_keeping_enabled=scorecard.speed_keeping_enabled,
             speed_keeping_tolerance_kt=scorecard.speed_keeping_tolerance_kt,
             speed_keeping_penalty_per_kt=scorecard.speed_keeping_penalty_per_kt,
