@@ -4,6 +4,7 @@ from dateutil import parser
 from django.utils.module_loading import import_string
 from rest_framework import serializers
 
+from display.calculators.calculator_utilities import round_time_second
 from display.models import ContestantTaskConfiguration
 from display.services.task_compiler import TaskCompiler
 from display.utilities.cima_scoring_config import CimaScoringConfig
@@ -74,35 +75,45 @@ class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
                     errors.append("Curve navigation declarations may not exceed Tmax.")
             return errors
 
-        required_names = self.compiler._get_precision_navigation_prediction_names()
+        # 2.A2: the pilot declares the visible turn points and the finish point. Times of other points in a declaration
+        # (the start point and hidden gates, which earlier declarations asked for) are ignored, not an error.
+        required_names = self.compiler._get_declared_time_gate_names()
         missing = [name for name in required_names if name not in predictions]
-        unexpected = sorted(set(predictions.keys()) - set(required_names))
         if missing:
             errors.append(f"Missing precision navigation predictions for: {', '.join(missing)}")
-        if unexpected:
-            errors.append(f"Unknown precision navigation prediction(s): {', '.join(unexpected)}")
         return errors
 
     def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
         if self.subtype != PRECISION_NAVIGATION:
             return {}
+        required_names = self.compiler._get_declared_time_gate_names()
+        predictions = declaration_payload.get("known_time_gate_predictions", {})
         return {
-            "known_time_gate_predictions": declaration_payload.get("known_time_gate_predictions", {}),
-            "expected_prediction_names": self.compiler._get_precision_navigation_prediction_names(),
+            "known_time_gate_predictions": {name: value for name, value in predictions.items() if name in required_names},
+            "expected_prediction_names": required_names,
         }
 
     def update_gate_times(self, gate_times: dict[str, str], declaration_payload: dict, compiled_task, compiled_effective_route_payload: dict) -> dict[str, str]:
         predictions = declaration_payload.get("known_time_gate_predictions", {})
-        for key, value in predictions.items():
-            if isinstance(value, str):
-                gate_times[key] = parser.parse(value).isoformat()
         if self.subtype != PRECISION_NAVIGATION:
+            for key, value in predictions.items():
+                if isinstance(value, str):
+                    gate_times[key] = parser.parse(value).isoformat()
             return gate_times
-        # expected_names is turnpoints only (organizers never declare predictions
-        # for takeoff/landing gates), but takeoff/landing gate times still need to
-        # survive this filter - TakeoffAndLandingGateCalculator.initiate_takeoff_and_landing_gates
-        # does an unguarded gate_times[gate.name] lookup for every route.takeoff_gates/landing_gates
-        # entry and KeyErrors at calculator construction otherwise.
+        # 2.A2: only the declared turn points and the finish point take the pilot's times; the organisation estimates
+        # the times of the hidden gates (and keeps the start point's) by interpolating along the route between them.
+        declared = {
+            name: parser.parse(value)
+            for name, value in predictions.items()
+            if name in self.compiler._get_declared_time_gate_names() and isinstance(value, str)
+        }
+        gate_times.update(
+            {name: time.isoformat() for name, time in self.compiler._interpolate_gate_times(gate_times, declared).items()}
+        )
+        # takeoff/landing gate times still need to survive this filter -
+        # TakeoffAndLandingGateCalculator.initiate_takeoff_and_landing_gates does an unguarded
+        # gate_times[gate.name] lookup for every route.takeoff_gates/landing_gates entry and KeyErrors at calculator
+        # construction otherwise.
         expected_names = set(self.compiler._get_precision_navigation_prediction_names())
         route = self.compiler.contestant.navigation_task.route
         expected_names |= {gate.name for gate in route.takeoff_gates} | {gate.name for gate in route.landing_gates}
@@ -117,8 +128,12 @@ class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
         if not isinstance(predictions, dict):
             raise serializers.ValidationError({"known_time_gate_predictions": "Expected a dictionary of gate predictions."})
         normalized_predictions = {}
+        # 2.A2 asks for the turn points and the finish point only: times of other points are dropped, not rejected.
+        declared_names = (
+            set(self.compiler._get_declared_time_gate_names()) if self.subtype == PRECISION_NAVIGATION else None
+        )
         for key, value in predictions.items():
-            if value in (None, ""):
+            if value in (None, "") or (declared_names is not None and key not in declared_names):
                 continue
             if isinstance(value, str):
                 normalized_predictions[key] = parser.parse(value).isoformat()
@@ -603,7 +618,7 @@ class ContestantTaskCompiler:
     def _build_precision_navigation_payload(self, declaration_payload: dict) -> dict:
         return {
             "known_time_gate_predictions": declaration_payload.get("known_time_gate_predictions", {}),
-            "expected_prediction_names": self._get_precision_navigation_prediction_names(),
+            "expected_prediction_names": self._get_declared_time_gate_names(),
         }
 
     def _build_contract_navigation_payload(self, compiled_task, declaration_payload: dict) -> dict:
@@ -867,6 +882,47 @@ class ContestantTaskCompiler:
             for waypoint in self.contestant.navigation_task.route.waypoints
             if getattr(waypoint, "name", None)
         ]
+
+    def _get_declared_time_gate_names(self) -> list[str]:
+        """2.A2: the points the pilot declares a time for, the visible turn points and the finish point, in route order."""
+        return [
+            waypoint.name
+            for waypoint in self.contestant.navigation_task.route.waypoints
+            if getattr(waypoint, "name", None)
+            and waypoint.type in (TURNPOINT, FINISHPOINT)
+            and not getattr(waypoint, "on_curved_segment", False)
+        ]
+
+    def _interpolate_gate_times(self, gate_times: dict[str, str], declared: dict[str, datetime.datetime]) -> dict:
+        """
+        The times of the route's waypoints with the declared times as given and every other point between two known
+        times (the declared points and the start point at its scheduled time) interpolated between them. The pilot
+        flies each leg at a constant speed (2.A2), so a point on a leg is estimated at the same share of the time
+        between the leg's ends as it has in the scheduled times, which follow the route (turns, wind): a pilot who
+        declares the scheduled times gets the scheduled times of the hidden gates. Points after the last known time keep
+        their scheduled times.
+        """
+        waypoints = [w for w in self.contestant.navigation_task.route.waypoints if w.name in gate_times]
+        if not waypoints:
+            return {}
+        scheduled = {w.name: parser.parse(gate_times[w.name]) for w in waypoints}
+        known = {waypoints[0].name: scheduled[waypoints[0].name], **declared}
+        times = {}
+        previous_known = None
+        for index, waypoint in enumerate(waypoints):
+            name = waypoint.name
+            if name in known:
+                times[name] = known[name]
+                previous_known = name
+                continue
+            following = next((w.name for w in waypoints[index + 1 :] if w.name in known), None)
+            if previous_known is None or following is None:
+                continue
+            scheduled_span = (scheduled[following] - scheduled[previous_known]).total_seconds()
+            share = (scheduled[name] - scheduled[previous_known]).total_seconds() / scheduled_span if scheduled_span else 0
+            # Whole seconds, like the scheduled times
+            times[name] = round_time_second(known[previous_known] + (known[following] - known[previous_known]) * share)
+        return times
 
     def _build_contract_navigation_effective_waypoints(self, compiled_task, declared_sequence: list) -> list[dict]:
         base_waypoints = self.contestant.navigation_task.route.waypoints

@@ -76,18 +76,18 @@ class TestTheoreticalGateQuality(TestCase):
         return SimpleNamespace(navigation_task=navigation_task)
 
     def test_empty_route_has_no_deficit_to_lose(self):
-        self.assertEqual(0, theoretical_gate_quality(self._contestant(PRECISION_NAVIGATION, [])))
+        self.assertEqual(0, theoretical_gate_quality(self._contestant(KNOWN_CIRCUIT, [])))
 
     def test_sums_worst_case_per_gate_using_the_worse_of_missed_and_maximum_penalty(self):
         # tp: worse of 200/150 = 200. secret: worse of 50/50 = 50. Two tp + one secret.
         contestant = self._contestant(
-            PRECISION_NAVIGATION, [self._waypoint(TURNPOINT), self._waypoint("secret"), self._waypoint(TURNPOINT)]
+            KNOWN_CIRCUIT, [self._waypoint(TURNPOINT), self._waypoint("secret"), self._waypoint(TURNPOINT)]
         )
         self.assertEqual(200 + 50 + 200, theoretical_gate_quality(contestant))
 
     def test_dummy_and_curved_segment_waypoints_are_excluded(self):
         contestant = self._contestant(
-            PRECISION_NAVIGATION,
+            KNOWN_CIRCUIT,
             [self._waypoint(TURNPOINT), self._waypoint(DUMMY), self._waypoint(TURNPOINT, on_curved_segment=True)],
         )
         self.assertEqual(200, theoretical_gate_quality(contestant))
@@ -100,27 +100,54 @@ class TestTheoreticalGateQuality(TestCase):
             takeoff_gates=[object()],
             landing_gates=[object()],
         )
-        self.assertEqual(200 + 40 + 60, theoretical_gate_quality(contestant))
+        # (and the turn point of 2.A1 is a time gate worth its Emax, the 150 maximum error)
+        self.assertEqual(150 + 40 + 60, theoretical_gate_quality(contestant))
 
     def test_waypoint_with_neither_check_flag_contributes_nothing(self):
         contestant = self._contestant(
-            PRECISION_NAVIGATION,
+            KNOWN_CIRCUIT,
             [self._waypoint(TURNPOINT), self._waypoint(TURNPOINT, gate_check=False, time_check=False)],
         )
         self.assertEqual(200, theoretical_gate_quality(contestant))
 
     def test_gate_check_only_waypoint_uses_missed_penalty_only(self):
-        contestant = self._contestant(PRECISION_NAVIGATION, [self._waypoint(TURNPOINT, time_check=False)])
+        contestant = self._contestant(KNOWN_CIRCUIT, [self._waypoint(TURNPOINT, time_check=False)])
         self.assertEqual(200, theoretical_gate_quality(contestant))
 
     def test_time_check_only_waypoint_uses_maximum_penalty_only(self):
-        contestant = self._contestant(PRECISION_NAVIGATION, [self._waypoint(TURNPOINT, gate_check=False)])
+        contestant = self._contestant(KNOWN_CIRCUIT, [self._waypoint(TURNPOINT, gate_check=False)])
         self.assertEqual(150, theoretical_gate_quality(contestant))
+
+    def test_curve_navigation_starts_at_qh_plus_emax_per_time_gate(self):
+        # 2.A1: Qh = 1000 x H / Nh, Qt = Emax x Nt - Et. SP and FP are not time gates, hidden gates are not timed
+        # (the turn point's Emax is its 150 maximum error here).
+        waypoints = [
+            self._waypoint("sp"),
+            self._waypoint(TURNPOINT),
+            self._waypoint("secret", time_check=False),
+            self._waypoint("secret", time_check=False),
+            self._waypoint(TURNPOINT),
+            self._waypoint("fp"),
+        ]
+        contestant = self._contestant(CURVE_NAVIGATION_TIME_ESTIMATION, waypoints)
+        self.assertEqual(1000 + 2 * 150, theoretical_gate_quality(contestant))
+        self.assertEqual((1300, 1300), quality_baseline(contestant))
+
+    def test_precision_navigation_starts_at_emax_per_hidden_gate(self):
+        # 2.A2: Qp = Emax x Ng, Qt = -sum(Ei): the time errors only deduct, so a perfect flight is worth the hidden
+        # gates alone (a hidden gate's Emax is its 50 maximum error here)
+        waypoints = [
+            self._waypoint("sp"),
+            self._waypoint(TURNPOINT),
+            self._waypoint("secret"),
+            self._waypoint("secret"),
+            self._waypoint("fp"),
+        ]
+        contestant = self._contestant(PRECISION_NAVIGATION, waypoints)
+        self.assertEqual(2 * 50, theoretical_gate_quality(contestant))
 
     def test_the_deficit_style_task_types_start_at_it_and_it_is_also_their_theoretical_maximum(self):
         for subtype in (
-            CURVE_NAVIGATION_TIME_ESTIMATION,
-            PRECISION_NAVIGATION,
             CONTRACT_NAVIGATION_TIME_CONTROLS,
             KNOWN_CIRCUIT,
             UNKNOWN_LEGS,

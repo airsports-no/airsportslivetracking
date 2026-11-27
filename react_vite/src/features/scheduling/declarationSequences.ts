@@ -28,6 +28,8 @@ export type ContestantDeclarationData = {
             catalogue_turnpoint?: string[];
         };
         waypoint_names?: string[];
+        // 2.A2: the points the pilot declares a time for (visible turn points and the finish point)
+        expected_prediction_names?: string[];
     };
 };
 

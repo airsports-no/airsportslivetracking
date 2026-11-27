@@ -897,17 +897,19 @@ const ContestantDeclarationPage: React.FC = () => {
     const isContractNavigation = navigationTask?.task_subtype === 'contract_navigation_time_controls';
     const isKnownCircuit = navigationTask?.task_subtype === 'known_circuit';
     // Every subtype's compiled_effective_route_payload carries the route's own waypoint_names
-    // (ContestantTaskCompiler._base_effective_route_payload) - for precision navigation this is
-    // exactly the same set validate_declaration requires a prediction for
-    // (_get_precision_navigation_prediction_names is defined as route.waypoints names); curve
-    // navigation doesn't restrict declared gate names at all, but the route's own waypoints are
-    // still the natural set to prompt for. known_circuit's (optional) turnpoint overrides use the
-    // same set too, so all three share this one array instead of each computing their own copy.
+    // (ContestantTaskCompiler._base_effective_route_payload). Curve navigation doesn't restrict
+    // declared gate names at all, but the route's own waypoints are still the natural set to prompt
+    // for, and known_circuit's (optional) turnpoint overrides use the same set.
     const knownCircuitWaypointNames: string[] = compiledPayload.waypoint_names || [];
     const isCurveNavigation = navigationTask?.task_subtype === 'curve_navigation_time_estimation';
     const isPrecisionNavigation = navigationTask?.task_subtype === 'precision_navigation';
     const isKnownTimeGatePrediction = isCurveNavigation || isPrecisionNavigation;
-    const knownTimeGateNames = knownCircuitWaypointNames;
+    // 2.A2 asks for the visible turn points and the finish point only: the backend lists them as
+    // expected_prediction_names (the start point and the hidden gates are not predicted). Curve navigation prompts for
+    // every route waypoint.
+    const knownTimeGateNames: string[] = isPrecisionNavigation && Array.isArray(compiledPayload.expected_prediction_names)
+        ? compiledPayload.expected_prediction_names
+        : knownCircuitWaypointNames;
     const curveNavigationTmaxSeconds = Number(navigationTask?.task_config?.curve_navigation_tmax_seconds || 0);
     const compulsoryPointTimesByName = formState.compulsoryPointTimes;
     const orderedCompulsoryPointNames = compulsoryPointNames
@@ -954,7 +956,7 @@ const ContestantDeclarationPage: React.FC = () => {
             return true;
         }
         if (isPrecisionNavigation) {
-            // validate_declaration requires a prediction for every route waypoint name.
+            // validate_declaration requires a prediction for every turn point and the finish point.
             return knownTimeGateNames.length > 0 && knownTimeGateNames.every((name) => !!formState.knownTimeGatePredictions[name]);
         }
         if (isCurveNavigation) {
@@ -1001,8 +1003,12 @@ const ContestantDeclarationPage: React.FC = () => {
                     Object.entries(formState.turnpointTimeOverrides).filter(([, value]) => !!value),
                 );
             } else if (isKnownTimeGatePrediction) {
+                // Times of points the task does not ask for (an older declaration of 2.A2 has the start point and the
+                // hidden gates) are left out.
                 declarationPayload.known_time_gate_predictions = Object.fromEntries(
-                    Object.entries(formState.knownTimeGatePredictions).filter(([, value]) => !!value),
+                    Object.entries(formState.knownTimeGatePredictions).filter(
+                        ([name, value]) => !!value && (!isPrecisionNavigation || knownTimeGateNames.includes(name)),
+                    ),
                 );
             } else {
                 declarationPayload.compulsory_point_times = Object.fromEntries(

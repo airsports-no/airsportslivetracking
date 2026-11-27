@@ -293,7 +293,8 @@ class TestPrecisionNavigationScheduleLock(CurvePrecisionNavigationDeclarationTes
 
     def test_declaring_a_prediction_outside_the_flight_window_is_rejected(self):
         contestant = self._create_contestant()
-        waypoint_names = [wp.name for wp in self.route.waypoints]
+        # 2.A2 declares the turn points and the finish point (not the start point)
+        waypoint_names = [wp.name for wp in self.route.waypoints if wp.type in ("tp", "fp")]
 
         response = self.client.patch(
             self._contestant_detail_url(contestant),
@@ -302,6 +303,22 @@ class TestPrecisionNavigationScheduleLock(CurvePrecisionNavigationDeclarationTes
             content_type="application/json",
         )
         self.assertEqual(400, response.status_code, response.content)
+        contestant.refresh_from_db()
+        self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
+
+    def test_a_time_for_the_start_point_is_ignored_even_outside_the_flight_window(self):
+        contestant = self._create_contestant()
+
+        response = self.client.patch(
+            self._contestant_detail_url(contestant),
+            {
+                "declaration_payload": {
+                    "known_time_gate_predictions": {self.route.waypoints[0].name: "2026-08-01T12:00:00Z"}
+                }
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(200, response.status_code, response.content)
         contestant.refresh_from_db()
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
 

@@ -27,6 +27,7 @@ from display.calculators.update_score_message import ACHIEVEMENT, PENALTY, Updat
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.models import ANOMALY, INFORMATION
 from display.models.contestant_utility_models import ContestantReceivedPosition
+from display.services.catalogue_gate_quality import CatalogueGateQuality
 from display.utilities.task_types import stored_task_type
 from display.utilities.coordinate_utilities import (
     bearing_difference,
@@ -74,6 +75,10 @@ TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE = "turnpoint_hunt_sequence_bonus"
 # more than once in any direction invalidates the gate"). The score type is stable (it was introduced for 2.A1) and
 # is also what the one log entry of the invalidation carries for 2.A2, 2.A4 and 2.A5.
 HIDDEN_GATE_INVALIDATED_SCORE_TYPE = "curve_navigation_repeated_crossing"
+# A timed hidden gate (2.A2) charged as not crossed, crossed afterwards (out of order, or against the route after the
+# pilot had left its range): its time is taken from that crossing and the error it was charged as not crossed is
+# given back, less the error of the crossing.
+HIDDEN_GATE_TIMED_FROM_CROSSING_SCORE_TYPE = "hidden_gate_timed_from_crossing"
 # A crossing of a hidden gate within this many seconds of the previous crossing of it is the same crossing: crossings
 # are found from the chord of the last three positions, so a single crossing is seen on two consecutive positions.
 SAME_CROSSING_SECONDS = 3
@@ -103,6 +108,11 @@ class GateCalculator(Calculator):
         )
         self.starting_line: Gate = None
         self.initiate_gates()
+        # What a gate is worth and costs where the task follows the catalogue's formulas literally (2.A1, 2.A2), the
+        # same weights that make the contestant's starting quality; None for the scorecard's flat scores.
+        self.catalogue_quality: Optional[CatalogueGateQuality] = CatalogueGateQuality.for_task_type(
+            stored_task_type(contestant.navigation_task), self.scorecard, self.gates
+        )
         self.outstanding_gates = list(self.gates)
         self.websocket_facade = WebsocketFacade()
         self.last_backwards = None
@@ -116,6 +126,8 @@ class GateCalculator(Calculator):
         self._last_hidden_crossing: dict = {}
         self._hidden_timing_charged: dict = {}
         self._wrong_direction_hidden_gates: set = set()
+        # Timed hidden gates charged as not crossed, with the time they were charged at, watched for a crossing after it.
+        self._missed_timed_hidden_gates: List[tuple] = []
         self.scored_turnpoint_hunt_compulsory_gates = set()
         self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self._last_speed_keeping_gate: Optional[Gate] = None
@@ -514,6 +526,7 @@ class GateCalculator(Calculator):
         events.extend(self._hidden_gates_crossed_backwards(hidden_gates_crossed_backwards, track))
         if invalidates_hidden_gates:
             self._invalidate_repeated_hidden_gate_crossings(state, track)
+            self._time_missed_hidden_gates_from_crossing(state, track)
 
         # Proactive missed gate detection (only for the first outstanding gate if not just passed)
         if len(self.outstanding_gates) > 0:
@@ -602,19 +615,60 @@ class GateCalculator(Calculator):
             logger.info(f"{self.contestant}: Hidden gate {gate} crossed again, invalidated")
             if not gate.gate_check:
                 continue
-            # The gate is worth what a gate not correctly crossed is worth: its missed score less the timing score its
-            # first crossing already cost (which is where its time keeps coming from).
-            missed_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
+            if self.catalogue_quality:
+                # It loses its value; the time of the first crossing is already charged (Annex 4: time is extracted
+                # from the first crossing).
+                invalidation_score = self.catalogue_quality.invalidated_loss(gate)
+            else:
+                # The gate is worth what a gate not correctly crossed is worth: its missed score less the timing score
+                # its first crossing already cost (which is where its time keeps coming from).
+                missed_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
+                invalidation_score = max(0, missed_score - self._hidden_timing_charged.get(gate.name, 0))
             self.update_gate_score(
                 track[-1],
                 gate,
-                max(0, missed_score - self._hidden_timing_charged.get(gate.name, 0)),
+                invalidation_score,
                 HIDDEN_GATE_INVALIDATED_SCORE_TYPE,
                 "gate invalidated by repeated crossing",
                 ANOMALY,
                 gate.expected_time,
                 gate.passing_time,
                 time_override=crossing_time,
+            )
+
+    def _time_missed_hidden_gates_from_crossing(self, state: OrchestratorState, track):
+        """
+        A timed hidden gate (2.A2) is timed from its first crossing, in whichever direction and order (Annex 4: "if a
+        gate is crossed twice, time will be extracted from the first crossing"). One charged as not crossed (its Emax of
+        time error) that is crossed afterwards has that error replaced by the error of the crossing; the gate stays
+        invalidated and keeps losing its value. Only these few gates are watched, until the finish point is passed.
+        """
+        if not self._missed_timed_hidden_gates:
+            return
+        if state.has_passed_finishpoint:
+            self._missed_timed_hidden_gates = []
+            return
+        for gate, missed_time in list(self._missed_timed_hidden_gates):
+            crossing_time = gate.get_gate_intersection_time(state.projector, track)
+            if crossing_time is None or crossing_time <= missed_time:
+                continue
+            self._missed_timed_hidden_gates.remove((gate, missed_time))
+            quality = self.catalogue_quality
+            credit = quality.timing_loss(gate, gate.expected_time, None) - quality.timing_loss(
+                gate, gate.expected_time, crossing_time
+            )
+            logger.info(f"{self.contestant}: Hidden gate {gate} crossed after it was missed, timed from the crossing")
+            self.update_gate_score(
+                track[-1],
+                gate,
+                credit,
+                HIDDEN_GATE_TIMED_FROM_CROSSING_SCORE_TYPE,
+                "hidden gate timed from its crossing",
+                ANOMALY,
+                gate.expected_time,
+                crossing_time,
+                time_override=crossing_time,
+                kind=ACHIEVEMENT,
             )
 
     def _next_timed_gate(self) -> Optional[Gate]:
@@ -721,6 +775,7 @@ class GateCalculator(Calculator):
             prev = gate
         self.outstanding_gates = []
         self._watched_hidden_gates = []
+        self._missed_timed_hidden_gates = []
 
     def finalise(self, track: Sequence[ContestantReceivedPosition]):
         # Catch any remaining missed gates at the very end of processing
@@ -751,10 +806,24 @@ class GateCalculator(Calculator):
         event.gate.missed = True
 
         if event.gate.gate_check:
-            score = self.scorecard.get_gate_timing_score_for_gate_type(event.gate.type, event.gate.expected_time, None)
+            wrong_direction = event.gate.name in self._wrong_direction_hidden_gates
+            if self.catalogue_quality:
+                if wrong_direction:
+                    # Timed from its only crossing, the one against the route.
+                    score = self.catalogue_quality.invalidated_loss(
+                        event.gate, event.gate.expected_time, event.event_time
+                    )
+                else:
+                    score = self.catalogue_quality.missed_loss(event.gate)
+                if not score:
+                    return  # SP, or a gate the task does not score: nothing was lost
+            else:
+                score = self.scorecard.get_gate_timing_score_for_gate_type(
+                    event.gate.type, event.gate.expected_time, None
+                )
             message = "missing gate"
             score_type = GATE_SCORE_TYPE
-            if event.gate.name in self._wrong_direction_hidden_gates:
+            if wrong_direction:
                 message = "hidden gate crossed against the route"
                 score_type = HIDDEN_GATE_INVALIDATED_SCORE_TYPE
 
@@ -769,6 +838,14 @@ class GateCalculator(Calculator):
                 actual=None,
                 time_override=event_time,
             )
+            if (
+                self.catalogue_quality
+                and not wrong_direction
+                and event.gate.type == SECRETPOINT
+                and self.catalogue_quality.is_timed(event.gate)
+                and event_time
+            ):
+                self._missed_timed_hidden_gates.append((event.gate, event_time))
 
     def on_gate_passed(self, event: GatePassedEvent):
         if event.gate not in self.gates:
@@ -811,7 +888,7 @@ class GateCalculator(Calculator):
         message = "passing gate"
         self._watch_passed_hidden_gate(event.gate, passing_time)
 
-        if event.gate.time_check:
+        if self.catalogue_quality.is_timed(event.gate) if self.catalogue_quality else event.gate.time_check:
             gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
                 event.gate.type, event.gate.expected_time, passing_time
             )

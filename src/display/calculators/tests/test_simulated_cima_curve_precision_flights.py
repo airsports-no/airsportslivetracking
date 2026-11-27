@@ -11,6 +11,8 @@ in which direction, how many seconds late). The final score P is Q against a per
 same task (Qmax is the best Q of the task); tests with two real pilots in one task are marked as such.
 """
 
+import datetime
+
 import pytest
 
 from display.calculators.tests import catalogue_oracle as oracle
@@ -88,49 +90,29 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
 
     def test_small_timing_error_at_a_time_gate(self):
         # The application's Q (a worst case of 1440 including SP and FP) and the catalogue's (1360) differ, but both
-        # give 994 for 8 s of error once the score is a rounded share of the best pilot's Q (F2 / S12 keep it so)
+        # give 994 for 8 s of error because the score is a rounded share of the best pilot's Q
         self.build()
         result, expected = self.fly(TimeOffset("TP1", 8))
         self.assertEqual(expected, oracle.round_half_up(1000 * (1360 - 8) / 1360))
         self.assert_final_score(result, expected, "TP1 8 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F2 / S12: Qt = Emax x Nt - Et against the best pilot's Q; the application "
-        "takes the error over a worst case of 1440 (all gates)",
-    )
     def test_large_timing_error_at_a_time_gate(self):
         self.build()
         result, expected = self.fly(TimeOffset("TP2", -35))
         self.assert_final_score(result, expected, "TP2 35 s early")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F2 / S12: the application also times FP (late as well in this flight, "
-        "another 180) and divides by 1440; the catalogue counts TP2 at Emax only",
-    )
     def test_timing_error_beyond_emax_counts_emax(self):
         self.build()
         result, expected = self.fly(*late_from("TP2", LATE_TAIL, ["HG3", "HG4", "FP"]), lead_out_s=LATE_TAIL + 60)
         self.assertEqual(expected, oracle.round_half_up(1000 * (1360 - 180) / 1360))
         self.assert_final_score(result, expected, "TP2 200 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F2 / S12: a missed hidden gate costs 1000 / Nh = 250 of Qh in the "
-        "catalogue; the application subtracts the missed penalty (180) of 1440",
-    )
     def test_hidden_gate_missed(self):
         self.build()
         result, expected = self.fly(MissGate("HG2", margin_m=100))
         self.assertEqual(expected, oracle.round_half_up(1000 * (750 + 360) / 1360))
         self.assert_final_score(result, expected, "HG2 missed")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F2 / S12: the gate is invalidated (S11) and costs its 180, but the application takes that over a "
-        "worst case of 1440 where the catalogue takes 1000 / Nh of Qh: 875 against 816",
-    )
     def test_hidden_gate_crossed_twice_is_invalidated(self):
         self.build()
         result, expected = self.fly(DoubleCrossing("HG2", gap_s=BRIEF_LOOP_GAP_S, **BRIEF_LOOP))
@@ -138,11 +120,6 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
         self.assertTrue(result.messages_of_type("curve_navigation_repeated_crossing"), "no invalidation message")
         self.assert_final_score(result, expected, "HG2 crossed twice")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F2 / S12: against the route the gate counts as missed: 180 of 1440 in the "
-        "application, 1000 / Nh = 250 of Qh in the catalogue",
-    )
     def test_hidden_gate_crossed_in_the_wrong_direction(self):
         self.build()
         result, expected = self.fly(WrongDirectionCrossing("HG2", **BRIEF_LOOP))
@@ -166,11 +143,6 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 500)
         self.assert_final_score(result, expected, "10 s backwards on the leg")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F2 / S12: the application's Q has the weights of a worst case of 1440 (every gate, SP "
-        "and FP included), the catalogue's Qh + Qt of the best pilot is 1360",
-    )
     def test_two_pilots_in_the_same_task_are_scored_against_the_best(self):
         self.build()
         second = add_contestant(self.task).declare(
@@ -233,55 +205,32 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 1000)
         self.assert_final_score(result, expected, "perfect flight")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="N4 / S12: the application's Q starts at a worst case of 1440 (every gate at 180), the "
-        "catalogue's best pilot has 720 (4 hidden gates at 180): 8 s costs 994 against 989",
-    )
     def test_small_timing_error_at_a_turn_point(self):
         self.build()
         result, expected = self.fly(TimeOffset("TP1", 8))
         self.assertEqual(expected, oracle.round_half_up(1000 * (720 - 8) / 720))
         self.assert_final_score(result, expected, "TP1 8 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="N4 / S12: the application's Q starts at a worst case of 1440, the catalogue's best pilot "
-        "has 720: 30 s late costs 980 against 958",
-    )
     def test_large_timing_error_at_a_hidden_gate(self):
         self.build()
-        result, expected = self.fly(TimeOffset("HG1", 30))
-        self.assert_final_score(result, expected, "HG1 30 s late")
+        # 15 s, not 30: the simulator crosses HG1 29.62 s late for a requested 30, which the application (whose crossing
+        # time is about 0.2 s earlier than the simulator's) rounds to 29 s and the oracle to 30. Errors whose crossing
+        # time ends in .5 to .75 s are ambiguous between them; 15 s ends in .81.
+        result, expected = self.fly(TimeOffset("HG1", 15))
+        self.assert_final_score(result, expected, "HG1 15 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="N4 / S12: the application's Q starts at a worst case of 1440, the catalogue's best "
-        "pilot has 720: an error of Emax costs 875 against 750",
-    )
     def test_timing_error_beyond_emax_counts_emax(self):
         self.build()
         result, expected = self.fly(TimeOffset("FP", LATE_TAIL), lead_out_s=LATE_TAIL + 60)
         self.assertEqual(expected, oracle.round_half_up(1000 * (720 - 180) / 720))
         self.assert_final_score(result, expected, "FP 200 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="N4 / S12: a missed hidden gate loses its 180 points AND counts Emax "
-        "as a time error in the catalogue (360 of 720); the application charges "
-        "the missed penalty once (180 of 1440)",
-    )
     def test_hidden_gate_missed(self):
         self.build()
         result, expected = self.fly(MissGate("HG2", margin_m=100))
         self.assertEqual(expected, oracle.round_half_up(1000 * (720 - 360) / 720))
         self.assert_final_score(result, expected, "HG2 missed")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="N4 / S12: the gate is invalidated (S11) and costs its 180, but the application's Q starts at a "
-        "worst case of 1440 and the catalogue's best Q is 720",
-    )
     def test_hidden_gate_crossed_twice_is_invalidated(self):
         self.build()
         result, expected = self.fly(DoubleCrossing("HG2", gap_s=BRIEF_LOOP_GAP_S, **BRIEF_LOOP))
@@ -290,21 +239,11 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
         self.assertLess(result.score, perfect.score, "crossing a hidden gate twice must cost the gate")
         self.assert_final_score(result, expected, "HG2 crossed twice")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="N4 / S12: both lose 180 points (the first crossing still gives the time), but the "
-        "application's Q starts at a worst case of 1440 and the catalogue's best Q is 720",
-    )
     def test_hidden_gate_crossed_in_the_wrong_direction(self):
         self.build()
         result, expected = self.fly(WrongDirectionCrossing("HG2", **BRIEF_LOOP))
         self.assert_final_score(result, expected, "HG2 crossed against the route")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="N4 / S12: the application's Q starts at a worst case of 1440, the catalogue's best pilot has 720 "
-        "(the 50% backtracking, HG3 and HG4 flown 26 s and 27 s off their times): 482 against 463",
-    )
     def test_gates_flown_out_of_order(self):
         self.build(brief_loops=False)
         result, expected = self.fly(VisitOrder(["HG1", "HG2", "HG4", "HG3"]), backtracking=True)
@@ -316,11 +255,6 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 500)
         self.assert_final_score(result, expected, "10 s backwards on the leg")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F3 / S13: the pilot is asked to predict SP and every hidden gate; the "
-        "catalogue asks for the turn points and the finish only",
-    )
     def test_a_declaration_of_the_turn_points_and_the_finish_is_complete(self):
         self.build()
         declaration = self.perfect_predictions(self.task, omit=["SP", *HIDDEN_NAMES])
@@ -329,11 +263,25 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
         config = declared.contestant.contestanttaskconfiguration
         self.assertTrue(config.is_valid, config.validation_errors)
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="N4 / S12: the application's Q starts at a worst case of 1440, the catalogue's best "
-        "pilot has 720, so the second pilot scores 976 against 917",
-    )
+    def test_hidden_gate_times_follow_the_declared_turn_points(self):
+        self.build()
+        scheduled = dict(self.task.gate_times)
+        delay = datetime.timedelta(seconds=60)
+        declaration = self.perfect_predictions(self.task, omit=["SP", *HIDDEN_NAMES])
+        declaration["TP2"] = (scheduled["TP2"] + delay).isoformat()
+        declaration["FP"] = (scheduled["FP"] + delay).isoformat()
+
+        times = self.task.declare({"known_time_gate_predictions": declaration}).gate_times
+
+        self.assertEqual(times["SP"], scheduled["SP"])
+        self.assertEqual(times["TP1"], scheduled["TP1"])
+        self.assertEqual(times["TP2"], scheduled["TP2"] + delay)
+        # both gates on the last leg move with the whole leg, the two before TP2 move in proportion to their place
+        self.assertEqual(times["HG3"] - scheduled["HG3"], delay)
+        self.assertEqual(times["HG4"] - scheduled["HG4"], delay)
+        shifts = [(times[name] - scheduled[name]).total_seconds() for name in ("HG1", "HG2")]
+        self.assertTrue(0 < shifts[0] < shifts[1] < 60, shifts)
+
     def test_two_pilots_in_the_same_task_are_scored_against_the_best(self):
         self.build()
         second = add_contestant(self.task).declare({"known_time_gate_predictions": self.perfect_predictions(self.task)})

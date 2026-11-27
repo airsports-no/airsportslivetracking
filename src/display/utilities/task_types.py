@@ -99,6 +99,28 @@ QUALITY_START_ACHIEVEMENT = "achievement"  # zero: the contestant earns points (
 # The percentage of the task score one backtrack costs in 2.A1-2.A5 (Annex 4: "a 50% penalty will be imposed").
 CIMA_BACKTRACKING_PERCENTAGE = 50.0
 
+
+@dataclass(frozen=True)
+class CatalogueGateModel:
+    """
+    How the gates of a task weigh in Q where the catalogue's own formulas are followed literally (2.A1, 2.A2; see
+    display.services.catalogue_gate_quality, the one place that turns this into points). Emax and the time score per
+    second stay in the scorecard's gate scores.
+    """
+
+    # What a hidden gate correctly crossed is worth: the total shared among the task's hidden gates (2.A1: Qh = 1000 x H
+    # / Nh) or Emax each (2.A2: Qp = Emax x Ng).
+    hidden_gate_value_is_share_of_total: bool
+    hidden_gates_total: float = 1000.0
+    # Which gates are time gates of the task. Turn points always are.
+    hidden_gates_timed: bool = False
+    start_point_timed: bool = False
+    finish_point_timed: bool = False
+    # Qt = Emax x Nt - Et (2.A1: a time gate is worth Emax and loses its error) against Qt = -sum(Ei) (2.A2: the errors
+    # only deduct).
+    time_gate_is_worth_emax: bool = False
+
+
 # Scorecards (by shortcut_name) the task types are created from.
 CIMA_PRECISION_SCORECARD = "CIMA Precision"
 CIMA_ANR_SCORECARD = "CIMA ANR"
@@ -203,6 +225,9 @@ class TaskTypeDefinition:
     # it is worth what a gate not correctly crossed is worth (2.A1, 2.A2, 2.A4, 2.A5; Annex 4 "crossing the same gate
     # more than once in any direction invalidates the gate").
     repeated_hidden_gate_crossing_invalidates: bool = False
+    # The gates are weighed as the catalogue's formulas say instead of by the scorecard's flat per-gate scores
+    # (2.A1: Qh = 1000 x H / Nh, Qt = Emax x Nt - Et; 2.A2: Qp = Emax x Ng, Qt = -sum(Ei)). None: the scorecard's.
+    catalogue_gate_model: CatalogueGateModel | None = None
     # Backtracking costs a percentage of the task score instead of flat points (2.A1-2.A5: "a 50% penalty will be
     # imposed for backtracking"). The value is the percentage used when the task's scorecard stores none
     # (Scorecard.backtracking_penalty_percentage); 0 uses the flat points of the scorecard, which a stored 0 also does.
@@ -386,6 +411,8 @@ _DEFINITIONS = (
         backtracking_penalty_percentage=CIMA_BACKTRACKING_PERCENTAGE,
         backtracking_within_corridor=True,
         repeated_hidden_gate_crossing_invalidates=True,
+        # SP and FP are not time gates, hidden gates are not timed: Qh = 1000 x H / Nh, Qt = Emax x Nt - Et
+        catalogue_gate_model=CatalogueGateModel(hidden_gate_value_is_share_of_total=True, time_gate_is_worth_emax=True),
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "CurveOrPrecisionNavigationStrategy",
     ),
     TaskTypeDefinition(
@@ -424,6 +451,10 @@ _DEFINITIONS = (
         backtracking_penalty_percentage=CIMA_BACKTRACKING_PERCENTAGE,
         backtracking_within_corridor=True,
         repeated_hidden_gate_crossing_invalidates=True,
+        # SP is time zero; turn points, hidden gates and FP are time gates: Qp = Emax x Ng, Qt = -sum(Ei)
+        catalogue_gate_model=CatalogueGateModel(
+            hidden_gate_value_is_share_of_total=False, hidden_gates_timed=True, finish_point_timed=True
+        ),
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "CurveOrPrecisionNavigationStrategy",
     ),
     TaskTypeDefinition(

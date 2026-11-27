@@ -14,7 +14,8 @@ import datetime
 from unittest.mock import patch
 
 from django.contrib.auth import get_user_model
-from django.test import TestCase
+from django.test import SimpleTestCase, TestCase
+from types import SimpleNamespace
 from django.urls import reverse
 from guardian.shortcuts import assign_perm
 
@@ -30,6 +31,7 @@ from display.models import (
     Scorecard,
     Team,
 )
+from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.utilities.task_types import CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION
 from utilities.mock_utilities import TraccarMock
 
@@ -130,7 +132,11 @@ class TestPrecisionNavigationDeclaration(CurvePrecisionNavigationDeclarationTest
         self.assertEqual(200, response.status_code)
         payload = response.json()["compiled_effective_route_payload"]
         self.assertTrue(payload["waypoint_names"])
-        self.assertEqual(payload["expected_prediction_names"], payload["waypoint_names"])
+        # 2.A2: the visible turn points and the finish point, not the start point (or hidden gates)
+        expected = [wp.name for wp in self.route.waypoints if wp.type in ("tp", "fp")]
+        self.assertEqual(payload["expected_prediction_names"], expected)
+        self.assertNotIn(self.route.waypoints[0].name, payload["expected_prediction_names"])
+        self.assertEqual(payload["expected_prediction_names"][-1], self.route.waypoints[-1].name)
         self.assertEqual(payload["known_time_gate_predictions"], {})
 
     def test_declaration_status_flags_missing_declaration_as_required(self):
@@ -143,6 +149,63 @@ class TestPrecisionNavigationDeclaration(CurvePrecisionNavigationDeclarationTest
             contestant_payload["declaration_status"],
             {"required": True, "complete": False, "errors": ["Precision navigation requires known_time_gate_predictions."]},
         )
+
+    def test_declaring_the_turn_points_and_the_finish_point_only_makes_declaration_valid(self):
+        contestant = self._create_contestant()
+        names = [wp.name for wp in self.route.waypoints if wp.type in ("tp", "fp")]
+        self.assertGreaterEqual(len(names), 2)
+
+        response = self.client.patch(
+            self._contestant_detail_url(contestant),
+            {"declaration_payload": {"known_time_gate_predictions": {name: "2026-08-01T10:00:00Z" for name in names}}},
+            content_type="application/json",
+        )
+        self.assertEqual(200, response.status_code, response.content)
+        contestant.refresh_from_db()
+        self.assertTrue(contestant.contestanttaskconfiguration.is_valid)
+        self.assertEqual(contestant.contestanttaskconfiguration.validation_errors, [])
+
+    def test_times_of_the_start_point_and_hidden_gates_are_ignored(self):
+        contestant = self._create_contestant()
+        route_names = [wp.name for wp in self.route.waypoints]
+        expected_names = [wp.name for wp in self.route.waypoints if wp.type in ("tp", "fp")]
+        extras = [name for name in route_names if name not in expected_names]
+        self.assertIn(route_names[0], extras)
+        sentinel = "2026-08-01T11:11:11+00:00"
+        declared = {name: sentinel for name in extras}
+        declared.update({name: f"2026-08-01T10:{20 + index}:00+00:00" for index, name in enumerate(expected_names)})
+
+        response = self.client.patch(
+            self._contestant_detail_url(contestant),
+            {"declaration_payload": {"known_time_gate_predictions": declared}},
+            content_type="application/json",
+        )
+        self.assertEqual(200, response.status_code, response.content)
+        configuration = self.navigation_task.contestant_set.get(pk=contestant.pk).contestanttaskconfiguration
+        self.assertTrue(configuration.is_valid, configuration.validation_errors)
+        payload = configuration.compiled_effective_route_payload
+        self.assertEqual(sorted(payload["known_time_gate_predictions"]), sorted(expected_names))
+        gate_times = configuration.compiled_gate_times_payload
+        for name in extras:
+            self.assertNotEqual(gate_times[name], sentinel, f"{name} took a declared time")
+        for name in expected_names:
+            self.assertEqual(gate_times[name], declared[name])
+
+    def test_an_older_declaration_with_start_point_and_hidden_gate_times_still_compiles(self):
+        # Declarations made before 2.A2 asked for the turn points and the finish only carry a time for every waypoint;
+        # stored as they are, they must not break.
+        contestant = self._create_contestant()
+        route_names = [wp.name for wp in self.route.waypoints]
+        scheduled = ContestantTaskCompiler(contestant).compile(force=True).compiled_gate_times_payload
+        declared = {name: "2026-08-01T10:00:00+00:00" for name in route_names}
+
+        configuration = ContestantTaskCompiler(contestant).compile(
+            declaration_payload={"known_time_gate_predictions": declared}, force=True
+        )
+
+        self.assertTrue(configuration.is_valid, configuration.validation_errors)
+        self.assertEqual(configuration.compiled_gate_times_payload[route_names[0]], scheduled[route_names[0]])
+        self.assertEqual(configuration.compiled_gate_times_payload[route_names[-1]], declared[route_names[-1]])
 
     def test_declaring_predictions_for_every_waypoint_makes_declaration_valid(self):
         contestant = self._create_contestant()
@@ -166,11 +229,11 @@ class TestPrecisionNavigationDeclaration(CurvePrecisionNavigationDeclarationTest
 
     def test_declaring_predictions_for_only_some_waypoints_stays_invalid(self):
         contestant = self._create_contestant()
-        waypoint_names = [wp.name for wp in self.route.waypoints]
+        expected_names = [wp.name for wp in self.route.waypoints if wp.type in ("tp", "fp")]
 
         response = self.client.patch(
             self._contestant_detail_url(contestant),
-            {"declaration_payload": {"known_time_gate_predictions": {waypoint_names[0]: "2026-08-01T10:00:00Z"}}},
+            {"declaration_payload": {"known_time_gate_predictions": {expected_names[0]: "2026-08-01T10:00:00Z"}}},
             content_type="application/json",
         )
         self.assertEqual(200, response.status_code, response.content)
@@ -230,3 +293,56 @@ class TestCurveNavigationDeclaration(CurvePrecisionNavigationDeclarationTestBase
         contestant.refresh_from_db()
         self.assertFalse(contestant.contestanttaskconfiguration.is_valid)
         self.assertIn("Tmax", " ".join(contestant.contestanttaskconfiguration.validation_errors))
+
+
+class PrecisionNavigationGateTimeInterpolationTest(SimpleTestCase):
+    """2.A2: the organisation estimates the hidden gate times between the declared times."""
+
+    START = datetime.datetime(2026, 8, 1, 10, 0, tzinfo=datetime.timezone.utc)
+
+    def compiler(self, names):
+        waypoints = [SimpleNamespace(name=name) for name in names]
+        route = SimpleNamespace(waypoints=waypoints)
+        contestant = SimpleNamespace(navigation_task=SimpleNamespace(route=route))
+        return ContestantTaskCompiler(contestant)
+
+    def scheduled(self, minutes_by_name):
+        return {name: (self.START + datetime.timedelta(minutes=minutes)).isoformat() for name, minutes in minutes_by_name.items()}
+
+    def at(self, minutes):
+        return self.START + datetime.timedelta(minutes=minutes)
+
+    def test_the_declared_times_are_kept_and_hidden_gates_follow_their_share_of_the_leg(self):
+        # SP at 0, hidden gate a quarter of the way to TP1 (scheduled at 1 of 4 minutes), TP1 at 4, HG2 at 6 of 4..10
+        scheduled = self.scheduled({"SP": 0, "HG1": 1, "TP1": 4, "HG2": 6, "FP": 10})
+        declared = {"TP1": self.at(6), "FP": self.at(14)}
+
+        times = self.compiler(["SP", "HG1", "TP1", "HG2", "FP"])._interpolate_gate_times(scheduled, declared)
+
+        self.assertEqual(times["SP"], self.at(0))
+        self.assertEqual(times["HG1"], self.at(1.5))
+        self.assertEqual(times["TP1"], self.at(6))
+        self.assertEqual(times["HG2"], self.at(6 + 8 * 2 / 6))
+        self.assertEqual(times["FP"], self.at(14))
+
+    def test_declaring_the_scheduled_times_gives_the_scheduled_times(self):
+        scheduled = self.scheduled({"SP": 0, "HG1": 1, "TP1": 4, "HG2": 6, "FP": 10})
+        declared = {"TP1": self.at(4), "FP": self.at(10)}
+
+        times = self.compiler(["SP", "HG1", "TP1", "HG2", "FP"])._interpolate_gate_times(scheduled, declared)
+
+        self.assertEqual({name: times[name] for name in scheduled}, {name: self.at(m) for name, m in {"SP": 0, "HG1": 1, "TP1": 4, "HG2": 6, "FP": 10}.items()})
+
+    def test_gates_after_the_last_declared_point_are_left_to_the_schedule(self):
+        scheduled = self.scheduled({"SP": 0, "TP1": 4, "HG1": 6, "FP": 10})
+
+        times = self.compiler(["SP", "TP1", "HG1", "FP"])._interpolate_gate_times(scheduled, {"TP1": self.at(5)})
+
+        self.assertNotIn("HG1", times)
+
+    def test_interpolated_times_are_whole_seconds(self):
+        scheduled = self.scheduled({"SP": 0, "HG1": 1, "FP": 3})
+
+        times = self.compiler(["SP", "HG1", "FP"])._interpolate_gate_times(scheduled, {"FP": self.at(3.01)})
+
+        self.assertEqual(times["HG1"].microsecond, 0)

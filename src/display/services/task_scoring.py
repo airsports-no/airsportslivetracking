@@ -36,6 +36,7 @@ from typing import Iterable, Optional, Sequence
 from django.db import transaction
 
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
+from display.services.catalogue_gate_quality import CatalogueGateQuality
 from display.utilities.db_retry import retry_on_lock_timeout
 from display.utilities.gate_definitions import DUMMY, LANDING_GATE, TAKEOFF_GATE
 from display.utilities.task_types import (
@@ -195,7 +196,8 @@ def _worst_case_penalty(scorecard, gate_type: str, *, gate_check: bool, time_che
 
 def theoretical_gate_quality(contestant) -> float:
     """
-    The starting quality of a deficit-style task (2.A1-2.A5): the worst possible total gate deficit of the
+    The starting quality of a deficit-style task (2.A1-2.A5): the worst possible total gate deficit (2.A1, 2.A2: what
+    the catalogue's formulas make a perfect flight worth, see CatalogueGateQuality) of the
     contestant's own EFFECTIVE route (a contestant of 2.A3 flies a declared subset of the catalogue points, so the
     shared route would inflate it) with the scorecard's configuration, observation photos included. A pilot flying
     perfectly keeps all of it, and a pilot who loses every gate loses all of it.
@@ -207,8 +209,14 @@ def theoretical_gate_quality(contestant) -> float:
     navigation_task = contestant.navigation_task
     scorecard = navigation_task.scorecard
     total = 0.0
-    for waypoint in get_effective_route_waypoints(navigation_task, contestant):
+    waypoints = get_effective_route_waypoints(navigation_task, contestant)
+    # 2.A1 and 2.A2 weigh the gates as the catalogue's formulas say, by the same object that makes the live deductions.
+    catalogue = CatalogueGateQuality.for_task_type(stored_task_type(navigation_task), scorecard, waypoints)
+    for waypoint in waypoints:
         if waypoint.type == DUMMY or getattr(waypoint, "on_curved_segment", False):
+            continue
+        if catalogue:
+            total += catalogue.starting_quality(waypoint)
             continue
         total += _worst_case_penalty(
             scorecard,

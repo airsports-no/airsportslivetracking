@@ -333,17 +333,13 @@ class CatalogueHiddenGateSequenceTest(CimaScenarioCase):
 
     def test_the_catalogue_example_loses_gates_3_and_5_and_only_those(self):
         result, _, _ = self.fly(CATALOGUE_EXAMPLE)
-        # 3 was crossed after 4 (out of order: the crossing of 4 marked it missed), 5 was crossed twice
+        # 3 was crossed after 4 (out of order: the crossing of 4 marked it missed), 5 was crossed twice. A hidden gate
+        # of 2.A1 is worth 1000 / Nh = 1000 / 7 of Qh
         self.assertEqual(
             self.penalised_hidden_gates(result),
-            [("HG3", "gate_score", 180.0), ("HG5", "curve_navigation_repeated_crossing", 180.0)],
+            [("HG3", "gate_score", 1000 / 7), ("HG5", "curve_navigation_repeated_crossing", 1000 / 7)],
         )
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F2 / S12: the gates lost are the right ones (see the tests above), but the application weighs a gate "
-        "180 of a worst case of 1980 where the catalogue takes 1000 / Nh of Qh: 818 against 790",
-    )
     def test_the_catalogue_example_scores_as_in_the_catalogue(self):
         result, expected, _ = self.fly(CATALOGUE_EXAMPLE)
         self.assert_final_score(result, expected, "1-2-4-3-5-6-5-7")

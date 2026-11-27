@@ -4,11 +4,14 @@ FAI Section 10 Annex 4 (2.A1, 2.A2, 2.A4, 2.A5): "Gates must be crossed in order
 gate more than once in any direction invalidates the gate." The calculator is fed positions on a straight line of gates
 (SP, three hidden gates, FP, in metres east of SP) and the events it returns are handled the way the orchestrator
 does, so every test sees the score messages the calculator sends. No database.
+
+An invalidated hidden gate loses its value in Q: 1000 / Nh in 2.A1 (here 1000 / 3), Emax in 2.A2 (S12).
 """
 
 import datetime
 import math
 from queue import Empty, Queue
+from types import SimpleNamespace
 from unittest.mock import MagicMock, patch
 
 from django.test import TestCase
@@ -26,7 +29,7 @@ from display.utilities.coordinate_utilities import Projector
 
 UTC = datetime.timezone.utc
 GATE_HALF_LENGTH = 150.0
-MISSED_SCORE = 180.0
+MISSED_SCORE = 180.0  # Emax: what the scorecard charges for a gate not crossed
 SPEED = 40.0  # metres per one second sample
 START = datetime.datetime(2026, 1, 1, 12, 0, tzinfo=UTC)
 GATE_X = {"SP": 0.0, "HG1": 1000.0, "HG2": 2000.0, "HG3": 3000.0, "FP": 4000.0}
@@ -50,6 +53,8 @@ def sample(polyline, speed=SPEED):
 class HiddenGateInvalidationTest(TestCase):
     task_subtype = "curve_navigation_time_estimation"
     timed_hidden_gates = False
+    # What an invalidated hidden gate loses: Qh = 1000 x H / Nh with three hidden gates
+    invalidation_value = 1000 / 3
 
     def setUp(self):
         self.projector = Projector(60, 11)
@@ -61,6 +66,9 @@ class HiddenGateInvalidationTest(TestCase):
         self._collected = []
         self.scorecard = MagicMock()
         self.scorecard.get_gate_timing_score_for_gate_type.side_effect = self.timing_score
+        self.scorecard.get_gate_scorecard.return_value = SimpleNamespace(
+            maximum_penalty=MISSED_SCORE, missed_penalty=MISSED_SCORE
+        )
         self.queue = Queue()
         self.gates = [self.make_gate(name, x) for name, x in GATE_X.items()]
         with patch.object(GateCalculator, "create_gates", return_value=self.gates):
@@ -171,7 +179,7 @@ class HiddenGateInvalidationTest(TestCase):
         # HG2 forwards, round the end of its line and back across it forwards
         self.fly([(-200, 0), (2100, 0), (2100, 300), (1900, 300), (1900, 0), (2200, 0), (4500, 0)])
         invalidations = self.invalidations()
-        self.assertEqual([(m.gate.name, m.score) for m in invalidations], [("HG2", MISSED_SCORE)])
+        self.assertEqual([(m.gate.name, m.score) for m in invalidations], [("HG2", self.invalidation_value)])
         self.assertEqual(invalidations[0].kind, "penalty")
         self.assertEqual(invalidations[0].message, "gate invalidated by repeated crossing")
 
@@ -216,17 +224,17 @@ class HiddenGateInvalidationTest(TestCase):
         self.fly([(-200, 0), (2500, 0)])
         self.assertEqual([g.name for g in self.calculator._watched_hidden_gates], ["HG1", "HG2"])
 
-    def test_the_gate_costs_what_a_gate_not_correctly_crossed_costs(self):
+    def test_the_gate_costs_its_value(self):
         self.fly([(-200, 0), (2100, 0), (1900, 0), (4500, 0)])
         (message,) = self.invalidations()
-        self.assertEqual(message.score, self.scorecard.get_gate_timing_score_for_gate_type("secret", START, None))
+        self.assertEqual(message.score, self.invalidation_value)
 
     # -- a hidden gate first crossed against the route ---------------------------------------------------------------
 
     def test_a_gate_first_crossed_against_the_route_is_invalidated_as_it_is_crossed(self):
         # Round the end of HG2's line to the far side, back across it against the route, round the end again
         self.fly([(-200, 0), (1500, 0), (1500, 300), (2300, 300), (2300, 0), (1900, 0), (1900, 300), (4500, 300)])
-        self.assertEqual([(m.gate.name, m.score) for m in self.invalidations()], [("HG2", MISSED_SCORE)])
+        self.assertEqual([(m.gate.name, m.score) for m in self.invalidations()], [("HG2", self.invalidation_value)])
         (message,) = self.invalidations()
         self.assertEqual(message.message, "hidden gate crossed against the route")
         self.assertTrue(self.gates[2].missed)
@@ -277,14 +285,27 @@ class TimedHiddenGateInvalidationTest(HiddenGateInvalidationTest):
 
     task_subtype = "precision_navigation"
     timed_hidden_gates = True
+    invalidation_value = MISSED_SCORE  # Qp = Emax x Ng
 
-    def test_the_invalidation_costs_the_gate_less_what_its_timing_already_cost(self):
-        # HG2 is crossed 10 s late (at 40 m/s: its time is 50 s after SP, flown at 60 s): 10 points for the timing, and
-        # the gate is worth 180 in all
+    def test_a_gate_first_crossed_against_the_route_is_invalidated_as_it_is_crossed(self):
+        # Its only crossing is the one against the route: it loses its value, and its time comes from that crossing
+        self.fly([(-200, 0), (1500, 0), (1500, 300), (2300, 300), (2300, 0), (1900, 0), (1900, 300), (4500, 300)])
+        (message,) = self.invalidations()
+        timing_error = abs((message.time - self.gates[2].expected_time).total_seconds())
+        self.assertGreater(timing_error, 0)
+        self.assertEqual((message.gate.name, message.score), ("HG2", MISSED_SCORE + timing_error))
+        self.assertEqual(message.message, "hidden gate crossed against the route")
+        self.assertTrue(self.gates[2].missed)
+        self.assertIsNone(self.gates[2].passing_time)
+        self.assertNotIn(self.gates[2], self.calculator.outstanding_gates)
+
+    def test_the_invalidation_costs_the_value_and_the_timing_of_the_first_crossing_stays_what_it_was(self):
+        # HG2 is crossed 10 s late (at 40 m/s: its time is 50 s after SP, flown at 60 s): 10 points for the timing,
+        # charged when it was crossed, and the invalidation takes the gate's value of 180 and no time error again
         self.fly([(-200, 0), (600, 0)], speed=SPEED)
         self.fly([(600, 0), (2400, 0)], speed=2000 / 60.0, continue_track=True)
         self.fly([(2400, 0), (1900, 0), (4500, 0)], speed=SPEED, continue_track=True)
         timing = [m for m in self.messages(gate="HG2") if m.score_type == "gate_score"]
         (invalidation,) = self.invalidations("HG2")
         self.assertGreater(timing[0].score, 0)
-        self.assertEqual(timing[0].score + invalidation.score, MISSED_SCORE)
+        self.assertEqual(invalidation.score, MISSED_SCORE)
