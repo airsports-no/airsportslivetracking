@@ -3,7 +3,7 @@ import { beforeEach, describe, expect, it, vi } from 'vitest';
 const bridge = vi.hoisted(() => ({ isEmbeddedInApp: vi.fn(() => false), signalApp: vi.fn() }));
 vi.mock('../../utils/appBridge', () => bridge);
 
-import { afterBooked, declarationStepPath, finishBooking, nextStepAfterBooking } from './bookingFlow';
+import { afterBooked, afterBookedInDialog, declarationStepPath, finishBooking, nextStepAfterBooking, safeReturnTo } from './bookingFlow';
 
 const ids = { contestId: 7, navigationTaskId: 9 };
 
@@ -63,5 +63,80 @@ describe('the end of a booking', () => {
         finishBooking(ids, navigate);
         expect(navigate).toHaveBeenCalledWith('/competition-map/7/9');
         expect(bridge.signalApp).not.toHaveBeenCalled();
+    });
+});
+
+describe('where the website returns to', () => {
+    const dashboard = { ...ids, returnTo: '/mission-dashboard/7' };
+
+    it('is the page the booking started on when one is given', () => {
+        const navigate = vi.fn();
+        finishBooking(dashboard, navigate);
+        expect(navigate).toHaveBeenCalledWith('/mission-dashboard/7');
+    });
+
+    it('rides along in the address of the declaration step', () => {
+        expect(declarationStepPath(42, dashboard)).toBe(
+            '/declaration/42?booking=1&contestId=7&navigationTaskId=9&returnTo=%2Fmission-dashboard%2F7',
+        );
+    });
+
+    it('is only ever a path on this site', () => {
+        expect(safeReturnTo('/mission-dashboard/7')).toBe('/mission-dashboard/7');
+        expect(safeReturnTo('//evil.example')).toBeUndefined();
+        expect(safeReturnTo('https://evil.example')).toBeUndefined();
+        expect(safeReturnTo('/\\evil.example')).toBeUndefined();
+        expect(safeReturnTo(null)).toBeUndefined();
+    });
+});
+
+describe('a booking made in the dialog of the contest dashboard', () => {
+    const dashboard = { ...ids, returnTo: '/mission-dashboard/7' };
+
+    it('goes on to the declaration for a task with one, keeping the dashboard in the history', () => {
+        const navigate = vi.fn();
+        const stay = vi.fn();
+        const result = afterBookedInDialog({ id: 42, declaration_status: { need: 'required' } }, dashboard, navigate, stay);
+        expect(result).toBe('declaration');
+        expect(navigate).toHaveBeenCalledWith(
+            '/declaration/42?booking=1&contestId=7&navigationTaskId=9&returnTo=%2Fmission-dashboard%2F7',
+            { replace: false },
+        );
+        expect(stay).not.toHaveBeenCalled();
+        expect(bridge.signalApp).not.toHaveBeenCalled();
+    });
+
+    it('does the same for an optional declaration, also inside the app (the signal comes at the end of the step)', () => {
+        bridge.isEmbeddedInApp.mockReturnValue(true);
+        const navigate = vi.fn();
+        expect(afterBookedInDialog({ id: 42, declaration_status: { need: 'optional' } }, dashboard, navigate, vi.fn())).toBe('declaration');
+        expect(navigate).toHaveBeenCalledTimes(1);
+        expect(bridge.signalApp).not.toHaveBeenCalled();
+    });
+
+    it('stays on the dashboard on the website when there is nothing to declare', () => {
+        const navigate = vi.fn();
+        const stay = vi.fn();
+        expect(afterBookedInDialog({ id: 42, declaration_status: { need: 'not_needed' } }, dashboard, navigate, stay)).toBe('stayed');
+        expect(stay).toHaveBeenCalledTimes(1);
+        expect(navigate).not.toHaveBeenCalled();
+        expect(bridge.signalApp).not.toHaveBeenCalled();
+    });
+
+    it('signals the app at once when there is nothing to declare, and does not close the dialog by itself', () => {
+        bridge.isEmbeddedInApp.mockReturnValue(true);
+        const navigate = vi.fn();
+        const stay = vi.fn();
+        expect(afterBookedInDialog({ id: 42 }, dashboard, navigate, stay)).toBe('signalled');
+        expect(bridge.signalApp).toHaveBeenCalledTimes(1);
+        expect(bridge.signalApp).toHaveBeenCalledWith('registered', { contestId: 7, navigationTaskId: 9 });
+        expect(stay).not.toHaveBeenCalled();
+        expect(navigate).not.toHaveBeenCalled();
+    });
+
+    it('treats an answer without the booking like a task without a declaration', () => {
+        const stay = vi.fn();
+        expect(afterBookedInDialog(undefined, dashboard, vi.fn(), stay)).toBe('stayed');
+        expect(stay).toHaveBeenCalled();
     });
 });

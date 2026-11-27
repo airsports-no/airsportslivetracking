@@ -319,6 +319,9 @@ export interface Contestant {
     has_been_tracked_by_simulator: boolean;
     team: Team;
     overlap_warnings?: string[];
+    /** The own-flight lists (OwnFlightSerialiser) say what the pilot has to declare and where the flight order stands */
+    declaration_status?: import('../pilot-declaration/types').DeclarationStatus;
+    flight_order_status?: import('../pilot-declaration/types').FlightOrderStatus | null;
 }
 
 export interface OngoingNavigation {

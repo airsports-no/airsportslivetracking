@@ -328,6 +328,31 @@ describe('the declaration step of a booking ends with the one signal the app kno
     });
 });
 
+describe('the declaration step of a booking made on the contest dashboard', () => {
+    const FROM_DASHBOARD = `${BOOKING}&returnTo=${encodeURIComponent('/mission-dashboard/1')}`;
+
+    it('returns the website to the dashboard, not to the map, and sends no signal', async () => {
+        await mount(make(TIMES), FROM_DASHBOARD);
+        await click(button('Do this later'));
+        expect(bridge.signalApp).not.toHaveBeenCalled();
+        expect(seenPath).toBe('/mission-dashboard/1');
+    });
+
+    it('still ends with the same signal in the app', async () => {
+        bridge.isEmbeddedInApp.mockReturnValue(true);
+        await mount(make(TIMES, {}, { need: 'optional', errors: [] }), FROM_DASHBOARD);
+        await click(button('Skip the declaration'));
+        expect(bridge.signalApp).toHaveBeenCalledTimes(1);
+        expect(bridge.signalApp).toHaveBeenCalledWith('registered', { contestId: 1, navigationTaskId: 2 });
+    });
+
+    it('ignores a return address that leaves the site', async () => {
+        await mount(make(TIMES), `${BOOKING}&returnTo=${encodeURIComponent('//evil.example/x')}`);
+        await click(button('Do this later'));
+        expect(seenPath).toBe('/competition-map/1/2');
+    });
+});
+
 describe('outside a booking', () => {
     it('has no booking buttons and no signal', async () => {
         await mount(make(TIMES));

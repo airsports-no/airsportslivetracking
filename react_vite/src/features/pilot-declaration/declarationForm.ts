@@ -277,6 +277,10 @@ export const declarationActionText = (status: Pick<DeclarationStatus, 'need' | '
     return status.state === 'missing' ? 'Make declaration' : 'Edit declaration';
 };
 
+/** Whether a flight has a declaration to look at: one was asked for and something was saved */
+export const hadDeclaration = (status: Pick<DeclarationStatus, 'need' | 'state'> | null | undefined): boolean =>
+    Boolean(status && status.need !== 'not_needed' && status.state !== 'missing');
+
 export const needsDeclarationStep = (need: DeclarationNeed | undefined | null): boolean => need === 'required' || need === 'optional';
 
 /** Whether the page asks the server again: only while the flight order is being made */

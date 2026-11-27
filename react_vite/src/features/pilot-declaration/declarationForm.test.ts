@@ -8,6 +8,7 @@ import {
     declarationActionText,
     declarationLabel,
     entrySeconds,
+    hadDeclaration,
     formatEntry,
     initialFormState,
     laneCount,
@@ -219,5 +220,15 @@ describe('polling', () => {
         expect(shouldPoll(status('being_made'))).toBe(true);
         for (const state of ['ready', 'failed', 'waiting_for_declaration', 'not_available']) expect(shouldPoll(status(state))).toBe(false);
         expect(shouldPoll(null)).toBe(false);
+    });
+});
+
+describe('a flight that had a declaration', () => {
+    it('is one that asked for a declaration and has something saved', () => {
+        expect(hadDeclaration({ need: 'required', state: 'complete' })).toBe(true);
+        expect(hadDeclaration({ need: 'optional', state: 'incomplete' })).toBe(true);
+        expect(hadDeclaration({ need: 'required', state: 'missing' })).toBe(false);
+        expect(hadDeclaration({ need: 'not_needed', state: 'complete' })).toBe(false);
+        expect(hadDeclaration(undefined)).toBe(false);
     });
 });

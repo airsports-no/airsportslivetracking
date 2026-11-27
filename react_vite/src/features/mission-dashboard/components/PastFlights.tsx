@@ -10,8 +10,16 @@ import { Contestant } from '../../competition-map/types';
 import { Loading } from '../../route-editor/components/basicComponents';
 import ContestCard from '../components/ContestCard';
 import TaskScoreDisplay from '../components/TaskScoreDisplay';
+import FlightDeclarationSummary from '../../pilot-declaration/FlightDeclarationSummary';
+import { hadDeclaration } from '../../pilot-declaration/declarationForm';
 
 const ITEMS_PER_PAGE = 30;
+
+// The own-flight list sends the task as its id (OwnFlightSerialiser); the full payload nests the whole task
+const flightTaskId = (flight: { navigation_task: unknown }): number | undefined => {
+    const task = flight.navigation_task as unknown;
+    return typeof task === 'number' ? task : (task as { pk?: number; id?: number } | null)?.pk ?? (task as { id?: number } | null)?.id;
+};
 
 const PastFlights = () => {
     const { myPreviousFlights, contests, fetchMyPreviousFlights, fetchContests } = useMissionDashboardStore();
@@ -146,6 +154,18 @@ const PastFlights = () => {
                                         <div key={task.pk ?? (task as { id?: number }).id} className="p-2 rounded-lg bg-base-200">
                                             <h4 className="font-bold text-lg">{task.name}</h4>
                                             <TaskScoreDisplay task={task} myContestantIds={myContestantIds} contestId={selectedContest?.id} />
+                                            {myPreviousFlights
+                                                .filter(flight => flightTaskId(flight) === (task.pk ?? (task as { id?: number }).id) && hadDeclaration(flight.declaration_status))
+                                                .map(flight => (
+                                                    <div key={flight.id} data-testid="past-flight-declaration">
+                                                        <FlightDeclarationSummary
+                                                            flightId={flight.id}
+                                                            declarationStatus={flight.declaration_status}
+                                                            flightOrderStatus={flight.flight_order_status}
+                                                            readOnly
+                                                        />
+                                                    </div>
+                                                ))}
                                         </div>
                                     ))}
                                     {(!modalContent || modalContent.length === 0) && <p>No tasks found for this contest.</p>}

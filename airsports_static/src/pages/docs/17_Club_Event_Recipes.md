@@ -74,7 +74,7 @@ You do not need a national jury, ground marshals, or specialized logger boxes to
 3. **Automatic Flight Orders:** Once pilots register (or are scheduled with the **Flight Scheduler Optimizer**), ASLT automatically emails each crew a printable **Flight Order PDF** containing the route map, turnpoint photos, and observation photos.
 4. **Automated Scoring:** Hidden timing gates, speed-keeping, and track deviations are scored live from the mobile app's GPS telemetry—no manual spreadsheet entry required.
 
-* **Full details:** [CIMA and Legacy Task Guide](/docs/11_CIMA_Task_Guide) and [Contest Manager Guide](/docs/03_Contest_Manager_Guide)
+* **Full details:** [CIMA Task Guide](/docs/11_CIMA_Task_Guide) and [Contest Manager Guide](/docs/03_Contest_Manager_Guide)
 
 ---
 

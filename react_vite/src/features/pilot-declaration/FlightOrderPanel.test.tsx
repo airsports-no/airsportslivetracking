@@ -178,6 +178,34 @@ describe('my flights', () => {
         expect(out).toContain('View declaration');
         expect(out).not.toContain('Edit declaration');
     });
+    it('read-only (a past flight): "View declaration" even if the status would allow editing, and no flight order block without a download', () => {
+        const readOnly = (d: DeclarationStatus, order: FlightOrderStatus | null) =>
+            renderToStaticMarkup(
+                <MemoryRouter>
+                    <FlightDeclarationSummary flightId={12} declarationStatus={d} flightOrderStatus={order} readOnly />
+                </MemoryRouter>,
+            );
+        const out = readOnly(declaration({ state: 'complete', can_edit: true }), status('waiting_for_declaration'));
+        expect(out).toContain('View declaration');
+        expect(out).toContain('href="/declaration/12"');
+        expect(out).not.toContain('Edit declaration');
+        expect(out).not.toContain('Your flight order is made when');
+        expect(readOnly(declaration({ state: 'complete', can_edit: false }), status('being_made'))).not.toContain('flight order');
+    });
+    it('read-only shows the flight order when there is a download', () => {
+        const out = renderToStaticMarkup(
+            <MemoryRouter>
+                <FlightDeclarationSummary
+                    flightId={12}
+                    declarationStatus={declaration({ state: 'complete', can_edit: false })}
+                    flightOrderStatus={status('ready', { path: '/display/maplink/abc/' })}
+                    readOnly
+                />
+            </MemoryRouter>,
+        );
+        expect(out).toContain('View declaration');
+        expect(out).toContain('Download flight order');
+    });
     it('shows nothing about a declaration for a task without one, but the flight order', () => {
         const out = html(declaration({ need: 'not_needed', state: 'complete', can_edit: false, edit_url: null }), status('being_made'));
         expect(out).not.toContain('Declaration');

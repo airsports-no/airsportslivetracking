@@ -18,7 +18,7 @@ import { PilotDeclaration } from './types';
 import FlightOrderPanel from './FlightOrderPanel';
 import { useFlightOrderStatus } from './useFlightOrderStatus';
 import { SequenceLanes, TimeRow } from './fields';
-import { BookingIds, finishBooking } from './bookingFlow';
+import { BookingIds, finishBooking, safeReturnTo } from './bookingFlow';
 import { isEmbeddedInApp } from '../../utils/appBridge';
 import { reverse } from '../../urls';
 
@@ -37,9 +37,13 @@ const PilotDeclarationPage: React.FC = () => {
     const booking = searchParams.get('booking') === '1';
     const bookingContestId = Number(searchParams.get('contestId'));
     const bookingTaskId = Number(searchParams.get('navigationTaskId'));
+    const bookingReturnTo = safeReturnTo(searchParams.get('returnTo'));
     const bookingIds = useMemo<BookingIds | null>(
-        () => (booking && bookingContestId && bookingTaskId ? { contestId: bookingContestId, navigationTaskId: bookingTaskId } : null),
-        [booking, bookingContestId, bookingTaskId],
+        () =>
+            booking && bookingContestId && bookingTaskId
+                ? { contestId: bookingContestId, navigationTaskId: bookingTaskId, returnTo: bookingReturnTo }
+                : null,
+        [booking, bookingContestId, bookingTaskId, bookingReturnTo],
     );
 
     const [declaration, setDeclaration] = useState<PilotDeclaration | null>(null);
