@@ -744,6 +744,8 @@ class ScorecardForm(forms.ModelForm):
     backtracking_bearing_difference = forms.FloatField()
     backtracking_grace_time_seconds = forms.FloatField()
     backtracking_maximum_penalty = forms.FloatField()
+    # Blank means the percentage of the task type (see display.services.task_scoring).
+    backtracking_penalty_percentage = forms.FloatField(required=False, min_value=0, max_value=100)
     prohibited_zone_penalty = forms.FloatField()
     prohibited_zone_grace_time = forms.FloatField()
     prohibited_zone_maximum = forms.FloatField()

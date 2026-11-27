@@ -35,6 +35,8 @@ export interface ScorecardData {
     backtracking_bearing_difference?: number;
     backtracking_grace_time_seconds?: number;
     backtracking_maximum_penalty?: number;
+    // Percentage of the task score one backtrack costs (2.A1-2.A5). Blank: the task type's own.
+    backtracking_penalty_percentage?: number | null;
     prohibited_zone_penalty?: number;
     prohibited_zone_grace_time?: number;
     prohibited_zone_maximum?: number;

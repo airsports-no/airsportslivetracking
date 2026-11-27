@@ -128,8 +128,8 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="F1 / S11: a hidden gate crossed twice is never invalidated (the check for "
-        "a repeated crossing is dead code: the gate is no longer outstanding)",
+        reason="F2 / S12: the gate is invalidated (S11) and costs its 180, but the application takes that over a "
+        "worst case of 1440 where the catalogue takes 1000 / Nh of Qh: 875 against 816",
     )
     def test_hidden_gate_crossed_twice_is_invalidated(self):
         self.build()
@@ -149,11 +149,6 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, oracle.round_half_up(1000 * (750 + 360) / 1360))
         self.assert_final_score(result, expected, "HG2 crossed against the route")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F1 / S11: HG3 and HG4 are crossed twice (once each way) and not "
-        "invalidated; F15 / S19: backtracking is a flat 200, not 50% of P",
-    )
     def test_gates_flown_out_of_order(self):
         self.build(brief_loops=False)
         result, expected = self.fly(VisitOrder(["HG1", "HG2", "HG4", "HG3"]), backtracking=True)
@@ -161,7 +156,9 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="F15 / S19: backtracking costs a flat 200 points; the catalogue takes 50% of the final score",
+        reason="SIM: the scenario cannot be flown on the curved first leg: Reverse needs the 10 s between SP and the "
+        "next named point of the plan, which is the first curve point 8 s on (ValueError 'Deviations do not fit'); "
+        "backtracking on the straight leg after the curve is tested in test_simulated_cima_backtracking_flights.py",
     )
     def test_backtracking_on_a_leg_costs_half_the_score(self):
         self.build(brief_loops=False)
@@ -282,8 +279,8 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="F1 / S11: a hidden gate crossed twice is never invalidated in 2.A2 "
-        "(the gate keeps the 180 points; the application charges nothing)",
+        reason="N4 / S12: the gate is invalidated (S11) and costs its 180, but the application's Q starts at a "
+        "worst case of 1440 and the catalogue's best Q is 720",
     )
     def test_hidden_gate_crossed_twice_is_invalidated(self):
         self.build()
@@ -305,18 +302,14 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="F1 / S11: HG3 and HG4 are crossed twice and not invalidated; "
-        "F15 / S19: backtracking is 200 points, not 50%",
+        reason="N4 / S12: the application's Q starts at a worst case of 1440, the catalogue's best pilot has 720 "
+        "(the 50% backtracking, HG3 and HG4 flown 26 s and 27 s off their times): 482 against 463",
     )
     def test_gates_flown_out_of_order(self):
         self.build(brief_loops=False)
         result, expected = self.fly(VisitOrder(["HG1", "HG2", "HG4", "HG3"]), backtracking=True)
         self.assert_final_score(result, expected, "HG4 before HG3")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F15 / S19: backtracking costs a flat 200 points; the catalogue takes 50% of the final score",
-    )
     def test_backtracking_on_a_leg_costs_half_the_score(self):
         self.build(brief_loops=False)
         result, expected = self.fly(Reverse(BACKTRACKING_LEG, seconds=10, fraction=0.25), backtracking=True)

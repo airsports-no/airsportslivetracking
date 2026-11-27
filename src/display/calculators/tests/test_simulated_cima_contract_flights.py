@@ -191,10 +191,6 @@ class ContractNavigationFlightsTest(CimaScenarioCase):
         invalid = [m for m in result.messages if "invalid post-MP" in m.message]
         self.assertEqual([m.gate.name for m in invalid], ["C"])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F15 / S19: backtracking costs a flat 200 points; the catalogue takes 50% of the final score",
-    )
     def test_backtracking_costs_half_the_score(self):
         result, expected = self.fly(Reverse("A", seconds=10, fraction=0.5), backtracking=True)
         self.assertEqual(expected, 500)

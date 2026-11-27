@@ -103,6 +103,19 @@ def scoring_parameters_for(scorecard, definition: TaskTypeDefinition) -> Scoring
     )
 
 
+def backtracking_penalty_percentage_for(scorecard, definition: TaskTypeDefinition) -> float:
+    """
+    The percentage of the task score one backtrack costs, 0 where it costs the scorecard's flat points. Only a task type
+    that has a percentage (2.A1-2.A5: 50) can use one. A scorecard that stores none (a task created before the setting
+    existed) gets the task type's, like scoring_model; a stored 0 chooses the flat points.
+    """
+    if not definition.backtracking_penalty_percentage:
+        return 0.0
+    stored = scorecard.config.get("backtracking_penalty_percentage") if scorecard is not None else None
+    percentage = definition.backtracking_penalty_percentage if stored is None else float(stored)
+    return min(100.0, max(0.0, percentage))
+
+
 def scoring_parameters(navigation_task) -> ScoringParameters:
     return scoring_parameters_for(navigation_task.scorecard, stored_task_type(navigation_task))
 

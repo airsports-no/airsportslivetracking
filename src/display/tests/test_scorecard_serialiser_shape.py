@@ -36,6 +36,7 @@ EXPECTED_SCORECARD_NESTED_KEYS = {
     "backtracking_bearing_difference",
     "backtracking_grace_time_seconds",
     "backtracking_maximum_penalty",
+    "backtracking_penalty_percentage",
     "prohibited_zone_penalty",
     "prohibited_zone_grace_time",
     "prohibited_zone_maximum",

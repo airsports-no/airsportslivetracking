@@ -374,7 +374,22 @@ class TestRegistryHoldsPreviousContents(SimpleTestCase):
         def having(field):
             return {key for key, d in TASK_TYPE_REGISTRY.items() if getattr(d, field)}
 
-        self.assertEqual(having("repeated_hidden_gate_crossing_invalidates"), {"curve_navigation_time_estimation"})
+        self.assertEqual(
+            having("repeated_hidden_gate_crossing_invalidates"),
+            {"curve_navigation_time_estimation", "precision_navigation", "known_circuit", "unknown_legs"},
+        )
+        cima_backtracking_types = {
+            "curve_navigation_time_estimation",
+            "precision_navigation",
+            "contract_navigation_time_controls",
+            "known_circuit",
+            "unknown_legs",
+        }
+        self.assertEqual(
+            {key for key, d in TASK_TYPE_REGISTRY.items() if d.backtracking_penalty_percentage},
+            cima_backtracking_types,
+        )
+        self.assertEqual(having("backtracking_within_corridor"), cima_backtracking_types)
         self.assertEqual(having("scores_turnpoint_hunt_targets"), {"turnpoint_hunt", "limited_fuel_turnpoint_hunt"})
         self.assertEqual(having("has_fuel_deadline"), {"limited_fuel_turnpoint_hunt"})
         self.assertEqual(having("scores_speed_keeping"), {"known_circuit"})

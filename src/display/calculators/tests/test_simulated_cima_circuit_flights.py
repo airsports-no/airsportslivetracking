@@ -134,31 +134,17 @@ class ObservationNavigationFlights:
         self.assertEqual(expected, 875)
         self.assert_final_score(result, expected, "HG2 crossed against the route")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F1 / S11: a hidden gate crossed twice is never invalidated (it keeps its "
-        "points; the application charges nothing)",
-    )
     def test_hidden_gate_crossed_twice_is_invalidated(self):
         self.build()
         result, expected = self.fly(DoubleCrossing("HG2", gap_s=BRIEF_LOOP_GAP_S, **BRIEF_LOOP))
         self.assertEqual(expected, 875)
         self.assert_final_score(result, expected, "HG2 crossed twice")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F1 / S11: HG3 and HG4 are crossed twice and not invalidated; "
-        "F15 / S19: backtracking is 200 points, not 50%",
-    )
     def test_gates_flown_out_of_order(self):
         self.build(brief_loops=False)
         result, expected = self.fly(VisitOrder(["HG1", "HG2", "HG4", "HG3"]), backtracking=True)
         self.assert_final_score(result, expected, "HG4 before HG3")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F15 / S19: backtracking costs a flat 200 points; the catalogue takes 50% of the final score",
-    )
     def test_backtracking_on_a_leg_costs_half_the_score(self):
         self.build(brief_loops=False)
         result, expected = self.fly(Reverse(BACKTRACKING_LEG, seconds=10, fraction=0.25), backtracking=True)

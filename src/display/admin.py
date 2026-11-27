@@ -303,6 +303,7 @@ class ScorecardAdminForm(forms.ModelForm):
     backtracking_bearing_difference = forms.FloatField(required=False)
     backtracking_grace_time_seconds = forms.FloatField(required=False)
     backtracking_maximum_penalty = forms.FloatField(required=False)
+    backtracking_penalty_percentage = forms.FloatField(required=False, min_value=0, max_value=100)
     prohibited_zone_penalty = forms.FloatField(required=False)
     prohibited_zone_grace_time = forms.FloatField(required=False)
     prohibited_zone_maximum = forms.FloatField(required=False)
@@ -378,6 +379,7 @@ class ScorecardAdminForm(forms.ModelForm):
         "observation_photo_full_tolerance_mm",
         "observation_photo_half_tolerance_mm",
         "task_value",
+        "backtracking_penalty_percentage",
     }
 
     def save(self, commit=True):

@@ -96,6 +96,9 @@ QUALITY_START_GATE_DEFICIT = "gate_deficit"  # the worst possible gate deficit o
 QUALITY_START_FIXED = "fixed"  # TaskTypeDefinition.fixed_quality (2.A7, 2.A8)
 QUALITY_START_ACHIEVEMENT = "achievement"  # zero: the contestant earns points (2.A6, 2.B2, 2.B3)
 
+# The percentage of the task score one backtrack costs in 2.A1-2.A5 (Annex 4: "a 50% penalty will be imposed").
+CIMA_BACKTRACKING_PERCENTAGE = 50.0
+
 # Scorecards (by shortcut_name) the task types are created from.
 CIMA_PRECISION_SCORECARD = "CIMA Precision"
 CIMA_ANR_SCORECARD = "CIMA ANR"
@@ -196,8 +199,19 @@ class TaskTypeDefinition:
     scorecard_shortcut_name: str | None = None
     # The gate types the scorecard has to cover when the route has no backbone to read them from (see has_backbone).
     gate_types_without_backbone: tuple[str, ...] = ()
-    # A hidden gate crossed a second time (or backwards) after it was passed is not scored again (2.A1).
+    # A hidden gate crossed a second time, in either direction, or first crossed against the route is invalidated:
+    # it is worth what a gate not correctly crossed is worth (2.A1, 2.A2, 2.A4, 2.A5; Annex 4 "crossing the same gate
+    # more than once in any direction invalidates the gate").
     repeated_hidden_gate_crossing_invalidates: bool = False
+    # Backtracking costs a percentage of the task score instead of flat points (2.A1-2.A5: "a 50% penalty will be
+    # imposed for backtracking"). The value is the percentage used when the task's scorecard stores none
+    # (Scorecard.backtracking_penalty_percentage); 0 uses the flat points of the scorecard, which a stored 0 also does.
+    # Only task types that set this are affected by the scorecard setting.
+    backtracking_penalty_percentage: float = 0.0
+    # Backtracking is defined as in FAI Section 10, 4.24.5: it only counts inside the corridor around the active leg,
+    # whose width is the gate width, and not within the turn point radius (see display.calculators.backtracking_geometry).
+    # Legacy rule sets keep their grace distances and times.
+    backtracking_within_corridor: bool = False
     # Turnpoints are targets that earn points when collected: compulsory timing gates, target values, the order they
     # were collected in, the sequence bonus and the maximum duration (2.A6, 2.B2).
     scores_turnpoint_hunt_targets: bool = False
@@ -369,6 +383,8 @@ _DEFINITIONS = (
         quality_start=QUALITY_START_GATE_DEFICIT,
         scoring_modules=("visible_time_gates", "hidden_gate_sequence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        backtracking_penalty_percentage=CIMA_BACKTRACKING_PERCENTAGE,
+        backtracking_within_corridor=True,
         repeated_hidden_gate_crossing_invalidates=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "CurveOrPrecisionNavigationStrategy",
     ),
@@ -405,6 +421,9 @@ _DEFINITIONS = (
         quality_start=QUALITY_START_GATE_DEFICIT,
         scoring_modules=("visible_eta", "hidden_gate_sequence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        backtracking_penalty_percentage=CIMA_BACKTRACKING_PERCENTAGE,
+        backtracking_within_corridor=True,
+        repeated_hidden_gate_crossing_invalidates=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "CurveOrPrecisionNavigationStrategy",
     ),
     TaskTypeDefinition(
@@ -452,6 +471,8 @@ _DEFINITIONS = (
         quality_start=QUALITY_START_GATE_DEFICIT,
         scoring_modules=("declared_sequence", "mandatory_time_points", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        backtracking_penalty_percentage=CIMA_BACKTRACKING_PERCENTAGE,
+        backtracking_within_corridor=True,
         has_post_mp_rule=True,
         general_map_shows_backbone_only=True,
         gate_times_from_declared_period=True,
@@ -473,6 +494,9 @@ _DEFINITIONS = (
         quality_start=QUALITY_START_GATE_DEFICIT,
         scoring_modules=("observation_evidence", "hidden_gate_sequence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        backtracking_penalty_percentage=CIMA_BACKTRACKING_PERCENTAGE,
+        backtracking_within_corridor=True,
+        repeated_hidden_gate_crossing_invalidates=True,
         scores_speed_keeping=True,
         observation_photos_award_points=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "KnownCircuitStrategy",
@@ -515,6 +539,9 @@ _DEFINITIONS = (
         quality_start=QUALITY_START_GATE_DEFICIT,
         scoring_modules=("unknown_leg_sequence", "observation_evidence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        backtracking_penalty_percentage=CIMA_BACKTRACKING_PERCENTAGE,
+        backtracking_within_corridor=True,
+        repeated_hidden_gate_crossing_invalidates=True,
         has_unknown_legs=True,
         observation_photos_award_points=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "UnknownLegsStrategy",

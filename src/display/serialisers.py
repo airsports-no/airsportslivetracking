@@ -1520,6 +1520,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     backtracking_bearing_difference = serializers.FloatField(required=False)
     backtracking_grace_time_seconds = serializers.FloatField(required=False)
     backtracking_maximum_penalty = serializers.FloatField(required=False)
+    backtracking_penalty_percentage = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
     prohibited_zone_penalty = serializers.FloatField(required=False)
     prohibited_zone_grace_time = serializers.FloatField(required=False)
     prohibited_zone_maximum = serializers.FloatField(required=False)
@@ -1589,6 +1590,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "backtracking_bearing_difference",
             "backtracking_grace_time_seconds",
             "backtracking_maximum_penalty",
+            "backtracking_penalty_percentage",
             "prohibited_zone_penalty",
             "prohibited_zone_grace_time",
             "prohibited_zone_maximum",

@@ -91,6 +91,9 @@ def get_default_scorecard():
             "score_sorting_direction": "desc",
             "initial_score": 1000,
             "backtracking_penalty": 200,
+            # Annex 4: "a 50% penalty will be imposed for backtracking" (2.A1-2.A5); the flat points above are for the
+            # task types that have no percentage (the turnpoint hunts).
+            "backtracking_penalty_percentage": 50,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": False,
             "task_type": [PRECISION],
@@ -101,6 +104,7 @@ def get_default_scorecard():
                 [
                     "Backtracking",
                     "backtracking_penalty",
+                    "backtracking_penalty_percentage",
                     "backtracking_grace_time_seconds",
                 ],
                 [

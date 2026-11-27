@@ -70,6 +70,13 @@ ADAPTIVE_TIMING_START_SCORE_TYPE = "adaptive_timing_start"
 # as ACHIEVEMENT messages); every other score type is a penalty.
 TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE = "turnpoint_hunt_target_value"
 TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE = "turnpoint_hunt_sequence_bonus"
+# A hidden gate that was crossed again or crossed against the route is invalidated (Annex 4: "crossing the same gate
+# more than once in any direction invalidates the gate"). The score type is stable (it was introduced for 2.A1) and
+# is also what the one log entry of the invalidation carries for 2.A2, 2.A4 and 2.A5.
+HIDDEN_GATE_INVALIDATED_SCORE_TYPE = "curve_navigation_repeated_crossing"
+# A crossing of a hidden gate within this many seconds of the previous crossing of it is the same crossing: crossings
+# are found from the chord of the last three positions, so a single crossing is seen on two consecutive positions.
+SAME_CROSSING_SECONDS = 3
 
 
 class GateCalculator(Calculator):
@@ -101,6 +108,14 @@ class GateCalculator(Calculator):
         self.last_backwards = None
         self.has_scored_adaptive_start = False
         self.scored_gates = set()
+        # Annex 4 hidden gates (task types with repeated_hidden_gate_crossing_invalidates): the hidden gates already
+        # passed, which are watched for a second crossing until the finish point is passed, the time of the last
+        # crossing seen of each (to tell a second crossing from the same crossing seen again), what the first
+        # crossing's timing already cost, and the hidden gates first crossed against the route.
+        self._watched_hidden_gates: List[Gate] = []
+        self._last_hidden_crossing: dict = {}
+        self._hidden_timing_charged: dict = {}
+        self._wrong_direction_hidden_gates: set = set()
         self.scored_turnpoint_hunt_compulsory_gates = set()
         self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self._last_speed_keeping_gate: Optional[Gate] = None
@@ -456,6 +471,8 @@ class GateCalculator(Calculator):
 
         crossed_gate_index = -1
         passed_intersection_time = None
+        invalidates_hidden_gates = self._task_type.repeated_hidden_gate_crossing_invalidates
+        hidden_gates_crossed_backwards = []
         # Use our own outstanding_gates list which is always up to date within this call
         for i, intersected_gate in enumerate(self.outstanding_gates):
             intersection_time = intersected_gate.get_gate_intersection_time(state.projector, track)
@@ -463,6 +480,13 @@ class GateCalculator(Calculator):
                 crossed_gate_index = i
                 passed_intersection_time = intersection_time
                 break
+            if (
+                intersection_time
+                and invalidates_hidden_gates
+                and intersected_gate.type == SECRETPOINT
+                and travel_bearing_from_track(track) is not None
+            ):
+                hidden_gates_crossed_backwards.append((intersected_gate, intersection_time))
 
         if crossed_gate_index != -1:
             # Mark preceding as missed
@@ -486,6 +510,10 @@ class GateCalculator(Calculator):
             # Pop gates from our internal list and emit next expected gate
             del self.outstanding_gates[: crossed_gate_index + 1]
             events.append(NextGateExpectedEvent(self._get_next_gate(), track[-1]))
+
+        events.extend(self._hidden_gates_crossed_backwards(hidden_gates_crossed_backwards, track))
+        if invalidates_hidden_gates:
+            self._invalidate_repeated_hidden_gate_crossings(state, track)
 
         # Proactive missed gate detection (only for the first outstanding gate if not just passed)
         if len(self.outstanding_gates) > 0:
@@ -526,6 +554,68 @@ class GateCalculator(Calculator):
         self.publish_next_timed_gate()
 
         return events
+
+    def _hidden_gates_crossed_backwards(self, crossings, track) -> List[OrchestratorEvent]:
+        """
+        A hidden gate whose first crossing is against the route does not count (Annex 4: gates must be crossed in the
+        proper direction), and as it is crossed it can no longer be crossed correctly once: it is invalidated at once and
+        leaves the outstanding gates as a missed gate, scored under the invalidation score type. Gates the correct
+        crossing of a later gate has just marked as missed or passed are no longer outstanding and are left alone.
+        """
+        events: List[OrchestratorEvent] = []
+        for gate, crossing_time in crossings:
+            if gate not in self.outstanding_gates:
+                continue
+            self._wrong_direction_hidden_gates.add(gate.name)
+            was_next = self.outstanding_gates[0] is gate
+            self.outstanding_gates.remove(gate)
+            index = self.gates.index(gate)
+            previous_gate = self.gates[index - 1] if index > 0 else None
+            logger.info(f"{self.contestant}: Hidden gate {gate} crossed against the route, invalidated")
+            events.append(GateMissedEvent(previous_gate, gate, track[-1], event_time=crossing_time))
+            if was_next:
+                events.append(NextGateExpectedEvent(self._get_next_gate(), track[-1]))
+        return events
+
+    def _invalidate_repeated_hidden_gate_crossings(self, state: OrchestratorState, track):
+        """
+        A hidden gate already passed is invalidated by any later crossing of it, in either direction (Annex 4: "crossing
+        the same gate more than once in any direction invalidates the gate"). Only the passed hidden gates are watched,
+        and only until the finish point is passed. Each costs one distance to the gate's centre per position (the
+        crossing test itself returns at once for a gate more than its radius plus 500 m away), so the cost follows the
+        number of hidden gates passed and nothing is checked for the other gates or once the flight is finished.
+        """
+        if not self._watched_hidden_gates:
+            return
+        if state.has_passed_finishpoint:
+            self._watched_hidden_gates = []
+            return
+        for gate in list(self._watched_hidden_gates):
+            crossing_time = gate.get_gate_intersection_time(state.projector, track)
+            if crossing_time is None:
+                continue
+            if abs((crossing_time - self._last_hidden_crossing[gate.name]).total_seconds()) <= SAME_CROSSING_SECONDS:
+                # The crossing that passed the gate (or the previous crossing) seen on the next position.
+                self._last_hidden_crossing[gate.name] = crossing_time
+                continue
+            self._watched_hidden_gates.remove(gate)
+            logger.info(f"{self.contestant}: Hidden gate {gate} crossed again, invalidated")
+            if not gate.gate_check:
+                continue
+            # The gate is worth what a gate not correctly crossed is worth: its missed score less the timing score its
+            # first crossing already cost (which is where its time keeps coming from).
+            missed_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
+            self.update_gate_score(
+                track[-1],
+                gate,
+                max(0, missed_score - self._hidden_timing_charged.get(gate.name, 0)),
+                HIDDEN_GATE_INVALIDATED_SCORE_TYPE,
+                "gate invalidated by repeated crossing",
+                ANOMALY,
+                gate.expected_time,
+                gate.passing_time,
+                time_override=crossing_time,
+            )
 
     def _next_timed_gate(self) -> Optional[Gate]:
         """
@@ -630,6 +720,7 @@ class GateCalculator(Calculator):
                 self.on_gate_missed(GateMissedEvent(prev, gate, event.position))
             prev = gate
         self.outstanding_gates = []
+        self._watched_hidden_gates = []
 
     def finalise(self, track: Sequence[ContestantReceivedPosition]):
         # Catch any remaining missed gates at the very end of processing
@@ -638,6 +729,7 @@ class GateCalculator(Calculator):
                 gate.missed = True
                 self.on_gate_missed(GateMissedEvent(None, gate, track[-1] if track else None))
         self.outstanding_gates = []
+        self._watched_hidden_gates = []
         # The flight is over: no next gate for the app's countdown any more.
         self.publish_next_timed_gate()
         # After the sweep above, so a gate missed only because it's swept here (rather than
@@ -661,12 +753,16 @@ class GateCalculator(Calculator):
         if event.gate.gate_check:
             score = self.scorecard.get_gate_timing_score_for_gate_type(event.gate.type, event.gate.expected_time, None)
             message = "missing gate"
+            score_type = GATE_SCORE_TYPE
+            if event.gate.name in self._wrong_direction_hidden_gates:
+                message = "hidden gate crossed against the route"
+                score_type = HIDDEN_GATE_INVALIDATED_SCORE_TYPE
 
             self.update_gate_score(
                 event.position,
                 event.gate,
                 score,
-                GATE_SCORE_TYPE,
+                score_type,
                 message,
                 ANOMALY,
                 planned=event.gate.expected_time,
@@ -704,23 +800,6 @@ class GateCalculator(Calculator):
             )
             return
 
-        if self._is_curve_navigation_repeated_crossing(event.gate):
-            event.gate.missed = True
-            repeated_crossing_score = self.scorecard.get_gate_timing_score_for_gate_type(
-                event.gate.type, event.gate.expected_time, None
-            )
-            self.update_gate_score(
-                passing_position,
-                event.gate,
-                repeated_crossing_score,
-                "curve_navigation_repeated_crossing",
-                "gate invalidated by repeated crossing",
-                ANOMALY,
-                event.gate.expected_time,
-                event.gate.passing_time,
-            )
-            return
-
         # Mark the gate as passed internally
         event.gate.pass_gate(passing_time, passing_position)
 
@@ -730,11 +809,13 @@ class GateCalculator(Calculator):
             self.contestant.contestanttrack.update_last_timed_gate(event.gate.name, time_difference)
 
         message = "passing gate"
+        self._watch_passed_hidden_gate(event.gate, passing_time)
 
         if event.gate.time_check:
             gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
                 event.gate.type, event.gate.expected_time, passing_time
             )
+            self._hidden_timing_charged[event.gate.name] = gate_score
             self.transmit_actual_crossing(event.gate, passing_position)
             self.update_gate_score(
                 passing_position,
@@ -764,16 +845,18 @@ class GateCalculator(Calculator):
         self._score_turnpoint_hunt_maximum_duration(event.gate, passing_position, passing_time)
         self._score_speed_keeping(event.gate, passing_position, passing_time)
 
+    def _watch_passed_hidden_gate(self, gate: Gate, passing_time: datetime.datetime):
+        """A hidden gate just passed is watched for a second crossing, see _invalidate_repeated_hidden_gate_crossings."""
+        if gate.type != SECRETPOINT or not self._task_type.repeated_hidden_gate_crossing_invalidates:
+            return
+        if gate in self._watched_hidden_gates:
+            return
+        self._watched_hidden_gates.append(gate)
+        self._last_hidden_crossing[gate.name] = passing_time
+
     @property
     def _task_type(self):
         return stored_task_type(self.contestant.navigation_task)
-
-    def _is_curve_navigation_repeated_crossing(self, gate: Gate) -> bool:
-        return (
-            self._task_type.repeated_hidden_gate_crossing_invalidates
-            and gate.type == "secret"
-            and getattr(gate, "passing_time", None) is not None
-        )
 
     def _score_turnpoint_hunt_compulsory_timing(self, gate: Gate, position, passing_time: datetime.datetime):
         if not self._task_type.scores_turnpoint_hunt_targets:

@@ -28,6 +28,7 @@ SCORECARD_CONFIG_FIELDS = [
     "backtracking_bearing_difference",
     "backtracking_grace_time_seconds",
     "backtracking_maximum_penalty",
+    "backtracking_penalty_percentage",
     "prohibited_zone_penalty",
     "prohibited_zone_grace_time",
     "prohibited_zone_maximum",
@@ -250,6 +251,10 @@ class Scorecard(models.Model):
     backtracking_bearing_difference = ConfigField(90)
     backtracking_grace_time_seconds = ConfigField(5)
     backtracking_maximum_penalty = ConfigField(-1)
+    # The percentage of the task score one backtrack costs (2.A1-2.A5: 50). None: the task type's own (see
+    # task_scoring.backtracking_penalty_percentage_for); 0: the flat backtracking_penalty. Only task types of the CIMA
+    # rule set that have a percentage use it.
+    backtracking_penalty_percentage = ConfigField(None)
     prohibited_zone_penalty = ConfigField(200)
     prohibited_zone_grace_time = ConfigField(3)
     prohibited_zone_maximum = ConfigField(0)

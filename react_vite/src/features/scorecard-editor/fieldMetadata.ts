@@ -29,6 +29,7 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
             'backtracking_bearing_difference',
             'backtracking_grace_time_seconds',
             'backtracking_maximum_penalty',
+            'backtracking_penalty_percentage',
         ],
     },
     {
@@ -140,6 +141,16 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
     backtracking_bearing_difference: { label: 'Backtracking bearing difference', kind: 'number', unit: '°', min: 0 },
     backtracking_grace_time_seconds: { label: 'Backtracking grace time', kind: 'number', unit: 's', min: 0 },
     backtracking_maximum_penalty: { label: 'Backtracking maximum penalty', kind: 'number', min: 0 },
+    backtracking_penalty_percentage: {
+        label: 'Backtracking penalty (% of the task score)',
+        kind: 'number',
+        unit: '%',
+        min: 0,
+        max: 100,
+        help:
+            'CIMA tasks 2.A1-2.A5 take this share of the final task score for backtracking (50% in the catalogue). ' +
+            'Leave it blank for the task type\'s own value; 0 uses the flat backtracking penalty above instead.',
+    },
     prohibited_zone_penalty: { label: 'Prohibited zone penalty', kind: 'number', min: 0 },
     prohibited_zone_grace_time: { label: 'Prohibited zone grace time', kind: 'number', unit: 's', min: 0 },
     prohibited_zone_maximum: { label: 'Prohibited zone maximum', kind: 'number' },
