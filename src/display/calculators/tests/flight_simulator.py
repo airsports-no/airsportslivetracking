@@ -32,7 +32,7 @@ from display.calculators.contestant_processor import ContestantProcessor, ScoreA
 from display.calculators.gate_calculator import GateCalculator
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.utilities.coordinate_utilities import Projector, project_position_lat_lon
+from display.utilities.coordinate_utilities import Projector, calculate_bearing, project_position_lat_lon
 
 KNOT_IN_MS = 1852.0 / 3600.0
 NAUTICAL_MILE_IN_M = 1852.0
@@ -941,6 +941,8 @@ def precision_route_geojson(
     hidden_width_m: float = 300.0,
     untimed: Sequence[str] = (),
     unknown_legs: Optional[dict[str, Sequence[tuple[float, float]]]] = None,
+    curved: Sequence[str] = (),
+    curve_offset_m: float = 400.0,
 ) -> dict:
     """A precision-style EditableRoute: SP at `start`, then one waypoint per (bearing, metres) leg.
 
@@ -952,7 +954,9 @@ def precision_route_geojson(
     unless `hidden_timing` is set. They are `hidden_width_m` wide: a narrow gate can be missed without a sharp turn.
     The waypoints named in `untimed` are not time gates. `unknown_legs` turns the named turn points into unknown-leg
     points (2.A5) and gives each its extension waypoints EXT1, EXT2, ...: (bearing, metres) steps from the point. The
-    extension waypoints are not on the route, which is flown along the backbone.
+    extension waypoints are not on the route, which is flown along the backbone. The legs that end at the waypoints named
+    in `curved` are curved (2.A1 needs one): their control point lies `curve_offset_m` to the right of the middle of the
+    leg.
     """
     points = [start]
     for bearing, distance in legs:
@@ -977,6 +981,14 @@ def precision_route_geojson(
     extension_count = 0
     for sequence, (name, point_type, point, timing, width) in enumerate(waypoints):
         extra = {"unknownLegHeading": 90.0} if point_type == "ul" else {}
+        if name in curved:
+            if sequence == 0:
+                raise ValueError("The start point ends no leg")
+            previous_point = waypoints[sequence - 1][2]
+            middle = ((previous_point[0] + point[0]) / 2, (previous_point[1] + point[1]) / 2)
+            leg_bearing = calculate_bearing(previous_point, point)
+            control = project_position_lat_lon(middle, (leg_bearing + 90.0) % 360.0, curve_offset_m)
+            extra = {"segmentType": "curved", "controlLat": control[0], "controlLng": control[1]}
         features.append(_route_waypoint_feature(sequence, name, point_type, point, width, timing, **extra))
         previous = point
         for branch, (bearing, distance) in enumerate((unknown_legs or {}).get(name, ())):

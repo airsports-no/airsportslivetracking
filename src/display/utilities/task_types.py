@@ -19,7 +19,18 @@ from typing import Optional
 
 from django.utils.module_loading import import_string
 
-from display.utilities.gate_definitions import CIRCLE_ENTRY, CIRCLE_EXIT, CIRCLE_START, LANDING_GATE, TAKEOFF_GATE, TURNPOINT
+from display.utilities import route_requirements as rr
+from display.utilities.gate_definitions import (
+    CIRCLE_ENTRY,
+    CIRCLE_EXIT,
+    CIRCLE_START,
+    FINISHPOINT,
+    LANDING_GATE,
+    STARTINGPOINT,
+    TAKEOFF_GATE,
+    TURNPOINT,
+)
+from display.utilities.route_requirements import RouteRequirement, WaypointOrdering, WaypointSpec
 
 logger = logging.getLogger(__name__)
 
@@ -129,9 +140,9 @@ class TaskTypeDefinition:
     # False when the route consists entirely of free-map markers, so no Route.waypoints can be derived from the
     # editable route's track and an empty placeholder Route is used instead.
     has_backbone: bool = True
-    required_primitives: tuple[str, ...] = ()
-    # Primitives that make a route incompatible with the task type (a corridor task cannot accept unknown legs).
-    forbidden_primitives: tuple[str, ...] = ()
+    # What the route must contain (and must not), as data; evaluated by display.services.route_compatibility both when
+    # the route editor reports which task types a route suits and when a task is compiled.
+    route_requirements: tuple[RouteRequirement, ...] = ()
     declaration_schema_key: str | None = None
     # ContestantTaskConfiguration.is_valid stays False until the contestant has declared.
     declaration_required: bool = False
@@ -183,8 +194,6 @@ class TaskTypeDefinition:
     # Dotted path of the ContestantTaskCompilerStrategy that validates the declaration and builds the contestant's
     # effective route; None for task types without declarations or per-contestant route changes.
     contestant_compiler_strategy: str | None = None
-    # Which structural check TaskCompiler and route_compatibility run on the route beyond the required primitives.
-    route_structure_check: str | None = None
     # Only set on the family's default task type, see family_default_scorecard_shortcut_name.
     _family_default_scorecard_shortcut_name: str | None = field(default=None, repr=False)
 
@@ -221,15 +230,38 @@ class TaskTypeDefinition:
 
 _CONTESTANT_STRATEGIES = "display.services.contestant_task_compiler."
 
-# Values of TaskTypeDefinition.route_structure_check.
-STRUCTURE_CHECK_PRECISION_NAVIGATION = "precision_navigation"
-STRUCTURE_CHECK_CONTRACT_NAVIGATION = "contract_navigation"
-STRUCTURE_CHECK_TURNPOINT_HUNT = "turnpoint_hunt"
-STRUCTURE_CHECK_UNKNOWN_LEGS = "unknown_legs"
-
-_LEGACY_CORRIDOR_FORBIDDEN = ("dummy_waypoint", "unknown_leg")
-_BACKBONE = ("route_path", "route_waypoint")
-_FREE_TURNPOINTS = ("catalogue_turnpoint", "known_time_gate")
+_ROUTE_PATH = rr.present(rr.ROUTE_PATH, "Route path")
+_ROUTE_WAYPOINT = rr.present(rr.ROUTE_WAYPOINT, "Route waypoint")
+_BACKBONE = (_ROUTE_PATH, _ROUTE_WAYPOINT)
+_LEGACY_CORRIDOR_FORBIDDEN = (
+    rr.forbidden(rr.DUMMY_WAYPOINT, "Dummy waypoints"),
+    rr.forbidden(rr.UNKNOWN_LEG, "Unknown-leg points"),
+)
+# The route starts at SP and finishes at FP.
+_STARTS_AT_SP_ENDS_AT_FP = WaypointOrdering(first=WaypointSpec(STARTINGPOINT), last=WaypointSpec(FINISHPOINT))
+_FREE_TURNPOINTS_REQUIREMENTS = (
+    rr.forbidden(
+        rr.ROUTE_PATH,
+        "Route path",
+        message=(
+            "Turnpoint hunt requires no route backbone. Place the compulsory points as standalone timed turnpoints "
+            "instead."
+        ),
+    ),
+    rr.exactly(
+        rr.NAMED_KNOWN_TIME_GATE,
+        "Compulsory (timed) points",
+        3,
+        key=rr.KNOWN_TIME_GATE,
+        message="Turnpoint hunt requires exactly three compulsory (timed) points.",
+    ),
+    rr.present(
+        rr.NAMED_CATALOGUE_TURNPOINT,
+        "Free catalogue targets",
+        key=rr.CATALOGUE_TURNPOINT,
+        message="Turnpoint hunt requires at least one free catalogue target.",
+    ),
+)
 
 _DEFINITIONS = (
     TaskTypeDefinition(
@@ -239,7 +271,7 @@ _DEFINITIONS = (
         coarse_family=PRECISION,
         calculator_pipeline=PIPELINE_PRECISION,
         default_for_family=True,
-        required_primitives=_BACKBONE,
+        route_requirements=_BACKBONE,
     ),
     TaskTypeDefinition(
         key=LEGACY_ANR_CORRIDOR,
@@ -248,8 +280,7 @@ _DEFINITIONS = (
         coarse_family=ANR_CORRIDOR,
         calculator_pipeline=PIPELINE_ANR_STYLE,
         default_for_family=True,
-        required_primitives=_BACKBONE,
-        forbidden_primitives=_LEGACY_CORRIDOR_FORBIDDEN,
+        route_requirements=_BACKBONE + _LEGACY_CORRIDOR_FORBIDDEN,
     ),
     TaskTypeDefinition(
         key=LEGACY_AIRSPORTS,
@@ -258,8 +289,7 @@ _DEFINITIONS = (
         coarse_family=AIRSPORTS,
         calculator_pipeline=PIPELINE_ANR_STYLE,
         default_for_family=True,
-        required_primitives=_BACKBONE,
-        forbidden_primitives=_LEGACY_CORRIDOR_FORBIDDEN,
+        route_requirements=_BACKBONE + _LEGACY_CORRIDOR_FORBIDDEN,
         _family_default_scorecard_shortcut_name=AIR_SPORTS_RACE_2025_SCORECARD,
     ),
     TaskTypeDefinition(
@@ -269,8 +299,7 @@ _DEFINITIONS = (
         coarse_family=AIRSPORT_CHALLENGE,
         calculator_pipeline=PIPELINE_ANR_STYLE,
         default_for_family=True,
-        required_primitives=_BACKBONE,
-        forbidden_primitives=_LEGACY_CORRIDOR_FORBIDDEN,
+        route_requirements=_BACKBONE + _LEGACY_CORRIDOR_FORBIDDEN,
     ),
     TaskTypeDefinition(
         key=LEGACY_POKER,
@@ -279,7 +308,7 @@ _DEFINITIONS = (
         coarse_family=POKER,
         calculator_pipeline=PIPELINE_POKER,
         default_for_family=True,
-        required_primitives=_BACKBONE,
+        route_requirements=_BACKBONE,
     ),
     TaskTypeDefinition(
         key=LEGACY_LANDING,
@@ -288,7 +317,7 @@ _DEFINITIONS = (
         coarse_family=LANDING,
         calculator_pipeline=PIPELINE_LANDING,
         default_for_family=True,
-        required_primitives=("landing_gate",),
+        route_requirements=(rr.present(rr.LANDING_GATE, "Landing gate"),),
     ),
     TaskTypeDefinition(
         key=CURVE_NAVIGATION_TIME_ESTIMATION,
@@ -298,8 +327,9 @@ _DEFINITIONS = (
         coarse_family=PRECISION,
         calculator_pipeline=PIPELINE_PRECISION,
         requires_contestant_configuration=True,
-        # Hidden gates and known time gates are optional on the route, so there is no structural check for them.
-        required_primitives=_BACKBONE,
+        # Hidden gates and known time gates are optional on the route; the defining feature is a curved leg.
+        route_requirements=_BACKBONE
+        + (rr.present(rr.CURVED_LEG, "Curved legs", message="Curve navigation requires at least one curved leg."),),
         declaration_schema_key=CURVE_NAVIGATION_TIME_ESTIMATION,
         declaration_required=True,
         absolute_time_declaration_key="known_time_gate_predictions",
@@ -318,7 +348,24 @@ _DEFINITIONS = (
         coarse_family=PRECISION,
         calculator_pipeline=PIPELINE_PRECISION,
         requires_contestant_configuration=True,
-        required_primitives=_BACKBONE,
+        route_requirements=(
+            _ROUTE_PATH,
+            rr.RouteRequirement(
+                "route_waypoints",
+                rr.ROUTE_WAYPOINT,
+                "Route waypoints (SP, turn points, FP)",
+                minimum=3,
+                message="Precision navigation requires a start, at least one intermediate turn point, and a finish.",
+            ),
+            rr.forbidden(
+                rr.ROUTE_WAYPOINT_ORDER_VIOLATIONS,
+                "Route starts at SP and finishes at FP",
+                key="route_waypoint_order",
+                ordering=_STARTS_AT_SP_ENDS_AT_FP,
+                depends_on=("route_waypoints",),
+                message="Precision navigation route waypoints must start at SP and finish at FP.",
+            ),
+        ),
         declaration_schema_key=PRECISION_NAVIGATION,
         declaration_required=True,
         absolute_time_declaration_key="known_time_gate_predictions",
@@ -327,7 +374,6 @@ _DEFINITIONS = (
         scoring_modules=("visible_eta", "hidden_gate_sequence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "CurveOrPrecisionNavigationStrategy",
-        route_structure_check=STRUCTURE_CHECK_PRECISION_NAVIGATION,
     ),
     TaskTypeDefinition(
         key=CONTRACT_NAVIGATION_TIME_CONTROLS,
@@ -337,7 +383,36 @@ _DEFINITIONS = (
         coarse_family=PRECISION,
         calculator_pipeline=PIPELINE_PRECISION,
         requires_contestant_configuration=True,
-        required_primitives=("route_path", "route_waypoint", "catalogue_turnpoint"),
+        route_requirements=(
+            _ROUTE_PATH,
+            rr.exactly(
+                rr.ROUTE_WAYPOINT,
+                "Route waypoints (SP, MP, FP)",
+                3,
+                key="route_waypoints",
+                message="Contract navigation requires exactly three route waypoints: SP, MP, and FP.",
+            ),
+            rr.forbidden(
+                rr.ROUTE_WAYPOINT_ORDER_VIOLATIONS,
+                "Route waypoints in the order SP, MP, FP",
+                key="route_waypoint_order",
+                ordering=WaypointOrdering(
+                    exact=(
+                        WaypointSpec(STARTINGPOINT, "SP"),
+                        WaypointSpec(TURNPOINT, "MP"),
+                        WaypointSpec(FINISHPOINT, "FP"),
+                    )
+                ),
+                depends_on=("route_waypoints",),
+                message="Contract navigation route waypoints must be authored in order as SP, MP, and FP.",
+            ),
+            rr.present(
+                rr.FREE_CATALOGUE_TURNPOINT,
+                "Free catalogue waypoints",
+                key=rr.CATALOGUE_TURNPOINT,
+                message="Contract navigation requires at least one free catalogue waypoint.",
+            ),
+        ),
         declaration_schema_key=CONTRACT_NAVIGATION_TIME_CONTROLS,
         # The declared times are relative to take-off, so they follow the schedule.
         declaration_required=True,
@@ -349,7 +424,6 @@ _DEFINITIONS = (
         general_map_shows_backbone_only=True,
         gate_times_from_declared_period=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "ContractNavigationStrategy",
-        route_structure_check=STRUCTURE_CHECK_CONTRACT_NAVIGATION,
     ),
     TaskTypeDefinition(
         key=KNOWN_CIRCUIT,
@@ -361,7 +435,7 @@ _DEFINITIONS = (
         # The contestant may declare times for individual turnpoints, overriding the speed-derived time for that point.
         # Most points are speed-derived and move with the schedule, so only declared overrides lock the schedule.
         requires_contestant_configuration=True,
-        required_primitives=_BACKBONE,
+        route_requirements=_BACKBONE,
         absolute_time_declaration_key="turnpoint_time_overrides",
         scoring_baseline=("desc", 1000),
         gate_qmax_eligible=True,
@@ -379,7 +453,32 @@ _DEFINITIONS = (
         coarse_family=PRECISION,
         calculator_pipeline=PIPELINE_PRECISION,
         # The defining feature is a backbone waypoint of pointType "unknown_leg".
-        required_primitives=("route_path", "route_waypoint", "unknown_leg"),
+        route_requirements=(
+            _ROUTE_PATH,
+            rr.RouteRequirement(
+                "route_waypoints",
+                rr.ROUTE_WAYPOINT,
+                "Route waypoints (SP, trigger segment, FP)",
+                minimum=3,
+                message="Unknown legs requires at least a start point, one trigger segment, and a finish point.",
+            ),
+            rr.forbidden(
+                rr.ROUTE_WAYPOINT_ORDER_VIOLATIONS,
+                "Route starts at SP and finishes at FP",
+                key="route_waypoint_order",
+                ordering=_STARTS_AT_SP_ENDS_AT_FP,
+                depends_on=("route_waypoints",),
+                message="Unknown legs route waypoints must start at SP and finish at FP.",
+            ),
+            rr.present(rr.NAMED_UNKNOWN_LEG, "Unknown-leg points", key=rr.UNKNOWN_LEG),
+            rr.forbidden(
+                rr.UNKNOWN_LEG_WITHOUT_EXTENSION,
+                "Unknown-leg points without an extension waypoint",
+                key="unknown_leg_extension",
+                depends_on=("route_waypoints",),
+                message="Unknown legs requires at least one extension waypoint after each unknown-leg point.",
+            ),
+        ),
         scoring_baseline=("desc", 1000),
         gate_qmax_eligible=True,
         scoring_modules=("unknown_leg_sequence", "observation_evidence", "backtracking"),
@@ -387,7 +486,6 @@ _DEFINITIONS = (
         has_unknown_legs=True,
         observation_photos_award_points=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "UnknownLegsStrategy",
-        route_structure_check=STRUCTURE_CHECK_UNKNOWN_LEGS,
     ),
     TaskTypeDefinition(
         key=TURNPOINT_HUNT,
@@ -399,7 +497,7 @@ _DEFINITIONS = (
         requires_contestant_configuration=True,
         # Exactly three standalone timed turnpoints plus free catalogue turnpoints.
         has_backbone=False,
-        required_primitives=_FREE_TURNPOINTS,
+        route_requirements=_FREE_TURNPOINTS_REQUIREMENTS,
         declaration_schema_key=TURNPOINT_HUNT,
         declaration_required=True,
         absolute_time_declaration_key="compulsory_point_times",
@@ -410,7 +508,6 @@ _DEFINITIONS = (
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         scores_turnpoint_hunt_targets=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "TurnpointHuntStrategy",
-        route_structure_check=STRUCTURE_CHECK_TURNPOINT_HUNT,
         gate_types_without_backbone=(TURNPOINT,),
     ),
     TaskTypeDefinition(
@@ -421,11 +518,11 @@ _DEFINITIONS = (
         coarse_family=PRECISION,
         calculator_pipeline=PIPELINE_CIRCLE,
         has_backbone=False,
-        required_primitives=(
-            "circle_center_marker",
-            "circle_start_marker",
-            "circle_entry_marker",
-            "circle_exit_marker",
+        route_requirements=(
+            rr.exactly(rr.CIRCLE_START_MARKER, "Circle start marker (SP)", 1),
+            rr.exactly(rr.CIRCLE_CENTER_MARKER, "Circle centre marker (CM)", 1),
+            rr.exactly(rr.CIRCLE_ENTRY_MARKER, "Circle entry marker (X)", 1),
+            rr.exactly(rr.CIRCLE_EXIT_MARKER, "Circle exit marker (WP)", 1),
         ),
         # Pmax = 250, matching CIRCLE_MAXIMUM_SCORE in circle_calculator.py.
         scoring_baseline=("desc", 250),
@@ -442,7 +539,7 @@ _DEFINITIONS = (
         coarse_family=ANR_CORRIDOR,
         calculator_pipeline=PIPELINE_ANR_STYLE,
         # route_to_sp_path and route_from_fp_path are optional auxiliary features most routes never author.
-        required_primitives=_BACKBONE,
+        route_requirements=_BACKBONE,
         scoring_baseline=("desc", 1000),
         fixed_scale_factor=0.5,
         scoring_modules=("route_to_sp", "route_from_fp", "takeoff_timing", "quarantine"),
@@ -459,7 +556,7 @@ _DEFINITIONS = (
         calculator_pipeline=PIPELINE_PRECISION,
         requires_contestant_configuration=True,
         has_backbone=False,
-        required_primitives=_FREE_TURNPOINTS,
+        route_requirements=_FREE_TURNPOINTS_REQUIREMENTS,
         declaration_schema_key=LIMITED_FUEL_TURNPOINT_HUNT,
         # The declaration is entirely optional (minimum_required=0), so it never fails validation.
         declaration_required=False,
@@ -477,7 +574,6 @@ _DEFINITIONS = (
         scores_turnpoint_hunt_targets=True,
         has_fuel_deadline=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "TurnpointHuntStrategy",
-        route_structure_check=STRUCTURE_CHECK_TURNPOINT_HUNT,
         gate_types_without_backbone=(TURNPOINT,),
     ),
     TaskTypeDefinition(
@@ -491,6 +587,7 @@ _DEFINITIONS = (
         # pipeline as the fallback source of those events. There is no scoring baseline because the duration
         # calculator mixes an achievement with a penalty and has not been given signed score messages yet.
         has_backbone=False,
+        route_requirements=(rr.present(rr.DURATION_LANDING_AREA, "Duration landing area"),),
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "DurationStrategy",
         gate_types_without_backbone=(TAKEOFF_GATE, LANDING_GATE),
     ),

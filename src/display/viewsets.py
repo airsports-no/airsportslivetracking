@@ -231,7 +231,12 @@ from display.services.photo_management import (
     revert_photo_to_satellite,
     sync_navigation_task_photo_targets,
 )
-from display.services.route_compatibility import effective_subtype_key, extract_route_primitives, get_blocking_reasons
+from display.services.route_compatibility import (
+    effective_subtype_key,
+    evaluate_route_requirements,
+    extract_route_primitives,
+    get_blocking_reasons,
+)
 from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
 from display.services.task_compiler import TaskCompiler
 from display.services.task_templates import (
@@ -916,6 +921,7 @@ class EditableRouteViewSet(ModelViewSet):
         compatible_task_types = []
         for definition in TASK_TYPE_REGISTRY.values():
             missing_reasons = get_blocking_reasons(primitives, definition.key, unsaved_route)
+            requirements = evaluate_route_requirements(primitives, definition, unsaved_route)
             if not missing_reasons:
                 compatible_task_types.append(definition.key)
             subtypes.append(
@@ -926,6 +932,8 @@ class EditableRouteViewSet(ModelViewSet):
                     "coarse_family": definition.coarse_family,
                     "compatible": not missing_reasons,
                     "missing_reasons": missing_reasons,
+                    # Every route requirement of the task type with what the route has, for the route editor guide.
+                    "requirements": [requirement.as_dict() for requirement in requirements],
                 }
             )
         return Response({"compatible_task_types": compatible_task_types, "subtypes": subtypes})

@@ -4,40 +4,23 @@ import json
 from display.models import CompiledNavigationTask
 from display.services.route_compatibility import (
     LEGACY_COMPILER_PRIMITIVE_KEYS,
-    contract_navigation_structural_errors,
     extract_route_primitives,
-    turnpoint_hunt_structural_errors,
+    get_blocking_reasons,
 )
 from display.utilities.gate_definitions import (
     DUMMY,
     FINISHPOINT,
     SECRETPOINT,
-    STARTINGPOINT,
     TURNPOINT,
     UNKNOWN_LEG,
 )
 
-from display.utilities.task_types import (
-    STRUCTURE_CHECK_CONTRACT_NAVIGATION,
-    STRUCTURE_CHECK_PRECISION_NAVIGATION,
-    STRUCTURE_CHECK_TURNPOINT_HUNT,
-    STRUCTURE_CHECK_UNKNOWN_LEGS,
-    find_task_type,
-    get_task_type,
-)
+from display.utilities.task_types import find_task_type, get_task_type
 
 TASK_COMPILER_SIGNATURE_VERSION = 3
 
 
 class TaskCompiler:
-    # TaskTypeDefinition.route_structure_check -> the method running it.
-    _STRUCTURE_VALIDATORS = {
-        STRUCTURE_CHECK_CONTRACT_NAVIGATION: "_validate_contract_navigation_structure",
-        STRUCTURE_CHECK_PRECISION_NAVIGATION: "_validate_precision_navigation_structure",
-        STRUCTURE_CHECK_TURNPOINT_HUNT: "_validate_turnpoint_hunt_structure",
-        STRUCTURE_CHECK_UNKNOWN_LEGS: "_validate_unknown_legs_structure",
-    }
-
     def __init__(self, navigation_task):
         self.navigation_task = navigation_task
 
@@ -66,7 +49,7 @@ class TaskCompiler:
 
     def _build_compiled_payload(self) -> dict:
         primitives = self._build_compiled_primitives()
-        # required_primitives can name ruleset-only primitives (route_path, route_waypoint,
+        # The route requirements can name ruleset-only primitives (route_path, route_waypoint,
         # takeoff_gate, landing_gate) that are deliberately excluded from the persisted
         # compiled_primitives contract (see extract_route_primitives / LEGACY_COMPILER_PRIMITIVE_KEYS),
         # so validation must run against the full set, not the subsetted one above.
@@ -114,90 +97,11 @@ class TaskCompiler:
         subtype = self._get_effective_task_subtype()
         if not subtype:
             return []
-        definition = get_task_type(str(subtype))
-        errors = []
-        # required_primitives only checks authored primitive presence. Subtype-
-        # specific structure rules (for example SP/MP/FP ordering) are layered
-        # below so the registry stays declarative and the stricter shape checks
-        # remain close to the subtype-specific semantics.
-        for primitive in definition.required_primitives:
-            if not primitives.get(primitive):
-                errors.append(f"Missing required primitive: {primitive}")
-        if definition.route_structure_check:
-            validator = getattr(self, self._STRUCTURE_VALIDATORS[definition.route_structure_check])
-            errors.extend(validator(primitives))
-        return errors
-
-    def _validate_precision_navigation_structure(self, primitives: dict) -> list[str]:
-        editable_route = self.navigation_task.editable_route
-        if editable_route is None:
-            return []
-
-        errors = []
-        authored_waypoints = editable_route.get_ordered_track_waypoints()
-        if len(authored_waypoints) < 3:
-            errors.append("Precision navigation requires a start, at least one intermediate turn point, and a finish.")
-        else:
-            first_type = authored_waypoints[0].get("properties", {}).get("pointType")
-            last_type = authored_waypoints[-1].get("properties", {}).get("pointType")
-            if first_type != STARTINGPOINT or last_type != FINISHPOINT:
-                errors.append("Precision navigation route waypoints must start at SP and finish at FP.")
-
-        return errors
-
-    def _validate_contract_navigation_structure(self, primitives: dict) -> list[str]:
-        # Shared with assert_route_compatible_with_task_type (route_compatibility.py) so the
-        # pre-creation API check and this post-creation compile-time check can't drift apart.
-        return contract_navigation_structural_errors(self.navigation_task.editable_route, primitives)
-
-    def _validate_turnpoint_hunt_structure(self, primitives: dict) -> list[str]:
-        # Shared with assert_route_compatible_with_task_type (route_compatibility.py) so the
-        # pre-creation API check and this post-creation compile-time check can't drift apart.
-        return turnpoint_hunt_structural_errors(self.navigation_task.editable_route, primitives)
-
-    def _validate_unknown_legs_structure(self, primitives: dict) -> list[str]:
-        editable_route = self.navigation_task.editable_route
-        if editable_route is None:
-            return []
-
-        errors = []
-        authored_waypoints = editable_route.get_ordered_track_waypoints()
-        if len(authored_waypoints) < 3:
-            errors.append("Unknown legs requires at least a start point, one trigger segment, and a finish point.")
-            return errors
-
-        first_type = authored_waypoints[0].get("properties", {}).get("pointType")
-        last_type = authored_waypoints[-1].get("properties", {}).get("pointType")
-        if first_type != STARTINGPOINT or last_type != FINISHPOINT:
-            errors.append("Unknown legs route waypoints must start at SP and finish at FP.")
-
-        unknown_leg_names = [name for name in primitives.get("unknown_leg", []) if name]
-        if not unknown_leg_names:
-            errors.append("Unknown legs requires at least one unknown-leg point.")
-
-        point_types = [item.get("properties", {}).get("pointType") for item in authored_waypoints]
-        dummy_branch_features = editable_route.get_features_type("dummy_branch_waypoint")
-        dummy_branch_by_trigger = {}
-        for feature in dummy_branch_features:
-            props = feature.get("properties", {})
-            trigger_id = props.get("triggerPointId")
-            if not trigger_id:
-                continue
-            dummy_branch_by_trigger.setdefault(trigger_id, []).append(feature)
-        for branch_items in dummy_branch_by_trigger.values():
-            branch_items.sort(key=lambda item: item.get("properties", {}).get("branchSequence", 0))
-        for trigger_index, point_type in enumerate(point_types):
-            if point_type != UNKNOWN_LEG:
-                continue
-            trigger_id = authored_waypoints[trigger_index].get("properties", {}).get("id")
-            if not trigger_id or not dummy_branch_by_trigger.get(trigger_id):
-                errors.append("Unknown legs requires at least one extension waypoint after each unknown-leg point.")
-                break
-
-        if not unknown_leg_names:
-            return errors
-
-        return errors
+        # Raises for a task type that is not defined.
+        get_task_type(str(subtype))
+        # The same check the route editor and the task creation API use, so a route reported compatible there cannot
+        # fail here.
+        return get_blocking_reasons(primitives, str(subtype), self.navigation_task.editable_route)
 
     def _build_unknown_legs_compiled_payload(self) -> dict:
         editable_route = self.navigation_task.editable_route

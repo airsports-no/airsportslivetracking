@@ -136,7 +136,12 @@ class TestRouteCompatibilityRuleset(TestCase):
             name="Plain precision route",
             route={
                 "type": "FeatureCollection",
-                "features": [TRACK_FEATURE, waypoint_feature("sp", "SP"), waypoint_feature("fp", "FP")],
+                "features": [
+                    TRACK_FEATURE,
+                    {**waypoint_feature("sp", "SP"), "properties": {**waypoint_feature("sp", "SP")["properties"], "sequence": 0}},
+                    {**waypoint_feature("tp", "TP1"), "properties": {**waypoint_feature("tp", "TP1")["properties"], "sequence": 1}},
+                    {**waypoint_feature("fp", "FP"), "properties": {**waypoint_feature("fp", "FP")["properties"], "sequence": 2}},
+                ],
             },
         )
         for subtype in (PRECISION_NAVIGATION, KNOWN_CIRCUIT):
@@ -281,17 +286,34 @@ class TestRouteCompatibilityRuleset(TestCase):
         # Model default for `route` is an empty list, not {"features": []} - must not crash.
         route = EditableRoute(name="Brand new, unsaved")
         self.assertEqual(extract_route_primitives(route), {})
-        # DURATION (2.B3) has no required primitives, so it's trivially compatible with any route,
-        # including one with no content at all.
-        self.assertEqual(get_compatible_task_subtypes(route), ["duration"])
+        # DURATION (2.B3) needs a landing area, so a route with no content at all suits no task type.
+        self.assertEqual(get_compatible_task_subtypes(route), [])
 
     def test_duration_does_not_require_takeoff_or_landing_gate(self):
         # calculator_factory.py always adds SpeedInferredTakeoffLandingCalculator for DURATION
         # tasks, a fallback source of takeoff/landing events for routes with no authored gates.
+        # The landing area is what the task needs.
+        landing_area = {
+            "type": "Feature",
+            "properties": {
+                "id": "area-1",
+                "name": "Landing area",
+                "featureType": "zone",
+                "polygonType": "duration_landing_area",
+            },
+            "geometry": {
+                "type": "Polygon",
+                "coordinates": [[[11.0, 60.0], [11.1, 60.0], [11.1, 60.1], [11.0, 60.0]]],
+            },
+        }
         route = EditableRoute.objects.create(
-            name="No gates", route={"type": "FeatureCollection", "features": [TRACK_FEATURE]}
+            name="No gates", route={"type": "FeatureCollection", "features": [TRACK_FEATURE, landing_area]}
         )
         self.assertIn(DURATION, get_compatible_task_subtypes(route))
+        route_without_area = EditableRoute.objects.create(
+            name="No gates, no area", route={"type": "FeatureCollection", "features": [TRACK_FEATURE]}
+        )
+        self.assertNotIn(DURATION, get_compatible_task_subtypes(route_without_area))
 
 
 class TestTaskTemplateChoicesRouteFiltering(TestCase):
@@ -326,17 +348,19 @@ class TestNoCompatibleTaskTypesMessage(TestCase):
 
     @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
     def test_message_names_closest_match_when_nothing_is_compatible(self):
-        # Duration (2.B3) has no required primitives so it's normally always compatible; gating
-        # CIMA visibility out here is what makes "zero compatible choices" actually reachable.
+        # Gating CIMA visibility out is what keeps the candidates to the legacy families, none of which an
+        # empty route suits.
         route = EditableRoute.objects.create(name="Empty", route={"type": "FeatureCollection", "features": []})
         message = _no_compatible_task_types_message(self.user, route)
         self.assertIsNotNone(message)
         self.assertIn("closest match", message)
 
     def test_message_is_none_when_route_has_no_blocking_reasons(self):
-        # Duration is unconditionally compatible with any route by default (CIMA visible), so
-        # there's nothing to explain.
-        route = EditableRoute.objects.create(name="Empty", route={"type": "FeatureCollection", "features": []})
+        # A plain precision route suits the legacy precision family, so there's nothing to explain.
+        route = EditableRoute.objects.create(
+            name="Plain precision route",
+            route={"type": "FeatureCollection", "features": [TRACK_FEATURE, waypoint_feature("tp")]},
+        )
         self.assertIsNone(_no_compatible_task_types_message(self.user, route))
 
     @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])

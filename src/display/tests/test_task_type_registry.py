@@ -26,21 +26,21 @@ from display.utilities.task_types import (
 )
 
 # Field order of the first definition table: key, display_name, coarse_family, requires_contestant_configuration,
-# required_primitives, forbidden_primitives, declaration_schema_key, scoring_modules, scorecard_shortcut_name.
+# declaration_schema_key, scoring_modules, scorecard_shortcut_name. (The table below also still holds the required and
+# forbidden primitives the registry had before routes had structured requirements; they are dropped from it, and the
+# route requirements are tested in test_route_requirements.py.)
 _DEFINITION_FIELDS = (
     "key",
     "display_name",
     "coarse_family",
     "requires_contestant_configuration",
-    "required_primitives",
-    "forbidden_primitives",
     "declaration_schema_key",
     "scoring_modules",
     "scorecard_shortcut_name",
 )
 
 
-PREVIOUS_DEFINITIONS = {
+_PREVIOUS_DEFINITIONS_WITH_PRIMITIVES = {
     "legacy_precision": (
         "legacy_precision",
         "Legacy precision navigation",
@@ -197,6 +197,9 @@ PREVIOUS_DEFINITIONS = {
         "CIMA Precision",
     ),
     "duration": ("duration", "2.B3 Duration", "precision", False, (), (), None, (), None),
+}
+PREVIOUS_DEFINITIONS = {
+    key: values[:4] + values[6:] for key, values in _PREVIOUS_DEFINITIONS_WITH_PRIMITIVES.items()
 }
 PREVIOUS_NO_BACKBONE = ("circle", "turnpoint_hunt", "limited_fuel_turnpoint_hunt", "duration")
 PREVIOUS_ABSOLUTE_TIME = {
@@ -400,7 +403,7 @@ class TestRegistryHoldsPreviousContents(SimpleTestCase):
             {"circle", "legacy_landing", "legacy_poker"},
         )
 
-    def test_contestant_strategies_and_structure_checks(self):
+    def test_contestant_strategies(self):
         self.assertEqual(
             {key: d.contestant_compiler_strategy.rsplit(".", 1)[1] for key, d in TASK_TYPE_REGISTRY.items() if d.contestant_compiler_strategy},
             {
@@ -420,16 +423,6 @@ class TestRegistryHoldsPreviousContents(SimpleTestCase):
                 from django.utils.module_loading import import_string
 
                 import_string(definition.contestant_compiler_strategy)
-        self.assertEqual(
-            {key: d.route_structure_check for key, d in TASK_TYPE_REGISTRY.items() if d.route_structure_check},
-            {
-                "precision_navigation": "precision_navigation",
-                "contract_navigation_time_controls": "contract_navigation",
-                "turnpoint_hunt": "turnpoint_hunt",
-                "limited_fuel_turnpoint_hunt": "turnpoint_hunt",
-                "unknown_legs": "unknown_legs",
-            },
-        )
 
     def test_gate_types_without_backbone_exist_exactly_for_task_types_without_backbone(self):
         for key, definition in TASK_TYPE_REGISTRY.items():

@@ -141,6 +141,22 @@ class EditableRoute(models.Model):
         self.compatible_task_types = get_compatible_task_subtypes(self)
         self.compatibility_ruleset_version = ROUTE_COMPATIBILITY_RULESET_VERSION
 
+    def get_current_compatible_task_types(self) -> list[str]:
+        """
+        compatible_task_types, recomputed (and stored) first when it was computed under an older ruleset, so a change of
+        the ruleset reaches routes that have not been saved since.
+        """
+        from display.services.route_compatibility import ROUTE_COMPATIBILITY_RULESET_VERSION
+
+        if self.pk is not None and self.compatibility_ruleset_version != ROUTE_COMPATIBILITY_RULESET_VERSION:
+            self.refresh_compatible_task_types()
+            # A queryset update leaves updated_at alone: the route's content did not change.
+            EditableRoute.objects.filter(pk=self.pk).update(
+                compatible_task_types=self.compatible_task_types,
+                compatibility_ruleset_version=self.compatibility_ruleset_version,
+            )
+        return self.compatible_task_types
+
     def calculate_number_of_waypoints(self):
         if track := self.get_track():
             return len(track["geometry"]["coordinates"])
@@ -295,6 +311,19 @@ class EditableRoute(models.Model):
             and item.get("properties", {}).get("featureType") == "route_waypoint"
         ]
         return sorted(waypoints, key=lambda x: x["properties"].get("sequence", 0))
+
+    def get_curved_leg_waypoints(self) -> list[dict]:
+        """
+        The route waypoints that end a curved leg: not the first waypoint, which ends no leg, and only those whose curve
+        has a control point (the route builder draws no curve without one).
+        """
+        return [
+            item
+            for item in self.get_ordered_track_waypoints()[1:]
+            if item["properties"].get("segmentType") == "curved"
+            and item["properties"].get("controlLat") is not None
+            and item["properties"].get("controlLng") is not None
+        ]
 
     def get_takeoff_gates(self) -> list:
         return self.get_features_type("takeoff_gate")

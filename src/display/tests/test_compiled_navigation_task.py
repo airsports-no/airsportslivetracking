@@ -216,6 +216,10 @@ class TestCompiledNavigationTask(TestCase):
                             "isTiming": True,
                             "isPassing": True,
                             "sequence": 1,
+                            # 2.A1 needs a curved leg.
+                            "segmentType": "curved",
+                            "controlLat": 60.06,
+                            "controlLng": 11.04,
                         },
                         "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
                     },

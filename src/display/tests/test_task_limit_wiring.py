@@ -32,6 +32,25 @@ class TestTaskLimitWiring(TestCase):
         assign_perm("change_editableroute", self.user, self.route)
         self.scorecard = get_default_scorecard()
 
+    def _add_landing_area(self):
+        """The landing area 2.B3 (duration) needs on its route."""
+        self.route.route["features"].append(
+            {
+                "type": "Feature",
+                "properties": {
+                    "id": "landing-area-1",
+                    "name": "Landing area",
+                    "featureType": "zone",
+                    "polygonType": "duration_landing_area",
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[[11.0, 60.0], [11.2, 60.0], [11.2, 60.2], [11.0, 60.2], [11.0, 60.0]]],
+                },
+            }
+        )
+        self.route.save()
+
     def test_navigation_task_serializer_create_succeeds_without_capacity_guard_hook(self):
         serializer = NavigationTaskEditableRoutReferenceSerialiser(
             data={
@@ -118,6 +137,7 @@ class TestTaskLimitWiring(TestCase):
         )
 
     def test_navigation_task_serializer_accepts_duration_task_config(self):
+        self._add_landing_area()
         serializer = NavigationTaskEditableRoutReferenceSerialiser(
             data={
                 "name": "Duration Task",
@@ -145,6 +165,7 @@ class TestTaskLimitWiring(TestCase):
         )
 
     def test_navigation_task_serializer_accepts_duration_landing_area_polygon(self):
+        self._add_landing_area()
         serializer = NavigationTaskEditableRoutReferenceSerialiser(
             data={
                 "name": "Duration Landing Area Task",
@@ -172,6 +193,7 @@ class TestTaskLimitWiring(TestCase):
         )
 
     def test_navigation_task_serializer_accepts_duration_residual_fuel_required(self):
+        self._add_landing_area()
         serializer = NavigationTaskEditableRoutReferenceSerialiser(
             data={
                 "name": "Duration Residual Fuel Task",

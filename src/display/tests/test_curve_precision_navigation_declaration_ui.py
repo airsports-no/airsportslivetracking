@@ -47,6 +47,17 @@ class CurvePrecisionNavigationDeclarationTestBase(TestCase):
         with open("display/tests/NM.csv", "r") as file:
             self.editable_route, _ = EditableRoute.create_from_csv(f"{self.task_subtype} declaration UI", file.readlines()[1:])
             self.route = self.editable_route.create_precision_route(True, self.scorecard)
+        if self.task_subtype == CURVE_NAVIGATION_TIME_ESTIMATION:
+            # 2.A1 needs a curved leg. Only the stored editable route gets it: the precision route above is what the
+            # declaration is compiled against.
+            last_waypoint = self.editable_route.get_ordered_track_waypoints()[-1]
+            previous_waypoint = self.editable_route.get_ordered_track_waypoints()[-2]
+            last_waypoint["properties"].update(
+                segmentType="curved",
+                controlLat=previous_waypoint["geometry"]["coordinates"][1],
+                controlLng=last_waypoint["geometry"]["coordinates"][0],
+            )
+            self.editable_route.save()
 
         self.contest = Contest.objects.create(
             name=f"{self.task_subtype} Declaration Contest",

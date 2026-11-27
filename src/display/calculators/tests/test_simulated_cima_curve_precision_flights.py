@@ -56,7 +56,7 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
 
     def build(self, brief_loops=True):
         self.task = build_task(
-            precision_route_geojson(hidden_gates=HIDDEN_GATES),
+            precision_route_geojson(hidden_gates=HIDDEN_GATES, curved=["TP1"]),
             task_subtype=CURVE_NAVIGATION_TIME_ESTIMATION,
             scorecard_shortcut="CIMA Precision",
             configure_scorecard=allow_brief_backtracking if brief_loops else None,

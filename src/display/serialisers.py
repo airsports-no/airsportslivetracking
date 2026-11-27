@@ -2972,6 +2972,7 @@ class TaskTestSerialiser(serializers.ModelSerializer):
 class EditableRouteLightSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     editors = serializers.SerializerMethodField("get_editors", read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
+    compatible_task_types = serializers.SerializerMethodField()
     number_of_waypoints = serializers.IntegerField(read_only=True)
     route_length = serializers.FloatField(read_only=True)
 
@@ -2999,7 +3000,10 @@ class EditableRouteLightSerialiser(ObjectPermissionsAssignmentMixin, serializers
             "intended_task_types",
             "compatible_task_types",
         )
-        read_only_fields = ("compatible_task_types",)
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_compatible_task_types(self, editable_route) -> list[str]:
+        return editable_route.get_current_compatible_task_types()
 
     def get_is_editor(self, editable_route) -> bool:
         return editable_route.id in self.context.get("editable_route_ids", set())
@@ -3142,7 +3146,11 @@ Prohibited, penalty, information zones
         return UserSerialiser(editors, many=True).data
 
     validation_errors = serializers.ListField(child=serializers.CharField(), read_only=True)
-    compatible_task_types = serializers.ListField(child=serializers.CharField(), read_only=True)
+    compatible_task_types = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_compatible_task_types(self, editable_route) -> list[str]:
+        return editable_route.get_current_compatible_task_types()
 
     class Meta:
         model = EditableRoute
