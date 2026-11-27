@@ -5,17 +5,23 @@ A task type carries everything the rest of the system needs to know about it: it
 catalogue code it belongs to, the coarse family stored in Scorecard.calculator, the live-calculator pipeline, the route
 requirements, the declaration behaviour, the scoring baseline and the scorecard it is created from.
 
-This module imports nothing from the rest of the display app, so any module can import it. The calculator pipeline is
+This module imports nothing from the rest of the display app except the plain gate type constants, so any module can
+import it. The calculator pipeline is
 stored as dotted class paths and imported on first use (calculators import models).
 
 The keys are persisted (NavigationTask.task_subtype, EditableRoute.compatible_task_types and more) and exposed through
 the API, so they never change. Task types without a catalogue number keep their historical "legacy_*" keys.
 """
 
+import logging
 from dataclasses import dataclass, field
 from typing import Optional
 
 from django.utils.module_loading import import_string
+
+from display.utilities.gate_definitions import CIRCLE_ENTRY, CIRCLE_EXIT, CIRCLE_START, LANDING_GATE, TAKEOFF_GATE, TURNPOINT
+
+logger = logging.getLogger(__name__)
 
 # The coarse families: the values of Scorecard.calculator and Scorecard.task_type.
 PRECISION = "precision"
@@ -145,6 +151,40 @@ class TaskTypeDefinition:
     # The shortcut_name of the scorecard the task is created from. None offers the scorecards of the family that no
     # task type claims.
     scorecard_shortcut_name: str | None = None
+    # The gate types the scorecard has to cover when the route has no backbone to read them from (see has_backbone).
+    gate_types_without_backbone: tuple[str, ...] = ()
+    # A hidden gate crossed a second time (or backwards) after it was passed is not scored again (2.A1).
+    repeated_hidden_gate_crossing_invalidates: bool = False
+    # Turnpoints are targets that earn points when collected: compulsory timing gates, target values, the order they
+    # were collected in, the sequence bonus and the maximum duration (2.A6, 2.B2).
+    scores_turnpoint_hunt_targets: bool = False
+    # The flight is penalised for gates passed after the declared fuel endurance (2.B2).
+    has_fuel_deadline: bool = False
+    # Legs flown faster or slower than the declared speed are penalised (2.A4).
+    scores_speed_keeping: bool = False
+    # Points declared after the middle point are invalid when flown before the middle point's time (2.A3).
+    has_post_mp_rule: bool = False
+    # The gate times follow from the declared period T, not from the route's legs, so they move along with an adaptive
+    # start (2.A3).
+    gate_times_from_declared_period: bool = False
+    # The map without a selected contestant shows only the backbone waypoints (SP, MP, FP) as circles, without legs or
+    # catalogue points; the declared route is drawn once a contestant is selected (2.A3).
+    general_map_shows_backbone_only: bool = False
+    # The route-to-SP and route-from-FP corridors are checked before the start and after the finish (2.A8).
+    has_auxiliary_route_checks: bool = False
+    # The take-off gate is scored as take-off timing under its own score type (2.A8).
+    scores_takeoff_timing: bool = False
+    # The crew does not know the route legs in advance: the flight order only gives the start and finish times, and
+    # the targets come from the compiled payload (2.A5).
+    has_unknown_legs: bool = False
+    # The observation photos the crew registers (not the route's waypoint photos) earn points per observation (2.A4,
+    # 2.A5), where legacy tasks deduct a penalty per missed observation.
+    observation_photos_award_points: bool = False
+    # Dotted path of the ContestantTaskCompilerStrategy that validates the declaration and builds the contestant's
+    # effective route; None for task types without declarations or per-contestant route changes.
+    contestant_compiler_strategy: str | None = None
+    # Which structural check TaskCompiler and route_compatibility run on the route beyond the required primitives.
+    route_structure_check: str | None = None
     # Only set on the family's default task type, see family_default_scorecard_shortcut_name.
     _family_default_scorecard_shortcut_name: str | None = field(default=None, repr=False)
 
@@ -158,9 +198,34 @@ class TaskTypeDefinition:
         family_default = _FAMILY_DEFAULTS.get(self.coarse_family)
         return family_default._family_default_scorecard_shortcut_name if family_default else None
 
+    @property
+    def is_legacy(self) -> bool:
+        """The task types that stand in for tasks created before task types existed: the family defaults."""
+        return self.default_for_family
+
+    @property
+    def has_backtracking_detection(self) -> bool:
+        return _BACKTRACKING in self.calculator_pipeline
+
+    @property
+    def scores_circle(self) -> bool:
+        return _CIRCLE in self.calculator_pipeline
+
+    @property
+    def scores_duration(self) -> bool:
+        return _DURATION in self.calculator_pipeline
+
     def get_calculators(self) -> list[type]:
         return [import_string(path) for path in self.calculator_pipeline]
 
+
+_CONTESTANT_STRATEGIES = "display.services.contestant_task_compiler."
+
+# Values of TaskTypeDefinition.route_structure_check.
+STRUCTURE_CHECK_PRECISION_NAVIGATION = "precision_navigation"
+STRUCTURE_CHECK_CONTRACT_NAVIGATION = "contract_navigation"
+STRUCTURE_CHECK_TURNPOINT_HUNT = "turnpoint_hunt"
+STRUCTURE_CHECK_UNKNOWN_LEGS = "unknown_legs"
 
 _LEGACY_CORRIDOR_FORBIDDEN = ("dummy_waypoint", "unknown_leg")
 _BACKBONE = ("route_path", "route_waypoint")
@@ -242,6 +307,8 @@ _DEFINITIONS = (
         gate_qmax_eligible=True,
         scoring_modules=("visible_time_gates", "hidden_gate_sequence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        repeated_hidden_gate_crossing_invalidates=True,
+        contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "CurveOrPrecisionNavigationStrategy",
     ),
     TaskTypeDefinition(
         key=PRECISION_NAVIGATION,
@@ -259,6 +326,8 @@ _DEFINITIONS = (
         gate_qmax_eligible=True,
         scoring_modules=("visible_eta", "hidden_gate_sequence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "CurveOrPrecisionNavigationStrategy",
+        route_structure_check=STRUCTURE_CHECK_PRECISION_NAVIGATION,
     ),
     TaskTypeDefinition(
         key=CONTRACT_NAVIGATION_TIME_CONTROLS,
@@ -276,6 +345,11 @@ _DEFINITIONS = (
         gate_qmax_eligible=True,
         scoring_modules=("declared_sequence", "mandatory_time_points", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        has_post_mp_rule=True,
+        general_map_shows_backbone_only=True,
+        gate_times_from_declared_period=True,
+        contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "ContractNavigationStrategy",
+        route_structure_check=STRUCTURE_CHECK_CONTRACT_NAVIGATION,
     ),
     TaskTypeDefinition(
         key=KNOWN_CIRCUIT,
@@ -293,6 +367,9 @@ _DEFINITIONS = (
         gate_qmax_eligible=True,
         scoring_modules=("observation_evidence", "hidden_gate_sequence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        scores_speed_keeping=True,
+        observation_photos_award_points=True,
+        contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "KnownCircuitStrategy",
     ),
     TaskTypeDefinition(
         key=UNKNOWN_LEGS,
@@ -307,6 +384,10 @@ _DEFINITIONS = (
         gate_qmax_eligible=True,
         scoring_modules=("unknown_leg_sequence", "observation_evidence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        has_unknown_legs=True,
+        observation_photos_award_points=True,
+        contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "UnknownLegsStrategy",
+        route_structure_check=STRUCTURE_CHECK_UNKNOWN_LEGS,
     ),
     TaskTypeDefinition(
         key=TURNPOINT_HUNT,
@@ -327,6 +408,10 @@ _DEFINITIONS = (
         achievement_qmax_eligible=True,
         scoring_modules=("predicted_sequence", "compulsory_timing_gates", "observation_evidence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        scores_turnpoint_hunt_targets=True,
+        contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "TurnpointHuntStrategy",
+        route_structure_check=STRUCTURE_CHECK_TURNPOINT_HUNT,
+        gate_types_without_backbone=(TURNPOINT,),
     ),
     TaskTypeDefinition(
         key=CIRCLE,
@@ -346,6 +431,8 @@ _DEFINITIONS = (
         scoring_baseline=("desc", 250),
         scoring_modules=("circle_entry", "circle_radius", "circle_direction", "altitude_spread"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "CircleStrategy",
+        gate_types_without_backbone=(CIRCLE_START, CIRCLE_ENTRY, CIRCLE_EXIT),
     ),
     TaskTypeDefinition(
         key=ANR_CATALOGUE,
@@ -360,6 +447,8 @@ _DEFINITIONS = (
         fixed_scale_factor=0.5,
         scoring_modules=("route_to_sp", "route_from_fp", "takeoff_timing", "quarantine"),
         scorecard_shortcut_name=CIMA_ANR_SCORECARD,
+        has_auxiliary_route_checks=True,
+        scores_takeoff_timing=True,
     ),
     TaskTypeDefinition(
         key=LIMITED_FUEL_TURNPOINT_HUNT,
@@ -385,6 +474,11 @@ _DEFINITIONS = (
             "backtracking",
         ),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
+        scores_turnpoint_hunt_targets=True,
+        has_fuel_deadline=True,
+        contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "TurnpointHuntStrategy",
+        route_structure_check=STRUCTURE_CHECK_TURNPOINT_HUNT,
+        gate_types_without_backbone=(TURNPOINT,),
     ),
     TaskTypeDefinition(
         key=DURATION,
@@ -397,6 +491,8 @@ _DEFINITIONS = (
         # pipeline as the fallback source of those events. There is no scoring baseline because the duration
         # calculator mixes an achievement with a penalty and has not been given signed score messages yet.
         has_backbone=False,
+        contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "DurationStrategy",
+        gate_types_without_backbone=(TAKEOFF_GATE, LANDING_GATE),
     ),
 )
 
@@ -406,6 +502,29 @@ assert len(TASK_TYPE_REGISTRY) == len(_DEFINITIONS), "Duplicate task type key"
 _FAMILY_DEFAULTS: dict[str, TaskTypeDefinition] = {
     definition.coarse_family: definition for definition in _DEFINITIONS if definition.default_for_family
 }
+
+
+# What a task without a (known) task type behaves like: every behaviour flag off.
+UNSPECIFIED_TASK_TYPE = TaskTypeDefinition(
+    key="", rule_set=RULE_SET_LEGACY, title="Unspecified", coarse_family="", calculator_pipeline=PIPELINE_DEFAULT
+)
+
+# The scorecard (by shortcut_name) a new task of a family is given unless the organiser picks another one: it is listed
+# first in the scorecard picker, which preselects the first entry. A family without an entry lists the newest scorecard
+# first (Scorecard.Meta.ordering).
+DEFAULT_SCORECARD_SHORTCUT_NAMES = {
+    family: definition.family_default_scorecard_shortcut_name
+    for family, _label in FAMILY_CHOICES
+    if (definition := _FAMILY_DEFAULTS.get(family)) is not None
+    and definition.family_default_scorecard_shortcut_name is not None
+}
+
+# The shortcut_names of the scorecards that a task type claims for itself.
+TASK_TYPE_SCORECARD_SHORTCUT_NAMES = frozenset(
+    definition.scorecard_shortcut_name for definition in _DEFINITIONS if definition.scorecard_shortcut_name is not None
+)
+
+_FAMILY_LABELS = dict(FAMILY_CHOICES)
 
 
 class UnknownTaskType(ValueError):
@@ -444,3 +563,88 @@ def task_type_for(navigation_task) -> Optional[TaskTypeDefinition]:
     """
     key = navigation_task.effective_task_subtype
     return get_task_type(str(key)) if key else None
+
+
+def find_task_type_for(navigation_task) -> Optional[TaskTypeDefinition]:
+    """Like task_type_for, but None (not an error) for a stored subtype that is not defined."""
+    return find_task_type(navigation_task.effective_task_subtype)
+
+
+def task_type_or_unspecified(key: str | None) -> TaskTypeDefinition:
+    """The task type for [key], for asking what it does: UNSPECIFIED_TASK_TYPE when there is none or it is not defined."""
+    return find_task_type(key) or UNSPECIFIED_TASK_TYPE
+
+
+def stored_task_type(navigation_task) -> TaskTypeDefinition:
+    """
+    The task type the task stores in task_subtype, for asking what it does. A task that stores none (legacy tasks) or
+    one that is not defined gets UNSPECIFIED_TASK_TYPE, which does none of the special things.
+    """
+    return task_type_or_unspecified(getattr(navigation_task, "task_subtype", None))
+
+
+def default_task_type_key_for_family(coarse_family: str) -> Optional[str]:
+    definition = _FAMILY_DEFAULTS.get(coarse_family)
+    return definition.key if definition else None
+
+
+def validate_subtype_family_compatibility(subtype: str | None, coarse_family: str) -> None:
+    if subtype in (None, ""):
+        return
+    definition = find_task_type(subtype)
+    if definition is None:
+        raise ValueError(f"Unknown task subtype '{subtype}'")
+    if definition.coarse_family != coarse_family:
+        raise ValueError(f"Task subtype '{subtype}' is not compatible with coarse family '{coarse_family}'")
+
+
+def scorecard_suits_task_subtype(shortcut_name: str, subtype: str | None) -> bool:
+    """
+    Whether a task of [subtype] may be created from the original scorecard [shortcut_name]: a task type with its own
+    scorecard only from that one, any other task (legacy, or a task type without one) only from a scorecard no task
+    type claims. The coarse family is checked separately (Scorecard.task_type).
+    """
+    definition = find_task_type(subtype)
+    if definition is not None and definition.scorecard_shortcut_name is not None:
+        return shortcut_name == definition.scorecard_shortcut_name
+    return shortcut_name not in TASK_TYPE_SCORECARD_SHORTCUT_NAMES
+
+
+def describe_task_subtype(navigation_task) -> Optional[dict]:
+    """
+    The task's coarse family (e.g. "precision"/"Precision") and its specific subtype (e.g. "2.A1 Curve navigation with
+    time estimation") for display, e.g. on TaskCard.tsx and in the apps' Register today list. None when the task has no
+    subtype, or one that is not (or no longer) defined, so that one odd task cannot break a whole list.
+    """
+    try:
+        definition = navigation_task.subtype_definition
+    except ValueError:
+        logger.warning(
+            "Navigation task %s has an unknown task subtype %r", navigation_task.pk, navigation_task.task_subtype
+        )
+        return None
+    if definition is None:
+        return None
+    return {
+        "key": definition.key,
+        "display_name": definition.display_name,
+        "coarse_family": definition.coarse_family,
+        "coarse_family_label": _FAMILY_LABELS.get(definition.coarse_family, definition.coarse_family),
+        "requires_contestant_configuration": definition.requires_contestant_configuration,
+    }
+
+
+def get_calculators_for_task(navigation_task) -> list[type]:
+    """
+    The calculators to run for a navigation task, in order: those of the task's stored task type when it belongs to the
+    family of its scorecard, else of the family's default task type, else (a family no task type has) the gate
+    calculator alone.
+    """
+    family = navigation_task.scorecard.calculator
+    default = _FAMILY_DEFAULTS.get(family)
+    if default is None:
+        return [import_string(path) for path in PIPELINE_DEFAULT]
+    definition = find_task_type(navigation_task.task_subtype)
+    if definition is None or definition.coarse_family != family:
+        definition = default
+    return definition.get_calculators()

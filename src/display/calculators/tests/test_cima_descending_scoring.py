@@ -40,7 +40,7 @@ from display.models import (
     Scorecard,
     Team,
 )
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     ANR_CATALOGUE,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     LIMITED_FUEL_TURNPOINT_HUNT,
@@ -415,7 +415,7 @@ class TestCimaGateQmaxNormalization(TestCase):
 class TestTurnpointHuntAchievementSignHandling(TestCase):
     """
     2.A6/2.B2 are the only CIMA subtypes using an ADDITIVE-from-zero model rather than "start at
-    a ceiling, subtract" (see cima_task_type_definitions.CIMA_SCORING_BASELINE's docstring) -
+    a ceiling, subtract" (see TaskTypeDefinition.scoring_baseline) -
     their achievement score_types (turnpoint_hunt_target_value, turnpoint_hunt_sequence_bonus)
     must be added as-is under score_sorting_direction=desc, NOT sign-flipped like every other
     desc score_type. Without ACHIEVEMENT_SCORE_TYPES, more achievement would produce a LOWER

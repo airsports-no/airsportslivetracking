@@ -1,4 +1,4 @@
-from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS
+from display.utilities.task_types import TASK_TYPE_REGISTRY, find_task_type
 
 LEGACY_TASK_TYPE_GROUP = "legacy"
 CIMA_TASK_TYPE_GROUP = "cima"
@@ -6,10 +6,10 @@ CIMA_TASK_TYPE_GROUP = "cima"
 
 def get_task_type_group(task_type: str | None = None, task_subtype: str | None = None) -> str:
     if task_subtype:
-        definition = TASK_SUBTYPE_DEFINITIONS.get(task_subtype)
+        definition = find_task_type(task_subtype)
         if definition is None:
             return CIMA_TASK_TYPE_GROUP
-        if definition.key.startswith("legacy_"):
+        if definition.is_legacy:
             return LEGACY_TASK_TYPE_GROUP
         return CIMA_TASK_TYPE_GROUP
     return LEGACY_TASK_TYPE_GROUP
@@ -37,7 +37,7 @@ def get_all_fine_task_type_groups() -> list[str]:
     everything" superuser/visibility-gate-off cases.
     """
     groups = {LEGACY_TASK_TYPE_GROUP, CIMA_TASK_TYPE_GROUP}
-    for definition in TASK_SUBTYPE_DEFINITIONS.values():
-        if not definition.key.startswith("legacy_"):
+    for definition in TASK_TYPE_REGISTRY.values():
+        if not definition.is_legacy:
             groups.add(f"{CIMA_TASK_TYPE_GROUP}:{definition.key}")
     return sorted(groups)

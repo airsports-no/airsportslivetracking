@@ -23,19 +23,15 @@ from display.templatetags.frontend_urls import fe_url
 from display.utilities.calculate_gate_times import calculate_and_get_relative_gate_times
 from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import request_termination
-from display.utilities.cima_task_type_definitions import (
-    ABSOLUTE_TIME_DECLARATION_SUBTYPES,
-    CONTRACT_NAVIGATION_TIME_CONTROLS,
-    DECLARATION_REQUIRED_SUBTYPES,
-)
 from display.utilities.gate_definitions import STARTINGPOINT
-from display.utilities.navigation_task_type_definitions import (
-    POKER,
+from display.utilities.task_types import (
     AIRSPORTS,
     AIRSPORT_CHALLENGE,
     ANR_CORRIDOR,
-    PRECISION,
     LANDING,
+    POKER,
+    PRECISION,
+    stored_task_type,
 )
 from display.utilities.traccar_factory import get_traccar_instance
 from display.utilities.simulator_policy import (
@@ -715,8 +711,8 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
 
     @property
     def awaits_required_declaration(self) -> bool:
-        """True if the task requires a declaration (DECLARATION_REQUIRED_SUBTYPES) and there is no valid one yet."""
-        if self.navigation_task.task_subtype not in DECLARATION_REQUIRED_SUBTYPES:
+        """True if the task requires a declaration (TaskTypeDefinition.declaration_required) and there is no valid one yet."""
+        if not stored_task_type(self.navigation_task).declaration_required:
             return False
         config = getattr(self, "contestanttaskconfiguration", None)
         return not (config and config.is_valid)
@@ -724,12 +720,12 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
     def get_declared_absolute_times(self) -> list[datetime.datetime]:
         """
         The contestant's manually declared absolute predicted/override times, for task subtypes
-        where those times don't move with the schedule (see ABSOLUTE_TIME_DECLARATION_SUBTYPES).
+        where those times don't move with the schedule (see TaskTypeDefinition.absolute_time_declaration_key).
         Empty for every other subtype, and for known_circuit whenever no point has actually been
         overridden - the lock this backs is only meant to engage once there's something declared
         that could actually go stale.
         """
-        declaration_time_key = ABSOLUTE_TIME_DECLARATION_SUBTYPES.get(self.navigation_task.task_subtype)
+        declaration_time_key = stored_task_type(self.navigation_task).absolute_time_declaration_key
         if not declaration_time_key:
             return []
         config = getattr(self, "contestanttaskconfiguration", None)
@@ -891,7 +887,7 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         gate times are moved along with the start instead. Take-off and landing gates keep their own times.
         """
         gate_times = self.calculate_missing_gate_times({}, starting_point_time)
-        if self.navigation_task.task_subtype != CONTRACT_NAVIGATION_TIME_CONTROLS:
+        if not stored_task_type(self.navigation_task).gate_times_from_declared_period:
             return gate_times
         config = getattr(self, "contestanttaskconfiguration", None)
         payload = (config.compiled_gate_times_payload or {}) if config and config.is_valid else {}

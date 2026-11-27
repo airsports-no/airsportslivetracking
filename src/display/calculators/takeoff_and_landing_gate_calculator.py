@@ -19,7 +19,7 @@ from display.calculators.positions_and_gates import Gate, MultiGate
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import ANOMALY, INFORMATION
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE
+from display.utilities.task_types import stored_task_type
 from display.utilities.route_building_utilities import calculate_extended_gate
 from websocket_channels import WebsocketFacade
 
@@ -154,7 +154,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
         self.transmit_actual_crossing(event.gate, event.position)
         score_type = GATE_SCORE_TYPE
         message = "passing takeoff gate"
-        if getattr(self.contestant.navigation_task, "task_subtype", None) == ANR_CATALOGUE:
+        if stored_task_type(self.contestant.navigation_task).scores_takeoff_timing:
             score_type = ANR_TAKEOFF_TIMING_SCORE_TYPE
             message = "ANR takeoff timing"
         self.update_score(
@@ -258,7 +258,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
         score = self.scorecard.get_gate_timing_score_for_gate_type("to", g.expected_time, None)
         score_type = GATE_SCORE_TYPE
         message = "missing takeoff gate"
-        if getattr(self.contestant.navigation_task, "task_subtype", None) == ANR_CATALOGUE:
+        if stored_task_type(self.contestant.navigation_task).scores_takeoff_timing:
             score_type = ANR_TAKEOFF_TIMING_SCORE_TYPE
             message = "ANR takeoff timing missed"
         self.update_score(

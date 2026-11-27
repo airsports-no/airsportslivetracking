@@ -29,7 +29,7 @@ from display.calculators.tests.flight_simulator import (
     generate_track,
     hunt_route_geojson,
 )
-from display.utilities.cima_task_type_definitions import LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
+from display.utilities.task_types import LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
 
 START = datetime.datetime(2020, 8, 1, 8, 15, tzinfo=datetime.timezone.utc)
 COMPULSORY = {"CP1": (0, 0), "CP2": (6000, 0), "CP3": (12000, 0)}

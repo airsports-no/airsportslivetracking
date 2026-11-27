@@ -21,8 +21,8 @@ from display.calculators.calculator_factory import calculator_factory
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Aeroplane, Contest, Contestant, Crew, EditableRoute, NavigationTask, Person, Scorecard, Team
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import PRECISION_NAVIGATION
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION_NAVIGATION
+from display.utilities.task_types import PRECISION
 from utilities.mock_utilities import TraccarMock
 
 

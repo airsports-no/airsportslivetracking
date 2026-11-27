@@ -13,7 +13,7 @@ from display.default_scorecards.create_scorecards import create_scorecards
 from display.default_scorecards.default_scorecard_airsports import get_default_scorecard as get_previous_scorecard
 from display.default_scorecards.default_scorecard_airsports_2025 import SHORTCUT_NAME, get_default_scorecard
 from display.utilities.gate_definitions import FINISHPOINT, SECRETPOINT, STARTINGPOINT, TAKEOFF_GATE, TURNPOINT
-from display.utilities.navigation_task_type_definitions import AIRSPORTS, DEFAULT_SCORECARD_SHORTCUT_NAMES
+from display.utilities.task_types import AIRSPORTS, DEFAULT_SCORECARD_SHORTCUT_NAMES
 
 PLANNED = datetime.datetime(2025, 6, 1, 12, 0, 0, tzinfo=datetime.timezone.utc)
 

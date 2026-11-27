@@ -27,7 +27,7 @@ from display.calculators.update_score_message import UpdateScoreMessage
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.models import ANOMALY, INFORMATION
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.task_types import stored_task_type
 from display.utilities.coordinate_utilities import (
     bearing_difference,
     calculate_distance_lat_lon,
@@ -763,16 +763,19 @@ class GateCalculator(Calculator):
         self._score_turnpoint_hunt_maximum_duration(event.gate, passing_position, passing_time)
         self._score_speed_keeping(event.gate, passing_position, passing_time)
 
+    @property
+    def _task_type(self):
+        return stored_task_type(self.contestant.navigation_task)
+
     def _is_curve_navigation_repeated_crossing(self, gate: Gate) -> bool:
         return (
-            self.contestant.navigation_task.task_subtype == "curve_navigation_time_estimation"
+            self._task_type.repeated_hidden_gate_crossing_invalidates
             and gate.type == "secret"
             and getattr(gate, "passing_time", None) is not None
         )
 
     def _score_turnpoint_hunt_compulsory_timing(self, gate: Gate, position, passing_time: datetime.datetime):
-        subtype = self.contestant.navigation_task.task_subtype
-        if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
+        if not self._task_type.scores_turnpoint_hunt_targets:
             return
         if not hasattr(self.contestant, "contestanttaskconfiguration"):
             return
@@ -814,16 +817,14 @@ class GateCalculator(Calculator):
         already recorded (e.g. re-processed during an idempotent restart replay) is not added
         twice - order reflects the first genuine pass only.
         """
-        subtype = self.contestant.navigation_task.task_subtype
-        if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
+        if not self._task_type.scores_turnpoint_hunt_targets:
             return
         if gate.name in self.turnpoint_hunt_actual_order:
             return
         self.turnpoint_hunt_actual_order.append(gate.name)
 
     def _score_turnpoint_hunt_target_value(self, gate: Gate, position, passing_time: datetime.datetime):
-        subtype = self.contestant.navigation_task.task_subtype
-        if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
+        if not self._task_type.scores_turnpoint_hunt_targets:
             return
         if not hasattr(self.contestant, "contestanttaskconfiguration"):
             return
@@ -854,8 +855,7 @@ class GateCalculator(Calculator):
         declared_sequence - an exact match (same items, same order, nothing missing) is required;
         there is no partial credit, matching the catalogue's "full and correct" wording.
         """
-        subtype = self.contestant.navigation_task.task_subtype
-        if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
+        if not self._task_type.scores_turnpoint_hunt_targets:
             return
         bonus = self.cima_config.turnpoint_hunt_sequence_bonus
         if not bonus:
@@ -885,7 +885,7 @@ class GateCalculator(Calculator):
         )
 
     def _score_limited_fuel_deadline(self, gate: Gate, position, passing_time: datetime.datetime):
-        if self.contestant.navigation_task.task_subtype != "limited_fuel_turnpoint_hunt":
+        if not self._task_type.has_fuel_deadline:
             return
         if not hasattr(self.contestant, "contestanttaskconfiguration"):
             return
@@ -914,8 +914,7 @@ class GateCalculator(Calculator):
         )
 
     def _score_turnpoint_hunt_maximum_duration(self, gate: Gate, position, passing_time: datetime.datetime):
-        subtype = self.contestant.navigation_task.task_subtype
-        if subtype not in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
+        if not self._task_type.scores_turnpoint_hunt_targets:
             return
         if not hasattr(self.contestant, "contestanttaskconfiguration"):
             return
@@ -948,7 +947,7 @@ class GateCalculator(Calculator):
         declared uniform speed. Legs bordering a manually overridden turnpoint time are
         skipped, since the contestant is expected to deviate from the declared speed to
         hit that specific declared time (see KnownCircuitStrategy)."""
-        if self.contestant.navigation_task.task_subtype != "known_circuit":
+        if not self._task_type.scores_speed_keeping:
             return
         if not hasattr(self.contestant, "contestanttaskconfiguration"):
             return
@@ -1049,7 +1048,7 @@ class GateCalculator(Calculator):
         )
 
     def _is_invalid_post_mp_contract_crossing(self, gate: Gate, passing_time: datetime.datetime) -> bool:
-        if self.contestant.navigation_task.task_subtype != CONTRACT_NAVIGATION_TIME_CONTROLS:
+        if not self._task_type.has_post_mp_rule:
             return False
         if not hasattr(self.contestant, "contestanttaskconfiguration"):
             return False

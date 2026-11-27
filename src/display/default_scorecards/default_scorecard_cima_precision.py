@@ -12,7 +12,7 @@ from display.utilities.gate_definitions import (
     SECRETPOINT,
     FINISHPOINT,
 )
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION
 
 # The CIMA task catalogue (documentation/cima/cima_task_catalog.md, 2.A1-2.A5): one point per second of error at a
 # time gate, at most Emax ("typically 180"), and Emax for a gate not flown. No grace period, and no procedure turns:

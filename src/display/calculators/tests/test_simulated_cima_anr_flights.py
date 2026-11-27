@@ -29,8 +29,8 @@ from display.calculators.tests.test_simulated_legacy_flights import (
     route_geojson,
     seconds_beyond,
 )
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
+from display.utilities.task_types import ANR_CATALOGUE
+from display.utilities.task_types import ANR_CORRIDOR
 
 CORRIDOR_WIDTH_NM = 1.0
 TIME_GATE_WIDTH_NM = 0.6

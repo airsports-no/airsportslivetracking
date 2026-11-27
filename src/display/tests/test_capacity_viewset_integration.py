@@ -10,7 +10,7 @@ from rest_framework.test import APITestCase
 from display.default_scorecards.default_scorecard_fai_precision_2020 import get_default_scorecard
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Contest, NavigationTask, EditableRoute, ContestTeam, Crew, Person, Team, Aeroplane, Contestant
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.task_types import CONTRACT_NAVIGATION_TIME_CONTROLS
 from rest_framework.exceptions import ValidationError as DRFValidationError
 from utilities.mock_utilities import TraccarMock
 

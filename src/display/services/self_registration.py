@@ -12,7 +12,7 @@ from rest_framework.exceptions import ValidationError
 
 from display.models import Contestant, ContestTeam, NavigationTask
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import DECLARATION_REQUIRED_SUBTYPES
+from display.utilities.task_types import stored_task_type
 from display.utilities.simulator_policy import (
     FLIGHT_MODE_SIMULATOR,
     SIMULATOR_NOT_ALLOWED,
@@ -131,7 +131,7 @@ def send_flight_order_after_declaration(contestant: Contestant, previous_declara
     """
     if not contestant.self_registered:
         return
-    if contestant.navigation_task.task_subtype not in DECLARATION_REQUIRED_SUBTYPES:
+    if not stored_task_type(contestant.navigation_task).declaration_required:
         return
     if contestant.awaits_required_declaration:
         return

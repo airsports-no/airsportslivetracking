@@ -39,9 +39,9 @@ from display.models import (
     Team,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import CIRCLE
+from display.utilities.task_types import CIRCLE
 from display.utilities.coordinate_utilities import project_position_lat_lon
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION
 from utilities.mock_utilities import TraccarMock
 
 CENTER_LAT = 59.895825678413914

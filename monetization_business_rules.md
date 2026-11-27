@@ -101,7 +101,7 @@ All paid passes include **Unlimited Navigation Tasks**, **Unlimited Custom Maps 
 
 ### 4. CIMA Task-Type Rollout (Beta → Paywall)
 
-New CIMA catalogue task types (`display.utilities.cima_task_type_definitions`) are gated
+New CIMA catalogue task types (`display.utilities.task_types`) are gated
 as a single task-type group (`"cima"`), separate from ordinary contestant-quota billing.
 Visibility/usage is resolved per-user by `display.services.task_type_visibility` and
 enforced per-contest-add by `display.services.capacity_enforcement.assert_can_add_navigation_task`,

@@ -20,7 +20,7 @@ from display.calculators.positions_and_gates import Gate
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import ANOMALY, INFORMATION, Contestant, Route, Scorecard
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE
+from display.utilities.task_types import stored_task_type
 
 logger = logging.getLogger(__name__)
 
@@ -141,7 +141,7 @@ class AnrCorridorCalculator(Calculator):
         return self.polygon_helper.build_polygon(path)
 
     def _build_auxiliary_polygon(self, key: str):
-        if getattr(self.contestant.navigation_task, "task_subtype", None) != ANR_CATALOGUE:
+        if not stored_task_type(self.contestant.navigation_task).has_auxiliary_route_checks:
             return None
         payload = {}
         if hasattr(self.contestant, "contestanttaskconfiguration") and self.contestant.contestanttaskconfiguration.is_valid:
@@ -201,7 +201,7 @@ class AnrCorridorCalculator(Calculator):
     def _check_auxiliary_route_compliance(
         self, track: Sequence[ContestantReceivedPosition], before_start: bool, after_finish: bool
     ) -> None:
-        if getattr(self.contestant.navigation_task, "task_subtype", None) != ANR_CATALOGUE or not track:
+        if not stored_task_type(self.contestant.navigation_task).has_auxiliary_route_checks or not track:
             return
         position = track[-1]
         # These penalties are one-shot phase checks: once the contestant leaves

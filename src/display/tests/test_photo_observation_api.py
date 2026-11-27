@@ -32,7 +32,7 @@ from display.services.photo_observations import (
     get_currently_tracked_contestants,
     get_scoring_mode,
 )
-from display.utilities.cima_task_type_definitions import KNOWN_CIRCUIT
+from display.utilities.task_types import KNOWN_CIRCUIT
 from display.utilities.gate_definitions import LANDING_GATE, TAKEOFF_GATE
 from utilities.mock_utilities import TraccarMock
 

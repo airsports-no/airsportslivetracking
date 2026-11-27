@@ -19,7 +19,7 @@ from display.models import (
     Scorecard,
     Team,
 )
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.task_types import CONTRACT_NAVIGATION_TIME_CONTROLS
 from utilities.mock_utilities import TraccarMock
 
 DECLARATION = {"declared_before_mp": ["A"], "declared_after_mp": ["C"], "declared_t_seconds": 82}

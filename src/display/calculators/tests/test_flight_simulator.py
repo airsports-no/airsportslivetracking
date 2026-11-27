@@ -47,12 +47,7 @@ from display.calculators.tests.flight_simulator import (
     runway_gate_feature,
     waypoint,
 )
-from display.utilities.cima_task_type_definitions import (
-    CIRCLE,
-    CONTRACT_NAVIGATION_TIME_CONTROLS,
-    KNOWN_CIRCUIT,
-    UNKNOWN_LEGS,
-)
+from display.utilities.task_types import CIRCLE, CONTRACT_NAVIGATION_TIME_CONTROLS, KNOWN_CIRCUIT, UNKNOWN_LEGS
 from display.utilities.coordinate_utilities import (
     Projector,
     calculate_bearing,

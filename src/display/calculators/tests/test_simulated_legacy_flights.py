@@ -32,7 +32,7 @@ from display.calculators.tests.flight_simulator import (
     waypoint,
 )
 from display.utilities.coordinate_utilities import project_position_lat_lon
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION
 
 START_POINT = (60.0, 11.0)
 BACKTRACKING = "backtracking"

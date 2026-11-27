@@ -2,8 +2,8 @@ from django.test import TestCase
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import EditableRoute, Scorecard
-from display.utilities.cima_task_type_definitions import DURATION
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import DURATION
+from display.utilities.task_types import PRECISION
 
 
 class TestDurationLandingAreaRoutePrimitive(TestCase):

@@ -32,7 +32,7 @@ from display.calculators.tests.test_simulated_legacy_flights import (
     timing_penalty,
     zone_feature,
 )
-from display.utilities.navigation_task_type_definitions import AIRSPORTS, ANR_CORRIDOR
+from display.utilities.task_types import AIRSPORTS, ANR_CORRIDOR
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Corridor task types: ANR and Air Sports Race

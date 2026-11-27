@@ -9,7 +9,7 @@ from display.calculators.calculator_factory import calculator_factory
 from display.calculators.circle_calculator import CIRCLE_MAXIMUM_SCORE, CircleCalculator
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Aeroplane, Contest, Contestant, Crew, EditableRoute, NavigationTask, Person, Scorecard, Team
-from display.utilities.cima_task_type_definitions import CIRCLE
+from display.utilities.task_types import CIRCLE
 from display.utilities.coordinate_utilities import project_position_lat_lon
 from utilities.mock_utilities import TraccarMock
 

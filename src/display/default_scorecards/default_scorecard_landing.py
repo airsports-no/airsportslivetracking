@@ -3,7 +3,7 @@ import datetime
 
 from display.models import Scorecard
 from display.utilities.gate_definitions import LANDING_GATE, DUMMY, UNKNOWN_LEG
-from display.utilities.navigation_task_type_definitions import LANDING
+from display.utilities.task_types import LANDING
 
 
 def get_default_scorecard():

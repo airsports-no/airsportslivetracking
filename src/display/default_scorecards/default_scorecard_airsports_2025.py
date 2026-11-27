@@ -11,7 +11,7 @@ from display.utilities.gate_definitions import (
     TURNPOINT,
     UNKNOWN_LEG,
 )
-from display.utilities.navigation_task_type_definitions import AIRSPORTS
+from display.utilities.task_types import AIRSPORTS
 
 NAME = "Air Sports Race 2025 (Annex 9)"
 SHORTCUT_NAME = "Air Sports Race 2025"

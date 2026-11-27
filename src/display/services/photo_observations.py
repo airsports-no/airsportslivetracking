@@ -28,7 +28,7 @@ from display.models import (
 )
 from display.models.scoring_models import ANOMALY
 from display.services.photo_management import get_observation_photo_names
-from display.utilities.cima_task_type_definitions import KNOWN_CIRCUIT, UNKNOWN_LEGS
+from display.utilities.task_types import find_task_type_for
 from display.utilities.gate_definitions import DUMMY, LANDING_GATE, TAKEOFF_GATE, TURNPOINT
 
 logger = logging.getLogger(__name__)
@@ -39,7 +39,6 @@ EXCLUDED_TRACK_GATE_TYPES = {TAKEOFF_GATE, LANDING_GATE, DUMMY}
 # (Vh) per observation: full within 2 mm, half within 5 mm.
 MODE_LEGACY = "legacy"
 MODE_CIMA = "cima"
-CIMA_OBSERVATION_SUBTYPES = (KNOWN_CIRCUIT, UNKNOWN_LEGS)
 
 
 # A phone clock that runs ahead by up to this much is not an error.
@@ -162,10 +161,12 @@ def get_scoring_mode(contestant: Contestant) -> str | None:
     """
     if not getattr(contestant.navigation_task, "allow_observation_registration", False):
         return None
-    subtype = contestant.navigation_task.effective_task_subtype or ""
-    if subtype.startswith("legacy_"):
+    task_type = find_task_type_for(contestant.navigation_task)
+    if task_type is None:
+        return None
+    if task_type.is_legacy:
         return MODE_LEGACY
-    if subtype in CIMA_OBSERVATION_SUBTYPES:
+    if task_type.observation_photos_award_points:
         return MODE_CIMA
     return None
 

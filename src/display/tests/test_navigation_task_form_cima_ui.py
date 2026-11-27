@@ -8,8 +8,8 @@ from display.default_scorecards.create_scorecards import create_scorecards
 from display.forms import NavigationTaskForm
 from display.models import AccessGrant, Club, ClubManagerMembership, Contest
 from display.services.capacity_enforcement import assert_can_add_navigation_task
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE, CIRCLE, CONTRACT_NAVIGATION_TIME_CONTROLS
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
+from display.utilities.task_types import ANR_CATALOGUE, CIRCLE, CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.task_types import ANR_CORRIDOR, PRECISION
 
 
 class TestNavigationTaskFormCimaUi(TestCase):

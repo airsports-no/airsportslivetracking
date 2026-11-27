@@ -19,7 +19,7 @@ from display.models import (
     Team,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
+from display.utilities.task_types import LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
 from utilities.mock_utilities import TraccarMock
 
 
@@ -303,7 +303,7 @@ class TestTurnpointHuntTimingModel(TestCase):
         if sequence_bonus is not None:
             # The task's OWN scorecard copy (navigation_task.scorecard), never self.scorecard
             # (the shared "FAI Precision" original every test in this file copies from) - see
-            # cima_task_type_definitions.CIMA_SCORING_BASELINE's docstring on never mutating
+            # TaskTypeDefinition.scoring_baseline: never mutate
             # originals.
             self.navigation_task.scorecard.config['turnpoint_hunt_sequence_bonus'] = sequence_bonus
             self.navigation_task.scorecard.save(update_fields=['config'])

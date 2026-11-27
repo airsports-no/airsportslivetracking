@@ -18,7 +18,7 @@ from display.models import (
     Scorecard,
     Team,
 )
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS, CURVE_NAVIGATION_TIME_ESTIMATION
+from display.utilities.task_types import CONTRACT_NAVIGATION_TIME_CONTROLS, CURVE_NAVIGATION_TIME_ESTIMATION
 from utilities.mock_utilities import TraccarMock
 
 

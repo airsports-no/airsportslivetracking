@@ -10,7 +10,7 @@ from django.db.models import QuerySet
 from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.utilities.clone_object import simple_clone
 from display.utilities.gate_definitions import GATE_TYPES
-from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES, PRECISION
+from display.utilities.task_types import FAMILY_CHOICES, PRECISION
 
 DURATION_NORMALIZATION_POLICIES = (("", "---------"), ("raw_minutes", "Raw minutes"))
 
@@ -212,7 +212,7 @@ class Scorecard(models.Model):
         help_text="Free text (with HTML) that is included at the bottom of the scorecard box", default=""
     )
     calculator = models.CharField(
-        choices=NAVIGATION_TASK_TYPES,
+        choices=FAMILY_CHOICES,
         default=PRECISION,
         max_length=20,
         help_text="Supported calculator types",

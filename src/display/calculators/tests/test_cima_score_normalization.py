@@ -23,7 +23,7 @@ from django.test import TestCase
 
 from display.calculators.cima_score_normalization import get_cima_gate_qmax
 from display.models import Scorecard
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     ANR_CATALOGUE,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     CURVE_NAVIGATION_TIME_ESTIMATION,

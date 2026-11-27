@@ -29,13 +29,14 @@ from display.utilities.gate_definitions import (
     STARTINGPOINT,
     UNKNOWN_LEG,
 )
-from display.utilities.navigation_task_type_definitions import (
-    AIRSPORT_CHALLENGE,
+from display.utilities.task_types import (
     AIRSPORTS,
+    AIRSPORT_CHALLENGE,
     ANR_CORRIDOR,
     LANDING,
     POKER,
     PRECISION,
+    task_type_or_unspecified,
 )
 from display.waypoint import Waypoint
 
@@ -762,13 +763,12 @@ class EditableRoute(models.Model):
     ) -> "Route":
         from display.models import Route
         from display.services.photo_management import observation_photo_name_problems
-        from display.utilities.cima_task_type_definitions import NO_BACKBONE_TASK_SUBTYPES
 
         # A route saved before names were checked may still have photos of one name: not a task from it until it is fixed
         if problems := observation_photo_name_problems(self):
             raise ValidationError(" ".join(problems))
         if task_type in (PRECISION, POKER):
-            if task_subtype in NO_BACKBONE_TASK_SUBTYPES:
+            if not task_type_or_unspecified(task_subtype).has_backbone:
                 # These subtypes have no authored route backbone: the route
                 # is entirely free-map markers, so there is no track to turn
                 # into Route.waypoints.

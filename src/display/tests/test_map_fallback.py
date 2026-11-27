@@ -264,7 +264,7 @@ class MapFallbackTests(TestCase):
     ):
         from unittest.mock import MagicMock
         from display.flight_order_and_maps.map_constants import A4
-        from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+        from display.utilities.task_types import CONTRACT_NAVIGATION_TIME_CONTROLS
 
         self.task.task_subtype = CONTRACT_NAVIGATION_TIME_CONTROLS
         self.task.save(update_fields=["task_subtype"])
@@ -321,7 +321,7 @@ class MapFallbackTests(TestCase):
     ):
         from unittest.mock import MagicMock
         from display.flight_order_and_maps.map_constants import A4
-        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+        from display.utilities.task_types import UNKNOWN_LEGS
 
         self.task.task_subtype = UNKNOWN_LEGS
         self.task.save(update_fields=["task_subtype"])
@@ -390,7 +390,7 @@ class MapFallbackTests(TestCase):
     ):
         from unittest.mock import MagicMock
         from display.flight_order_and_maps.map_constants import A4
-        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+        from display.utilities.task_types import UNKNOWN_LEGS
 
         self.task.task_subtype = UNKNOWN_LEGS
         self.task.save(update_fields=["task_subtype"])
@@ -440,7 +440,7 @@ class MapFallbackTests(TestCase):
     def test_get_task_catalogue_targets_unknown_legs_selected_contestant_includes_visible_segments_and_hidden_overlays(self):
         from types import SimpleNamespace
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
-        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+        from display.utilities.task_types import UNKNOWN_LEGS
 
         editable_route = EditableRoute.objects.create(
             name="Unknown legs target source",
@@ -561,7 +561,7 @@ class MapFallbackTests(TestCase):
     ):
         from unittest.mock import MagicMock
         from display.flight_order_and_maps.map_constants import A4
-        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+        from display.utilities.task_types import UNKNOWN_LEGS
 
         self.task.task_subtype = UNKNOWN_LEGS
         self.task.save(update_fields=["task_subtype"])
@@ -604,7 +604,7 @@ class MapFallbackTests(TestCase):
     def test_get_task_catalogue_targets_unknown_legs_route_backbone_hidden_gates(self):
         from types import SimpleNamespace
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
-        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+        from display.utilities.task_types import UNKNOWN_LEGS
 
         editable_route = EditableRoute.objects.create(
             name="Unknown legs route-backbone hidden gates",
@@ -669,7 +669,7 @@ class MapFallbackTests(TestCase):
         # curved leg ends at carries the curve, and the live map and the PDF map draw that leg curved
         from types import SimpleNamespace
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
-        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+        from display.utilities.task_types import UNKNOWN_LEGS
 
         editable_route = EditableRoute.objects.create(
             name="Unknown legs with a curved first leg",
@@ -717,7 +717,7 @@ class MapFallbackTests(TestCase):
         # The contestant's view leaves the hidden gate out, so the curve carries where it starts
         from types import SimpleNamespace
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
-        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+        from display.utilities.task_types import UNKNOWN_LEGS
 
         editable_route = EditableRoute.objects.create(
             name="Unknown legs with a curve after a hidden gate",
@@ -758,7 +758,7 @@ class MapFallbackTests(TestCase):
         # A dummy leg's curve starts at the trigger for the first dummy waypoint, then at the previous one
         from types import SimpleNamespace
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
-        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+        from display.utilities.task_types import UNKNOWN_LEGS
 
         def dummy(identifier, name, sequence, coordinates, curved):
             properties = {"id": identifier, "name": name, "pointType": "dummy", "featureType": "dummy_branch_waypoint",
@@ -811,7 +811,7 @@ class MapFallbackTests(TestCase):
     def test_unknown_legs_selected_contestant_targets_include_segment_name(self):
         from types import SimpleNamespace
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
-        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+        from display.utilities.task_types import UNKNOWN_LEGS
 
         editable_route = EditableRoute.objects.create(
             name="Unknown legs segment name source",
@@ -869,7 +869,7 @@ class MapFallbackTests(TestCase):
     def test_get_task_catalogue_targets_unknown_legs_uses_task_payload_without_contestant(self):
         from types import SimpleNamespace
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
-        from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+        from display.utilities.task_types import UNKNOWN_LEGS
 
         editable_route = EditableRoute.objects.create(
             name="Unknown legs task payload source",
@@ -924,7 +924,7 @@ class MapFallbackTests(TestCase):
 
     def test_get_task_catalogue_targets_includes_circle_markers(self):
         from display.flight_order_and_maps.effective_route_rendering import get_task_catalogue_targets
-        from display.utilities.cima_task_type_definitions import CIRCLE
+        from display.utilities.task_types import CIRCLE
         from display.models import EditableRoute
 
         editable_route = EditableRoute.objects.create(

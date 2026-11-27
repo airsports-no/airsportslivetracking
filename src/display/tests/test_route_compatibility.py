@@ -13,7 +13,7 @@ from display.services.route_compatibility import (
 )
 from display.services.task_templates import no_compatible_task_types_message as _no_compatible_task_types_message
 from display.services.task_templates import task_template_choices as _task_template_choices
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     ANR_CATALOGUE,
     CIRCLE,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
@@ -26,7 +26,7 @@ from display.utilities.cima_task_type_definitions import (
     LIMITED_FUEL_TURNPOINT_HUNT,
     PRECISION_NAVIGATION,
 )
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
+from display.utilities.task_types import ANR_CORRIDOR, PRECISION
 
 TRACK_FEATURE = {
     "type": "Feature",

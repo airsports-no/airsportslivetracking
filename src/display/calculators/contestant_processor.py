@@ -18,7 +18,7 @@ from display.calculators.gate_calculator import (
     TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE,
 )
 from display.calculators.update_score_message import UpdateScoreMessage
-from display.utilities.cima_task_type_definitions import get_cima_fixed_scale_factor
+from display.utilities.task_types import find_task_type_for
 from display.models.contestant_track import ContestantTrack
 from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
 from display.utilities.calculator_termination_utilities import is_termination_requested
@@ -52,7 +52,7 @@ MIN_DISTANCE_FOR_BEARING_M = 5.0
 logger = logging.getLogger(__name__)
 
 # 2.A6/2.B2 (turnpoint hunt) are the only CIMA subtypes using an ADDITIVE-from-zero scoring
-# model rather than "start at a ceiling, subtract" - see cima_task_type_definitions.
+# model rather than "start at a ceiling, subtract" - see task_types.TaskTypeDefinition.scoring_baseline.
 # CIMA_SCORING_BASELINE's docstring for the full rationale. Every other desc score_type in the
 # codebase is a penalty magnitude and must still be sign-flipped-and-subtracted; these two
 # achievement score_types (gate_calculator.py's _score_turnpoint_hunt_target_value and
@@ -840,7 +840,7 @@ class ContestantProcessor:
     def _get_cima_achievement_qmax(self) -> Optional[float]:
         # Same lazy-cache rationale as _get_cima_gate_qmax above. Starts the achievement
         # component at 0, not scorecard.initial_score - 2.A6/2.B2 climb FROM 0, they don't
-        # start at a ceiling (see cima_task_type_definitions.CIMA_SCORING_BASELINE).
+        # start at a ceiling (see TaskTypeDefinition.scoring_baseline).
         if not hasattr(self, "_cima_achievement_qmax_cache"):
             self._cima_achievement_qmax_cache = get_cima_achievement_qmax(self.contestant)
             self._cima_achievement_component = 0.0
@@ -936,12 +936,13 @@ class ContestantProcessor:
                     f"{self._cima_achievement_qmax_cache:.15g} -> {normalized_delta:+.1f} pts]"
                 )
                 score = normalized_delta
-        # ANR_CATALOGUE only (see cima_task_type_definitions.CIMA_FIXED_SCALE_FACTORS): unlike
+        # Task types with a fixed_scale_factor only (2.A8): unlike
         # the component-specific normalizations above, this applies uniformly to every score_type
         # (backtracking/circling is one of ANR's own summed penalty terms, not excluded the way
         # it is for 2.A1-2.A5), after the sign flip and the (mutually exclusive, since ANR isn't
         # gate/achievement-Qmax-eligible) component normalizations above.
-        scale_factor = get_cima_fixed_scale_factor(self.contestant.navigation_task.effective_task_subtype)
+        task_type = find_task_type_for(self.contestant.navigation_task)
+        scale_factor = task_type.fixed_scale_factor if task_type else None
         if scale_factor is not None:
             scaled_score = score * scale_factor
             update_score_message.message += f" [x{scale_factor:g} scale: {score:+.1f} -> {scaled_score:+.1f} pts]"

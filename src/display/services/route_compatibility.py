@@ -19,15 +19,15 @@ primitives computed here.
 
 from django.core.exceptions import ValidationError
 
-from display.utilities.cima_task_type_definitions import (
-    CONTRACT_NAVIGATION_TIME_CONTROLS,
-    LEGACY_DEFAULT_SUBTYPE_BY_FAMILY,
-    LIMITED_FUEL_TURNPOINT_HUNT,
-    TASK_SUBTYPE_DEFINITIONS,
-    TURNPOINT_HUNT,
-    get_task_subtype_definition,
-)
 from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT
+from display.utilities.task_types import (
+    STRUCTURE_CHECK_CONTRACT_NAVIGATION,
+    STRUCTURE_CHECK_TURNPOINT_HUNT,
+    TASK_TYPE_REGISTRY,
+    default_task_type_key_for_family,
+    find_task_type,
+    get_task_type,
+)
 
 # Bump whenever the ruleset (required/forbidden primitives, or the primitive extraction itself)
 # changes in a way that could change the outcome for an already-saved route, so callers can tell a
@@ -101,8 +101,8 @@ def get_blocking_reasons(primitives: dict[str, list], subtype_key: str, editable
     compatible.
 
     ``editable_route``, when given, additionally applies subtype-specific structural rules beyond
-    mere primitive presence (currently just turnpoint_hunt_structural_errors, for
-    TURNPOINT_HUNT/LIMITED_FUEL_TURNPOINT_HUNT) - this is the single canonical compatibility
+    mere primitive presence (the task type's route_structure_check: turnpoint hunt and contract
+    navigation) - this is the single canonical compatibility
     calculation, consulted by get_compatible_task_subtypes (route editor compatibility API,
     persisted EditableRoute.compatible_task_types, task-template picker) and
     assert_route_compatible_with_task_type (the API creation path) alike, so they can't drift
@@ -110,7 +110,7 @@ def get_blocking_reasons(primitives: dict[str, list], subtype_key: str, editable
     that only have primitives on hand keep working; every caller that has the route available
     should pass it.
     """
-    definition = TASK_SUBTYPE_DEFINITIONS.get(subtype_key)
+    definition = find_task_type(subtype_key)
     if definition is None:
         return [f"Unknown task subtype '{subtype_key}'"]
     reasons = []
@@ -120,10 +120,9 @@ def get_blocking_reasons(primitives: dict[str, list], subtype_key: str, editable
     for primitive in definition.forbidden_primitives:
         if primitives.get(primitive):
             reasons.append(f"Route feature not allowed for this task type: {primitive}")
-    if subtype_key in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
-        reasons = reasons + turnpoint_hunt_structural_errors(editable_route, primitives)
-    if subtype_key == CONTRACT_NAVIGATION_TIME_CONTROLS:
-        reasons = reasons + contract_navigation_structural_errors(editable_route, primitives)
+    structure_check = _STRUCTURAL_CHECKS.get(definition.route_structure_check)
+    if structure_check is not None:
+        reasons = reasons + structure_check(editable_route, primitives)
     return reasons
 
 
@@ -134,7 +133,7 @@ def get_compatible_task_subtypes(editable_route) -> list[str]:
     filter task type / route choices against.
     """
     primitives = extract_route_primitives(editable_route)
-    return [key for key in TASK_SUBTYPE_DEFINITIONS if not get_blocking_reasons(primitives, key, editable_route)]
+    return [key for key in TASK_TYPE_REGISTRY if not get_blocking_reasons(primitives, key, editable_route)]
 
 
 def infer_intended_task_subtypes(editable_route, active_template_subtype: str | None = None) -> list[str]:
@@ -155,7 +154,7 @@ def infer_intended_task_subtypes(editable_route, active_template_subtype: str | 
 def effective_subtype_key(task_type: str, task_subtype: str | None) -> str:
     """The task subtype key the compatibility ruleset should be checked against: the explicit
     CIMA subtype if one was chosen, otherwise the legacy shim for the coarse task_type family."""
-    return task_subtype or LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(task_type, task_type)
+    return task_subtype or default_task_type_key_for_family(task_type) or task_type
 
 
 def no_compatible_routes_message(subtype_key: str) -> str:
@@ -163,7 +162,7 @@ def no_compatible_routes_message(subtype_key: str) -> str:
     Explain why the internal_route/editable_route picker is empty for the already-chosen task
     type, instead of just rendering an empty dropdown with no explanation.
     """
-    definition = get_task_subtype_definition(subtype_key)
+    definition = get_task_type(subtype_key)
     parts = []
     if definition.required_primitives:
         parts.append("requires: " + ", ".join(definition.required_primitives))
@@ -260,3 +259,10 @@ def assert_route_compatible_with_task_type(editable_route, task_type: str, task_
         raise ValidationError(
             f"Route '{editable_route.name}' is not compatible with the selected task type: " + "; ".join(reasons)
         )
+
+
+# TaskTypeDefinition.route_structure_check -> the structural check get_blocking_reasons runs beyond primitive presence.
+_STRUCTURAL_CHECKS = {
+    STRUCTURE_CHECK_TURNPOINT_HUNT: turnpoint_hunt_structural_errors,
+    STRUCTURE_CHECK_CONTRACT_NAVIGATION: contract_navigation_structural_errors,
+}

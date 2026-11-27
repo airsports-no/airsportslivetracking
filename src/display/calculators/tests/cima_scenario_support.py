@@ -12,7 +12,7 @@ from django.test import TestCase
 
 from display.calculators.tests import catalogue_oracle as oracle
 from display.calculators.tests.flight_simulator import Crossing
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION
 
 # Hidden gates on the standard route (SP 6000 m east, TP1 5000 m south-east, TP2 6000 m east, FP): two on each of the
 # last two legs, none on the first, which is left clear for backtracking scenarios (backtracking is ignored close to a

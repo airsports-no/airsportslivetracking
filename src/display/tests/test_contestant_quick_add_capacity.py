@@ -9,7 +9,7 @@ from django.core.exceptions import ValidationError
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Contest, NavigationTask, Route, Scorecard, ContestTeam, Team, Crew, Person, Aeroplane, Contestant, EditableRoute
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.task_types import CONTRACT_NAVIGATION_TIME_CONTROLS
 
 
 class TestContestantQuickAddCapacity(TestCase):

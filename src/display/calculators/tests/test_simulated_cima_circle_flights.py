@@ -27,7 +27,7 @@ from display.calculators.tests.flight_simulator import (
     circle_route_geojson,
     local_point,
 )
-from display.utilities.cima_task_type_definitions import CIRCLE
+from display.utilities.task_types import CIRCLE
 
 CENTRE = (59.895825678413914, 10.624465942382812)
 START_M = (-1000.0, 0.0)  # SP, west of CM, the flight goes east

@@ -34,7 +34,7 @@ from display.models import (
 from display.tests.test_curve_precision_navigation_declaration_ui import (
     CurvePrecisionNavigationDeclarationTestBase,
 )
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     KNOWN_CIRCUIT,
     LIMITED_FUEL_TURNPOINT_HUNT,
     PRECISION_NAVIGATION,

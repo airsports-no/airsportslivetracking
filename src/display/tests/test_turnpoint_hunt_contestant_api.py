@@ -19,7 +19,7 @@ from display.models import (
     Team,
     Contestant,
 )
-from display.utilities.cima_task_type_definitions import KNOWN_CIRCUIT, LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
+from display.utilities.task_types import KNOWN_CIRCUIT, LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
 from utilities.mock_utilities import TraccarMock
 
 

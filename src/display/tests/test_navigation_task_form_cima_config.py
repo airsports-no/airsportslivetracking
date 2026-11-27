@@ -7,7 +7,7 @@ from guardian.shortcuts import assign_perm
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.forms import NavigationTaskForm
 from display.models import Contest, EditableRoute, NavigationTask, Scorecard
-from display.utilities.cima_task_type_definitions import CIRCLE, DURATION
+from display.utilities.task_types import CIRCLE, DURATION
 
 
 class TestNavigationTaskFormCimaConfig(TestCase):

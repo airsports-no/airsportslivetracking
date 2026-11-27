@@ -1288,7 +1288,7 @@ def build_task(
     """
     from display.default_scorecards.create_scorecards import create_scorecards
     from display.models import Contest, EditableRoute, NavigationTask, Scorecard
-    from display.utilities.navigation_task_type_definitions import PRECISION
+    from display.utilities.task_types import PRECISION
     from utilities.mock_utilities import TraccarMock
 
     task_type = task_type or PRECISION

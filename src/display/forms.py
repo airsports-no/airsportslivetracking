@@ -46,19 +46,14 @@ from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLIC
 from display.models.user_uploaded_map import validate_file_size
 from display.models.my_user import MyUser
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
-from display.utilities.cima_task_type_definitions import (
-    ANR_CATALOGUE,
-    CONTRACT_NAVIGATION_TIME_CONTROLS,
-    CURVE_NAVIGATION_TIME_ESTIMATION,
-    DURATION,
-    LIMITED_FUEL_TURNPOINT_HUNT,
-    PRECISION_NAVIGATION,
-    TURNPOINT_HUNT,
-    CIRCLE,
-    get_task_subtypes_for_family,
-)
 from display.services.task_type_visibility import can_user_see_task_subtype
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, NAVIGATION_TASK_TYPES, PRECISION
+from display.utilities.task_types import (
+    ANR_CORRIDOR,
+    FAMILY_CHOICES,
+    PRECISION,
+    stored_task_type,
+    task_types_in_family,
+)
 
 FILE_TYPE_CSV = "csv"
 FILE_TYPE_FLIGHTCONTEST_GPX = "fcgpx"
@@ -328,12 +323,12 @@ class NavigationTaskForm(forms.ModelForm):
             self.fields["original_scorecard"].disabled = True
 
         subtype_choices = [("", "---------")]
-        family_labels = dict(NAVIGATION_TASK_TYPES)
+        family_labels = dict(FAMILY_CHOICES)
         subtype_families = [task_family] if task_family else [PRECISION, ANR_CORRIDOR]
         for family in subtype_families:
             family_subtypes = [
                 (item.key, item.display_name)
-                for item in get_task_subtypes_for_family(family)
+                for item in task_types_in_family(family)
                 if can_user_see_task_subtype(user, task_type=family, task_subtype=item.key)
             ]
             if family_subtypes:
@@ -840,7 +835,7 @@ class ScorecardForm(forms.ModelForm):
                 existing_block_titles.add(block[0])
 
         navigation_task = getattr(self.instance, "navigation_task_override", None)
-        if navigation_task and navigation_task.task_subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
+        if navigation_task and stored_task_type(navigation_task).scores_turnpoint_hunt_targets:
             _append_block_once(
                 [
                     "Turnpoint hunt configuration",
@@ -850,7 +845,7 @@ class ScorecardForm(forms.ModelForm):
                     "fuel_deadline_penalty",
                 ]
             )
-        if navigation_task and navigation_task.task_subtype == ANR_CATALOGUE:
+        if navigation_task and stored_task_type(navigation_task).has_auxiliary_route_checks:
             _append_block_once(
                 [
                     "ANR catalogue configuration",
@@ -858,7 +853,7 @@ class ScorecardForm(forms.ModelForm):
                     "anr_route_from_fp_penalty",
                 ]
             )
-        if navigation_task and navigation_task.task_subtype == DURATION:
+        if navigation_task and stored_task_type(navigation_task).scores_duration:
             _append_block_once(
                 [
                     "Duration configuration",
@@ -866,7 +861,7 @@ class ScorecardForm(forms.ModelForm):
                     "duration_residual_fuel_required",
                 ]
             )
-        if navigation_task and navigation_task.task_subtype == CIRCLE:
+        if navigation_task and stored_task_type(navigation_task).scores_circle:
             _append_block_once(
                 [
                     "Circle configuration",

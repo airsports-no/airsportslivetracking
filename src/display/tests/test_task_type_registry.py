@@ -5,24 +5,27 @@ old per-module tables had, so an edit of the registry that changes behaviour is 
 
 from django.test import SimpleTestCase
 
-from display.utilities import cima_task_type_definitions as cima
-from display.utilities.navigation_task_type_definitions import DEFAULT_SCORECARD_SHORTCUT_NAMES, NAVIGATION_TASK_TYPES
-from display.utilities.task_type_registry import DEFAULT_CALCULATOR_BUILDER, TASK_TYPES
 from display.utilities.task_types import (
+    DEFAULT_SCORECARD_SHORTCUT_NAMES,
+    FAMILY_CHOICES,
     RULE_SET_ANNEX_9,
     RULE_SET_CIMA_ANNEX_4,
     RULE_SET_LEGACY,
     RULE_SETS,
     TASK_TYPE_REGISTRY,
+    TASK_TYPE_SCORECARD_SHORTCUT_NAMES,
+    UNSPECIFIED_TASK_TYPE,
     UnknownTaskType,
     default_task_type_for_family,
     find_task_type,
+    get_calculators_for_task,
     get_task_type,
+    stored_task_type,
     task_type_for,
     task_types_in_rule_set,
 )
 
-# Field order of TaskSubtypeDefinition: key, display_name, coarse_family, requires_contestant_configuration,
+# Field order of the first definition table: key, display_name, coarse_family, requires_contestant_configuration,
 # required_primitives, forbidden_primitives, declaration_schema_key, scoring_modules, scorecard_shortcut_name.
 _DEFINITION_FIELDS = (
     "key",
@@ -245,13 +248,17 @@ def _contestant(family, subtype=None):
     return contestant
 
 
+def _task(family, subtype=None):
+    return _contestant(family, subtype).navigation_task
+
+
 class TestRegistryResolvesStoredValues(SimpleTestCase):
     def test_every_previous_subtype_resolves(self):
         for key in PREVIOUS_DEFINITIONS:
             self.assertEqual(get_task_type(key).key, key)
 
     def test_every_family_resolves_to_a_default_task_type(self):
-        for family, _label in NAVIGATION_TASK_TYPES:
+        for family, _label in FAMILY_CHOICES:
             definition = default_task_type_for_family(family)
             self.assertIsNotNone(definition, family)
             self.assertEqual(definition.coarse_family, family)
@@ -294,40 +301,57 @@ class TestRegistryResolvesStoredValues(SimpleTestCase):
         self.assertIsNone(task_type_for(task))
 
 
-class TestDerivedTablesEqualPreviousContents(SimpleTestCase):
+class TestRegistryHoldsPreviousContents(SimpleTestCase):
     def test_subtype_definitions(self):
         self.assertEqual(
-            {key: tuple(getattr(d, f) for f in _DEFINITION_FIELDS) for key, d in cima.TASK_SUBTYPE_DEFINITIONS.items()},
+            {key: tuple(getattr(d, f) for f in _DEFINITION_FIELDS) for key, d in TASK_TYPE_REGISTRY.items()},
             PREVIOUS_DEFINITIONS,
         )
-        self.assertEqual(list(cima.TASK_SUBTYPE_DEFINITIONS), list(PREVIOUS_DEFINITIONS))
+        self.assertEqual(list(TASK_TYPE_REGISTRY), list(PREVIOUS_DEFINITIONS))
 
     def test_no_backbone(self):
-        self.assertEqual(set(cima.NO_BACKBONE_TASK_SUBTYPES), set(PREVIOUS_NO_BACKBONE))
-        self.assertIsInstance(cima.NO_BACKBONE_TASK_SUBTYPES, tuple)
+        self.assertEqual({key for key, d in TASK_TYPE_REGISTRY.items() if not d.has_backbone}, set(PREVIOUS_NO_BACKBONE))
 
     def test_absolute_time(self):
-        self.assertEqual(cima.ABSOLUTE_TIME_DECLARATION_SUBTYPES, PREVIOUS_ABSOLUTE_TIME)
+        self.assertEqual(
+            {
+                key: d.absolute_time_declaration_key
+                for key, d in TASK_TYPE_REGISTRY.items()
+                if d.absolute_time_declaration_key is not None
+            },
+            PREVIOUS_ABSOLUTE_TIME,
+        )
 
     def test_declaration_required(self):
-        self.assertEqual(cima.DECLARATION_REQUIRED_SUBTYPES, PREVIOUS_DECLARATION_REQUIRED)
+        self.assertEqual({key for key, d in TASK_TYPE_REGISTRY.items() if d.declaration_required}, PREVIOUS_DECLARATION_REQUIRED)
 
     def test_legacy_defaults(self):
-        self.assertEqual(cima.LEGACY_DEFAULT_SUBTYPE_BY_FAMILY, PREVIOUS_LEGACY_DEFAULTS)
+        self.assertEqual({d.coarse_family: d.key for d in TASK_TYPE_REGISTRY.values() if d.default_for_family}, PREVIOUS_LEGACY_DEFAULTS)
+
+    def test_legacy_task_types_are_the_ones_with_legacy_keys(self):
+        self.assertEqual({key for key, d in TASK_TYPE_REGISTRY.items() if d.is_legacy}, set(PREVIOUS_LEGACY_DEFAULTS.values()))
+        for key, definition in TASK_TYPE_REGISTRY.items():
+            self.assertEqual(definition.is_legacy, key.startswith("legacy_"), key)
 
     def test_scoring_baseline_and_scale_factors(self):
-        self.assertEqual(cima.CIMA_SCORING_BASELINE, PREVIOUS_SCORING_BASELINE)
-        self.assertEqual(cima.CIMA_FIXED_SCALE_FACTORS, PREVIOUS_FIXED_SCALE_FACTORS)
+        self.assertEqual(
+            {key: d.scoring_baseline for key, d in TASK_TYPE_REGISTRY.items() if d.scoring_baseline is not None},
+            PREVIOUS_SCORING_BASELINE,
+        )
+        self.assertEqual(
+            {key: d.fixed_scale_factor for key, d in TASK_TYPE_REGISTRY.items() if d.fixed_scale_factor is not None},
+            PREVIOUS_FIXED_SCALE_FACTORS,
+        )
 
     def test_subtype_scorecard_shortcut_names(self):
-        self.assertEqual(set(cima.SUBTYPE_SCORECARD_SHORTCUT_NAMES), PREVIOUS_SUBTYPE_SHORTCUTS)
+        self.assertEqual(set(TASK_TYPE_SCORECARD_SHORTCUT_NAMES), PREVIOUS_SUBTYPE_SHORTCUTS)
 
     def test_default_scorecard_shortcut_names(self):
         self.assertEqual(DEFAULT_SCORECARD_SHORTCUT_NAMES, {"airsports": "Air Sports Race 2025"})
 
     def test_navigation_task_types(self):
         self.assertEqual(
-            NAVIGATION_TASK_TYPES,
+            FAMILY_CHOICES,
             (
                 ("precision", "Precision"),
                 ("anr_corridor", "ANR Corridor"),
@@ -339,10 +363,8 @@ class TestDerivedTablesEqualPreviousContents(SimpleTestCase):
         )
 
     def test_qmax_eligibility(self):
-        from display.calculators import cima_score_normalization as normalization
-
         self.assertEqual(
-            normalization._QMAX_ELIGIBLE_SUBTYPES,
+            {key for key, d in TASK_TYPE_REGISTRY.items() if d.gate_qmax_eligible},
             {
                 "curve_navigation_time_estimation",
                 "precision_navigation",
@@ -352,8 +374,75 @@ class TestDerivedTablesEqualPreviousContents(SimpleTestCase):
             },
         )
         self.assertEqual(
-            normalization._ACHIEVEMENT_QMAX_ELIGIBLE_SUBTYPES, {"turnpoint_hunt", "limited_fuel_turnpoint_hunt"}
+            {key for key, d in TASK_TYPE_REGISTRY.items() if d.achievement_qmax_eligible},
+            {"turnpoint_hunt", "limited_fuel_turnpoint_hunt"},
         )
+
+    def test_behaviour_flags(self):
+        def having(field):
+            return {key for key, d in TASK_TYPE_REGISTRY.items() if getattr(d, field)}
+
+        self.assertEqual(having("repeated_hidden_gate_crossing_invalidates"), {"curve_navigation_time_estimation"})
+        self.assertEqual(having("scores_turnpoint_hunt_targets"), {"turnpoint_hunt", "limited_fuel_turnpoint_hunt"})
+        self.assertEqual(having("has_fuel_deadline"), {"limited_fuel_turnpoint_hunt"})
+        self.assertEqual(having("scores_speed_keeping"), {"known_circuit"})
+        self.assertEqual(having("has_post_mp_rule"), {"contract_navigation_time_controls"})
+        self.assertEqual(having("gate_times_from_declared_period"), {"contract_navigation_time_controls"})
+        self.assertEqual(having("general_map_shows_backbone_only"), {"contract_navigation_time_controls"})
+        self.assertEqual(having("has_auxiliary_route_checks"), {"anr_catalogue"})
+        self.assertEqual(having("scores_takeoff_timing"), {"anr_catalogue"})
+        self.assertEqual(having("has_unknown_legs"), {"unknown_legs"})
+        self.assertEqual(having("observation_photos_award_points"), {"known_circuit", "unknown_legs"})
+        self.assertEqual(having("scores_circle"), {"circle"})
+        self.assertEqual(having("scores_duration"), {"duration"})
+        self.assertEqual(
+            {key for key, d in TASK_TYPE_REGISTRY.items() if not d.has_backtracking_detection},
+            {"circle", "legacy_landing", "legacy_poker"},
+        )
+
+    def test_contestant_strategies_and_structure_checks(self):
+        self.assertEqual(
+            {key: d.contestant_compiler_strategy.rsplit(".", 1)[1] for key, d in TASK_TYPE_REGISTRY.items() if d.contestant_compiler_strategy},
+            {
+                "curve_navigation_time_estimation": "CurveOrPrecisionNavigationStrategy",
+                "precision_navigation": "CurveOrPrecisionNavigationStrategy",
+                "contract_navigation_time_controls": "ContractNavigationStrategy",
+                "turnpoint_hunt": "TurnpointHuntStrategy",
+                "limited_fuel_turnpoint_hunt": "TurnpointHuntStrategy",
+                "duration": "DurationStrategy",
+                "circle": "CircleStrategy",
+                "known_circuit": "KnownCircuitStrategy",
+                "unknown_legs": "UnknownLegsStrategy",
+            },
+        )
+        for definition in TASK_TYPE_REGISTRY.values():
+            if definition.contestant_compiler_strategy:
+                from django.utils.module_loading import import_string
+
+                import_string(definition.contestant_compiler_strategy)
+        self.assertEqual(
+            {key: d.route_structure_check for key, d in TASK_TYPE_REGISTRY.items() if d.route_structure_check},
+            {
+                "precision_navigation": "precision_navigation",
+                "contract_navigation_time_controls": "contract_navigation",
+                "turnpoint_hunt": "turnpoint_hunt",
+                "limited_fuel_turnpoint_hunt": "turnpoint_hunt",
+                "unknown_legs": "unknown_legs",
+            },
+        )
+
+    def test_gate_types_without_backbone_exist_exactly_for_task_types_without_backbone(self):
+        for key, definition in TASK_TYPE_REGISTRY.items():
+            self.assertEqual(bool(definition.gate_types_without_backbone), not definition.has_backbone, key)
+
+    def test_unspecified_task_type_does_nothing_special(self):
+        self.assertIsNone(find_task_type(UNSPECIFIED_TASK_TYPE.key))
+        for task in (_task("precision"), _task("precision", ""), _task("precision", "nonsense")):
+            self.assertIs(stored_task_type(task), UNSPECIFIED_TASK_TYPE)
+        self.assertEqual(stored_task_type(_task("precision", "circle")).key, "circle")
+        self.assertTrue(UNSPECIFIED_TASK_TYPE.has_backbone)
+        self.assertFalse(UNSPECIFIED_TASK_TYPE.declaration_required)
+        self.assertIsNone(UNSPECIFIED_TASK_TYPE.scoring_baseline)
 
 
 class TestCalculatorPipelines(SimpleTestCase):
@@ -392,7 +481,7 @@ class TestCalculatorPipelines(SimpleTestCase):
     def test_precision(self):
         expected = self._classes("Gate", "TakeoffLanding", "Backtracking", "ProhibitedZone", "PenaltyZone")
         self.assertEqual(_pipeline("legacy_precision"), expected)
-        self.assertEqual(TASK_TYPES["precision"].build_calculators(_contestant("precision")), expected)
+        self.assertEqual(get_calculators_for_task(_task("precision")), expected)
         for key in (
             "curve_navigation_time_estimation",
             "precision_navigation",
@@ -403,19 +492,19 @@ class TestCalculatorPipelines(SimpleTestCase):
             "limited_fuel_turnpoint_hunt",
         ):
             self.assertEqual(_pipeline(key), expected, key)
-            self.assertEqual(TASK_TYPES["precision"].build_calculators(_contestant("precision", key)), expected)
+            self.assertEqual(get_calculators_for_task(_task("precision", key)), expected)
 
     def test_circle(self):
         expected = self._classes("Gate", "Circle", "TakeoffLanding", "ProhibitedZone", "PenaltyZone")
         self.assertEqual(_pipeline("circle"), expected)
-        self.assertEqual(TASK_TYPES["precision"].build_calculators(_contestant("precision", "circle")), expected)
+        self.assertEqual(get_calculators_for_task(_task("precision", "circle")), expected)
 
     def test_duration(self):
         expected = self._classes(
             "Gate", "TakeoffLanding", "SpeedInferred", "Duration", "Backtracking", "ProhibitedZone", "PenaltyZone"
         )
         self.assertEqual(_pipeline("duration"), expected)
-        self.assertEqual(TASK_TYPES["precision"].build_calculators(_contestant("precision", "duration")), expected)
+        self.assertEqual(get_calculators_for_task(_task("precision", "duration")), expected)
 
     def test_anr_style(self):
         expected = self._classes("Gate", "TakeoffLanding", "Backtracking", "Anr", "ProhibitedZone", "PenaltyZone")
@@ -426,16 +515,16 @@ class TestCalculatorPipelines(SimpleTestCase):
             ("legacy_airsport_challenge", "airsportchallenge"),
         ):
             self.assertEqual(_pipeline(key), expected, key)
-            self.assertEqual(TASK_TYPES[family].build_calculators(_contestant(family)), expected)
+            self.assertEqual(get_calculators_for_task(_task(family)), expected)
 
     def test_landing_and_poker(self):
         self.assertEqual(_pipeline("legacy_landing"), self._classes("Landing"))
         self.assertEqual(_pipeline("legacy_poker"), self._classes("Poker", "ProhibitedZone", "PenaltyZone"))
-        self.assertEqual(TASK_TYPES["landing"].build_calculators(_contestant("landing")), self._classes("Landing"))
+        self.assertEqual(get_calculators_for_task(_task("landing")), self._classes("Landing"))
 
     def test_default_builder_for_unknown_family(self):
-        self.assertEqual(DEFAULT_CALCULATOR_BUILDER(_contestant("something")), self._classes("Gate"))
+        self.assertEqual(get_calculators_for_task(_task("something")), self._classes("Gate"))
 
     def test_subtype_of_another_family_is_ignored(self):
         expected = self._classes("Gate", "TakeoffLanding", "Backtracking", "ProhibitedZone", "PenaltyZone")
-        self.assertEqual(TASK_TYPES["precision"].build_calculators(_contestant("precision", "anr_catalogue")), expected)
+        self.assertEqual(get_calculators_for_task(_task("precision", "anr_catalogue")), expected)

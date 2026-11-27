@@ -10,9 +10,9 @@ from display.calculators.update_score_message import UpdateScoreMessage
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Aeroplane, Contest, Contestant, Crew, EditableRoute, NavigationTask, Person, Scorecard, Team
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import DURATION
+from display.utilities.task_types import DURATION
 from display.utilities.coordinate_utilities import Projector
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION
 from utilities.mock_utilities import TraccarMock
 
 

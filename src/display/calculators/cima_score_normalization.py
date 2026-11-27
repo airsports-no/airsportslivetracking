@@ -71,17 +71,17 @@ the existing flat per-event subtraction instead, unchanged from before this modu
   For 2.A4/2.A5 the photo/marker-placement component Qh IS part of Qmax (Vh per photo, see
   get_cima_observation_qmax in services/photo_observations.py), scored when the crew registers it.
 - 2.A7 (Circle) and 2.A8 (ANR): both use a FIXED (not route-dependent) Qmax - see
-  cima_task_type_definitions.get_cima_fixed_scale_factor for ANR's uniform half-scale; Circle's
+  TaskTypeDefinition.fixed_scale_factor for ANR's uniform half-scale; Circle's
   own Pmax=250 formula is already handled entirely inside circle_calculator.py.
 - 2.A6/2.B2 (Turnpoint hunt): a different formula shape (additive, not a "start at ceiling,
   subtract" ratio) with its own Qmax function - see get_cima_achievement_qmax below - not an
   extension of get_cima_gate_qmax, since GATE_SCORE_TYPE plays a different role there (a genuine,
   separate penalty bucket, not the thing being normalized).
 - Every other CIMA subtype (2.B3): hasn't had its achievement-vs-penalty semantics confirmed yet
-  (see cima_task_type_definitions.py's CIMA_SCORING_BASELINE docstring). Extending
+  (see TaskTypeDefinition.scoring_baseline). Extending
   get_cima_gate_qmax to a new subtype requires confirming its calculator(s) only ever emit
   GATE_SCORE_TYPE deficits the same way gate_calculator.py does for 2.A1-2.A5 - do not just add a
-  subtype to _QMAX_ELIGIBLE_SUBTYPES without checking that first.
+  task type to gate_qmax_eligible without checking that first.
 """
 
 from __future__ import annotations
@@ -90,13 +90,12 @@ import typing
 
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.utilities.gate_definitions import DUMMY, LANDING_GATE, TAKEOFF_GATE
-from display.utilities.task_types import TASK_TYPE_REGISTRY
+from display.utilities.task_types import find_task_type_for
 
 if typing.TYPE_CHECKING:
     from display.models import Contestant
 
-# See this module's docstring for why only these five, and why not e.g. 2.A6/2.B2.
-_QMAX_ELIGIBLE_SUBTYPES = frozenset(key for key, item in TASK_TYPE_REGISTRY.items() if item.gate_qmax_eligible)
+# See this module's docstring for why only the task types with gate_qmax_eligible, and why not e.g. 2.A6/2.B2.
 
 
 def _worst_case_penalty(scorecard, gate_type: str, *, gate_check: bool, time_check: bool) -> float:
@@ -122,11 +121,11 @@ def get_cima_gate_qmax(contestant: "Contestant") -> float | None:
     module docstring for what's excluded and why). Returns None for any subtype this
     normalization doesn't apply to yet, or for an effective route with no scoreable gates at all
     (e.g. every waypoint has both check flags off, or a mistakenly-empty route) - callers should
-    treat None as "leave the score as-is", the same convention used by
-    cima_task_type_definitions.get_cima_scoring_baseline.
+    treat None as "leave the score as-is", the same convention as TaskTypeDefinition.scoring_baseline.
     """
     navigation_task = contestant.navigation_task
-    if navigation_task.effective_task_subtype not in _QMAX_ELIGIBLE_SUBTYPES:
+    task_type = find_task_type_for(navigation_task)
+    if task_type is None or not task_type.gate_qmax_eligible:
         return None
 
     scorecard = navigation_task.scorecard
@@ -159,11 +158,6 @@ def get_cima_gate_qmax(contestant: "Contestant") -> float | None:
     return total if total > 0 else None
 
 
-_ACHIEVEMENT_QMAX_ELIGIBLE_SUBTYPES = frozenset(
-    key for key, item in TASK_TYPE_REGISTRY.items() if item.achievement_qmax_eligible
-)
-
-
 def get_cima_achievement_qmax(contestant: "Contestant") -> float | None:
     """
     2.A6/2.B2's achievement-side Qmax: the maximum possible sum of target values this
@@ -171,7 +165,7 @@ def get_cima_achievement_qmax(contestant: "Contestant") -> float | None:
     is already scoped to those, not every catalogue point the organizer ever placed) plus the
     scorecard's turnpoint_hunt_sequence_bonus if one is configured. This is independent of
     get_cima_gate_qmax/GATE_SCORE_TYPE deficits by design - see this module's docstring and
-    cima_task_type_definitions.CIMA_SCORING_BASELINE's comment on TURNPOINT_HUNT for why the two
+    the scoring_baseline comment on TURNPOINT_HUNT for why the two
     streams don't need reconciling.
 
     Returns None for any other subtype, or when there's nothing to normalize against yet (no
@@ -180,7 +174,8 @@ def get_cima_achievement_qmax(contestant: "Contestant") -> float | None:
     the same convention every other Qmax function in this module uses.
     """
     navigation_task = contestant.navigation_task
-    if navigation_task.effective_task_subtype not in _ACHIEVEMENT_QMAX_ELIGIBLE_SUBTYPES:
+    task_type = find_task_type_for(navigation_task)
+    if task_type is None or not task_type.achievement_qmax_eligible:
         return None
 
     config = getattr(contestant, "contestanttaskconfiguration", None)

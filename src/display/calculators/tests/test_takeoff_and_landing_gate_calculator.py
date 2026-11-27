@@ -6,7 +6,7 @@ from display.calculators.calculator import OrchestratorState, TakeoffPassedEvent
 from display.calculators.positions_and_gates import Gate, MultiGate
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.utilities.coordinate_utilities import Projector
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE
+from display.utilities.task_types import ANR_CATALOGUE
 
 class TestTakeoffAndLandingGateCalculator(TestCase):
     def setUp(self):

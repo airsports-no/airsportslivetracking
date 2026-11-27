@@ -26,7 +26,7 @@ from display.calculators.tests.flight_simulator import (
     local_point,
     runway_gate_feature,
 )
-from display.utilities.cima_task_type_definitions import DURATION
+from display.utilities.task_types import DURATION
 
 START = (60.0, 11.0)
 LANDING_ALONG_M = 18000.0

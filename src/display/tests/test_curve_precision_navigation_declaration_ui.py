@@ -30,7 +30,7 @@ from display.models import (
     Scorecard,
     Team,
 )
-from display.utilities.cima_task_type_definitions import CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION
+from display.utilities.task_types import CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION
 from utilities.mock_utilities import TraccarMock
 
 

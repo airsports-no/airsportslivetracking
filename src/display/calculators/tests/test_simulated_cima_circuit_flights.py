@@ -41,7 +41,7 @@ from display.calculators.tests.flight_simulator import (
     generate_track,
     precision_route_geojson,
 )
-from display.utilities.cima_task_type_definitions import KNOWN_CIRCUIT, UNKNOWN_LEGS
+from display.utilities.task_types import KNOWN_CIRCUIT, UNKNOWN_LEGS
 
 BACKTRACKING = [oracle.BACKTRACKING_PENALTY]
 TIME_GATES = ["SP", "TP1", "TP2", "FP"]

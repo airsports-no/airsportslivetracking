@@ -93,7 +93,7 @@ from display.services.contestant_persistence import (
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.route_compatibility import assert_route_compatible_with_task_type
 from display.services.task_compiler import TaskCompiler
-from display.utilities.cima_task_type_definitions import describe_task_subtype
+from display.utilities.task_types import describe_task_subtype, stored_task_type
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
@@ -2081,12 +2081,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
         Lets the frontend highlight contestants missing a required declaration - e.g. a regular
         ANR task never requires one, but turnpoint hunt/contract navigation/curve/precision
         navigation (CIMA task types) do, and ContestantTaskCompilerStrategy.validate_declaration
-        is a no-op for every other subtype. See DECLARATION_REQUIRED_SUBTYPES for
-        which subtypes require one.
+        is a no-op for every other subtype. See TaskTypeDefinition.declaration_required for
+        which task types require one.
         """
-        from display.utilities.cima_task_type_definitions import DECLARATION_REQUIRED_SUBTYPES
-
-        required = contestant.navigation_task.task_subtype in DECLARATION_REQUIRED_SUBTYPES
+        required = stored_task_type(contestant.navigation_task).declaration_required
         config = getattr(contestant, "contestanttaskconfiguration", None)
         complete = bool(config and config.is_valid)
         # Without this, a contestant who saved a declaration that's still invalid for a reason
@@ -2657,7 +2655,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
         subtype = attrs.get("task_subtype")
         original_scorecard = attrs.get("original_scorecard")
         if original_scorecard is not None:
-            from display.utilities.cima_task_type_definitions import validate_subtype_family_compatibility
+            from display.utilities.task_types import validate_subtype_family_compatibility
 
             try:
                 validate_subtype_family_compatibility(subtype, original_scorecard.calculator)
@@ -2745,7 +2743,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
         subtype = attrs.get("task_subtype")
         original_scorecard = attrs.get("original_scorecard")
         if original_scorecard is not None:
-            from display.utilities.cima_task_type_definitions import validate_subtype_family_compatibility
+            from display.utilities.task_types import validate_subtype_family_compatibility
 
             try:
                 validate_subtype_family_compatibility(subtype, original_scorecard.calculator)

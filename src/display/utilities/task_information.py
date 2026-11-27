@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     ANR_CATALOGUE,
     CIRCLE,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     CURVE_NAVIGATION_TIME_ESTIMATION,
     DURATION,
     KNOWN_CIRCUIT,
-    LEGACY_AIRSPORT_CHALLENGE,
     LEGACY_AIRSPORTS,
+    LEGACY_AIRSPORT_CHALLENGE,
     LEGACY_ANR_CORRIDOR,
     LEGACY_LANDING,
     LEGACY_POKER,
@@ -20,14 +20,7 @@ from display.utilities.cima_task_type_definitions import (
     TURNPOINT_HUNT,
     UNKNOWN_LEGS,
 )
-from display.utilities.navigation_task_type_definitions import (
-    AIRSPORTS,
-    AIRSPORT_CHALLENGE,
-    ANR_CORRIDOR,
-    LANDING,
-    POKER,
-    PRECISION,
-)
+from display.utilities.task_types import AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, LANDING, POKER, PRECISION
 
 
 FAMILY_DISPLAY_NAMES = {

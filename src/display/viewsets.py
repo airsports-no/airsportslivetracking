@@ -252,8 +252,12 @@ from display.tasks import (
 )
 from display.utilities.calculator_running_utilities import is_calculator_running, is_dispatch_pending
 from display.utilities.calculator_termination_utilities import cancel_termination_request
-from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS, scorecard_suits_task_subtype
-from display.utilities.navigation_task_type_definitions import DEFAULT_SCORECARD_SHORTCUT_NAMES
+from display.utilities.task_types import (
+    DEFAULT_SCORECARD_SHORTCUT_NAMES,
+    TASK_TYPE_REGISTRY,
+    scorecard_suits_task_subtype,
+    stored_task_type,
+)
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map import settings
@@ -910,7 +914,7 @@ class EditableRouteViewSet(ModelViewSet):
         primitives = extract_route_primitives(unsaved_route)
         subtypes = []
         compatible_task_types = []
-        for definition in TASK_SUBTYPE_DEFINITIONS.values():
+        for definition in TASK_TYPE_REGISTRY.values():
             missing_reasons = get_blocking_reasons(primitives, definition.key, unsaved_route)
             if not missing_reasons:
                 compatible_task_types.append(definition.key)
@@ -918,7 +922,7 @@ class EditableRouteViewSet(ModelViewSet):
                 {
                     "key": definition.key,
                     "display_name": definition.display_name,
-                    "group": "Legacy" if definition.key.startswith("legacy_") else "CIMA",
+                    "group": "Legacy" if definition.is_legacy else "CIMA",
                     "coarse_family": definition.coarse_family,
                     "compatible": not missing_reasons,
                     "missing_reasons": missing_reasons,
@@ -2292,7 +2296,7 @@ class NavigationTaskViewSet(DeleteWhileCalculatorsRunMixin, ModelViewSet):
                 contestant = navigation_task.contestant_set.get(pk=contestant_id)
             except Contestant.DoesNotExist:
                 raise ValidationError({"contestant": "Contestant not found for this navigation task."})
-            if navigation_task.task_subtype in {"known_circuit", "unknown_legs"}:
+            if stored_task_type(navigation_task).observation_photos_award_points:
                 # A crew's photos on a 2.A4/2.A5 task are the observation photos, not the route's waypoint photos
                 names = get_observation_photo_names(navigation_task)
                 photos = [photo for photo in photos if photo.name in names]

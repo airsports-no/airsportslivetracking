@@ -8,14 +8,6 @@ from display.services.route_compatibility import (
     extract_route_primitives,
     turnpoint_hunt_structural_errors,
 )
-from display.utilities.cima_task_type_definitions import (
-    CONTRACT_NAVIGATION_TIME_CONTROLS,
-    LIMITED_FUEL_TURNPOINT_HUNT,
-    PRECISION_NAVIGATION,
-    TURNPOINT_HUNT,
-    UNKNOWN_LEGS,
-    get_task_subtype_definition,
-)
 from display.utilities.gate_definitions import (
     DUMMY,
     FINISHPOINT,
@@ -25,10 +17,27 @@ from display.utilities.gate_definitions import (
     UNKNOWN_LEG,
 )
 
+from display.utilities.task_types import (
+    STRUCTURE_CHECK_CONTRACT_NAVIGATION,
+    STRUCTURE_CHECK_PRECISION_NAVIGATION,
+    STRUCTURE_CHECK_TURNPOINT_HUNT,
+    STRUCTURE_CHECK_UNKNOWN_LEGS,
+    find_task_type,
+    get_task_type,
+)
+
 TASK_COMPILER_SIGNATURE_VERSION = 3
 
 
 class TaskCompiler:
+    # TaskTypeDefinition.route_structure_check -> the method running it.
+    _STRUCTURE_VALIDATORS = {
+        STRUCTURE_CHECK_CONTRACT_NAVIGATION: "_validate_contract_navigation_structure",
+        STRUCTURE_CHECK_PRECISION_NAVIGATION: "_validate_precision_navigation_structure",
+        STRUCTURE_CHECK_TURNPOINT_HUNT: "_validate_turnpoint_hunt_structure",
+        STRUCTURE_CHECK_UNKNOWN_LEGS: "_validate_unknown_legs_structure",
+    }
+
     def __init__(self, navigation_task):
         self.navigation_task = navigation_task
 
@@ -105,7 +114,7 @@ class TaskCompiler:
         subtype = self._get_effective_task_subtype()
         if not subtype:
             return []
-        definition = get_task_subtype_definition(str(subtype))
+        definition = get_task_type(str(subtype))
         errors = []
         # required_primitives only checks authored primitive presence. Subtype-
         # specific structure rules (for example SP/MP/FP ordering) are layered
@@ -114,14 +123,9 @@ class TaskCompiler:
         for primitive in definition.required_primitives:
             if not primitives.get(primitive):
                 errors.append(f"Missing required primitive: {primitive}")
-        if subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
-            errors.extend(self._validate_contract_navigation_structure(primitives))
-        if subtype == PRECISION_NAVIGATION:
-            errors.extend(self._validate_precision_navigation_structure(primitives))
-        if subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
-            errors.extend(self._validate_turnpoint_hunt_structure(primitives))
-        if subtype == UNKNOWN_LEGS:
-            errors.extend(self._validate_unknown_legs_structure(primitives))
+        if definition.route_structure_check:
+            validator = getattr(self, self._STRUCTURE_VALIDATORS[definition.route_structure_check])
+            errors.extend(validator(primitives))
         return errors
 
     def _validate_precision_navigation_structure(self, primitives: dict) -> list[str]:
@@ -377,7 +381,8 @@ class TaskCompiler:
         }
 
     def _build_subtype_payload(self, primitives: dict) -> dict:
-        if self._get_effective_task_subtype() == UNKNOWN_LEGS:
+        task_type = find_task_type(self._get_effective_task_subtype())
+        if task_type is not None and task_type.has_unknown_legs:
             return self._build_unknown_legs_compiled_payload()
         return {}
 

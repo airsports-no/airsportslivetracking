@@ -1,7 +1,7 @@
 """
 Tests for schedule_and_create_contestants_navigation_tasks' flight-duration computation for task
 types with no route backbone (2.A6 Turnpoint hunt / 2.B2 Limited fuel turnpoint hunt explicitly
-forbid one - see cima_task_type_definitions.py). calculate_and_get_relative_gate_times correctly
+forbid one - see TaskTypeDefinition.has_backbone). calculate_and_get_relative_gate_times correctly
 returns [] for such a route (route.waypoints is empty), but the scheduler used to assume
 gate_times was always non-empty and crashed with IndexError on gate_times[-1].
 """
@@ -26,7 +26,7 @@ from display.models import (
     Scorecard,
     Team,
 )
-from display.utilities.cima_task_type_definitions import TURNPOINT_HUNT
+from display.utilities.task_types import TURNPOINT_HUNT
 from utilities.mock_utilities import TraccarMock
 
 

@@ -6,7 +6,7 @@ if TYPE_CHECKING:
 
 from display.calculators.orchestrator import Orchestrator
 from display.models import Contestant
-from display.utilities.task_type_registry import DEFAULT_CALCULATOR_BUILDER, TASK_TYPES
+from display.utilities.task_types import get_calculators_for_task
 
 
 def calculator_factory(
@@ -15,12 +15,10 @@ def calculator_factory(
     live_processing: bool = True,
     projector: Optional["Projector"] = None,
 ) -> "Orchestrator":
-    spec = TASK_TYPES.get(contestant.navigation_task.scorecard.calculator)
-    build_calculators = spec.build_calculators if spec else DEFAULT_CALCULATOR_BUILDER
     return Orchestrator(
         contestant,
         score_processing_queue,
-        build_calculators(contestant),
+        get_calculators_for_task(contestant.navigation_task),
         live_processing=live_processing,
         projector=projector,
     )

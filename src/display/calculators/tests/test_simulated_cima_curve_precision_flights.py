@@ -36,7 +36,7 @@ from display.calculators.tests.flight_simulator import (
     build_task,
     precision_route_geojson,
 )
-from display.utilities.cima_task_type_definitions import CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION
+from display.utilities.task_types import CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION
 
 BACKTRACKING = [oracle.BACKTRACKING_PENALTY]
 LATE_TAIL = 200  # seconds: more than Emax, the rest of the flight is late by it

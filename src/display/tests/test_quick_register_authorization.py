@@ -27,7 +27,7 @@ from display.models import (
     Scorecard,
     Team,
 )
-from display.utilities.navigation_task_type_definitions import POKER
+from display.utilities.task_types import POKER
 
 
 def _make_poker_task(**kwargs):

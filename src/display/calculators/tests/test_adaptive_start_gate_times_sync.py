@@ -48,7 +48,7 @@ from display.models import (
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.utilities.gate_definitions import STARTINGPOINT, TURNPOINT
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION
 from display.waypoint import Waypoint
 from utilities.mock_utilities import TraccarMock
 

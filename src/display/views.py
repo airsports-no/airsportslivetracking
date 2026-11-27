@@ -143,7 +143,7 @@ from display.flight_order_and_maps.user_uploaded_mbtiles_publish import (
 from display.utilities.person_provisioning import ensure_person
 from display.utilities.signup_protection import client_ip, new_form_token, over_limit, token_problem
 from display.utilities.welcome_emails import render_welcome_email, render_contest_creation_email
-from display.utilities.navigation_task_type_definitions import POKER, AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, PRECISION
+from display.utilities.task_types import AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, POKER, PRECISION
 from display.waypoint import Waypoint
 from display.utilities.gate_definitions import (
     STARTINGPOINT,

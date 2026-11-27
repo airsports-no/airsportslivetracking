@@ -26,7 +26,7 @@ from display.calculators.tests.flight_simulator import (
     contract_route_geojson,
     generate_track,
 )
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.task_types import CONTRACT_NAVIGATION_TIME_CONTROLS
 
 BACKTRACKING = [oracle.BACKTRACKING_PENALTY]
 CATALOGUE = {"A": (2500, -1500), "B": (6000, 1500), "C": (12500, -1500), "D": (15500, 1500)}

@@ -1,22 +1,13 @@
 import datetime
 
 from dateutil import parser
+from django.utils.module_loading import import_string
 from rest_framework import serializers
 
 from display.models import ContestantTaskConfiguration
 from display.services.task_compiler import TaskCompiler
 from display.utilities.cima_scoring_config import CimaScoringConfig
-from display.utilities.cima_task_type_definitions import (
-    CIRCLE,
-    CONTRACT_NAVIGATION_TIME_CONTROLS,
-    CURVE_NAVIGATION_TIME_ESTIMATION,
-    DURATION,
-    KNOWN_CIRCUIT,
-    LIMITED_FUEL_TURNPOINT_HUNT,
-    PRECISION_NAVIGATION,
-    TURNPOINT_HUNT,
-    UNKNOWN_LEGS,
-)
+from display.utilities.task_types import CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION, stored_task_type
 from display.utilities.gate_definitions import (
     CIRCLE_CENTER,
     CIRCLE_ENTRY,
@@ -59,9 +50,9 @@ class ContestantTaskCompilerStrategy:
 
 
 class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
-    def __init__(self, compiler: "ContestantTaskCompiler", subtype: str):
+    def __init__(self, compiler: "ContestantTaskCompiler"):
         super().__init__(compiler)
-        self.subtype = subtype
+        self.subtype = compiler.contestant.navigation_task.task_subtype
 
     def validate_declaration(self, declaration_payload: dict, compiled_task) -> list[str]:
         predictions = declaration_payload.get("known_time_gate_predictions")
@@ -224,7 +215,8 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
         declared_sequence = declaration_payload.get("declared_sequence") or []
         expected_free_targets = [item["name"] for item in self.compiler._build_turnpoint_hunt_targets_payload()]
         errors = []
-        minimum_required = 0 if self.compiler.contestant.navigation_task.task_subtype == LIMITED_FUEL_TURNPOINT_HUNT else 3
+        # Where the declaration is optional, no compulsory time is required either.
+        minimum_required = 3 if stored_task_type(self.compiler.contestant.navigation_task).declaration_required else 0
         if not isinstance(compulsory_point_times, dict):
             errors.append("Turnpoint hunt requires exactly three compulsory point times.")
         else:
@@ -533,22 +525,10 @@ class ContestantTaskCompiler:
             )
 
     def _get_strategy(self) -> ContestantTaskCompilerStrategy:
-        subtype = self.contestant.navigation_task.task_subtype
-        if subtype in (CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION):
-            return CurveOrPrecisionNavigationStrategy(self, subtype)
-        if subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
-            return ContractNavigationStrategy(self)
-        if subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
-            return TurnpointHuntStrategy(self)
-        if subtype == DURATION:
-            return DurationStrategy(self)
-        if subtype == CIRCLE:
-            return CircleStrategy(self)
-        if subtype == KNOWN_CIRCUIT:
-            return KnownCircuitStrategy(self)
-        if subtype == UNKNOWN_LEGS:
-            return UnknownLegsStrategy(self)
-        return ContestantTaskCompilerStrategy(self)
+        strategy_path = stored_task_type(self.contestant.navigation_task).contestant_compiler_strategy
+        if strategy_path is None:
+            return ContestantTaskCompilerStrategy(self)
+        return import_string(strategy_path)(self)
 
     def compile(self, declaration_payload: dict | None = None, force: bool = False) -> ContestantTaskConfiguration:
         declaration_payload = declaration_payload or {}
@@ -695,7 +675,7 @@ class ContestantTaskCompiler:
 
     def _build_circle_markers(self) -> dict[str, dict]:
         """First circle marker feature of each role, keyed by gate_definitions
-        type. Exactly one of each is required (TaskSubtypeDefinition.CIRCLE's
+        type. Exactly one of each is required (the circle task type's
         required_primitives); if authoring left one out we return {} and let
         build_effective_route_payload fall back to no effective route rather
         than build a partial/broken one.

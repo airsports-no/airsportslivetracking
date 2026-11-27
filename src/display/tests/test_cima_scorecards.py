@@ -4,7 +4,7 @@ from django.urls import reverse
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import EditableRoute, Scorecard
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     ANR_CATALOGUE,
     CIMA_ANR_SCORECARD,
     CIMA_PRECISION_SCORECARD,
@@ -12,7 +12,7 @@ from display.utilities.cima_task_type_definitions import (
     DURATION,
 )
 from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
+from display.utilities.task_types import ANR_CORRIDOR, PRECISION
 
 
 class TestCimaScorecards(TestCase):

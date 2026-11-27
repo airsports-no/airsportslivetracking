@@ -6,7 +6,7 @@ from django.test import TestCase
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Contest, EditableRoute, NavigationTask, Route, Scorecard
 from display.services.task_compiler import TaskCompiler
-from display.utilities.cima_task_type_definitions import CIRCLE
+from display.utilities.task_types import CIRCLE
 from utilities.mock_utilities import TraccarMock
 
 
