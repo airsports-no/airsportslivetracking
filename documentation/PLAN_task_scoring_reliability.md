@@ -185,12 +185,14 @@ Also gives the measure entries of 2.A3 (V) and 2.A4 (S) their own wording in the
 
 **S24. Documentation.** Rewrite `11_CIMA_Task_Guide.md` for the new scorecards, scoring and declaration flow (F20).
 
-## Phase 6 — Annex 9 leftovers (optional, decide later)
+## Phase 6 — Annex 9 leftovers and rule alignment (decided 2026-11-27)
 
-- S25: landing-strip scoring table (A–E strips) and judged landing penalties in the Landing scorecard.
+- S25: dropped. Landing strips are judged at the field with judges and cameras; the system cannot detect them.
 - S26: Air Sport Challenge on the Annex 9 scorecard (D7).
-- S27: departure/arrival route check for Air Sports Race (reuse the ANR route-to-SP / route-from-FP check).
+- S27: dropped. No route-to-SP / route-from-FP check for Air Sports Race, and the route editor will not draw those paths.
 - S28: overall result by standings points (25/20/16/…) as a contest option.
+- S29: rule alignment left to the implementer's judgment: 2.A4/2.A5 hidden gate value 100 (the catalogue's typical Vh),
+  2.A7 "CM outside the circle" scores 100%, 2.A1 Tmax can be set in the web pages.
 
 ## Order and dependencies
 
