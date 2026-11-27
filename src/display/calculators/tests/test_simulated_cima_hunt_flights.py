@@ -111,6 +111,7 @@ class TurnpointHuntFlightsTest(CimaScenarioCase):
         return self.task
 
     def fly(self, *deviations, maximum_duration=None, **options):
+        self.fly_reference_pilot()
         track = self.task.generate_track(list(deviations), **options)
         result = self.task.run(track)
         photos, errors, full, over = hunt_quality(self.task, track, SEQUENCE, maximum_duration_minutes=maximum_duration)
@@ -158,7 +159,7 @@ class TurnpointHuntFlightsTest(CimaScenarioCase):
         strict=True,
         reason="F9 / S16: a time gate crossed earns nothing in the application (200 per time "
         "gate in the catalogue), so a missed target costs a fifth of what it "
-        "should; the application's score also goes below zero (S9)",
+        "should",
     )
     def test_a_target_missed_loses_its_points_and_the_sequence_bonus(self):
         self.build()
@@ -180,9 +181,8 @@ class TurnpointHuntFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="F9 / S16 and S9: the full sequence bonus is awarded but the time gates "
-        "earn nothing, and Qmax is not the best pilot's Q; the second pilot "
-        "scores negative",
+        reason="F9 / S16: the full sequence bonus is awarded but the time gates earn nothing, so the "
+        "second pilot's Q is negative (score 0 against 534)",
     )
     def test_two_pilots_in_the_same_task_are_scored_against_the_best(self):
         self.build()
@@ -218,6 +218,7 @@ class LimitedFuelTurnpointHuntFlightsTest(CimaScenarioCase):
         return self.final_against_reference(oracle.q_limited_fuel_turnpoint_hunt(photos, errors), PERFECT_2B2)
 
     def fly(self, *deviations, **options):
+        self.fly_reference_pilot()
         track = self.task.generate_track(list(deviations), **options)
         return self.task.run(track), self.expected(track)
 

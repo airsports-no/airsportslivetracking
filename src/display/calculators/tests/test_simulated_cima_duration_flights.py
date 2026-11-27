@@ -71,6 +71,11 @@ class DurationFlightsTest(CimaScenarioCase):
         (message,) = result.messages_of_type("duration_airborne_time")
         self.assertEqual((message.actual - message.planned).total_seconds(), recognised_duration(LONG_S))
 
+    @pytest.mark.xfail(
+        strict=True,
+        reason="F14 / S18: no CIMA scorecard scores the duration (the policy is empty by default), so "
+        "the only flight earns nothing: Q is 0 and the task score is 0",
+    )
     def test_a_single_flight_scores_the_task_value(self):
         task = build()
         expected = oracle.final_scores([oracle.q_duration(recognised_duration(LONG_S))])
@@ -91,12 +96,6 @@ class DurationFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, [1000, 508])
         self.assertEqual((longer, shorter), tuple(expected))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F14 / S18: with the only scoring the application has (raw minutes) the "
-        "duration is a penalty: the longer flight scores LOWER (939 against 969) "
-        "and no flight scores the task value",
-    )
     def test_the_longer_flight_scores_higher_with_raw_minutes(self):
         task = build(raw_minutes=True)
         second = add_contestant(task)

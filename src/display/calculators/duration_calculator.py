@@ -4,7 +4,7 @@ from shapely.geometry import Point, Polygon
 
 from display.calculators.calculator import Calculator, LandingPassedEvent, TakeoffPassedEvent
 from display.models import ANOMALY, INFORMATION
-from display.calculators.update_score_message import UpdateScoreMessage
+from display.calculators.update_score_message import ACHIEVEMENT, UpdateScoreMessage
 
 
 class DurationCalculator(Calculator):
@@ -56,6 +56,7 @@ class DurationCalculator(Calculator):
                 "duration_normalized_score",
                 planned=self.takeoff_intersection_time,
                 actual=event.intersection_time,
+                kind=ACHIEVEMENT,
             )
         )
 

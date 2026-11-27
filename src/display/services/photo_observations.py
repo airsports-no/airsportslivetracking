@@ -26,8 +26,10 @@ from display.models import (
     ScoreLogEntry,
     TrackAnnotation,
 )
+from display.calculators.update_score_message import ACHIEVEMENT, PENALTY
 from display.models.scoring_models import ANOMALY
 from display.services.photo_management import get_observation_photo_names
+from display.services.task_scoring import is_quality_task, refresh_contestant_quality
 from display.utilities.task_types import find_task_type_for
 from display.utilities.gate_definitions import DUMMY, LANDING_GATE, TAKEOFF_GATE, TURNPOINT
 
@@ -39,6 +41,8 @@ EXCLUDED_TRACK_GATE_TYPES = {TAKEOFF_GATE, LANDING_GATE, DUMMY}
 # (Vh) per observation: full within 2 mm, half within 5 mm.
 MODE_LEGACY = "legacy"
 MODE_CIMA = "cima"
+# The score type of the observation score log entries (see ScoreLogEntry.score_type).
+OBSERVATION_SCORE_TYPE = "observation_photo"
 
 
 # A phone clock that runs ahead by up to this much is not an error.
@@ -270,7 +274,9 @@ def score_observation(
 def calculate_score_change(contestant: Contestant, score_fraction: float) -> float:
     """
     The change to the contestant's score for an observation with this score fraction, in the direction of the
-    scorecard (a deduction is negative on a descending scorecard).
+    scorecard (a deduction is negative on a descending scorecard). For a task of the quality model (2.A4/2.A5) it is the
+    signed contribution to the raw quality score Q: Vh x Nh of the observations is part of the starting quality, and
+    each observation loses its value times the part of it that was missed.
     """
     mode = get_scoring_mode(contestant)
     scorecard = contestant.navigation_task.scorecard
@@ -279,13 +285,6 @@ def calculate_score_change(contestant: Contestant, score_fraction: float) -> flo
         magnitude = 0.0 if score_fraction > 0 else float(scorecard.observation_photo_penalty or 0)
     elif mode == MODE_CIMA:
         magnitude = float(scorecard.observation_photo_value or 0) * (1 - score_fraction)
-        if magnitude and descending and scorecard.initial_score > 0:
-            # The same 1000 * Q / Qmax normalization the gate component uses, with the observations in Qmax
-            from display.calculators.cima_score_normalization import get_cima_gate_qmax
-
-            qmax = get_cima_gate_qmax(contestant)
-            if qmax:
-                return -scorecard.initial_score * magnitude / qmax
     else:
         return 0.0
     return -magnitude if descending else magnitude
@@ -330,6 +329,10 @@ def _apply_score(
             offset_string="",
             string=f"{gate}: {float(score_change)} points {message}",
             times_string="",
+            score_type=OBSERVATION_SCORE_TYPE,
+            score_kind=PENALTY
+            if (score_change < 0) == (contestant.navigation_task.scorecard.score_sorting_direction == "desc")
+            else ACHIEVEMENT,
         )
         TrackAnnotation.create_and_push(
             contestant=contestant,
@@ -342,7 +345,10 @@ def _apply_score(
             time=time,
             score_log_entry=entry,
         )
-        contestant.contestanttrack.increment_score(score_change)
+        if is_quality_task(contestant.navigation_task):
+            refresh_contestant_quality(contestant)
+        else:
+            contestant.contestanttrack.increment_score(score_change)
     Contestant.objects.filter(pk=contestant.pk).update(score_version=F("score_version") + 1)
 
 

@@ -392,8 +392,10 @@ def push_test_change(sender, instance: TaskTest, **kwargs):
 
 @receiver(post_save, sender=Contestant)
 def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs):
+    from display.services.task_scoring import initial_track_score
+
     ContestantTrack.objects.get_or_create(
-        contestant=instance, defaults={"score": instance.navigation_task.scorecard.initial_score}
+        contestant=instance, defaults={"score": initial_track_score(instance.navigation_task)}
     )
     from websocket_channels import WebsocketFacade
 
@@ -506,8 +508,38 @@ def update_contestant_initial_score(sender, instance: Scorecard, **kwargs):
         existing_initial_score = Scorecard.objects.get(pk=instance.pk).initial_score
         difference = instance.initial_score - existing_initial_score
         if difference != 0 and hasattr(instance, "navigation_task_override"):
-            for contestant in instance.navigation_task_override.contestant_set.all():
+            from display.services.task_scoring import scoring_parameters_for
+            from display.utilities.task_types import stored_task_type
+
+            task = instance.navigation_task_override
+            if scoring_parameters_for(instance, stored_task_type(task)).is_quality:
+                # A quality task starts nobody above zero: its scores are derived by display.services.task_scoring
+                return
+            for contestant in task.contestant_set.all():
                 contestant.contestanttrack.increment_score(difference)
+
+
+@receiver(post_save, sender=Scorecard)
+def rescore_quality_task_when_its_scorecard_changes(sender, instance: Scorecard, created, **kwargs):
+    """The scoring model, qmax policy and task value of a quality task decide every contestant's task score."""
+    if created or not hasattr(instance, "navigation_task_override"):
+        return
+    from display.services.task_scoring import recompute_task_scores
+
+    task = instance.navigation_task_override
+    # The task still holds its previous scorecard object when it is not the one just saved
+    task.scorecard = instance
+    transaction.on_commit(lambda: recompute_task_scores(task))
+
+
+@receiver(post_delete, sender=Contestant)
+def rescore_quality_task_when_a_contestant_is_deleted(sender, instance: Contestant, **kwargs):
+    """The best Q of the task may have been the deleted contestant's: renormalise the others."""
+    from display.services.task_scoring import contestant_deleted
+
+    task_id = instance.navigation_task_id
+    # After the commit, so that a task deleted together with its contestants is gone by then
+    transaction.on_commit(lambda: contestant_deleted(task_id))
 
 
 @receiver(post_save, sender=NavigationTask)

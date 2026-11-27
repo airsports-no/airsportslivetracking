@@ -68,6 +68,7 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
         self.assertTrue(self.task.contestant.contestanttaskconfiguration.is_valid)
 
     def fly(self, *deviations, backtracking=False, **options):
+        self.fly_reference_pilot()
         track = self.task.generate_track(list(deviations), **options)
         result = self.task.run(track)
         crossings = self.task.crossings(track, [*self.TIME_GATES, *HIDDEN_NAMES])
@@ -85,13 +86,9 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 1000)
         self.assert_final_score(result, expected, "perfect flight")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F2 / S12: the application divides by a theoretical worst case of 1440 "
-        "(every gate, SP and FP included) and does not round; the catalogue "
-        "divides by the best pilot's Qh + Qt (1360)",
-    )
     def test_small_timing_error_at_a_time_gate(self):
+        # The application's Q (a worst case of 1440 including SP and FP) and the catalogue's (1360) differ, but both
+        # give 994 for 8 s of error once the score is a rounded share of the best pilot's Q (F2 / S12 keep it so)
         self.build()
         result, expected = self.fly(TimeOffset("TP1", 8))
         self.assertEqual(expected, oracle.round_half_up(1000 * (1360 - 8) / 1360))
@@ -100,7 +97,7 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
     @pytest.mark.xfail(
         strict=True,
         reason="F2 / S12: Qt = Emax x Nt - Et against the best pilot's Q; the application "
-        "takes the error over a worst case of 1440 (all gates, S9)",
+        "takes the error over a worst case of 1440 (all gates)",
     )
     def test_large_timing_error_at_a_time_gate(self):
         self.build()
@@ -174,8 +171,8 @@ class CurveNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="S9: Qmax is the best Q of the task; the application scores every pilot "
-        "against a theoretical worst case of 1440 (F2 / S12 for the weights)",
+        reason="F2 / S12: the application's Q has the weights of a worst case of 1440 (every gate, SP "
+        "and FP included), the catalogue's Qh + Qt of the best pilot is 1360",
     )
     def test_two_pilots_in_the_same_task_are_scored_against_the_best(self):
         self.build()
@@ -223,6 +220,7 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
         return {name: times[name].isoformat() for name in names}
 
     def fly(self, *deviations, backtracking=False, **options):
+        self.fly_reference_pilot()
         track = self.task.generate_track(list(deviations), **options)
         result = self.task.run(track)
         crossings = self.task.crossings(track, self.TIME_GATES)
@@ -240,8 +238,8 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="S9: the application divides the error by a worst case of 1440 points "
-        "and does not round, the catalogue by the best pilot's Q (720 here)",
+        reason="N4 / S12: the application's Q starts at a worst case of 1440 (every gate at 180), the "
+        "catalogue's best pilot has 720 (4 hidden gates at 180): 8 s costs 994 against 989",
     )
     def test_small_timing_error_at_a_turn_point(self):
         self.build()
@@ -249,7 +247,11 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, oracle.round_half_up(1000 * (720 - 8) / 720))
         self.assert_final_score(result, expected, "TP1 8 s late")
 
-    @pytest.mark.xfail(strict=True, reason="S9: Qmax is the best pilot's Q, not a theoretical worst case")
+    @pytest.mark.xfail(
+        strict=True,
+        reason="N4 / S12: the application's Q starts at a worst case of 1440, the catalogue's best pilot "
+        "has 720: 30 s late costs 980 against 958",
+    )
     def test_large_timing_error_at_a_hidden_gate(self):
         self.build()
         result, expected = self.fly(TimeOffset("HG1", 30))
@@ -257,7 +259,8 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="S9: the application's Qmax is a worst case of 1440, the catalogue's the best pilot's Q (720)",
+        reason="N4 / S12: the application's Q starts at a worst case of 1440, the catalogue's best "
+        "pilot has 720: an error of Emax costs 875 against 750",
     )
     def test_timing_error_beyond_emax_counts_emax(self):
         self.build()
@@ -267,7 +270,7 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="NEW (S13/S9): a missed hidden gate loses its 180 points AND counts Emax "
+        reason="N4 / S12: a missed hidden gate loses its 180 points AND counts Emax "
         "as a time error in the catalogue (360 of 720); the application charges "
         "the missed penalty once (180 of 1440)",
     )
@@ -292,8 +295,8 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="S9: both lose 180 points (the first crossing still gives the time), "
-        "but the application divides by 1440, the catalogue by the best Q (720)",
+        reason="N4 / S12: both lose 180 points (the first crossing still gives the time), but the "
+        "application's Q starts at a worst case of 1440 and the catalogue's best Q is 720",
     )
     def test_hidden_gate_crossed_in_the_wrong_direction(self):
         self.build()
@@ -335,8 +338,8 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="S9: Qmax is the best Q of the task; the application scores every pilot "
-        "against a theoretical worst case of 1440",
+        reason="N4 / S12: the application's Q starts at a worst case of 1440, the catalogue's best "
+        "pilot has 720, so the second pilot scores 976 against 917",
     )
     def test_two_pilots_in_the_same_task_are_scored_against_the_best(self):
         self.build()

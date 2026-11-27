@@ -93,7 +93,15 @@ from display.services.contestant_persistence import (
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.route_compatibility import assert_route_compatible_with_task_type
 from display.services.task_compiler import TaskCompiler
-from display.utilities.task_types import describe_task_subtype, stored_task_type
+from display.services.task_scoring import scoring_parameters, task_scores_are_provisional, validate_task_value
+from display.utilities.task_types import (
+    QMAX_POLICIES,
+    SCORING_MODELS,
+    SCORING_PENALTIES,
+    SCORING_QUALITY,
+    describe_task_subtype,
+    stored_task_type,
+)
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
@@ -1546,6 +1554,23 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     observation_photo_half_tolerance_mm = serializers.FloatField(
         required=False, allow_null=True, validators=[MinValueValidator(0)]
     )
+    # How the task score is made (display.services.task_scoring). Blank/null: the default of the task's type.
+    scoring_model = serializers.ChoiceField(choices=SCORING_MODELS, required=False, allow_blank=True, allow_null=True)
+    qmax_policy = serializers.ChoiceField(choices=QMAX_POLICIES, required=False, allow_blank=True, allow_null=True)
+    task_value = serializers.FloatField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        instance = getattr(self, "instance", None)
+        task = getattr(instance, "navigation_task_override", None) if instance is not None else None
+        default_model = stored_task_type(task).scoring_model if task is not None else SCORING_PENALTIES
+        model = attrs.get("scoring_model") or (instance.scoring_model if instance is not None else None) or default_model
+        task_value = attrs.get("task_value", instance.task_value if instance is not None else None)
+        if model == SCORING_QUALITY and task_value is not None:
+            problem = validate_task_value(task_value)
+            if problem:
+                raise serializers.ValidationError({"task_value": problem})
+        return attrs
 
     class Meta:
         model = Scorecard
@@ -1591,6 +1616,9 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "observation_photo_value",
             "observation_photo_full_tolerance_mm",
             "observation_photo_half_tolerance_mm",
+            "scoring_model",
+            "qmax_policy",
+            "task_value",
         )
 
     def get_task_type(self, instance) -> list:
@@ -1742,6 +1770,16 @@ class ApplyQuarantinePenaltySerialiser(serializers.Serializer):
         required=False,
         default="quarantine",
         choices=["quarantine", "fuel", "instructions", "observation", "map"],
+    )
+    percentage = serializers.FloatField(
+        write_only=True,
+        required=False,
+        allow_null=True,
+        default=None,
+        min_value=0,
+        max_value=100,
+        help_text="Instead of points: a percentage (50 is 50%) of the final task score, for tasks with a normalised "
+        "(quality) task score. A quarantine breach is 100.",
     )
 
 
@@ -2500,6 +2538,25 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     guest_capacity_status = serializers.SerializerMethodField()
     is_poker_run = serializers.BooleanField(read_only=True)
     tracking_link = serializers.CharField(read_only=True)
+    # How the task score is made (display.services.task_scoring): the contestants' track `score` is the task score P
+    # for the "quality" scoring model, and `raw_quality` / `percentage_penalty` of the track are its parts.
+    scoring_model = serializers.SerializerMethodField()
+    qmax_policy = serializers.SerializerMethodField()
+    task_value = serializers.SerializerMethodField()
+    scores_provisional = serializers.SerializerMethodField()
+
+    def get_scoring_model(self, obj) -> str:
+        return scoring_parameters(obj).model
+
+    def get_qmax_policy(self, obj) -> str:
+        return scoring_parameters(obj).qmax_policy
+
+    def get_task_value(self, obj) -> float:
+        return scoring_parameters(obj).task_value
+
+    def get_scores_provisional(self, obj) -> bool:
+        """True while a flight of a normalised-score task is not finished: a later, better flight lowers the others."""
+        return task_scores_are_provisional(obj)
 
     def get_flown_contestants_count(self, obj) -> int:
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()

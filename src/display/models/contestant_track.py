@@ -35,10 +35,29 @@ class ContestantTrack(models.Model):
     calculator_finished = models.BooleanField(default=False)
     calculator_started = models.BooleanField(default=False)
 
+    # The quality scoring model (display.services.task_scoring): `score` then holds the task score P, derived from
+    # the raw quality score Q of every contestant of the task. All of these are rebuilt from the score log and
+    # the task type, so they can always be recomputed.
+    # Q: the starting quality plus the contributions in the score log (penalties negative, achievements positive).
+    raw_quality = models.FloatField(default=0)
+    # Where Q starts, and the contestant's theoretical maximum Q; None until they have been computed.
+    quality_start = models.FloatField(null=True, blank=True)
+    quality_theoretical_maximum = models.FloatField(null=True, blank=True)
+    # The sum of the percentage penalties of the score log (50 is 50%), not yet capped at 100.
+    percentage_penalty = models.FloatField(default=0)
+    # The contributions to Q by score type, for display: {"gate_score": -120.0, "turnpoint_hunt_target_value": 300.0}.
+    quality_breakdown = models.JSONField(default=dict, blank=True)
+
     def reset(self):
         from display.models import TeamTestScore
+        from display.services.task_scoring import initial_track_score
 
-        self.score = self.contestant.navigation_task.scorecard.initial_score
+        self.score = initial_track_score(self.contestant.navigation_task)
+        self.raw_quality = 0
+        self.quality_start = None
+        self.quality_theoretical_maximum = None
+        self.percentage_penalty = 0
+        self.quality_breakdown = {}
         self.current_state = "Waiting..."
         self.current_leg = ""
         self.last_gate = ""
@@ -67,6 +86,10 @@ class ContestantTrack(models.Model):
             )
 
         self.__push_change()
+        # The others' task scores depended on this contestant's Q
+        from display.services.task_scoring import recompute_task_scores
+
+        recompute_task_scores(self.contestant.navigation_task)
 
     @property
     def contest_summary(self):
@@ -96,20 +119,28 @@ class ContestantTrack(models.Model):
         self.next_timed_gate_time = expected_time
         self.save(update_fields=["next_timed_gate", "next_timed_gate_time"])
 
-    def update_score(self, score):
+    def update_score(self, score, push: bool = True) -> bool:
+        """Stores the score (and the task test score) when it changed; returns whether it did."""
         from display.models import TeamTestScore
 
-        if self.score != score:
-            self.score = score
-            self.save(update_fields=["score"])
-            # Update task test score if it exists
-            if hasattr(self.contestant.navigation_task, "tasktest"):
-                TeamTestScore.objects.update_or_create(
-                    team=self.contestant.team,
-                    task_test=self.contestant.navigation_task.tasktest,
-                    defaults={"points": score},
-                )
+        if self.score == score:
+            return False
+        self.score = score
+        self.save(update_fields=["score"])
+        # Update task test score if it exists
+        if hasattr(self.contestant.navigation_task, "tasktest"):
+            TeamTestScore.objects.update_or_create(
+                team=self.contestant.team,
+                task_test=self.contestant.navigation_task.tasktest,
+                defaults={"points": score},
+            )
+        if push:
             self.__push_change()
+        return True
+
+    def push_change(self):
+        """Sends the track's current state to the front end."""
+        self.__push_change()
 
     def increment_score(self, score_increment):
         if score_increment != 0:

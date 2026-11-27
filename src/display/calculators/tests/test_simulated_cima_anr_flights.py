@@ -70,8 +70,11 @@ class AnrCatalogueFlightsTest(CimaScenarioCase):
         self.assert_final_score(result, expected, "perfect flight")
 
     def test_the_task_starts_with_two_thousand_points_scaled_to_a_thousand(self):
-        scorecard = self.build().navigation_task.scorecard
-        self.assertEqual((scorecard.score_sorting_direction, scorecard.initial_score), ("desc", 1000))
+        self.build()
+        track, result, expected = self.fly()
+        self.assertEqual("desc", self.task.navigation_task.scorecard.score_sorting_direction)
+        self.assertEqual(2000, result.raw_quality)  # Q = 2000 - penalties
+        self.assertEqual(1000, result.score)  # P = 1000 x Q / 2000
 
     def test_start_and_finish_within_a_second_are_free(self):
         self.build()

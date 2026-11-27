@@ -63,6 +63,9 @@ EXPECTED_SCORECARD_NESTED_KEYS = {
     "observation_photo_value",
     "observation_photo_full_tolerance_mm",
     "observation_photo_half_tolerance_mm",
+    "scoring_model",
+    "qmax_policy",
+    "task_value",
 }
 
 EXPECTED_GATE_SCORE_KEYS = {

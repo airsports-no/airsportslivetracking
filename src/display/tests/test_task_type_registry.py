@@ -217,18 +217,20 @@ PREVIOUS_LEGACY_DEFAULTS = {
     "poker": "legacy_poker",
     "landing": "legacy_landing",
 }
-PREVIOUS_SCORING_BASELINE = {
-    "curve_navigation_time_estimation": ("desc", 1000),
-    "precision_navigation": ("desc", 1000),
-    "contract_navigation_time_controls": ("desc", 1000),
-    "known_circuit": ("desc", 1000),
-    "unknown_legs": ("desc", 1000),
-    "circle": ("desc", 250),
-    "anr_catalogue": ("desc", 1000),
-    "turnpoint_hunt": ("desc", 0),
-    "limited_fuel_turnpoint_hunt": ("desc", 0),
+# The scoring model of each task type (display.services.task_scoring): (model, qmax policy, where Q starts, the fixed
+# starting quality, the absolute reference). Every other task type uses the penalty model.
+EXPECTED_QUALITY_SCORING = {
+    "curve_navigation_time_estimation": ("quality", "best_in_task", "gate_deficit", None, None),
+    "precision_navigation": ("quality", "best_in_task", "gate_deficit", None, None),
+    "contract_navigation_time_controls": ("quality", "best_in_task", "gate_deficit", None, None),
+    "known_circuit": ("quality", "best_in_task", "gate_deficit", None, None),
+    "unknown_legs": ("quality", "best_in_task", "gate_deficit", None, None),
+    "turnpoint_hunt": ("quality", "best_in_task", "achievement", None, None),
+    "limited_fuel_turnpoint_hunt": ("quality", "best_in_task", "achievement", None, None),
+    "duration": ("quality", "best_in_task", "achievement", None, None),
+    "circle": ("quality", "absolute", "fixed", 250, None),
+    "anr_catalogue": ("quality", "absolute", "fixed", 2000, 2000),
 }
-PREVIOUS_FIXED_SCALE_FACTORS = {"anr_catalogue": 0.5}
 PREVIOUS_DECLARATION_REQUIRED = {
     "contract_navigation_time_controls",
     "precision_navigation",
@@ -336,15 +338,18 @@ class TestRegistryHoldsPreviousContents(SimpleTestCase):
         for key, definition in TASK_TYPE_REGISTRY.items():
             self.assertEqual(definition.is_legacy, key.startswith("legacy_"), key)
 
-    def test_scoring_baseline_and_scale_factors(self):
+    def test_scoring_model_defaults(self):
         self.assertEqual(
-            {key: d.scoring_baseline for key, d in TASK_TYPE_REGISTRY.items() if d.scoring_baseline is not None},
-            PREVIOUS_SCORING_BASELINE,
+            {
+                key: (d.scoring_model, d.qmax_policy, d.quality_start, d.fixed_quality, d.absolute_reference)
+                for key, d in TASK_TYPE_REGISTRY.items()
+                if d.scoring_model == "quality"
+            },
+            EXPECTED_QUALITY_SCORING,
         )
-        self.assertEqual(
-            {key: d.fixed_scale_factor for key, d in TASK_TYPE_REGISTRY.items() if d.fixed_scale_factor is not None},
-            PREVIOUS_FIXED_SCALE_FACTORS,
-        )
+        for key, definition in TASK_TYPE_REGISTRY.items():
+            if key not in EXPECTED_QUALITY_SCORING:
+                self.assertEqual("penalties", definition.scoring_model, key)
 
     def test_subtype_scorecard_shortcut_names(self):
         self.assertEqual(set(TASK_TYPE_SCORECARD_SHORTCUT_NAMES), PREVIOUS_SUBTYPE_SHORTCUTS)
@@ -363,22 +368,6 @@ class TestRegistryHoldsPreviousContents(SimpleTestCase):
                 ("poker", "Poker run"),
                 ("landing", "Landing"),
             ),
-        )
-
-    def test_qmax_eligibility(self):
-        self.assertEqual(
-            {key for key, d in TASK_TYPE_REGISTRY.items() if d.gate_qmax_eligible},
-            {
-                "curve_navigation_time_estimation",
-                "precision_navigation",
-                "contract_navigation_time_controls",
-                "known_circuit",
-                "unknown_legs",
-            },
-        )
-        self.assertEqual(
-            {key for key, d in TASK_TYPE_REGISTRY.items() if d.achievement_qmax_eligible},
-            {"turnpoint_hunt", "limited_fuel_turnpoint_hunt"},
         )
 
     def test_behaviour_flags(self):
@@ -435,7 +424,7 @@ class TestRegistryHoldsPreviousContents(SimpleTestCase):
         self.assertEqual(stored_task_type(_task("precision", "circle")).key, "circle")
         self.assertTrue(UNSPECIFIED_TASK_TYPE.has_backbone)
         self.assertFalse(UNSPECIFIED_TASK_TYPE.declaration_required)
-        self.assertIsNone(UNSPECIFIED_TASK_TYPE.scoring_baseline)
+        self.assertEqual("penalties", UNSPECIFIED_TASK_TYPE.scoring_model)
 
 
 class TestCalculatorPipelines(SimpleTestCase):

@@ -4287,6 +4287,7 @@ class ContestantViewSet(ModelViewSet):
             gate=category_config["gate"],
             category=category_config["category"],
             actor=request.user,
+            percentage=serialiser.validated_data.get("percentage"),
         )
         return Response(ScoreLogEntrySerialiser(entry).data, status=status.HTTP_201_CREATED)
 

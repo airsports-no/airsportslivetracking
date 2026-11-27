@@ -87,6 +87,7 @@ class ContractNavigationFlightsTest(CimaScenarioCase):
     declared = FULL_DECLARATION["declared_sequence"]
 
     def fly(self, *deviations, backtracking=False, **options):
+        self.fly_reference_pilot()
         track = self.task.generate_track(list(deviations), **options)
         result = self.task.run(track)
         expected = catalogue_p(
@@ -110,8 +111,9 @@ class ContractNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="S9: the application divides the error by a worst case of 1260 and does "
-        "not round; the catalogue by the best pilot's Q (1540)",
+        reason="F5 / S14: the application's Q starts at a worst case of 1260 (the gate penalties), the "
+        "catalogue's Qmax is the best pilot's Qp + Qt (1540), so 8 s of error costs a different "
+        "share (994 against 995)",
     )
     def test_small_timing_error_at_mp(self):
         result, expected = self.fly(TimeOffset("MP", 8))
@@ -120,14 +122,17 @@ class ContractNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="S9: Qmax is the best pilot's Q (1540) and the score is rounded; the application's worst case is 1260",
+        reason="F5 / S14: the application's Q starts at a worst case of 1260, the catalogue's Qmax is "
+        "the best pilot's Qp + Qt (1540): 30 s of error costs 976 against 981",
     )
     def test_large_timing_error_at_sp(self):
         result, expected = self.fly(TimeOffset("SP", 30))
         self.assert_final_score(result, expected, "SP 30 s late")
 
     @pytest.mark.xfail(
-        strict=True, reason="S9: Qmax is the best pilot's Q (1540); the application divides by a worst case of 1260"
+        strict=True,
+        reason="F5 / S14: the application's Q starts at a worst case of 1260, the catalogue's Qmax is "
+        "the best pilot's Qp + Qt (1540): an error of Emax costs 857 against 883"
     )
     def test_timing_error_beyond_emax_counts_emax(self):
         result, expected = self.fly(TimeOffset("FP", 200), lead_out_s=260)
@@ -197,8 +202,8 @@ class ContractNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="F5 / S14 and S9: the score does not reward declaring more points (both "
-        "pilots score 1000 for a perfect flight) and Qmax is not the best pilot's Q",
+        reason="F5 / S14: the score does not reward declaring more points (Qp = 1000 x V / Vmax is not "
+        "part of the application's Q): the pilot who declares none scores 815 against 338",
     )
     def test_a_pilot_who_declares_and_flies_many_points_outscores_one_who_declares_none(self):
         many = self.task
@@ -216,8 +221,8 @@ class ContractNavigationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="S9 and F5 / S14: Qmax is the best Q of the task (Vmax the best V); the "
-        "application scores each pilot against its worst case",
+        reason="F5 / S14: Vmax (the best V of the task) is not part of the application's Q, so the "
+        "second pilot scores 429 against 351",
     )
     def test_two_pilots_in_the_same_task_are_scored_against_the_best(self):
         second = add_contestant(self.task).declare(FULL_DECLARATION)

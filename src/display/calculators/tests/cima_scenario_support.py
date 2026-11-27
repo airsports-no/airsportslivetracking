@@ -11,7 +11,7 @@ from typing import Optional, Sequence
 from django.test import TestCase
 
 from display.calculators.tests import catalogue_oracle as oracle
-from display.calculators.tests.flight_simulator import Crossing
+from display.calculators.tests.flight_simulator import Crossing, add_contestant
 from display.utilities.task_types import PRECISION
 
 # Hidden gates on the standard route (SP 6000 m east, TP1 5000 m south-east, TP2 6000 m east, FP): two on each of the
@@ -62,6 +62,16 @@ class CimaScenarioCase(TestCase):
     """Base of the scenario test cases: builds nothing itself, but knows how to compare with the oracle."""
 
     task_type = PRECISION
+
+    def fly_reference_pilot(self, task=None, **track_options):
+        """The best pilot of the task that `final_against_reference` measures against: a second pilot with the same
+        declaration who flies the task perfectly. Qmax is the best Q of the task, so the application only gives the
+        pilot under test the catalogue's share when that pilot has actually flown."""
+        task = task or self.task
+        configuration = getattr(task.contestant, "contestanttaskconfiguration", None)
+        declaration = dict(configuration.declaration_payload or {}) if configuration is not None else None
+        reference = add_contestant(task, declaration_payload=declaration or None)
+        return reference.run(reference.generate_track([], **track_options))
 
     def assert_final_score(self, result, expected: float, what: str = ""):
         """The application's final score of the flight is the catalogue's."""

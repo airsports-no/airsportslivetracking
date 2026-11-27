@@ -85,8 +85,13 @@ class CircleFlightsTest(CimaScenarioCase):
         return self.task.run(track)
 
     def test_the_task_scores_out_of_a_maximum_of_250(self):
-        scorecard = self.build().navigation_task.scorecard
-        self.assertEqual((scorecard.score_sorting_direction, scorecard.initial_score), ("desc", 250))
+        from display.services.task_scoring import quality_baseline, scoring_parameters
+
+        task = self.build()
+        parameters = scoring_parameters(task.navigation_task)
+        self.assertEqual(("absolute", None), (parameters.qmax_policy, parameters.absolute_reference))  # P = Q
+        self.assertEqual("desc", task.navigation_task.scorecard.score_sorting_direction)
+        self.assertEqual((250, 250), quality_baseline(task.contestant))
 
     @pytest.mark.xfail(
         strict=True,
@@ -101,11 +106,6 @@ class CircleFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 250)
         self.assert_final_score(result, expected, "constant radius 500 m, left, 540 degrees")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="S9: the application's score is not rounded to a whole number (159.1 "
-        "against 159); the ratio itself agrees with the formula",
-    )
     def test_a_radius_that_varies_ten_percent_scores_from_the_formula(self):
         self.build()
 
@@ -177,12 +177,6 @@ class CircleFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 0)
         self.assert_final_score(result, expected, "radius 700 m to 300 m")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="S9: the 100% penalty is charged as 250 points per violation found (entry "
-        "line, then a false clockwise at the exit), so the score is -250; the "
-        "catalogue scores zero (no negative score)",
-    )
     def test_start_and_centre_not_overflown_scores_zero(self):
         self.build()
         # The circle is flown around a point 400 m north of CM: the straight run from SP does not pass CM.
@@ -223,8 +217,7 @@ class CircleFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="S9 and F12 / S17: the scores are not whole numbers (159.1 against 159) and "
-        "the constant circle scores 239.7 instead of 250",
+        reason="F12 / S17: the constant circle scores 239.7 instead of 250",
     )
     def test_the_score_is_absolute_and_not_divided_by_the_best_pilot(self):
         task = self.build()

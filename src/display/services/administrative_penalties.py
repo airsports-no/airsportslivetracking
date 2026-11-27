@@ -10,6 +10,8 @@ from display.models import (
     TrackAnnotation,
 )
 from display.models.scoring_models import ANOMALY
+from display.calculators.update_score_message import PENALTY, PERCENTAGE_PENALTY
+from display.services.task_scoring import is_quality_task, refresh_contestant_quality
 from display.utilities.gate_definitions import (
     FINISHPOINT,
     INTERMEDIARY_FINISHPOINT,
@@ -65,15 +67,33 @@ class AdministrativePenaltyService:
         annotation: bool = True,
         annotation_type: str = ANOMALY,
         actor=None,
+        percentage: float | None = None,
     ) -> ScoreLogEntry:
+        """
+        Applies a penalty to the contestant. `points` is added to the contestant's score, as it is on the scorecard
+        (positive on an ascending scorecard is worse). For a task of the quality model it is a penalty magnitude: a
+        positive number reduces the raw quality score Q (a negative one gives points back), and `percentage` (50 is
+        50%) is instead deducted from the final task score, together with the other percentage penalties (at most
+        100%; a quarantine breach is 100%).
+        """
+        quality = is_quality_task(contestant.navigation_task)
+        if percentage is not None and not quality:
+            raise ValueError("A percentage penalty needs a task with a normalised (quality) task score")
+        if percentage is not None:
+            points, kind = percentage, PERCENTAGE_PENALTY
+        elif quality:
+            points, kind = -points, PENALTY
+        else:
+            kind = PENALTY
         if time is None:
             time = datetime.datetime.now(datetime.timezone.utc)
         if time.tzinfo is None:
             time = time.replace(tzinfo=datetime.timezone.utc)
 
-        gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate, contestant=contestant)
-        gate_score.points += points
-        gate_score.save(update_fields=["points"])
+        if kind != PERCENTAGE_PENALTY:
+            gate_score, _ = GateCumulativeScore.objects.get_or_create(gate=gate, contestant=contestant)
+            gate_score.points += points
+            gate_score.save(update_fields=["points"])
 
         entry = ScoreLogEntry.create_and_push(
             contestant=contestant,
@@ -85,8 +105,12 @@ class AdministrativePenaltyService:
             planned=None,
             actual=None,
             offset_string="",
-            string=f"{gate}: {float(points)} points {reason}",
+            string=f"{gate}: {float(points)} points {reason}"
+            if kind != PERCENTAGE_PENALTY
+            else f"{gate}: {float(points):g}% of the task score {reason}",
             times_string="",
+            score_type=gate,
+            score_kind=kind,
         )
 
         AdministrativePenalty.objects.create(
@@ -113,7 +137,10 @@ class AdministrativePenaltyService:
                 score_log_entry=entry,
             )
 
-        contestant.contestanttrack.increment_score(points)
+        if quality:
+            refresh_contestant_quality(contestant)
+        else:
+            contestant.contestanttrack.increment_score(points)
         type(contestant).objects.filter(pk=contestant.pk).update(score_version=F("score_version") + 1)
 
         return entry
@@ -131,7 +158,9 @@ class AdministrativePenaltyService:
         from websocket_channels import WebsocketFacade
 
         contestant = entry.contestant
-        contestant.contestanttrack.update_score(contestant.contestanttrack.score - entry.points)
+        quality = is_quality_task(contestant.navigation_task)
+        if not quality:
+            contestant.contestanttrack.update_score(contestant.contestanttrack.score - entry.points)
 
         # Note: TrackAnnotation has on_delete=models.CASCADE, but we explicitly delete to be certain and push updates.
         annotation = TrackAnnotation.objects.filter(score_log_entry=entry).first()
@@ -171,7 +200,16 @@ class AdministrativePenaltyService:
                         ct.passed_starting_gate = False
                         ct.current_state = "Waiting..."
 
-                    ct.save()
+                    # Only these fields: the cached track may hold an older score than the database
+                    ct.save(
+                        update_fields=[
+                            "last_gate",
+                            "last_gate_time_offset",
+                            "passed_finish_gate",
+                            "passed_starting_gate",
+                            "current_state",
+                        ]
+                    )
             else:
                 # Otherwise just update the cumulative score
                 GateCumulativeScore.objects.filter(contestant=contestant, gate=entry.gate).update(
@@ -197,6 +235,9 @@ class AdministrativePenaltyService:
                 pass
 
         entry.delete()
+        if quality:
+            # The raw quality score and the task scores follow from the score log
+            refresh_contestant_quality(contestant)
 
         # Increment score_version to invalidate score_data ETags without affecting track ETags
         type(contestant).objects.filter(pk=contestant.pk).update(score_version=F("score_version") + 1)

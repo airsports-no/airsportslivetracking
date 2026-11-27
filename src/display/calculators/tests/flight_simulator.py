@@ -10,7 +10,10 @@ Three parts, each usable on its own:
    Contestant -> ContestantTaskCompiler); `precision_route_geojson` gives a simple route to fly.
 3. Scoring. `run_flight` feeds positions through the real calculators (`calculator_factory`, live_processing=False) and
    applies every emitted score message with the real `ContestantProcessor.update_score_from_thread`, so the result
-   holds both the messages and the final score.
+   holds both the messages and the final score. A task of the quality scoring model (CIMA 2.A1-2.B3) is applied
+   with its side effects, as in production: the score log holds the raw contributions, and the task score P of every
+   contestant is derived from them by display.services.task_scoring (`ScoringResult.score` is P as the database holds it
+   now, so it also changes when a later flight of another contestant of the task moves Qmax; `raw_quality` is Q).
 
 Geometry is done in a local metric frame (east x, north y) from a `Projector`; positive lateral offsets are to the
 right of the direction of flight. Samples are taken half a second off the whole-second grid by default so that no
@@ -1393,13 +1396,48 @@ def add_contestant(
 
 @dataclass
 class ScoringResult:
-    """What a simulated flight produced."""
+    """What a simulated flight produced.
+
+    For a task of the penalty model `score` is the contestant's total. For a task of the quality model it is the task
+    score P as the database holds it when it is read, after the task-level normalisation: so after all the flights of the
+    task have been run it is each contestant's final P (a later, better flight of another contestant lowers it). When the
+    same contestant has flown again since (a test that flies one contestant several times), the result keeps the P and
+    Q it had at the end of its own flight. `raw_quality` is the raw score Q.
+    """
 
     messages: list[UpdateScoreMessage]
-    score: float
+    final_total: float
     score_by_type: dict[str, float]
     gate_passing_times: dict[str, Optional[datetime.datetime]] = field(default_factory=dict)
     missed_gates: list[str] = field(default_factory=list)
+    contestant: object = None
+    quality_task: bool = False
+    _snapshot: Optional[tuple[float, float, float]] = field(default=None, repr=False)
+
+    def _track(self):
+        from display.models import ContestantTrack
+
+        return ContestantTrack.objects.get(contestant=self.contestant)
+
+    def _values(self) -> tuple[float, float, float]:
+        """(P, Q, percentage penalty): the database's if this is the contestant's latest flight, else the snapshot."""
+        if _LATEST_RESULT.get(self.contestant.pk) != id(self):
+            return self._snapshot
+        track = self._track()
+        return track.score, track.raw_quality, track.percentage_penalty
+
+    @property
+    def score(self) -> float:
+        return self._values()[0] if self.quality_task else self.final_total
+
+    @property
+    def raw_quality(self) -> Optional[float]:
+        """Q of a quality task (None for the penalty model)."""
+        return self._values()[1] if self.quality_task else None
+
+    @property
+    def percentage_penalty(self) -> float:
+        return self._values()[2] if self.quality_task else 0.0
 
     def messages_of_type(self, score_type: str) -> list[UpdateScoreMessage]:
         return [message for message in self.messages if message.score_type == score_type]
@@ -1421,16 +1459,34 @@ class ScoringResult:
         ]
 
 
+# The latest ScoringResult (by id) of each contestant, see ScoringResult._values.
+_LATEST_RESULT: dict[int, int] = {}
+
+
 def make_score_applier(contestant) -> ContestantProcessor:
-    """A bare ContestantProcessor (no Redis/Traccar/threads) that can apply score messages without side effects."""
+    """A bare ContestantProcessor (no Redis/Traccar/threads) that can apply score messages. A task of the penalty model
+    is applied without side effects (the total is kept in memory); a task of the quality model with them, because its
+    scores are derived from the score log."""
+    from display.services.task_scoring import initial_track_score, is_quality_task
+
     processor = object.__new__(ContestantProcessor)
     processor.contestant = contestant
     processor.scorecard = contestant.navigation_task.scorecard
     processor.accumulated_scores = ScoreAccumulator()
     processor.gate_scores = {}
-    processor.suppress_side_effects = True
-    processor.score = processor.scorecard.initial_score
+    processor.suppress_side_effects = not is_quality_task(contestant.navigation_task)
+    processor.score = initial_track_score(contestant.navigation_task)
     return processor
+
+
+def _start_quality_flight(contestant):
+    """What ContestantProcessor.__init__ does for a quality task: a clean start with the calculator running."""
+    from display.models import ContestantTrack
+    from display.services.task_scoring import refresh_contestant_quality
+
+    contestant.reset_track_and_score()
+    ContestantTrack.objects.filter(contestant=contestant).update(calculator_started=True)
+    refresh_contestant_quality(contestant)
 
 
 def run_flight(contestant, positions: Sequence[SimPosition], projector: Optional[Projector] = None) -> ScoringResult:
@@ -1439,7 +1495,12 @@ def run_flight(contestant, positions: Sequence[SimPosition], projector: Optional
     Mirrors ContestantProcessor.run: calculate_score per position, finished_processing at the end (only when there
     were positions), with each emitted UpdateScoreMessage applied by update_score_from_thread in emission order.
     """
+    from display.services.task_scoring import is_quality_task
+
     projector = projector or contestant.navigation_task.get_projector()
+    quality = is_quality_task(contestant.navigation_task)
+    if quality:
+        _start_quality_flight(contestant)
     queue = Queue()
     orchestrator = calculator_factory(contestant, queue, live_processing=False, projector=projector)
     processor = make_score_applier(contestant)
@@ -1466,13 +1527,22 @@ def run_flight(contestant, positions: Sequence[SimPosition], projector: Optional
                 passing_times[gate.name] = gate.passing_time
                 if gate.missed:
                     missed.append(gate.name)
-    return ScoringResult(
+    result = ScoringResult(
         messages=messages,
-        score=processor.score,
+        final_total=processor.score,
         score_by_type=dict(processor.accumulated_scores.related_score),
         gate_passing_times=passing_times,
         missed_gates=missed,
+        contestant=contestant,
+        quality_task=quality,
     )
+    if quality:
+        from display.models import ContestantTrack
+
+        track = ContestantTrack.objects.get(contestant=contestant)
+        result._snapshot = (track.score, track.raw_quality, track.percentage_penalty)
+        _LATEST_RESULT[contestant.pk] = id(result)
+    return result
 
 
 def waypoint(name: str, latitude: float, longitude: float, width_nm: float = 1.0) -> SimpleNamespace:

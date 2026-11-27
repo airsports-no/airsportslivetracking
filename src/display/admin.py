@@ -7,6 +7,8 @@ from guardian.admin import GuardedModelAdmin
 from guardian.shortcuts import assign_perm
 
 from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES, SCORECARD_CONFIG_FIELDS
+from display.services.task_scoring import validate_task_value
+from display.utilities.task_types import QMAX_POLICIES, SCORING_MODELS, SCORING_QUALITY
 from display.services.token_assignment import revert_token_assignment_for_support
 from display.models import (
     NavigationTask,
@@ -324,13 +326,24 @@ class ScorecardAdminForm(forms.ModelForm):
     speed_keeping_tolerance_kt = forms.FloatField(required=False)
     speed_keeping_penalty_per_kt = forms.FloatField(required=False)
     # min_value=0: GateCalculator._score_turnpoint_hunt_sequence_bonus adds this straight through
-    # as an achievement score (see contestant_processor.ACHIEVEMENT_SCORE_TYPES) - a negative
+    # as an achievement score (an ACHIEVEMENT message) - a negative
     # value would silently subtract from a contestant's score for completing the full sequence.
     turnpoint_hunt_sequence_bonus = forms.FloatField(required=False, min_value=0)
     observation_photo_penalty = forms.FloatField(required=False, min_value=0)
     observation_photo_value = forms.FloatField(required=False, min_value=0)
     observation_photo_full_tolerance_mm = forms.FloatField(required=False, min_value=0)
     observation_photo_half_tolerance_mm = forms.FloatField(required=False, min_value=0)
+    scoring_model = forms.ChoiceField(choices=[("", "Task type default")] + list(SCORING_MODELS), required=False)
+    qmax_policy = forms.ChoiceField(choices=[("", "Task type default")] + list(QMAX_POLICIES), required=False)
+    task_value = forms.FloatField(required=False)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("scoring_model") == SCORING_QUALITY and cleaned_data.get("task_value"):
+            problem = validate_task_value(cleaned_data["task_value"])
+            if problem:
+                self.add_error("task_value", problem)
+        return cleaned_data
 
     class Meta:
         model = Scorecard
@@ -364,6 +377,7 @@ class ScorecardAdminForm(forms.ModelForm):
         "maximum_task_duration_minutes",
         "observation_photo_full_tolerance_mm",
         "observation_photo_half_tolerance_mm",
+        "task_value",
     }
 
     def save(self, commit=True):

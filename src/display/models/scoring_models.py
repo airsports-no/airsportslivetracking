@@ -28,6 +28,12 @@ class ScoreLogEntry(models.Model):
     offset_string = models.CharField(max_length=200, default="")
     times_string = models.CharField(max_length=200, default="")
     type = models.CharField(max_length=30, choices=ANNOTATION_TYPES, default=INFORMATION)
+    # What the entry is, for the quality scoring model (display.services.task_scoring): the score type of the calculator
+    # that scored it ("gate_score", "backtracking", ...) and the UpdateScoreMessage kind ("penalty", "achievement" or
+    # "percentage_penalty"). `points` is the signed contribution to the raw quality score, or, for a percentage
+    # penalty, the percentage itself. Blank for entries that predate these fields.
+    score_type = models.CharField(max_length=100, blank=True, default="")
+    score_kind = models.CharField(max_length=20, blank=True, default="")
 
     class Meta:
         ordering = ("time", "pk")
@@ -87,6 +93,8 @@ class ScoreLogEntry(models.Model):
             "string": kwargs.get("string", ""),
             "offset_string": kwargs.get("offset_string", ""),
             "times_string": kwargs.get("times_string", ""),
+            "score_type": kwargs.get("score_type", ""),
+            "score_kind": kwargs.get("score_kind", ""),
         }
         entry, created = cls.objects.get_or_create(**lookup, defaults=defaults)
         if not created:

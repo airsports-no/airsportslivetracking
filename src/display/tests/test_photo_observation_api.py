@@ -13,6 +13,7 @@ from display.models import (
     Aeroplane,
     Contest,
     Contestant,
+    ContestantTrack,
     ContestTeam,
     Crew,
     EditableRoute,
@@ -25,7 +26,7 @@ from display.models import (
     ScoreLogEntry,
     Team,
 )
-from display.calculators.cima_score_normalization import get_cima_gate_qmax
+from display.services.task_scoring import theoretical_gate_quality
 from display.services.photo_observations import (
     finalize_photo_observations,
     judging_is_hidden,
@@ -602,20 +603,32 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
         self.contestant.refresh_from_db()
         self.set_scale(SCALE_200)
 
+    def raw_quality(self):
+        return ContestantTrack.objects.get(contestant=self.contestant).raw_quality
+
     def test_cima_scores_by_the_millimetre_bands(self):
         self.make_cima()
-        qmax = get_cima_gate_qmax(self.contestant)
-        self.assertGreaterEqual(qmax, 100)  # includes Vh for the photo
-        baseline = self.score()
+        start = theoretical_gate_quality(self.contestant)
+        self.assertGreaterEqual(start, 100)  # includes Vh for the photo
         full = self.post(self.manager, *self.along_leg(300))  # 1.5 mm
         self.assertEqual((full.json()["score_fraction"], full.json()["points"]), (1.0, 0.0))
         half = self.post(self.manager, *self.along_leg(600), time="2026-08-01T10:01:00Z")  # 3 mm
         self.assertEqual(half.json()["score_fraction"], 0.5)
-        self.assertAlmostEqual(half.json()["points"], -1000 * 50 / qmax)
+        self.assertEqual(half.json()["points"], -50)  # the raw loss of Vh, not normalised
+        self.assertEqual(self.raw_quality(), start - 50)
         zero = self.post(self.manager, *self.along_leg(1200), time="2026-08-01T10:02:00Z")  # 6 mm
         self.assertEqual(zero.json()["score_fraction"], 0.0)
-        self.assertAlmostEqual(zero.json()["points"], -1000 * 100 / qmax)
-        self.assertAlmostEqual(self.score() - baseline, -1000 * 100 / qmax)
+        self.assertEqual(zero.json()["points"], -100)
+        self.assertEqual(self.raw_quality(), start - 100)  # a registration replaces the earlier one
+
+    def test_cima_observation_goes_through_the_task_scores(self):
+        self.make_cima()
+        ContestantTrack.objects.filter(contestant=self.contestant).update(calculator_started=True)
+        start = theoretical_gate_quality(self.contestant)
+        self.post(self.manager, *self.along_leg(1200))  # 6 mm: loses all of Vh
+        # The only contestant of the task is the best of the task
+        self.assertEqual(self.raw_quality(), start - 100)
+        self.assertEqual(self.score(), 1000.0)
 
     def test_cima_value_per_observation_follows_the_scorecard(self):
         self.make_cima()
@@ -624,9 +637,8 @@ class PhotoObservationScoringTest(PhotoObservationApiTest):
         scorecard.save()
         self.navigation_task.refresh_from_db()
         self.contestant.refresh_from_db()
-        qmax = get_cima_gate_qmax(self.contestant)
         zero = self.post(self.manager, *self.along_leg(1200))
-        self.assertAlmostEqual(zero.json()["points"], -1000 * 200 / qmax)
+        self.assertEqual(zero.json()["points"], -200)
 
     def test_tolerances_are_configurable_on_the_scorecard(self):
         self.set_scale(SCALE_200)

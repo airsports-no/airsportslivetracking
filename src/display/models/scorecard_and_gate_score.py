@@ -10,7 +10,7 @@ from django.db.models import QuerySet
 from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.utilities.clone_object import simple_clone
 from display.utilities.gate_definitions import GATE_TYPES
-from display.utilities.task_types import FAMILY_CHOICES, PRECISION
+from display.utilities.task_types import DEFAULT_TASK_VALUE, FAMILY_CHOICES, PRECISION
 
 DURATION_NORMALIZATION_POLICIES = (("", "---------"), ("raw_minutes", "Raw minutes"))
 
@@ -55,6 +55,9 @@ SCORECARD_CONFIG_FIELDS = [
     "observation_photo_value",
     "observation_photo_full_tolerance_mm",
     "observation_photo_half_tolerance_mm",
+    "scoring_model",
+    "qmax_policy",
+    "task_value",
 ]
 
 
@@ -282,6 +285,13 @@ class Scorecard(models.Model):
     # half. None uses the rule of the task type: 1 mm (no half band) for legacy tasks, 2 mm / 5 mm for CIMA.
     observation_photo_full_tolerance_mm = ConfigField(None)
     observation_photo_half_tolerance_mm = ConfigField(None)
+
+    # How the task score is made (see display.utilities.task_types.SCORING_MODELS and display.services.task_scoring).
+    # None means the default of the task's type: a task created before these values existed behaves as its task type
+    # does by default, so no stored data had to change. task_value is the maximum task score of the quality model.
+    scoring_model = ConfigField(None)
+    qmax_policy = ConfigField(None)
+    task_value = ConfigField(DEFAULT_TASK_VALUE)
 
     def __str__(self):
         return self.name

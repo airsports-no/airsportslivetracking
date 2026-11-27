@@ -90,6 +90,7 @@ class ObservationNavigationFlights:
         )
 
     def fly(self, *deviations, backtracking=False, **options):
+        self.fly_reference_pilot()
         track = self.task.generate_track(list(deviations), **options)
         result = self.task.run(track)
         expected = self.final_against_reference(
@@ -103,9 +104,6 @@ class ObservationNavigationFlights:
         self.assertEqual(expected, 1000)
         self.assert_final_score(result, expected, "perfect flight")
 
-    @pytest.mark.xfail(
-        strict=True, reason="S9: the application's score is not rounded to a whole number (994.44 against 994)"
-    )
     def test_small_timing_error_at_a_time_gate(self):
         self.build()
         result, expected = self.fly(TimeOffset("TP1", 8))
@@ -167,12 +165,6 @@ class ObservationNavigationFlights:
         self.assertEqual(expected, 500)
         self.assert_final_score(result, expected, "10 s backwards on the leg")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="S9: Qmax is the best Q of the task; the application scores every pilot "
-        "against the worst case of 1440, so the best of two imperfect pilots "
-        "does not get 1000",
-    )
     def test_two_pilots_in_the_same_task_are_scored_against_the_best(self):
         self.build()
         second = add_contestant(self.task)
@@ -209,6 +201,7 @@ class KnownCircuitFlightsTest(ObservationNavigationFlights, CimaScenarioCase):
         declared = self.declared_task("TP2", LATE)
         track = declared.generate_track([])
         undeclared = self.build()
+        self.fly_reference_pilot(undeclared)
         result = undeclared.run(track)
         self.assertEqual(measured_error(undeclared.crossings(track, ["TP2"])["TP2"][0]), LATE)
         expected = self.final_against_reference(self.quality(undeclared, track), PERFECT_Q)
@@ -244,6 +237,7 @@ class KnownCircuitFlightsTest(ObservationNavigationFlights, CimaScenarioCase):
         start = task.gate_times["SP"]
         faster = {name: start + (time - start) / 1.2 for name, time in task.gate_times.items()}
         track = generate_track(task.effective_waypoints, faster, projector=task.projector)
+        self.fly_reference_pilot(task)
         result = task.run(track)
         crossings = task.crossings(track, ["SP", *HIDDEN_NAMES])
         q = oracle.q_observation_navigation(

@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-11-27
+#### Backend
+- **A CIMA task's score is now the task score P (best pilot = the task value, whole numbers) instead of a per-pilot normalised score:** the `score` of a flight in a task of 2.A1-2.A8 and 2.B3 follows the other pilots of the task (it is provisional until every flight is finished and changes when a better flight comes in), and the flight data gains `raw_quality` and `percentage_penalty`; legacy and Air Sports Race tasks are unchanged (migration `0218`).
+
 ### 2026-11-23
 #### Backend
 - **Push reminders to pilots are now actually sent on schedule:** the scheduler that triggers them every minute was never running in production; it is now its own `tracker-celery-beat` deployment.

@@ -47,10 +47,15 @@ from display.models.user_uploaded_map import validate_file_size
 from display.models.my_user import MyUser
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
 from display.services.task_type_visibility import can_user_see_task_subtype
+from display.services.task_scoring import validate_task_value
 from display.utilities.task_types import (
     ANR_CORRIDOR,
     FAMILY_CHOICES,
     PRECISION,
+    QMAX_POLICIES,
+    SCORING_MODELS,
+    SCORING_PENALTIES,
+    SCORING_QUALITY,
     stored_task_type,
     task_types_in_family,
 )
@@ -767,6 +772,20 @@ class ScorecardForm(forms.ModelForm):
     observation_photo_value = forms.FloatField(min_value=0)
     observation_photo_full_tolerance_mm = forms.FloatField(required=False, min_value=0)
     observation_photo_half_tolerance_mm = forms.FloatField(required=False, min_value=0)
+    # Blank means the default of the task type (see display.services.task_scoring.scoring_parameters_for).
+    scoring_model = forms.ChoiceField(choices=[("", "Task type default")] + list(SCORING_MODELS), required=False)
+    qmax_policy = forms.ChoiceField(choices=[("", "Task type default")] + list(QMAX_POLICIES), required=False)
+    task_value = forms.FloatField(required=False)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        navigation_task = getattr(self.instance, "navigation_task_override", None)
+        default_model = stored_task_type(navigation_task).scoring_model if navigation_task else SCORING_PENALTIES
+        if (cleaned_data.get("scoring_model") or default_model) == SCORING_QUALITY and cleaned_data.get("task_value"):
+            problem = validate_task_value(cleaned_data["task_value"])
+            if problem:
+                self.add_error("task_value", problem)
+        return cleaned_data
 
     class Meta:
         model = Scorecard
@@ -869,6 +888,8 @@ class ScorecardForm(forms.ModelForm):
                     "circle_radius_max_m",
                 ]
             )
+        if navigation_task and stored_task_type(navigation_task).scoring_model == SCORING_QUALITY:
+            _append_block_once(["Task score", "scoring_model", "qmax_policy", "task_value"])
 
         self.helper = FormHelper()
         self.helper.form_class = "form mt-4"

@@ -3,7 +3,7 @@ The single source of truth for what a task type is: rule set -> task type -> one
 
 A task type carries everything the rest of the system needs to know about it: its stable key, the rule set and
 catalogue code it belongs to, the coarse family stored in Scorecard.calculator, the live-calculator pipeline, the route
-requirements, the declaration behaviour, the scoring baseline and the scorecard it is created from.
+requirements, the declaration behaviour, the scoring model and the scorecard it is created from.
 
 This module imports nothing from the rest of the display app except the plain gate type constants, so any module can
 import it. The calculator pipeline is
@@ -67,6 +67,34 @@ CIRCLE = "circle"
 ANR_CATALOGUE = "anr_catalogue"
 LIMITED_FUEL_TURNPOINT_HUNT = "limited_fuel_turnpoint_hunt"
 DURATION = "duration"
+
+# How a task turns what happened in the flight into a score (Scorecard.config["scoring_model"]).
+# "penalties": the score is the sum of the penalties (or, on a descending scorecard, the initial score minus them); the
+# lowest total wins. "quality": the contestant has a raw quality score Q (the starting quality minus penalties plus
+# achievements) and the task score P is derived from the Q of all contestants of the task (FAI Section 10, Annex 3).
+SCORING_PENALTIES = "penalties"
+SCORING_QUALITY = "quality"
+SCORING_MODELS = ((SCORING_PENALTIES, "Penalties"), (SCORING_QUALITY, "Quality (normalised task score)"))
+
+# What Q is divided by (Scorecard.config["qmax_policy"], quality model only).
+QMAX_BEST_IN_TASK = "best_in_task"  # P = task_value x Q / (the best Q of the task)
+QMAX_THEORETICAL = "theoretical"  # P = task_value x Q / (the contestant's own theoretical maximum Q)
+QMAX_ABSOLUTE = "absolute"  # P is a fixed scale of Q, independent of the other contestants
+QMAX_POLICIES = (
+    (QMAX_BEST_IN_TASK, "Best in task"),
+    (QMAX_THEORETICAL, "Theoretical maximum"),
+    (QMAX_ABSOLUTE, "Absolute"),
+)
+
+# The task value (maximum task score) the organiser may announce for a quality task (Annex 3, 2.3.4).
+DEFAULT_TASK_VALUE = 1000.0
+MIN_TASK_VALUE = 500.0
+MAX_TASK_VALUE = 1500.0
+
+# Where the raw quality Q of a contestant starts.
+QUALITY_START_GATE_DEFICIT = "gate_deficit"  # the worst possible gate deficit of the contestant's own route (2.A1-2.A5)
+QUALITY_START_FIXED = "fixed"  # TaskTypeDefinition.fixed_quality (2.A7, 2.A8)
+QUALITY_START_ACHIEVEMENT = "achievement"  # zero: the contestant earns points (2.A6, 2.B2, 2.B3)
 
 # Scorecards (by shortcut_name) the task types are created from.
 CIMA_PRECISION_SCORECARD = "CIMA Precision"
@@ -149,15 +177,19 @@ class TaskTypeDefinition:
     # The declaration_payload key holding predicted gate times as absolute timestamps. Rescheduling the take-off after
     # such a declaration would leave the times stale, so the contestant's schedule is locked once they are declared.
     absolute_time_declaration_key: str | None = None
-    # (score_sorting_direction, initial_score) of the task's scorecard copy; None when there is no fixed baseline.
-    scoring_baseline: tuple[str, float] | None = None
-    # Multiplier on every score message when the catalogue's fixed maximum is not the scorecard's initial score. 2.A8
-    # starts at 2000 points and P = 1000 * Q / 2000, so the scorecard starts at 1000 and every penalty is halved.
-    fixed_scale_factor: float | None = None
-    # Whether the gate score is normalised against the worst possible gate deficit (2.A1-2.A5).
-    gate_qmax_eligible: bool = False
-    # Whether the achievement points are normalised against the sum of all targets (2.A6, 2.B2).
-    achievement_qmax_eligible: bool = False
+    # The default scoring model of the task's scorecard copy (see SCORING_QUALITY). A task whose scorecard stores no
+    # scoring_model behaves as this.
+    scoring_model: str = SCORING_PENALTIES
+    # The default qmax_policy of a quality task.
+    qmax_policy: str = QMAX_BEST_IN_TASK
+    # Where Q starts (quality model only). The starting quality is also the theoretical maximum of the deficit-style
+    # tasks; for the achievement-style tasks the theoretical maximum is the sum of everything that can be earned.
+    quality_start: str = QUALITY_START_ACHIEVEMENT
+    # The starting quality of QUALITY_START_FIXED: 250 for the circle (Pmax), 2000 for the ANR.
+    fixed_quality: float | None = None
+    # The absolute scale of QMAX_ABSOLUTE: P = task_value x Q / absolute_reference (2.A8: 1000 x Q / 2000). None: P = Q
+    # (2.A7, whose formula value is the score).
+    absolute_reference: float | None = None
     scoring_modules: tuple[str, ...] = ()
     # The shortcut_name of the scorecard the task is created from. None offers the scorecards of the family that no
     # task type claims.
@@ -333,8 +365,8 @@ _DEFINITIONS = (
         declaration_schema_key=CURVE_NAVIGATION_TIME_ESTIMATION,
         declaration_required=True,
         absolute_time_declaration_key="known_time_gate_predictions",
-        scoring_baseline=("desc", 1000),
-        gate_qmax_eligible=True,
+        scoring_model=SCORING_QUALITY,
+        quality_start=QUALITY_START_GATE_DEFICIT,
         scoring_modules=("visible_time_gates", "hidden_gate_sequence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         repeated_hidden_gate_crossing_invalidates=True,
@@ -369,8 +401,8 @@ _DEFINITIONS = (
         declaration_schema_key=PRECISION_NAVIGATION,
         declaration_required=True,
         absolute_time_declaration_key="known_time_gate_predictions",
-        scoring_baseline=("desc", 1000),
-        gate_qmax_eligible=True,
+        scoring_model=SCORING_QUALITY,
+        quality_start=QUALITY_START_GATE_DEFICIT,
         scoring_modules=("visible_eta", "hidden_gate_sequence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "CurveOrPrecisionNavigationStrategy",
@@ -416,8 +448,8 @@ _DEFINITIONS = (
         declaration_schema_key=CONTRACT_NAVIGATION_TIME_CONTROLS,
         # The declared times are relative to take-off, so they follow the schedule.
         declaration_required=True,
-        scoring_baseline=("desc", 1000),
-        gate_qmax_eligible=True,
+        scoring_model=SCORING_QUALITY,
+        quality_start=QUALITY_START_GATE_DEFICIT,
         scoring_modules=("declared_sequence", "mandatory_time_points", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         has_post_mp_rule=True,
@@ -437,8 +469,8 @@ _DEFINITIONS = (
         requires_contestant_configuration=True,
         route_requirements=_BACKBONE,
         absolute_time_declaration_key="turnpoint_time_overrides",
-        scoring_baseline=("desc", 1000),
-        gate_qmax_eligible=True,
+        scoring_model=SCORING_QUALITY,
+        quality_start=QUALITY_START_GATE_DEFICIT,
         scoring_modules=("observation_evidence", "hidden_gate_sequence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         scores_speed_keeping=True,
@@ -479,8 +511,8 @@ _DEFINITIONS = (
                 message="Unknown legs requires at least one extension waypoint after each unknown-leg point.",
             ),
         ),
-        scoring_baseline=("desc", 1000),
-        gate_qmax_eligible=True,
+        scoring_model=SCORING_QUALITY,
+        quality_start=QUALITY_START_GATE_DEFICIT,
         scoring_modules=("unknown_leg_sequence", "observation_evidence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         has_unknown_legs=True,
@@ -502,8 +534,7 @@ _DEFINITIONS = (
         declaration_required=True,
         absolute_time_declaration_key="compulsory_point_times",
         # Additive from zero: the maximum depends on how many photos and gates the organiser places.
-        scoring_baseline=("desc", 0),
-        achievement_qmax_eligible=True,
+        scoring_model=SCORING_QUALITY,
         scoring_modules=("predicted_sequence", "compulsory_timing_gates", "observation_evidence", "backtracking"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         scores_turnpoint_hunt_targets=True,
@@ -524,8 +555,11 @@ _DEFINITIONS = (
             rr.exactly(rr.CIRCLE_ENTRY_MARKER, "Circle entry marker (X)", 1),
             rr.exactly(rr.CIRCLE_EXIT_MARKER, "Circle exit marker (WP)", 1),
         ),
-        # Pmax = 250, matching CIRCLE_MAXIMUM_SCORE in circle_calculator.py.
-        scoring_baseline=("desc", 250),
+        # Pmax = 250, matching CIRCLE_MAXIMUM_SCORE in circle_calculator.py. The formula value is the score.
+        scoring_model=SCORING_QUALITY,
+        qmax_policy=QMAX_ABSOLUTE,
+        quality_start=QUALITY_START_FIXED,
+        fixed_quality=250,
         scoring_modules=("circle_entry", "circle_radius", "circle_direction", "altitude_spread"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "CircleStrategy",
@@ -540,8 +574,12 @@ _DEFINITIONS = (
         calculator_pipeline=PIPELINE_ANR_STYLE,
         # route_to_sp_path and route_from_fp_path are optional auxiliary features most routes never author.
         route_requirements=_BACKBONE,
-        scoring_baseline=("desc", 1000),
-        fixed_scale_factor=0.5,
+        # Q = 2000 - penalties and P = 1000 x Q / 2000.
+        scoring_model=SCORING_QUALITY,
+        qmax_policy=QMAX_ABSOLUTE,
+        quality_start=QUALITY_START_FIXED,
+        fixed_quality=2000,
+        absolute_reference=2000,
         scoring_modules=("route_to_sp", "route_from_fp", "takeoff_timing", "quarantine"),
         scorecard_shortcut_name=CIMA_ANR_SCORECARD,
         has_auxiliary_route_checks=True,
@@ -561,8 +599,7 @@ _DEFINITIONS = (
         # The declaration is entirely optional (minimum_required=0), so it never fails validation.
         declaration_required=False,
         absolute_time_declaration_key="compulsory_point_times",
-        scoring_baseline=("desc", 0),
-        achievement_qmax_eligible=True,
+        scoring_model=SCORING_QUALITY,
         scoring_modules=(
             "all_gate_crossings",
             "compulsory_timing_gates",
@@ -584,9 +621,9 @@ _DEFINITIONS = (
         coarse_family=PRECISION,
         calculator_pipeline=PIPELINE_DURATION,
         # No take-off or landing gate is required: SpeedInferredTakeoffLandingCalculator is always part of the
-        # pipeline as the fallback source of those events. There is no scoring baseline because the duration
-        # calculator mixes an achievement with a penalty and has not been given signed score messages yet.
+        # pipeline as the fallback source of those events.
         has_backbone=False,
+        scoring_model=SCORING_QUALITY,
         route_requirements=(rr.present(rr.DURATION_LANDING_AREA, "Duration landing area"),),
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "DurationStrategy",
         gate_types_without_backbone=(TAKEOFF_GATE, LANDING_GATE),

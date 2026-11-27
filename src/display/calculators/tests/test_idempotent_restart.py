@@ -26,6 +26,7 @@ from display.models import (
 from display.models.scoring_models import ANOMALY
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from utilities.mock_utilities import TraccarMock
+from display.utilities.task_types import KNOWN_CIRCUIT
 from redis_queue import RedisQueue
 
 # Ensure TraccarMock is properly configured for all expected calls
@@ -43,6 +44,9 @@ TraccarMock.get_positions_for_device_id.return_value = []
 @patch("display.calculators.gate_calculator.WebsocketFacade")
 @patch("display.calculators.contestant_processor.post_slack_competition_message")
 class TestIdempotentRestart(TransactionTestCase):
+    # The task type of the task of the test; None is a legacy precision task (the penalty model).
+    task_subtype = None
+
     @patch("display.utilities.traccar_factory.get_traccar_instance", return_value=TraccarMock)
     @patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock)
     @patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock)
@@ -77,6 +81,7 @@ class TestIdempotentRestart(TransactionTestCase):
             contest=self.contest,
             start_time=navigation_task_start_time,
             finish_time=navigation_task_finish_time,
+            task_subtype=self.task_subtype,
         )
         crew = Crew.objects.create(
             member1=Person.objects.create(
@@ -357,3 +362,169 @@ class TestIdempotentRestart(TransactionTestCase):
         self.assertEqual(1, sp_logs.count())
         final_track = ContestantTrack.objects.get(contestant=self.contestant)
         self.assertEqual(228, final_track.score)  # 222 -> 228 after bumping pyproj 3.7.2 -> 3.8.0
+
+
+_PATCHES = (
+    patch("display.utilities.traccar_factory.get_traccar_instance", return_value=TraccarMock),
+    patch("display.models.contestant.get_traccar_instance", return_value=TraccarMock),
+    patch("display.calculators.contestant_processor.get_traccar_instance", return_value=TraccarMock),
+    patch("display.signals.get_traccar_instance", return_value=TraccarMock),
+    patch("display.calculators.contestant_processor.WebsocketFacade"),
+    patch("display.calculators.orchestrator.WebsocketFacade"),
+    patch("display.calculators.gate_calculator.WebsocketFacade"),
+    patch("display.calculators.contestant_processor.post_slack_competition_message"),
+)
+
+
+def _with_patches(cls):
+    for patcher in _PATCHES:
+        cls = patcher(cls)
+    return cls
+
+
+@_with_patches
+class TestIdempotentRestartOfAQualityTask(TestIdempotentRestart):
+    """
+    The same crash/restart/replay scenarios for a task of the quality scoring model, where the contestant's raw quality
+    score Q, their task score P and the task score of the other contestants are derived from the score log: a restart
+    or a replayed event must give the same Q and P as a run that was never interrupted.
+    """
+
+    task_subtype = KNOWN_CIRCUIT
+
+    # The tests of the penalty model, which assert its totals, are not repeated.
+    test_restart_idempotency = None
+    test_recalculate_flag = None
+    test_update_score_from_thread_is_idempotent_for_replayed_event = None
+    test_restart_after_crash_between_scoring_and_position_flush_does_not_double_count = None
+
+    def _positions(self):
+        positions = load_track_points(os.path.join(TEST_DATA_DIR, "test_contestant_correct_track.gpx"))
+        for p in positions:
+            p["id"] = 0
+            p["deviceId"] = "Test contestant"
+            p["attributes"] = {}
+            p["device_time"] = dateutil.parser.parse(p["time"])
+        return positions
+
+    def _add_other_contestant(self, quality: float):
+        """A second contestant who has flown (their Q is `quality`), so that the first one's P is not simply 1000."""
+        person = Person.objects.create(first_name="Other", last_name="Pilot", email=f"other_{uuid.uuid4().hex}@test.com")
+        team = Team.objects.create(
+            crew=Crew.objects.create(member1=person), aeroplane=Aeroplane.objects.create(registration="LN-OTH")
+        )
+        other = Contestant.objects.create(
+            navigation_task=self.navigation_task,
+            team=team,
+            takeoff_time=self.start_time,
+            tracker_start_time=self.start_time - datetime.timedelta(minutes=30),
+            finished_by_time=self.start_time + datetime.timedelta(hours=2),
+            tracker_device_id="Other contestant",
+            contestant_number=2,
+            minutes_to_starting_point=6,
+            air_speed=70,
+            wind_direction=165,
+            wind_speed=8,
+        )
+        ContestantTrack.objects.filter(contestant=other).update(
+            calculator_started=True, quality_start=quality, quality_theoretical_maximum=quality, raw_quality=quality
+        )
+        return other
+
+    def _state(self, contestant):
+        track = ContestantTrack.objects.get(contestant=contestant)
+        return {
+            "raw_quality": track.raw_quality,
+            "score": track.score,
+            "percentage_penalty": track.percentage_penalty,
+            "breakdown": track.quality_breakdown,
+            "log": sorted(
+                (e.gate, e.points, e.score_type, e.score_kind) for e in ScoreLogEntry.objects.filter(contestant=contestant)
+            ),
+        }
+
+    def _run(self, positions, recalculate=False, crash=False):
+        queue = RedisQueue(self.contestant.pk)
+        for p in positions:
+            queue.append(p)
+        queue.append(None)
+        processor = ContestantProcessor(self.contestant, live_processing=False, recalculate=recalculate)
+        if crash:
+            with patch.object(processor.orchestrator, "finished_processing"):
+                processor.run()
+        else:
+            processor.run()
+        processor.score_processing_queue.join()
+
+    def test_restart_gives_the_same_q_and_p_as_an_uninterrupted_run(self, *args):
+        positions = self._positions()
+        other = self._add_other_contestant(4000)
+        self._run(positions, recalculate=True)
+        uninterrupted = self._state(self.contestant)
+        other_uninterrupted = self._state(other)
+        self.assertGreater(uninterrupted["raw_quality"], 0)
+        self.assertLess(uninterrupted["raw_quality"], 4000)
+        self.assertEqual(round(1000 * uninterrupted["raw_quality"] / 4000), uninterrupted["score"])  # P against the best
+        self.assertEqual(1000, other_uninterrupted["score"])
+        self.assertTrue(uninterrupted["breakdown"])
+
+        # A fresh start, a crash half way and a restart that replays the whole track
+        self.contestant.reset_track_and_score()
+        self.assertEqual(0, ContestantTrack.objects.get(contestant=self.contestant).score)
+        self._run(positions[: len(positions) // 2], crash=True)
+        partial = self._state(self.contestant)
+        self.assertNotEqual(uninterrupted["raw_quality"], partial["raw_quality"])
+        self._run(positions)
+        self.assertEqual(uninterrupted, self._state(self.contestant))
+        self.assertEqual(other_uninterrupted, self._state(other))
+
+    def test_recalculating_gives_the_same_q_and_p(self, *args):
+        positions = self._positions()
+        self._add_other_contestant(4000)
+        self._run(positions, recalculate=True)
+        first = self._state(self.contestant)
+        self._run(positions, recalculate=True)
+        self.assertEqual(first, self._state(self.contestant))
+
+    def test_a_replayed_score_event_changes_neither_q_nor_p(self, *args):
+        gate = self.contestant.navigation_task.route.waypoints[0]
+        other = self._add_other_contestant(1000)
+        ContestantTrack.objects.filter(contestant=self.contestant).update(
+            calculator_started=True, quality_start=1000, quality_theoretical_maximum=1000, raw_quality=1000
+        )
+        event_time = self.start_time + datetime.timedelta(minutes=5)
+        update = UpdateScoreMessage(
+            time=event_time,
+            gate=gate,
+            score=57,
+            message="passing gate",
+            latitude=gate.latitude,
+            longitude=gate.longitude,
+            annotation_type=ANOMALY,
+            score_type="gate_score",
+            planned=event_time - datetime.timedelta(seconds=21),
+            actual=event_time,
+        )
+        from display.calculators.contestant_processor import ScoreAccumulator
+
+        processor = ContestantProcessor.__new__(ContestantProcessor)
+        processor.accumulated_scores = ScoreAccumulator()
+        processor.contestant = self.contestant
+        processor.contestant_track = ContestantTrack.objects.get(contestant=self.contestant)
+        processor.gate_scores = {}
+        processor.suppress_side_effects = False
+        processor.score = 0
+        processor.update_score_from_thread(update)
+        after_first = (self._state(self.contestant), self._state(other))
+        processor.update_score_from_thread(update)
+
+        self.assertEqual(1, ScoreLogEntry.objects.filter(contestant=self.contestant).count())
+        self.assertEqual(-57, GateCumulativeScore.objects.get(contestant=self.contestant, gate=gate.name).points)
+        self.assertEqual(943, ContestantTrack.objects.get(contestant=self.contestant).raw_quality)
+        # The other contestant's Q of 1000 is the best of the task: 1000 x 943 / 1000
+        self.assertEqual(943, ContestantTrack.objects.get(contestant=self.contestant).score)
+        self.assertEqual(1000, ContestantTrack.objects.get(contestant=other).score)
+        self.assertEqual(
+            (self._state(self.contestant), self._state(other)),
+            after_first,
+        )

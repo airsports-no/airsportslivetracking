@@ -23,7 +23,7 @@ from display.calculators.calculator import (
 )
 from display.calculators.calculator_utilities import round_time_minute, travel_bearing_from_track
 from display.calculators.positions_and_gates import Gate, round_seconds
-from display.calculators.update_score_message import UpdateScoreMessage
+from display.calculators.update_score_message import ACHIEVEMENT, PENALTY, UpdateScoreMessage
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.models import ANOMALY, INFORMATION
 from display.models.contestant_utility_models import ContestantReceivedPosition
@@ -66,9 +66,8 @@ GATE_SCORE_TYPE = "gate_score"
 CIRCLE_CROSSING_GATE_TYPES = {CIRCLE_START, CIRCLE_ENTRY, CIRCLE_EXIT}
 BACKWARD_STARTING_LINE_SCORE_TYPE = "backwards_starting_line"
 ADAPTIVE_TIMING_START_SCORE_TYPE = "adaptive_timing_start"
-# 2.A6/2.B2 achievement score types - see contestant_processor.ACHIEVEMENT_SCORE_TYPES for why
-# these two, alone among every turnpoint-hunt score_type, must be added as-is rather than
-# sign-flipped under a descending scorecard.
+# 2.A6/2.B2 achievement score types: the two score types of the turnpoint hunt that add to the score (they are sent
+# as ACHIEVEMENT messages); every other score type is a penalty.
 TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE = "turnpoint_hunt_target_value"
 TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE = "turnpoint_hunt_sequence_bonus"
 
@@ -179,6 +178,7 @@ class GateCalculator(Calculator):
         planned: Optional[datetime.datetime] = None,
         actual: Optional[datetime.datetime] = None,
         time_override: Optional[datetime.datetime] = None,
+        kind: str = PENALTY,
     ):
         if (gate.name, score_type) in self.scored_gates:
             return
@@ -200,6 +200,7 @@ class GateCalculator(Calculator):
                 score_type,
                 planned=planned,
                 actual=actual,
+                kind=kind,
             )
         )
 
@@ -844,6 +845,7 @@ class GateCalculator(Calculator):
             INFORMATION,
             gate.expected_time,
             passing_time,
+            kind=ACHIEVEMENT,
         )
 
     def _score_turnpoint_hunt_sequence_bonus(self, track: Sequence[ContestantReceivedPosition]):
@@ -882,6 +884,7 @@ class GateCalculator(Calculator):
             INFORMATION,
             last_gate.expected_time,
             position.time,
+            kind=ACHIEVEMENT,
         )
 
     def _score_limited_fuel_deadline(self, gate: Gate, position, passing_time: datetime.datetime):
