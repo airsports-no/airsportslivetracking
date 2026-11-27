@@ -39,7 +39,8 @@ import FlightSummaryModal, { FlightSummaryModalHandle } from '../../components/c
 import { hasSummaryButton, useSummarisableFlights } from '../../components/common/flightSummaryApi';
 import './CompetitionMap.css';
 import './components/hud/hud.css';
-import { GateResult, NavigationTask, PhotoObservation, ScoreAnnotation, ScoreLogEntry } from './types';
+import { didNotFly, DNF_LABEL, isPenaltyEntry, replayTaskScores, scoreArithmetic, scoresAreProvisional, sortDirection } from '../../utils/taskScore';
+import { ContestantTrackSummary, GateResult, NavigationTask, PhotoObservation, ScoreAnnotation, ScoreLogEntry } from './types';
 
 
 /** The contestant a contestantIds parameter names when it names exactly one, otherwise null. */
@@ -410,6 +411,16 @@ export default function CompetitionMapPage() {
         .filter(l => new Date(l.time) <= currentTime)
         .reduce((total, log) => total + log.points, initialScore);
     }
+    if (staticNavTaskData.scoring_model === 'quality') {
+      // The log holds raw quality points: the replay's task score is derived from them, as the server derives it
+      Object.assign(scores, replayTaskScores(staticNavTaskData, Object.values(contestantsById).map(c => ({
+        id: c.id,
+        started: !!c.contestanttrack?.calculator_started,
+        start: c.contestanttrack?.quality_start ?? null,
+        theoretical: c.contestanttrack?.quality_theoretical_maximum ?? null,
+        entries: scoreLogByContestant[c.id] ?? [],
+      })), currentTime));
+    }
     setCurrentPositions(pos);
     setCurrentScores(scores);
   }, [mode, currentTime, positionsByContestant, scoreLogByContestant, staticNavTaskData, contestantsById]);
@@ -629,7 +640,7 @@ export default function CompetitionMapPage() {
 
   const standings = useMemo(() => {
     if (!staticNavTaskData) return [] as any[];
-    const dir = staticNavTaskData.score_sorting_direction;
+    const dir = sortDirection(staticNavTaskData, staticNavTaskData.score_sorting_direction);
     const allContestantsData = sortedContestants;
     const total = allContestantsData.length;
     const startGateName = staticNavTaskData.route.waypoints.find(wp => wp.type === 'sp')?.name;
@@ -660,7 +671,7 @@ export default function CompetitionMapPage() {
           if (!hasStarted && c.finished_by_time) {
               const finishedBy = new Date(c.finished_by_time);
               if (currentTime.getTime() > finishedBy.getTime() && !c.contestanttrack?.calculator_started) {
-                  score = 'Not started';
+                  score = didNotFly(staticNavTaskData, c.contestanttrack) ? DNF_LABEL : 'Not started';
                   isNotStarted = true;
               }
           }
@@ -745,7 +756,7 @@ export default function CompetitionMapPage() {
         if (!hasStarted && c.finished_by_time) {
             const finishedBy = new Date(c.finished_by_time);
             if (currentTime.getTime() > finishedBy.getTime() && !c.contestanttrack?.calculator_started) {
-                score = 'Not started';
+                score = didNotFly(staticNavTaskData, c.contestanttrack) ? DNF_LABEL : 'Not started';
                 isNotStarted = true;
             }
         }
@@ -848,7 +859,11 @@ export default function CompetitionMapPage() {
     });
   }, [selectedContestantId, scoreLogByContestant, staticNavTaskData, userShowSecrets]);
 
-  const pointsArePenalties = staticNavTaskData?.score_sorting_direction === 'asc';
+  const pointsArePenalties = !!staticNavTaskData && sortDirection(staticNavTaskData, staticNavTaskData.score_sorting_direction) === 'asc';
+  // A quality task's scores are provisional until every flight is finished; the tracks are kept up to date by the websocket
+  const scoresProvisional = scoresAreProvisional(staticNavTaskData, allSortedContestants.map(c => c.contestanttrack));
+  const arithmeticOf = (c: { contestanttrack: ContestantTrackSummary } | undefined) =>
+    c ? scoreArithmetic(staticNavTaskData, c.contestanttrack, allSortedContestants.map(x => x.contestanttrack)) : null;
 
   // A flight list under the ranking only where gates make the flight: not for a poker run (its gates deal cards, and
   // the follow bar shows them) or a landing task, whose crossings the gate results do not record.
@@ -870,8 +885,8 @@ export default function CompetitionMapPage() {
     id: log.id,
     time: new Date(log.time),
     label: `${log.gate}: ${log.message}`,
-    penalty: pointsArePenalties ? log.points > 0 : log.points < 0,
-  })), [visibleLogEntries, pointsArePenalties]);
+    penalty: isPenaltyEntry(log, staticNavTaskData, pointsArePenalties),
+  })), [visibleLogEntries, pointsArePenalties, staticNavTaskData]);
 
   // A replay time to go to once the replay has started (switching to replay first sets it to the start).
   const pendingSeekRef = useRef<Date | null>(null);
@@ -1146,6 +1161,7 @@ export default function CompetitionMapPage() {
       crossingOrder={staticNavTaskData.task_subtype === 'turnpoint_hunt'}
       timeZone={staticNavTaskData.time_zone}
       pointsArePenalties={pointsArePenalties}
+      scoring={staticNavTaskData}
       onSelectEntry={jumpToLogEntry}
       onSelectGate={(wp) => mapRef.current?.flyTo([wp.latitude, wp.longitude], Math.max(mapRef.current.getZoom(), 12), { duration: 0.6 })}
     />
@@ -1206,6 +1222,7 @@ export default function CompetitionMapPage() {
         {selectedContestant && panelTab === 'log' ? (
           <>
             <GatesTable
+              scoring={staticNavTaskData}
               gateResults={(selectedContestant.gate_results ?? []).filter(r => !r.hidden || (staticNavTaskData?.display_secrets && userShowSecrets))}
               entries={visibleLogEntries}
               timeZone={staticNavTaskData?.time_zone}
@@ -1223,6 +1240,9 @@ export default function CompetitionMapPage() {
               onCompare={(id) => setCompare(id === null ? null : { forId: selectedContestant.id, id })}
             />
             <NavLog
+              scoring={staticNavTaskData}
+              provisional={scoresProvisional}
+              arithmetic={arithmeticOf(selectedContestant)?.text ?? null}
               entries={visibleLogEntries}
               // A replay lists the whole flight, what is still ahead dimmed, so any entry can be jumped to.
               dimAfter={mode === 'playback' ? currentTime : undefined}
@@ -1242,6 +1262,8 @@ export default function CompetitionMapPage() {
           <div className="flex flex-col sm:h-full">
             <div className="flex-none sm:max-h-[40%] overflow-y-auto hud-scroll">
               <RankingList
+                scoring={staticNavTaskData}
+                provisional={scoresProvisional}
                 rows={standings}
                 selectedId={selectedContestantId}
                 dividerIndex={firstWaitingIndex}
@@ -1259,6 +1281,8 @@ export default function CompetitionMapPage() {
           </div>
         ) : (
           <RankingList
+            scoring={staticNavTaskData}
+            provisional={scoresProvisional}
             rows={standings}
             selectedId={selectedContestantId}
             dividerIndex={firstWaitingIndex}
@@ -1315,6 +1339,8 @@ export default function CompetitionMapPage() {
                 key={selectedContestant.id}
                 contestant={selectedContestant}
                 navigationTask={staticNavTaskData}
+                provisional={scoresProvisional}
+                arithmetic={arithmeticOf(selectedContestant)?.text ?? null}
                 score={standings[selectedStanding]?.score ?? 0}
                 rank={selectedStanding >= 0 && selectedStanding < startedCount ? selectedStanding + 1 : null}
                 rankOf={startedCount}
@@ -1347,6 +1373,8 @@ export default function CompetitionMapPage() {
             key={selectedContestant.id}
             contestant={selectedContestant}
             navigationTask={staticNavTaskData}
+            provisional={scoresProvisional}
+            arithmetic={arithmeticOf(selectedContestant)?.text ?? null}
             score={standings[selectedStanding]?.score ?? 0}
             rank={selectedStanding >= 0 && selectedStanding < startedCount ? selectedStanding + 1 : null}
             rankOf={startedCount}

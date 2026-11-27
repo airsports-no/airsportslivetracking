@@ -2,6 +2,7 @@ import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Contestant, DangerData, GateArrowData, Member, NavigationTask } from '../../types';
 import GateScoreArrowV2 from '../gateScoreArrow/GateScoreArrowV2';
 import PlayingCards from '../playing-cards/PlayingCards';
+import { DNF_LABEL, DNF_TITLE, formatTaskScore, isQualityTask, PROVISIONAL_HELP, scoreHeading } from '../../../../utils/taskScore';
 
 interface Props {
     contestant: Contestant;
@@ -19,6 +20,10 @@ interface Props {
     /** One slim row above the replay bar: crew, score and place at the replay's time. */
     slim?: boolean;
     /** The contestants just above and below in the ranking, by name, with the points between. */
+    /** The scores can still change because of other flights (a quality task until every flight is finished). */
+    provisional?: boolean;
+    /** The score worked out step by step, for a quality task. */
+    arithmetic?: string | null;
     neighbours?: { above: { name: string; points: number } | null; below: { name: string; points: number } | null };
 }
 
@@ -131,7 +136,7 @@ function Neighbours({ neighbours, className }: { neighbours: NonNullable<Props['
  * max-height:500px classes) it keeps to one row, without photos, so the map keeps most of the height. On a big screen
  * (100rem, 1600 px, and wider: the event display) everything is larger and the arrow takes the rest of the width.
  */
-export default function FollowBar({ contestant, navigationTask, score, rank, rankOf, gateArrowData, dangerData, live, slim = false, neighbours, showSecrets = true }: Props) {
+export default function FollowBar({ contestant, navigationTask, score, rank, rankOf, gateArrowData, dangerData, live, slim = false, neighbours, showSecrets = true, provisional = false, arithmetic = null }: Props) {
     // Hooks first: the same ones on every render, whether or not there is a crew to show.
     const wide = useSyncExternalStore(subscribeToWide, isWide, () => true);
     const crew = contestant.team?.crew;
@@ -161,12 +166,17 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
                     <div className="leading-none text-right">
                         {typeof score === 'number' ? (
                             <>
-                                <div className={`hud-figure ${slim ? 'text-3xl min-[100rem]:text-5xl' : 'text-4xl sm:text-5xl min-[100rem]:text-7xl'} [@media(max-height:500px)]:text-3xl`}>{score.toFixed(0)}</div>
-                                <div className="hud-label min-[100rem]:text-base mt-1">Score</div>
+                                <div className={`hud-figure ${slim ? 'text-3xl min-[100rem]:text-5xl' : 'text-4xl sm:text-5xl min-[100rem]:text-7xl'} [@media(max-height:500px)]:text-3xl`}>{formatTaskScore(score, navigationTask)}</div>
+                                <div className="hud-label min-[100rem]:text-base mt-1" title={arithmetic ?? undefined}>
+                                    {scoreHeading(navigationTask)}
+                                    {provisional && isQualityTask(navigationTask) && (
+                                        <span className="ml-1 normal-case font-semibold" style={{ color: 'var(--hud-warn)' }} title={PROVISIONAL_HELP} data-testid="provisional-badge">provisional</span>
+                                    )}
+                                </div>
                             </>
                         ) : (
                             // "Not started" and the like: a status, not a score.
-                            <div className="text-sm font-semibold hud-muted">{score}</div>
+                            <div className="text-sm font-semibold hud-muted" title={score === DNF_LABEL ? DNF_TITLE : undefined}>{score}</div>
                         )}
                     </div>
                     {rank !== null && (

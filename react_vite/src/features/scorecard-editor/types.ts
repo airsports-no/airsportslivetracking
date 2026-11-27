@@ -62,11 +62,22 @@ export interface ScorecardData {
     observation_photo_value?: number;
     observation_photo_full_tolerance_mm?: number | null;
     observation_photo_half_tolerance_mm?: number | null;
+    // How the task score is made (see utils/taskScore.ts). Blank: the task type's default.
+    scoring_model?: string | null;
+    qmax_policy?: string | null;
+    task_value?: number | null;
 
     // Merged in by the scorecard action (viewsets.py), not part of the plain serializer shape.
     applicable_gate_types: string[];
     applicable_scalar_groups: string[];
     original_scorecard: ScorecardData | null;
+    // Whether the task type can use the quality model at all, its default, and what the task scores with now
+    // (absent from older servers: the three scoring fields are then left out).
+    can_use_quality_scoring?: boolean;
+    default_scoring_model?: string;
+    effective_scoring_model?: string;
+    effective_qmax_policy?: string;
+    effective_task_value?: number;
 }
 
 export type ScalarFieldName = Exclude<
@@ -81,6 +92,11 @@ export type ScalarFieldName = Exclude<
     | 'applicable_gate_types'
     | 'applicable_scalar_groups'
     | 'original_scorecard'
+    | 'can_use_quality_scoring'
+    | 'default_scoring_model'
+    | 'effective_scoring_model'
+    | 'effective_qmax_policy'
+    | 'effective_task_value'
 >;
 
 // Client-side editing state: only fields the user has actually touched are ever sent back to

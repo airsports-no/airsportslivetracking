@@ -3,6 +3,7 @@ import { NavigationTask } from '../types';
 import { generatePath } from '../../../urls';
 import { FlightSummaryButton } from '../../../components/common/FlightSummaryModal';
 import { hasSummaryButton, useSummarisableFlights } from '../../../components/common/flightSummaryApi';
+import { DNF_LABEL, DNF_TITLE, didNotFly, formatScoreOutOf, isQualityTask, PROVISIONAL_HELP, scoreArithmetic, scoresAreProvisional, sortByScore, trimmedNumber } from '../../../utils/taskScore';
 
 interface TaskScoreDisplayProps {
     task: NavigationTask;
@@ -24,17 +25,23 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantI
         (contestant.contestanttrack.calculator_started === false && contestant.contestanttrack.score === 0) ||
         contestant.contestanttrack.current_state === 'Waiting...';
 
-    const sorted = [...(task.contestant_set as any[])].sort((a, b) => {
-        const scoreA = a.contestanttrack.score;
-        const scoreB = b.contestanttrack.score;
-        return task.score_sorting_direction === 'desc' ? scoreB - scoreA : scoreA - scoreB;
-    });
+    // Highest first for a quality task, the scorecard's direction otherwise
+    const sorted = sortByScore(task.contestant_set as any[], contestant => contestant.contestanttrack.score, task, task.score_sorting_direction);
+    const tracks = (task.contestant_set as any[]).map(contestant => contestant.contestanttrack);
+    const quality = isQualityTask(task);
+    const provisional = scoresAreProvisional(task, tracks);
     // Rank only among entries that actually flew; struck-through rows are shown but do not count
     const ranked = sorted.filter(contestant => !isStruckThrough(contestant));
 
     return (
         <div className="mt-4 pt-2 bg-base-100 p-2 rounded-lg">
-            <h5 className="font-semibold text-md mb-2">Scores for {task.name}:</h5>
+            <h5 className="font-semibold text-md mb-2">
+                Scores for {task.name}{quality && task.task_value ? ` (out of ${trimmedNumber(task.task_value)})` : ''}:
+                {provisional && (
+                    <span className="badge badge-warning badge-sm ml-2 align-middle" title={PROVISIONAL_HELP} data-testid="provisional-badge">Provisional</span>
+                )}
+            </h5>
+            {provisional && <p className="text-xs opacity-70 mb-2">{PROVISIONAL_HELP}</p>}
             {sorted
                 .map(contestant => {
                     const isCurrentUser = myContestantIds.has(contestant.id);
@@ -70,7 +77,13 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantI
                                 {!isStrikethrough && hasSummaryButton(summarisable, contestant.id) && (
                                     <FlightSummaryButton contestantId={contestant.id} />
                                 )}
-                                <span>Score: {contestant.contestanttrack.score.toFixed(0)}</span>
+                                {didNotFly(task, contestant.contestanttrack) ? (
+                                    <span title={DNF_TITLE}>Score: {DNF_LABEL} (0)</span>
+                                ) : (
+                                    <span title={scoreArithmetic(task, contestant.contestanttrack, tracks)?.text}>
+                                        Score: {formatScoreOutOf(contestant.contestanttrack.score, task)}
+                                    </span>
+                                )}
                             </span>
                         </div>
                     );

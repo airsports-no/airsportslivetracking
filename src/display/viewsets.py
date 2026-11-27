@@ -239,6 +239,7 @@ from display.services.route_compatibility import (
 )
 from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
 from display.services.task_compiler import TaskCompiler
+from display.services.task_scoring import quality_track_fields, scoring_parameters, scoring_parameters_for
 from display.services.task_templates import (
     no_compatible_task_types_message,
     normalize_task_template_selection,
@@ -259,6 +260,7 @@ from display.utilities.calculator_running_utilities import is_calculator_running
 from display.utilities.calculator_termination_utilities import cancel_termination_request
 from display.utilities.task_types import (
     DEFAULT_SCORECARD_SHORTCUT_NAMES,
+    SCORING_QUALITY,
     TASK_TYPE_REGISTRY,
     scorecard_suits_task_subtype,
     stored_task_type,
@@ -2240,6 +2242,14 @@ class NavigationTaskViewSet(DeleteWhileCalculatorsRunMixin, ModelViewSet):
             if navigation_task.original_scorecard_id
             else None
         )
+        # Whether the task type can use the quality scoring model at all (the scoring_model/qmax_policy/task_value
+        # fields apply only then), and what the task scores with now (a blank stored value is the task type's default)
+        parameters = scoring_parameters_for(navigation_task.scorecard, stored_task_type(navigation_task))
+        data["can_use_quality_scoring"] = stored_task_type(navigation_task).scoring_model == SCORING_QUALITY
+        data["default_scoring_model"] = stored_task_type(navigation_task).scoring_model
+        data["effective_scoring_model"] = parameters.model
+        data["effective_qmax_policy"] = parameters.qmax_policy
+        data["effective_task_value"] = parameters.task_value
         return data
 
     @action(
@@ -3225,6 +3235,8 @@ def generate_score_data(contestant_pk):
                 "offset_string": entry.offset_string,
                 "times_string": entry.times_string,
                 "contestant": entry.contestant_id,
+                "score_type": entry.score_type,
+                "score_kind": entry.score_kind,
             }
         )
     administrative_penalties = []
@@ -3268,6 +3280,7 @@ def generate_score_data(contestant_pk):
 
     ct = contestant.contestanttrack
     track_data = {
+        **quality_track_fields(ct),
         "id": ct.id,
         "score": ct.score,
         "current_state": ct.current_state,
@@ -4327,9 +4340,12 @@ class ContestantViewSet(ModelViewSet):
                 {
                     "pk": item.pk,
                     "text": f"{item.points} points {item.message}",
+                    "points": item.points,
+                    "score_kind": item.score_kind,
                 }
             )
         actual_times = {item.gate: item.time for item in contestant.actualgatetime_set.all()}
+        scoring = scoring_parameters(contestant.navigation_task)
         planned_times = contestant.gate_times
         can_apply_quarantine_penalty = "change_contest" in get_user_perms(
             request.user, contestant.navigation_task.contest
@@ -4360,6 +4376,9 @@ class ContestantViewSet(ModelViewSet):
                 "can_apply_quarantine_penalty": can_apply_quarantine_penalty,
                 "administrative_penalty_categories": ADMINISTRATIVE_PENALTY_CATEGORIES,
                 "compiled_fuel_review": compiled_fuel_review,
+                "scoring_model": scoring.model,
+                "qmax_policy": scoring.qmax_policy,
+                "task_value": scoring.task_value,
             }
         )
 

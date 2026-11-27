@@ -222,6 +222,18 @@ class TestFlightScoredPush(Base):
         self.assertIn("can still adjust", body)
         self.assertEqual(PushNotificationLog.objects.get().kind, "flight_scored")
 
+    def test_a_cima_task_says_the_whole_score_out_of_the_task_value_and_that_it_can_change(self):
+        from display.models import NavigationTask
+        from display.utilities.task_types import PRECISION_NAVIGATION
+
+        NavigationTask.objects.filter(pk=self.task.pk).update(task_subtype=PRECISION_NAVIGATION)
+        self.finish(score=874)
+        self.assertEqual(push_notifications.notify_flight_scored(self.now), 1)
+        body = self.send.call_args.args[2]
+        self.assertIn("874 of 1000 points", body)
+        self.assertIn("can change until all flights are finished", body)
+        self.assertNotIn("can still adjust", body)
+
     def test_waits_a_short_settling_time_after_the_finish(self):
         self.finish(ended_minutes_ago=1)  # the photo observations are scored just after the calculator finishes
         self.assertEqual(push_notifications.notify_flight_scored(self.now), 0)

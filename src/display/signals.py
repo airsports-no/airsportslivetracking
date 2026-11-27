@@ -711,9 +711,15 @@ def sync_scorecard_sorting_direction(sender, instance: Scorecard, **kwargs):
     if hasattr(instance, "navigation_task_override"):
         nt = instance.navigation_task_override
         if hasattr(nt, "tasktest"):
-            nt.tasktest.sorting = instance.score_sorting_direction
+            from display.services.task_scoring import scoring_parameters_for
+            from display.utilities.task_types import stored_task_type
+
+            # A quality task always sorts descending (see NavigationTask.score_sorting_direction)
+            quality = scoring_parameters_for(instance, stored_task_type(nt)).is_quality
+            direction = "desc" if quality else instance.score_sorting_direction
+            nt.tasktest.sorting = direction
             nt.tasktest.save(update_fields=["sorting"])
-            nt.tasktest.task.summary_score_sorting_direction = instance.score_sorting_direction
+            nt.tasktest.task.summary_score_sorting_direction = direction
             nt.tasktest.task.save(update_fields=["summary_score_sorting_direction"])
 
 

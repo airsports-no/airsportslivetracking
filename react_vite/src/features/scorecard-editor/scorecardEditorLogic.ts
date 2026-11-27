@@ -202,3 +202,50 @@ export function formatCardSummary(entries: SummaryEntry[]): string {
         });
     return parts.length > 0 ? parts.join(' · ') : 'No values configured';
 }
+
+// The scoring model fields apply only to a task type that can use the quality model (the API says so), and are
+// shown at once in the General card, not behind "Advanced".
+export const QUALITY_SCORING_FIELDS: ScalarFieldName[] = ['scoring_model', 'qmax_policy', 'task_value'];
+
+// Fields a task of the quality model does not use: the task score starts at zero and the highest score always wins.
+export const IGNORED_BY_QUALITY_SCORING: ScalarFieldName[] = ['initial_score', 'score_sorting_direction'];
+
+// Whether the task scores with the quality model with the edits so far: what the user chose, or, where they left it
+// at "Task type default", what the task type does.
+export function usesQualityScoring(scorecard: ScorecardData, state: ScorecardEditorState): boolean {
+    if (!scorecard.can_use_quality_scoring) return false;
+    const chosen = getScalarValue(scorecard, state, 'scoring_model');
+    if (chosen === 'quality') return true;
+    if (chosen === 'penalties') return false;
+    return scorecard.default_scoring_model === 'quality';
+}
+
+export interface FieldAvailability {
+    hidden: boolean;
+    // Shown under a field that cannot be edited now, in words.
+    disabledReason?: string;
+}
+
+export function fieldAvailability(
+    scorecard: ScorecardData,
+    state: ScorecardEditorState,
+    field: ScalarFieldName,
+): FieldAvailability {
+    if (QUALITY_SCORING_FIELDS.includes(field)) {
+        if (!scorecard.can_use_quality_scoring) return { hidden: true };
+        if (field !== 'scoring_model' && !usesQualityScoring(scorecard, state)) {
+            return { hidden: false, disabledReason: 'Used only with the quality score model.' };
+        }
+        return { hidden: false };
+    }
+    if (IGNORED_BY_QUALITY_SCORING.includes(field) && usesQualityScoring(scorecard, state)) {
+        return {
+            hidden: false,
+            disabledReason:
+                field === 'initial_score'
+                    ? 'Not used with the quality score: the task score is derived from the flights and starts at 0.'
+                    : 'Not used with the quality score: the highest task score always wins.',
+        };
+    }
+    return { hidden: false };
+}

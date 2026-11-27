@@ -7,6 +7,7 @@ import {
   removeScoreLogEntry,
 } from '../api';
 import { formatTimeInZone } from '../utils';
+import { describeQualityLogEntry, isQualityTask, penaltyConsequence, PenaltyMode, RAW_POINTS_LEGEND } from '../../../utils/taskScore';
 
 export interface GateTimesModalHandle {
   open: () => void;
@@ -34,6 +35,9 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
 
     const [category, setCategory] = useState(DEFAULT_CATEGORY);
     const [points, setPoints] = useState('100');
+    // A quality task takes a penalty off the raw quality score, or a percentage off the final task score
+    const [mode, setMode] = useState<PenaltyMode>('percentage');
+    const [percentage, setPercentage] = useState('100');
     const [reason, setReason] = useState('');
     const [applyingPenalty, setApplyingPenalty] = useState(false);
 
@@ -73,11 +77,17 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
 
     const handleApplyPenalty = async (event: React.FormEvent) => {
       event.preventDefault();
-      const pointsValue = Number(points);
-      if (Number.isNaN(pointsValue)) return;
+      const percentageMode = isQualityTask(data) && mode === 'percentage';
+      const pointsValue = Number(percentageMode ? percentage : points);
+      if (Number.isNaN(pointsValue) || (percentageMode && (pointsValue < 0 || pointsValue > 100))) return;
       setApplyingPenalty(true);
       try {
-        await applyQuarantinePenalty(contestId, navigationTaskId, contestantId, { points: pointsValue, reason, category });
+        await applyQuarantinePenalty(
+          contestId,
+          navigationTaskId,
+          contestantId,
+          percentageMode ? { points: 0, percentage: pointsValue, reason, category } : { points: pointsValue, reason, category },
+        );
         setReason('');
         await load();
         onChanged();
@@ -87,6 +97,14 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
         setApplyingPenalty(false);
       }
     };
+
+    const quality = isQualityTask(data);
+    // A quality task's entry is raw quality points or a percentage of the task score, not points of the task score
+    const entryText = (entry: { text: string; points?: number; score_kind?: string }) =>
+      quality && entry.points !== undefined
+        ? `${describeQualityLogEntry({ points: entry.points, score_kind: entry.score_kind }).text} ${entry.text.replace(/^\S+ points /, '')}`
+        : entry.text;
+    const numericValue = Number(mode === 'percentage' ? percentage : points);
 
     const categories: [string, AdministrativePenaltyCategory][] = data
       ? Object.entries(data.administrative_penalty_categories)
@@ -114,6 +132,7 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
               <p className="text-sm text-gray-500 mb-3">
                 Total distance: {data.total_distance.toFixed(1)} NM
               </p>
+              {quality && <p className="text-xs text-gray-500 mb-3">{RAW_POINTS_LEGEND}</p>}
               <div className="overflow-x-auto">
                 <table className="table table-xs w-full">
                   <thead>
@@ -141,7 +160,7 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
                         <td>
                           {(data.log[gate] || []).map((entry) => (
                             <div key={entry.pk} className="flex items-center gap-2 text-xs mb-1 last:mb-0">
-                              <span>{entry.text}</span>
+                              <span>{entryText(entry)}</span>
                               {canManage && (
                                 <button
                                   type="button"
@@ -168,7 +187,7 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
                           <td>
                             {data.log[gate].map((entry) => (
                               <div key={entry.pk} className="flex items-center gap-2 text-xs mb-1 last:mb-0">
-                                <span>{entry.text}</span>
+                                <span>{entryText(entry)}</span>
                                 {canManage && (
                                   <button
                                     type="button"
@@ -204,14 +223,40 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
                       ))}
                     </select>
                   </div>
+                  {quality && (
+                    <div className="form-control">
+                      <label className="label label-text text-xs">Penalty is</label>
+                      <select
+                        className="select select-bordered select-sm"
+                        value={mode}
+                        onChange={(e) => setMode(e.target.value as PenaltyMode)}
+                      >
+                        <option value="percentage">A percentage of the task score</option>
+                        <option value="points">Raw points off the quality score</option>
+                      </select>
+                    </div>
+                  )}
                   <div className="form-control">
-                    <label className="label label-text text-xs">Points</label>
-                    <input
-                      type="number"
-                      className="input input-bordered input-sm w-24"
-                      value={points}
-                      onChange={(e) => setPoints(e.target.value)}
-                    />
+                    <label className="label label-text text-xs">
+                      {quality ? (mode === 'percentage' ? 'Percent (100 = quarantine breach)' : 'Raw points to deduct') : 'Points'}
+                    </label>
+                    {quality && mode === 'percentage' ? (
+                      <input
+                        type="number"
+                        min={0}
+                        max={100}
+                        className="input input-bordered input-sm w-24"
+                        value={percentage}
+                        onChange={(e) => setPercentage(e.target.value)}
+                      />
+                    ) : (
+                      <input
+                        type="number"
+                        className="input input-bordered input-sm w-24"
+                        value={points}
+                        onChange={(e) => setPoints(e.target.value)}
+                      />
+                    )}
                   </div>
                   <div className="form-control flex-1 min-w-[160px]">
                     <label className="label label-text text-xs">Reason</label>
@@ -226,6 +271,11 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
                   <button type="submit" className="btn btn-primary btn-sm" disabled={applyingPenalty}>
                     {applyingPenalty ? 'Applying...' : 'Apply penalty'}
                   </button>
+                  {quality && (
+                    <p className="basis-full text-xs text-gray-500" data-testid="penalty-consequence">
+                      {penaltyConsequence(data, mode, numericValue)} {mode === 'points' ? 'A positive number reduces the score.' : ''}
+                    </p>
+                  )}
                 </form>
               )}
             </div>

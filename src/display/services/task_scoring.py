@@ -429,6 +429,18 @@ def refresh_contestant_quality(contestant) -> int:
     return recompute_task_scores(contestant.navigation_task, refresh=[contestant])
 
 
+def quality_track_fields(track) -> dict:
+    """The raw values of a track the front ends need to show how its task score came about (additive keys of the
+    track's payloads; the same for every payload that carries a track)."""
+    return {
+        "raw_quality": track.raw_quality,
+        "quality_start": track.quality_start,
+        "quality_theoretical_maximum": track.quality_theoretical_maximum,
+        "percentage_penalty": track.percentage_penalty,
+        "quality_breakdown": track.quality_breakdown,
+    }
+
+
 def contestant_deleted(navigation_task_id: int) -> None:
     """A contestant is gone: the best Q of the task may have been theirs. Safe when the task is gone as well."""
     from display.models import NavigationTask

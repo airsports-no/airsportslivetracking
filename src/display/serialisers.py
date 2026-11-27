@@ -2544,6 +2544,11 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     qmax_policy = serializers.SerializerMethodField()
     task_value = serializers.SerializerMethodField()
     scores_provisional = serializers.SerializerMethodField()
+    qmax_absolute_reference = serializers.SerializerMethodField()
+
+    def get_qmax_absolute_reference(self, obj) -> Optional[float]:
+        """For the absolute policy: the raw quality that scores the whole task value (P = task value x Q / this)."""
+        return scoring_parameters(obj).absolute_reference
 
     def get_scoring_model(self, obj) -> str:
         return scoring_parameters(obj).model

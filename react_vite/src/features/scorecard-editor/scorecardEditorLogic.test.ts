@@ -2,6 +2,7 @@ import { describe, expect, it } from 'vitest';
 import {
     buildSavePayload,
     emptyEditorState,
+    fieldAvailability,
     formatCardSummary,
     formatFieldValueForDisplay,
     getGateFieldValue,
@@ -16,6 +17,7 @@ import {
     resetScalarFieldToOriginal,
     setGateFieldValue,
     setScalarValue,
+    usesQualityScoring,
 } from './scorecardEditorLogic';
 import { ScorecardData } from './types';
 
@@ -274,5 +276,46 @@ describe('formatFieldValueForDisplay', () => {
         expect(formatFieldValueForDisplay({ label: 'Penalty', kind: 'number' }, null)).toBe('not set');
         expect(formatFieldValueForDisplay({ label: 'Penalty', kind: 'number' }, undefined)).toBe('not set');
         expect(formatFieldValueForDisplay({ label: 'Name', kind: 'number' }, '')).toBe('not set');
+    });
+});
+
+describe('the scoring model fields', () => {
+    const quality = makeScorecard({ can_use_quality_scoring: true, default_scoring_model: 'quality', scoring_model: null });
+
+    it('are left out for a task type that cannot use the quality model', () => {
+        const legacy = makeScorecard();
+        for (const field of ['scoring_model', 'qmax_policy', 'task_value'] as const) {
+            expect(fieldAvailability(legacy, emptyEditorState(), field).hidden).toBe(true);
+        }
+        expect(fieldAvailability(legacy, emptyEditorState(), 'initial_score')).toEqual({ hidden: false });
+        expect(usesQualityScoring(legacy, setScalarValue(emptyEditorState(), 'scoring_model', 'quality'))).toBe(false);
+    });
+
+    it('are shown for a task type that can, and the task type default is the quality model', () => {
+        expect(usesQualityScoring(quality, emptyEditorState())).toBe(true);
+        for (const field of ['scoring_model', 'qmax_policy', 'task_value'] as const) {
+            expect(fieldAvailability(quality, emptyEditorState(), field)).toEqual({ hidden: false });
+        }
+    });
+
+    it('make the initial score and the sort direction unavailable with an explanation while the quality model is used', () => {
+        const initial = fieldAvailability(quality, emptyEditorState(), 'initial_score');
+        expect(initial.hidden).toBe(false);
+        expect(initial.disabledReason).toMatch(/quality score/);
+        expect(fieldAvailability(quality, emptyEditorState(), 'score_sorting_direction').disabledReason).toMatch(/highest/);
+    });
+
+    it('follow the choice of the user: penalty points give the old fields back and park the quality ones', () => {
+        const state = setScalarValue(emptyEditorState(), 'scoring_model', 'penalties');
+        expect(usesQualityScoring(quality, state)).toBe(false);
+        expect(fieldAvailability(quality, state, 'initial_score')).toEqual({ hidden: false });
+        expect(fieldAvailability(quality, state, 'task_value').disabledReason).toBeDefined();
+        const back = setScalarValue(emptyEditorState(), 'scoring_model', '');
+        expect(usesQualityScoring(quality, back)).toBe(true);
+    });
+
+    it('send only what was touched', () => {
+        const state = setScalarValue(setScalarValue(emptyEditorState(), 'task_value', 1200), 'qmax_policy', 'theoretical');
+        expect(buildSavePayload(state)).toEqual({ task_value: 1200, qmax_policy: 'theoretical', gatescore_set: [] });
     });
 });

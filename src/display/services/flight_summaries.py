@@ -27,6 +27,7 @@ from django.db.models import Sum
 from django.utils import timezone
 
 from display.models import Contestant, FlightSummary, ScoreLogEntry
+from display.services.task_scoring import scoring_parameters, task_scores_are_provisional
 from display.models.scoring_models import ANOMALY, INFORMATION
 from display.services.contest_visibility import can_view_navigation_task
 from display.services.flight_analysis import analyse_flight
@@ -408,6 +409,25 @@ def request_summary(
     return summary
 
 
+QUALITY_KIND_WORDS = {
+    "penalty": "penalty (reduces the raw quality score)",
+    "achievement": "achievement (adds to the raw quality score)",
+    "percentage_penalty": "percentage penalty (points is the percentage taken off the task score)",
+}
+
+
+def quality_scoring_note(task_value: float, provisional: bool) -> str:
+    """How to read the numbers of a task with a normalised task score, for the facts and for anybody reading them."""
+    note = (
+        f"final_score is the task score, a whole number out of {task_value:g}, higher is better: the flight's raw "
+        "quality score scaled to the best flight of the task, less any percentage penalties. The points of the events "
+        "are raw quality points (a penalty is negative), not task score points."
+    )
+    if provisional:
+        note += " The scores are provisional: they can change until all flights of the task are finished."
+    return note
+
+
 def _rank(contestant: Contestant, score: float) -> tuple[int, int]:
     """The flight's placement among the task's scored flights, and how many there are."""
     scores = list(
@@ -436,6 +456,10 @@ def flight_facts(contestant: Contestant) -> dict:
     navigation_task = contestant.navigation_task
     scorecard = navigation_task.scorecard
     score = contestant.contestanttrack.score
+    scoring = scoring_parameters(navigation_task)
+    quality = scoring.is_quality
+    if quality:
+        score = int(score)
     rank, scored_flights = _rank(contestant, score)
     entries = ScoreLogEntry.objects.filter(contestant=contestant, type__in=(ANOMALY, INFORMATION)).order_by(
         "time", "pk"
@@ -444,6 +468,8 @@ def flight_facts(contestant: Contestant) -> dict:
     totals_by_gate = {}
     for entry in entries:
         event = {"time": entry.time.isoformat(), "gate": entry.gate, "message": entry.message, "points": entry.points}
+        if quality and entry.score_kind:
+            event["kind"] = QUALITY_KIND_WORDS.get(entry.score_kind, entry.score_kind)
         if entry.offset_string:
             event["offset"] = entry.offset_string
         if entry.times_string:
@@ -455,7 +481,7 @@ def flight_facts(contestant: Contestant) -> dict:
         {"category": penalty.get_category_display(), "reason": penalty.reason, "points": penalty.score_log_entry.points}
         for penalty in contestant.administrativepenalty_set.select_related("score_log_entry")
     ]
-    return {
+    facts = {
         "contest": navigation_task.contest.name,
         "task": navigation_task.name,
         "task_type": scorecard.get_calculator_display(),
@@ -469,6 +495,12 @@ def flight_facts(contestant: Contestant) -> dict:
         "administrative_penalties": penalties,
         "analysis": _analysis(contestant),
     }
+    if quality:
+        facts["score_sorting"] = "higher is better"
+        facts["task_value"] = scoring.task_value
+        facts["scores_provisional"] = task_scores_are_provisional(navigation_task)
+        facts["scoring_note"] = quality_scoring_note(scoring.task_value, facts["scores_provisional"])
+    return facts
 
 
 _NUMBER_WORDS = {

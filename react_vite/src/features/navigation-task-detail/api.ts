@@ -118,10 +118,14 @@ export interface GateTimesResponse {
   rendered_waypoints: string[];
   distances: Record<string, number>;
   total_distance: number;
-  log: Record<string, { pk: number; text: string }[]>;
+  log: Record<string, { pk: number; text: string; points?: number; score_kind?: string }[]>;
   planned_times: Record<string, string>;
   actual_times: Record<string, string>;
   can_apply_quarantine_penalty: boolean;
+  /** How the task score is made (utils/taskScore.ts); absent from older servers. */
+  scoring_model?: string;
+  qmax_policy?: string;
+  task_value?: number;
   administrative_penalty_categories: Record<string, AdministrativePenaltyCategory>;
   compiled_fuel_review: {
     declared_endurance_minutes?: number;
@@ -217,7 +221,7 @@ export async function applyQuarantinePenalty(
   contestId: number,
   navigationTaskId: number,
   contestantId: number,
-  payload: { points: number; reason: string; category: string }
+  payload: { points: number; reason: string; category: string; percentage?: number }
 ): Promise<void> {
   const url = reverse('contestants-apply-quarantine-penalty', contestId, navigationTaskId, contestantId);
   const response = await fetch(url, {

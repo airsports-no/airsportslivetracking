@@ -1,10 +1,12 @@
 import React, { useState } from 'react';
 import { SCALAR_FIELD_META } from '../fieldMetadata';
 import {
+    fieldAvailability,
     formatCardSummary,
     getOriginalScalarValue,
     getScalarValue,
     isScalarFieldOverridden,
+    QUALITY_SCORING_FIELDS,
     resetScalarFieldToOriginal,
     setScalarValue,
 } from '../scorecardEditorLogic';
@@ -30,10 +32,15 @@ export const ScalarFieldGroup: React.FC<ScalarFieldGroupProps> = ({
     disabled,
 }) => {
     const [advancedOpen, setAdvancedOpen] = useState(false);
-    const primaryFields = fields.filter((f) => scorecard.visible_fields.includes(f));
-    const advancedFields = fields.filter((f) => !scorecard.visible_fields.includes(f));
+    // The scoring model fields are left out for a task type that cannot use them, and are never "advanced"
+    const shownFields = fields.filter((f) => !fieldAvailability(scorecard, state, f).hidden);
+    const isPrimary = (f: ScalarFieldName) => scorecard.visible_fields.includes(f) || QUALITY_SCORING_FIELDS.includes(f);
+    const primaryFields = shownFields.filter(isPrimary);
+    const advancedFields = shownFields.filter((f) => !isPrimary(f));
 
-    const renderField = (field: ScalarFieldName) => (
+    const renderField = (field: ScalarFieldName) => {
+        const { disabledReason } = fieldAvailability(scorecard, state, field);
+        return (
         <FieldRow
             key={field}
             fieldName={field}
@@ -43,9 +50,11 @@ export const ScalarFieldGroup: React.FC<ScalarFieldGroupProps> = ({
             originalValue={getOriginalScalarValue(scorecard, field)}
             onChange={(value) => onChange(setScalarValue(state, field, value))}
             onResetToStandard={() => onChange(resetScalarFieldToOriginal(scorecard, state, field))}
-            disabled={disabled}
+            disabled={disabled || !!disabledReason}
+            help={disabledReason ?? SCALAR_FIELD_META[field].help}
         />
-    );
+        );
+    };
 
     if (primaryFields.length === 0 && advancedFields.length === 0) return null;
 
@@ -53,7 +62,7 @@ export const ScalarFieldGroup: React.FC<ScalarFieldGroupProps> = ({
     // (non-advanced) fields if there are any, otherwise the first few fields overall so a
     // card with everything behind "Advanced" (e.g. an uncurated scorecard) still shows
     // something useful at a glance.
-    const summaryFields = primaryFields.length > 0 ? primaryFields : fields.slice(0, 3);
+    const summaryFields = primaryFields.length > 0 ? primaryFields : shownFields.slice(0, 3);
     const summary = formatCardSummary(
         summaryFields.map((field) => ({
             label: SCALAR_FIELD_META[field].label,
@@ -62,7 +71,7 @@ export const ScalarFieldGroup: React.FC<ScalarFieldGroupProps> = ({
         })),
     );
 
-    const anyOverridden = fields.some((field) => isScalarFieldOverridden(scorecard, state, field));
+    const anyOverridden = shownFields.some((field) => isScalarFieldOverridden(scorecard, state, field));
 
     return (
         <CollapsibleCard title={title} summary={summary} overridden={anyOverridden}>

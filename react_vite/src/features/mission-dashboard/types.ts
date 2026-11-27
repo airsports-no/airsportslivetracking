@@ -97,6 +97,12 @@ export interface NavigationTask {
     future_contestants?: any[];
     contestant_set: ContestantResult[];
     score_sorting_direction: 'asc' | 'desc';
+    /** How the task score is made (see utils/taskScore.ts); absent from older payloads. */
+    scoring_model?: string | null;
+    qmax_policy?: string | null;
+    task_value?: number | null;
+    scores_provisional?: boolean | null;
+    qmax_absolute_reference?: number | null;
     user_has_change_permission: boolean;
     calculation_delay_minutes?: number;
     contest: Contest;
@@ -244,6 +250,10 @@ export interface ContestantTrack {
     calculator_finished: boolean;
     calculator_started: boolean;
     contestant: number;
+    /** A quality task (utils/taskScore.ts): `score` is the task score, and these are what it is made from. */
+    raw_quality?: number | null;
+    quality_theoretical_maximum?: number | null;
+    percentage_penalty?: number | null;
 }
 
 export interface ContestantResult {

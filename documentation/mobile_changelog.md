@@ -16,6 +16,7 @@ that says what a pilot, an organiser or an admin gets.
 ### 2026-11-27
 #### Backend
 - **A CIMA task's score is now the task score P (best pilot = the task value, whole numbers) instead of a per-pilot normalised score:** the `score` of a flight in a task of 2.A1-2.A8 and 2.B3 follows the other pilots of the task (it is provisional until every flight is finished and changes when a better flight comes in), and the flight data gains `raw_quality` and `percentage_penalty`; legacy and Air Sports Race tasks are unchanged (migration `0218`).
+- **Scoring display fields (additive):** the score log entries of the map and score data gain `score_kind` (`penalty`, `achievement`, `percentage_penalty`) and `score_type` (for a CIMA task `points` is a raw quality contribution, or the percentage itself for a percentage penalty), the contestant track gains `quality_start`, `quality_theoretical_maximum` and `quality_breakdown`, a CIMA task always sorts highest first (`score_sorting_direction` is `desc`), and the "flight scored" push says "874 of 1000 points" with a note that the score can still change.
 
 ### 2026-11-23
 #### Backend

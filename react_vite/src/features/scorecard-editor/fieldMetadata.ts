@@ -8,6 +8,9 @@ export interface FieldMeta {
     unit?: string;
     min?: number;
     step?: number;
+    max?: number;
+    /** Plain-words explanation shown under the field. */
+    help?: string;
     choices?: { value: string; label: string }[];
 }
 
@@ -17,7 +20,7 @@ export interface FieldMeta {
 export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[] = [
     {
         title: 'General',
-        fields: ['score_sorting_direction', 'initial_score'],
+        fields: ['score_sorting_direction', 'initial_score', 'scoring_model', 'qmax_policy', 'task_value'],
     },
     {
         title: 'Backtracking',
@@ -95,6 +98,43 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
     initial_score: {
         label: 'Initial score',
         kind: 'number',
+    },
+    scoring_model: {
+        label: 'Scoring model',
+        kind: 'choice',
+        choices: [
+            { value: '', label: 'Task type default' },
+            { value: 'quality', label: 'Quality score (CIMA): scaled to the best flight' },
+            { value: 'penalties', label: 'Penalty points: penalties add up' },
+        ],
+        help:
+            'Quality score: every pilot earns a raw quality score, and the task score is scaled so that the best flight in the ' +
+            'task gets the full task value. The highest task score wins, and it can change until all flights are finished. ' +
+            'Penalty points: penalties are added up, as in the older scorecards.',
+    },
+    qmax_policy: {
+        label: 'Scaled to',
+        kind: 'choice',
+        choices: [
+            { value: '', label: 'Task type default' },
+            { value: 'best_in_task', label: 'The best flight in the task' },
+            { value: 'theoretical', label: "Each pilot's theoretical maximum" },
+            { value: 'absolute', label: 'An absolute scale (no comparison with the others)' },
+        ],
+        help:
+            'What a pilot\'s raw quality score is divided by. The best flight in the task (the CIMA rule) gives the best pilot ' +
+            'the full task value. The theoretical maximum compares each pilot with the most they could have scored. An absolute ' +
+            'scale does not depend on the other pilots (the circle and the ANR task use it). Only used with the quality score.',
+    },
+    task_value: {
+        label: 'Task value',
+        kind: 'number',
+        unit: 'points',
+        min: 500,
+        max: 1500,
+        help:
+            'The task score of the best flight, announced before the task. It must be between 500 and 1500 points ' +
+            '(1000 if you leave it as it is). Only used with the quality score.',
     },
     backtracking_penalty: { label: 'Backtracking penalty', kind: 'number', min: 0 },
     backtracking_bearing_difference: { label: 'Backtracking bearing difference', kind: 'number', unit: '°', min: 0 },

@@ -72,6 +72,11 @@ class NavigationTask(models.Model):
     @property
     def score_sorting_direction(self) -> str:
         if self.scorecard:
+            from display.services.task_scoring import is_quality_task
+
+            # The best flight of a quality task has the highest task score, whatever the scorecard's direction says
+            if is_quality_task(self):
+                return "desc"
             return self.scorecard.score_sorting_direction
         return "asc"
 
