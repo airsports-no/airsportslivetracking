@@ -5,6 +5,7 @@ import RankingList, { RankingRow } from './RankingList';
 import NavLog from './NavLog';
 import { ScoreLogEntry } from '../../types';
 import { PROVISIONAL_HELP } from '../../../../utils/taskScore';
+import { qualityExplanation } from '../../../../components/common/scoringExplanationFixtures';
 
 const quality = { scoring_model: 'quality', task_value: 1000 };
 const penalties = { scoring_model: 'penalties', task_value: 1000 };
@@ -27,10 +28,15 @@ describe('RankingList', () => {
         expect(html).toContain('>DNF<');
         expect(html).toContain('Did Not Fly');
     });
-    it('marks provisional scores with the explanation, and only while they are provisional', () => {
+    it('marks provisional scores with a badge that explains itself, and only while they are provisional', () => {
         expect(ranking({ scoring: quality, provisional: true })).toContain('Provisional');
-        expect(ranking({ scoring: quality, provisional: true })).toContain(PROVISIONAL_HELP);
+        expect(ranking({ scoring: quality, provisional: true })).toContain(`title="${PROVISIONAL_HELP}"`);
         expect(ranking({ scoring: quality, provisional: false })).not.toContain('Provisional');
+    });
+    it('uses the explanation the server wrote for the task, where it sent one', () => {
+        const html = ranking({ scoring: { ...quality, scoring_explanation: { ...qualityExplanation, provisional: { ...qualityExplanation.provisional, short: 'Written by the server.' } } }, provisional: true });
+        expect(html).toContain('title="Written by the server."');
+        expect(html).not.toContain(PROVISIONAL_HELP);
     });
     it('renders a penalty task as it always did: no heading, no badge', () => {
         const html = ranking({ scoring: penalties, provisional: true });

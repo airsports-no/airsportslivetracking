@@ -1,9 +1,10 @@
 import React from 'react';
 import { NavigationTask } from '../types';
 import { generatePath } from '../../../urls';
+import ProvisionalBadge from '../../../components/common/ProvisionalBadge';
 import { FlightSummaryButton } from '../../../components/common/FlightSummaryModal';
 import { hasSummaryButton, useSummarisableFlights } from '../../../components/common/flightSummaryApi';
-import { DNF_LABEL, DNF_TITLE, didNotFly, formatScoreOutOf, isQualityTask, PROVISIONAL_HELP, scoreArithmetic, scoresAreProvisional, sortByScore, trimmedNumber } from '../../../utils/taskScore';
+import { DNF_LABEL, DNF_TITLE, didNotFly, formatScoreOutOf, isQualityTask, provisionalHelp, scoreArithmetic, scoresAreProvisional, sortByScore, trimmedNumber } from '../../../utils/taskScore';
 
 interface TaskScoreDisplayProps {
     task: NavigationTask;
@@ -37,11 +38,8 @@ const TaskScoreDisplay: React.FC<TaskScoreDisplayProps> = ({ task, myContestantI
         <div className="mt-4 pt-2 bg-base-100 p-2 rounded-lg">
             <h5 className="font-semibold text-md mb-2">
                 Scores for {task.name}{quality && task.task_value ? ` (out of ${trimmedNumber(task.task_value)})` : ''}:
-                {provisional && (
-                    <span className="badge badge-warning badge-sm ml-2 align-middle" title={PROVISIONAL_HELP} data-testid="provisional-badge">Provisional</span>
-                )}
+                {provisional && <ProvisionalBadge className="ml-2" text={provisionalHelp(task)} />}
             </h5>
-            {provisional && <p className="text-xs opacity-70 mb-2">{PROVISIONAL_HELP}</p>}
             {sorted
                 .map(contestant => {
                     const isCurrentUser = myContestantIds.has(contestant.id);

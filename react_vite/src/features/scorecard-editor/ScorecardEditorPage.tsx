@@ -7,6 +7,8 @@ import { fetchScorecard, resetScorecard, saveScorecard } from './api';
 import { SCALAR_FIELD_GROUPS } from './fieldMetadata';
 import { GateSection } from './components/GateSection';
 import { ScalarFieldGroup } from './components/ScalarFieldGroup';
+import ScoringExplanationPreview from './components/ScoringExplanationPreview';
+import { previewOverrides } from './scoringPreview';
 import { buildSavePayload, emptyEditorState, isDirty } from './scorecardEditorLogic';
 import { ScorecardData, ScorecardEditorState } from './types';
 import { generatePath } from '../../urls';
@@ -152,6 +154,14 @@ export default function ScorecardEditorPage() {
                     )}
                 </div>
             </div>
+
+            <ScoringExplanationPreview
+                contestId={Number(contestId)}
+                navigationTaskId={Number(navigationTaskId)}
+                initial={navigationTask.scoring_explanation}
+                overrides={previewOverrides(editorState)}
+                scorecardVersion={scorecard}
+            />
 
             <p className="text-sm text-base-content/70 mb-6">
                 Only fields relevant to this task's route are shown. Values marked with a dot differ from{' '}

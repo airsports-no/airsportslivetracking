@@ -238,6 +238,11 @@ from display.services.route_compatibility import (
     get_blocking_reasons,
 )
 from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
+from display.services.scoring_explanation import (
+    explain_navigation_task,
+    explain_task_type,
+    parse_preview_overrides,
+)
 from display.services.task_compiler import TaskCompiler
 from display.services.task_scoring import (
     measure_text,
@@ -268,6 +273,7 @@ from display.utilities.task_types import (
     DEFAULT_SCORECARD_SHORTCUT_NAMES,
     SCORING_QUALITY,
     TASK_TYPE_REGISTRY,
+    find_task_type,
     scorecard_suits_task_subtype,
     stored_task_type,
 )
@@ -2018,6 +2024,29 @@ class GetScorecardsViewSet(ReadOnlyModelViewSet):
             ]
         )
 
+    @action(detail=False, methods=["get"], url_path="explanation", permission_classes=[permissions.IsAuthenticated])
+    def explanation(self, request, *args, **kwargs):
+        """
+        How a task of a type is scored with a scorecard, in plain language, before any task exists (the task creation
+        flow). ?task_subtype=<task type key> is required; ?scorecard=<shortcut_name> defaults to the scorecard the task
+        type is created from. The scoring values of the scorecard editor (?qmax_policy=...) preview unsaved choices.
+        """
+        task_subtype = request.query_params.get("task_subtype")
+        definition = find_task_type(task_subtype)
+        if definition is None:
+            raise ValidationError({"task_subtype": "Choose a task type."})
+        shortcut_name = request.query_params.get("scorecard") or definition.scorecard_shortcut_name
+        if not shortcut_name:
+            shortcut_name = DEFAULT_SCORECARD_SHORTCUT_NAMES.get(definition.coarse_family)
+        scorecard = get_object_or_404(Scorecard.get_originals(), shortcut_name=shortcut_name) if shortcut_name else None
+        if scorecard is None:
+            raise ValidationError({"scorecard": "Choose a scorecard."})
+        try:
+            overrides = parse_preview_overrides(request.query_params)
+        except ValueError as exc:
+            raise ValidationError(str(exc))
+        return Response(explain_task_type(definition.key, scorecard, overrides))
+
 
 class AdminFlightStatsViewSet(ViewSet):
     """
@@ -2257,6 +2286,19 @@ class NavigationTaskViewSet(DeleteWhileCalculatorsRunMixin, ModelViewSet):
         data["effective_qmax_policy"] = parameters.qmax_policy
         data["effective_task_value"] = parameters.task_value
         return data
+
+    @action(detail=True, methods=["get"], url_path="scoring_explanation")
+    def scoring_explanation(self, request, *args, **kwargs):
+        """
+        How the task is scored, in plain language (the same text as the scoring_explanation field of the task).
+        The scoring values of the scorecard editor (?qmax_policy=...) preview choices that are not saved yet.
+        """
+        navigation_task = self.get_object()  # This is where the object permissions are checked
+        try:
+            overrides = parse_preview_overrides(request.query_params)
+        except ValueError as exc:
+            raise ValidationError(str(exc))
+        return Response(explain_navigation_task(navigation_task, overrides))
 
     @action(
         detail=True,

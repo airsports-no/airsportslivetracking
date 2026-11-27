@@ -21,6 +21,8 @@ export const navigationTaskDetailsSchema = z.object({
     allow_observation_registration: z.boolean(),
     show_live_score_in_app: z.boolean(),
     calculation_delay_minutes: z.coerce.number().min(0),
+    // CIMA tasks: how the best score is determined (see ScoringChoiceNote); blank leaves the task type's default
+    qmax_policy: z.string().optional(),
 });
 
 // react-hook-form's field values are the pre-coercion shape (numeric inputs may arrive as
@@ -46,4 +48,5 @@ export const navigationTaskDetailsDefaults: NavigationTaskDetailsInput = {
     allow_observation_registration: false,
     show_live_score_in_app: true,
     calculation_delay_minutes: 0,
+    qmax_policy: '',
 };

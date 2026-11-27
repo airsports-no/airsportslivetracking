@@ -1,6 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { formatStartsIn } from '../../utils/startsIn';
-import { DNF_LABEL, DNF_TITLE, formatTaskScore, isQualityTask, PROVISIONAL_HELP, scoreHeading, TaskScoring } from '../../../../utils/taskScore';
+import { DNF_LABEL, DNF_TITLE, formatTaskScore, isQualityTask, provisionalHelp, scoreHeading, TaskScoring } from '../../../../utils/taskScore';
+import ProvisionalBadge from '../../../../components/common/ProvisionalBadge';
 
 export interface RankingRow {
     id: number;
@@ -37,10 +38,7 @@ export function ScoreHeading({ scoring, provisional, className = 'hud-label px-4
     return (
         <div className={className}>
             <span>{scoreHeading(scoring)}</span>
-            {provisional && (
-                <span className="text-[11px] font-semibold px-1.5 rounded" style={{ background: 'var(--hud-raised)', color: 'var(--hud-warn)' }}
-                    title={PROVISIONAL_HELP} data-testid="provisional-badge">Provisional</span>
-            )}
+            {provisional && <ProvisionalBadge variant="hud" text={provisionalHelp(scoring)} />}
         </div>
     );
 }
@@ -71,7 +69,6 @@ export default function RankingList({ rows, selectedId, onSelect, dividerIndex =
     return (
         <>
         <ScoreHeading scoring={scoring} provisional={provisional} />
-        {provisional && isQualityTask(scoring) && <p className="hud-label px-4 pb-1 normal-case">{PROVISIONAL_HELP}</p>}
         <ol className="flex flex-col" aria-label="Ranking">
             {rows.map((r, idx) => {
                 const waiting = r.state === 'Waiting...';

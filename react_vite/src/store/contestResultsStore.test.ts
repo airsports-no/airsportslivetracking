@@ -6,6 +6,8 @@ import {
   applyTestsUpdate,
   applyTeamsUpdate,
   applyScoreUpdate,
+  mergeTestScoring,
+  isQualityTest,
   useContestResultsStore,
   type ContestResults,
   type ContestSummary,
@@ -294,5 +296,80 @@ describe('wsConnected', () => {
     useContestResultsStore.getState().setWsConnected(true);
     expect(useContestResultsStore.getState().wsConnected).toBe(true);
     expect(useContestResultsStore.getState().error).toBe('Failed to save task');
+  });
+});
+
+
+describe('scoring of the tests linked to a quality task', () => {
+  const resultsWith = (scoring: unknown): ContestResults =>
+    ({
+      id: 5,
+      task_set: [{ id: 1, tasktest_set: [{ id: 10, scoring, teamtestscore_set: [{ id: 1, team: 3, task_test: 10, points: 800 }] }, { id: 11, scoring: null }] }],
+    }) as unknown as ContestResults;
+
+  it('knows which tests are of the quality model', () => {
+    const results = resultsWith({ scoring_model: 'quality' });
+    expect(isQualityTest(results, 10)).toBe(true);
+    expect(isQualityTest(results, 11)).toBe(false);
+    expect(isQualityTest(results, 99)).toBe(false);
+    expect(isQualityTest(results, undefined)).toBe(false);
+    expect(isQualityTest(resultsWith({ scoring_model: 'penalties' }), 10)).toBe(false);
+  });
+
+  it('takes only the scoring from a fresh copy and leaves the rest of the table as it is', () => {
+    const current = resultsWith({ scoring_model: 'quality', scores_provisional: true, not_flown_team_ids: [4] });
+    const fresh = resultsWith({ scoring_model: 'quality', scores_provisional: false, not_flown_team_ids: [] });
+    (fresh.task_set[0].tasktest_set[0] as any).teamtestscore_set = [];
+    const merged = mergeTestScoring(current, fresh);
+    const test = merged.task_set[0].tasktest_set[0];
+    expect(test.scoring).toEqual({ scoring_model: 'quality', scores_provisional: false, not_flown_team_ids: [] });
+    expect(test.teamtestscore_set).toHaveLength(1);
+  });
+
+  it('keeps the scoring of a test the fresh copy does not have', () => {
+    const current = resultsWith({ scoring_model: 'quality' });
+    const fresh = { ...current, task_set: [] } as ContestResults;
+    expect(mergeTestScoring(current, fresh).task_set[0].tasktest_set[0].scoring).toEqual({ scoring_model: 'quality' });
+  });
+});
+
+describe('a score update of a quality task', () => {
+  const quality = (provisional: boolean) => ({ scoring_model: 'quality', scores_provisional: provisional, not_flown_team_ids: [] });
+  const tests = (provisional: boolean, id = 10) => [{ id: 1, tasktest_set: [{ id, scoring: quality(provisional), teamtestscore_set: [] }] }];
+  const message = (taskTest: number) => ({
+    type: 'score.update',
+    test_score: { id: 1, team: 3, task_test: taskTest, points: 800 },
+    task_summary: null,
+    contest_summary: null,
+  });
+
+  afterEach(() => {
+    vi.useRealTimers();
+    vi.unstubAllGlobals();
+  });
+
+  it('asks again whether the scores are still provisional, once the updates of a moment are in', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 5, task_set: tests(false) }) });
+    vi.stubGlobal('fetch', fetchMock);
+    useContestResultsStore.setState({ results: { id: 5, task_set: tests(true) } as unknown as ContestResults });
+    useContestResultsStore.getState().applyRealtimeMessage(message(10));
+    useContestResultsStore.getState().applyRealtimeMessage(message(10));
+    expect(fetchMock).not.toHaveBeenCalled();
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    const test = useContestResultsStore.getState().results!.task_set[0].tasktest_set[0];
+    expect(test.scoring?.scores_provisional).toBe(false);
+    expect(test.teamtestscore_set).toHaveLength(1);
+  });
+
+  it('does not ask for a test that is not scored by the quality model', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn();
+    vi.stubGlobal('fetch', fetchMock);
+    useContestResultsStore.setState({ results: { id: 5, task_set: tests(true) } as unknown as ContestResults });
+    useContestResultsStore.getState().applyRealtimeMessage(message(99));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fetchMock).not.toHaveBeenCalled();
   });
 });

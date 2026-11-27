@@ -20,6 +20,44 @@ export interface TaskScoring {
      * entry is the value of the measure ("S = 62.4 kt").
      */
     score_measures?: Record<string, ScoreMeasure> | null;
+    /** The full plain-language explanation of how the task is scored (the navigation task's payload). */
+    scoring_explanation?: ScoringExplanation | null;
+    /** The short "why is this provisional" text, where only that is sent (the contest results). */
+    provisional_explanation?: string | null;
+}
+
+/** One way to scale the task score, as the backend's explanation of the task describes it. */
+export interface QmaxOption {
+    value: QmaxPolicy;
+    label: string;
+    description: string;
+    is_default: boolean;
+    is_selected: boolean;
+    /** True where a pilot's own score is fixed at landing under this choice. */
+    fixed_at_landing: boolean;
+}
+
+/**
+ * How a task is scored, in plain language, written once by the backend (display/services/scoring_explanation.py) from
+ * the task type and the scorecard. Screens show it; they never write their own version of it.
+ */
+export interface ScoringExplanation {
+    scoring_model: ScoringModel;
+    task_value: number | null;
+    qmax_policy: QmaxPolicy | null;
+    task_type: string;
+    task_type_name: string;
+    headline: string;
+    raw_points: string[];
+    task_score: string;
+    relative_terms: string[];
+    percentage_penalties: string[];
+    provisional: { depends_on_other_pilots: boolean; text: string; short: string };
+    qmax: { offered: boolean; selected: QmaxPolicy | null; default: QmaxPolicy | null; options: QmaxOption[] };
+    depends_on_other_pilots: boolean;
+    /** The short note for task creation; null for a task of the penalty model. */
+    creation_note: string | null;
+    route_used: boolean;
 }
 
 export interface ScoreMeasure {
@@ -47,6 +85,10 @@ export interface LogEntryScore {
 
 export const PROVISIONAL_HELP =
     'Scores are scaled to the best flight in the task and can change until all flights are finished.';
+
+/** Why the scores are provisional, from the backend's explanation of the task where it has one. */
+export const provisionalHelp = (scoring?: TaskScoring | null): string =>
+    scoring?.scoring_explanation?.provisional?.short || scoring?.provisional_explanation || PROVISIONAL_HELP;
 
 export const RAW_POINTS_LEGEND =
     'The points in this log are raw quality points (Q). The task score is worked out from Q: it is scaled to the best ' +

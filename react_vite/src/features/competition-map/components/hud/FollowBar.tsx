@@ -2,7 +2,8 @@ import React, { useEffect, useState, useSyncExternalStore } from 'react';
 import { Contestant, DangerData, GateArrowData, Member, NavigationTask } from '../../types';
 import GateScoreArrowV2 from '../gateScoreArrow/GateScoreArrowV2';
 import PlayingCards from '../playing-cards/PlayingCards';
-import { DNF_LABEL, DNF_TITLE, formatTaskScore, isQualityTask, PROVISIONAL_HELP, scoreHeading } from '../../../../utils/taskScore';
+import ProvisionalBadge from '../../../../components/common/ProvisionalBadge';
+import { DNF_LABEL, DNF_TITLE, formatTaskScore, isQualityTask, provisionalHelp, scoreHeading } from '../../../../utils/taskScore';
 
 interface Props {
     contestant: Contestant;
@@ -170,7 +171,7 @@ export default function FollowBar({ contestant, navigationTask, score, rank, ran
                                 <div className="hud-label min-[100rem]:text-base mt-1" title={arithmetic ?? undefined}>
                                     {scoreHeading(navigationTask)}
                                     {provisional && isQualityTask(navigationTask) && (
-                                        <span className="ml-1 normal-case font-semibold" style={{ color: 'var(--hud-warn)' }} title={PROVISIONAL_HELP} data-testid="provisional-badge">provisional</span>
+                                        <ProvisionalBadge variant="hud" label="provisional" className="ml-1" text={provisionalHelp(navigationTask)} />
                                     )}
                                 </div>
                             </>

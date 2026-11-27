@@ -2,7 +2,7 @@ import React from 'react';
 import { Crosshair } from 'lucide-react';
 import { ScoreLogEntry } from '../../types';
 import { shortScoreText } from '../../utils/scoreText';
-import { isQualityTask, logPointsText, PROVISIONAL_HELP, RAW_POINTS_LEGEND, TaskScoring } from '../../../../utils/taskScore';
+import { isQualityTask, logPointsText, provisionalHelp, RAW_POINTS_LEGEND, TaskScoring } from '../../../../utils/taskScore';
 
 interface Props {
     entries: ScoreLogEntry[];
@@ -36,7 +36,7 @@ export default function NavLog({ entries, timeZone, pointsArePenalties, activeId
         <div className="px-3 pt-2 pb-2 border-b hud-divider">
             {arithmetic && <div className="hud-figure text-sm font-semibold" title="Raw quality score Q, scaled to the best flight in the task, less percentage penalties">{arithmetic}</div>}
             <p className="hud-label normal-case mt-1">{RAW_POINTS_LEGEND}</p>
-            {provisional && <p className="hud-label normal-case mt-1" style={{ color: 'var(--hud-warn)' }}>{PROVISIONAL_HELP}</p>}
+            {provisional && <p className="hud-label normal-case mt-1" style={{ color: 'var(--hud-warn)' }}>{provisionalHelp(scoring)}</p>}
         </div>
     ) : null;
     if (entries.length === 0) {

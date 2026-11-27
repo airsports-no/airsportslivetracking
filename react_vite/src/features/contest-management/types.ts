@@ -53,6 +53,8 @@ export interface NavigationTaskCreatePayload {
     allow_observation_registration: boolean;
     show_live_score_in_app: boolean;
     calculation_delay_minutes: number;
+    // CIMA tasks: what the raw points are divided by (the task type's own default when left out)
+    qmax_policy?: string;
 }
 
 export interface NavigationTaskCreateResponse {

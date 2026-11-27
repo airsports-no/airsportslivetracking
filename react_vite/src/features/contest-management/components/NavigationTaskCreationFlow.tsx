@@ -138,8 +138,10 @@ const NavigationTaskCreationFlow: React.FC<NavigationTaskCreationFlowProps> = ({
         setSubmitting(true);
         setError(null);
         try {
+            const { qmax_policy: qmaxPolicy, ...taskValues } = values;
             const response = await createNavigationTask(contest.id, {
-                ...values,
+                ...taskValues,
+                ...(qmaxPolicy ? { qmax_policy: qmaxPolicy } : {}),
                 start_time: contestLocalTimeToIso(values.start_time, contest.time_zone),
                 finish_time: contestLocalTimeToIso(values.finish_time, contest.time_zone),
                 editable_route: editableRouteId,

@@ -92,6 +92,7 @@ from display.services.contestant_persistence import (
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.route_compatibility import assert_route_compatible_with_task_type
+from display.services.scoring_explanation import explain_navigation_task, offered_qmax_policies
 from display.services.task_compiler import TaskCompiler
 from display.services.task_scoring import (
     score_measures,
@@ -100,6 +101,7 @@ from display.services.task_scoring import (
     validate_task_value,
 )
 from display.utilities.task_types import (
+    find_task_type,
     QMAX_POLICIES,
     SCORING_MODELS,
     SCORING_PENALTIES,
@@ -2571,6 +2573,11 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     scores_provisional = serializers.SerializerMethodField()
     qmax_absolute_reference = serializers.SerializerMethodField()
     score_measures = serializers.SerializerMethodField()
+    scoring_explanation = serializers.SerializerMethodField()
+
+    def get_scoring_explanation(self, obj) -> dict:
+        """How the task is scored, in plain language, for the organiser and for the "Provisional" explanation."""
+        return explain_navigation_task(obj)
 
     def get_score_measures(self, obj) -> dict:
         """The score types whose log entries are a measure (V, S) and not points of Q, and how to show them."""
@@ -2734,6 +2741,17 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
         read_only=True,
         help_text="Non-fatal advisory warnings about the created route (e.g. corridor geometry issues).",
     )
+    qmax_policy = serializers.ChoiceField(
+        choices=QMAX_POLICIES,
+        write_only=True,
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text=(
+            "CIMA tasks only: what the pilots' raw points are divided by to get the task score (the task type's own "
+            "default when left out). Stored in the task's own copy of the scorecard."
+        ),
+    )
 
     class Meta:
         model = NavigationTask
@@ -2762,6 +2780,13 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
                     assert_route_compatible_with_task_type(editable_route, original_scorecard.calculator, subtype)
                 except CoreValidationError as e:
                     raise ValidationError({"editable_route": str(e)})
+        qmax_policy = attrs.get("qmax_policy")
+        if qmax_policy:
+            definition = find_task_type(subtype)
+            if definition is None or qmax_policy not in offered_qmax_policies(definition):
+                raise ValidationError(
+                    {"qmax_policy": "This way of scaling the task score is not available for the task type."}
+                )
         return attrs
 
     def create(self, validated_data):
@@ -2796,7 +2821,12 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
             assign_perm("display.view_route", user, route)
             assign_perm("display.delete_route", user, route)
             assign_perm("display.change_route", user, route)
+            qmax_policy = validated_data.pop("qmax_policy", None)
             navigation_task = NavigationTask.create(**validated_data)
+            if qmax_policy:
+                # Stored with the task's other scoring values, in its own copy of the scorecard
+                navigation_task.scorecard.config["qmax_policy"] = qmax_policy
+                navigation_task.scorecard.save(update_fields=["config"])
             navigation_task._creation_warnings = warnings
         return navigation_task
 
@@ -2932,6 +2962,31 @@ class TaskSummarySerialiser(serializers.ModelSerializer):
 class TaskTestNestedSerialiser(serializers.ModelSerializer):
     teamtestscore_set = TeamTestScoreSerialiser(many=True)
     navigation_task_link = serializers.CharField()
+    # How the score of a test that is linked to a navigation task is made, for the results table (null for a test that
+    # is not): the same fields the live map reads, and the teams whose flight never started (DNF).
+    scoring = serializers.SerializerMethodField()
+
+    def get_scoring(self, test) -> Optional[dict]:
+        navigation_task = test.navigation_task
+        if navigation_task is None:
+            return None
+        parameters = scoring_parameters(navigation_task)
+        if not parameters.is_quality:
+            return {"scoring_model": parameters.model}
+        tracks = list(
+            ContestantTrack.objects.filter(contestant__navigation_task=navigation_task).values_list(
+                "contestant__team_id", "calculator_started", "calculator_finished"
+            )
+        )
+        return {
+            "scoring_model": parameters.model,
+            "qmax_policy": parameters.qmax_policy,
+            "task_value": parameters.task_value,
+            "qmax_absolute_reference": parameters.absolute_reference,
+            "scores_provisional": any(not finished for _, _, finished in tracks),
+            "provisional_explanation": explain_navigation_task(navigation_task)["provisional"]["short"],
+            "not_flown_team_ids": [team_id for team_id, started, _ in tracks if not started],
+        }
 
     class Meta:
         model = TaskTest
