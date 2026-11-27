@@ -535,7 +535,9 @@ class UserPersonViewSet(GenericViewSet):
         contestants = (
             contestants.order_by("takeoff_time")
             .distinct()
-            .select_related("navigation_task__contest", "team__crew__member1")
+            .select_related(
+                "navigation_task__contest", "team__crew__member1", "team__crew__member2", "contestanttaskconfiguration"
+            )
             # The orders PDF itself (a binary column) is not needed for the list, only that one exists and which is newest.
             .prefetch_related(Prefetch("emailmaplink_set", queryset=EmailMapLink.objects.only("id", "contestant_id", "created_at")))
         )
@@ -575,7 +577,9 @@ class UserPersonViewSet(GenericViewSet):
                 ).data
             )
         contestants = (
-            contestants.select_related("navigation_task__contest")
+            contestants.select_related(
+                "navigation_task__contest", "team__crew__member1", "team__crew__member2", "contestanttaskconfiguration"
+            )
             .prefetch_related(Prefetch("emailmaplink_set", queryset=EmailMapLink.objects.only("id", "contestant_id", "created_at")))
             .order_by("-takeoff_time")
             .distinct()

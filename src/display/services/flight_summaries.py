@@ -499,7 +499,7 @@ def flight_facts(contestant: Contestant) -> dict:
         facts["score_sorting"] = "higher is better"
         facts["task_value"] = scoring.task_value
         facts["scores_provisional"] = task_scores_are_provisional(navigation_task)
-        facts["scoring_note"] = quality_scoring_note(scoring.task_value, facts["scores_provisional"])
+        facts["scoring_note"] = quality_scoring_note(scoring.score_scale or scoring.task_value, facts["scores_provisional"])
     return facts
 
 

@@ -29,6 +29,7 @@ from display.services.task_scoring import (
 from display.utilities.task_types import (
     ANR_CATALOGUE,
     CIRCLE,
+    CURVE_NAVIGATION_TIME_ESTIMATION,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     CONTRACT_POINTS_SCORE_TYPE,
     KNOWN_CIRCUIT,
@@ -486,6 +487,77 @@ class TestAbsoluteScores(MessageTestCase):
         task.scorecard.save(update_fields=["config"])
         recompute_task_scores(task)
         self.assertEqual(375, ContestantTrack.objects.get(contestant=a).score)
+
+
+class TestProvisionalMeansDependingOnOtherPilots(MessageTestCase):
+    """A score is provisional while a flight of another pilot can still change it, not merely while a flight is going."""
+
+    def provisional(self, subtype, policy=None, original=None) -> bool:
+        task = self.make_task(subtype, original) if original else self.make_task(subtype)
+        if policy:
+            task.scorecard.config["qmax_policy"] = policy
+            task.scorecard.save(update_fields=["config"])
+        self.make_contestant(task, 1)  # a flight that is not finished
+        return task_scores_are_provisional(task)
+
+    def test_the_circle_and_the_anr_task_are_fixed_scales_and_never_provisional(self):
+        self.assertFalse(self.provisional(CIRCLE))
+        self.assertFalse(self.provisional(ANR_CATALOGUE, original=self.anr_original))
+
+    def test_a_theoretical_policy_without_relative_terms_is_final_at_landing(self):
+        self.assertFalse(self.provisional(CURVE_NAVIGATION_TIME_ESTIMATION, QMAX_THEORETICAL))
+        self.assertFalse(self.provisional(PRECISION_NAVIGATION, QMAX_THEORETICAL))
+
+    def test_the_best_in_task_policy_is_provisional_until_the_flights_are_finished(self):
+        self.assertTrue(self.provisional(CURVE_NAVIGATION_TIME_ESTIMATION, QMAX_BEST_IN_TASK))
+
+    def test_a_theoretical_policy_is_provisional_where_a_term_follows_the_best_pilot(self):
+        # 2.A3's V is shared against the best pilot whatever the policy
+        self.assertTrue(self.provisional(CONTRACT_NAVIGATION_TIME_CONTROLS, QMAX_THEORETICAL))
+
+    def test_it_ends_with_the_last_flight(self):
+        task = self.make_task(CURVE_NAVIGATION_TIME_ESTIMATION)
+        self.make_contestant(task, 1)
+        self.assertTrue(task_scores_are_provisional(task))
+        ContestantTrack.objects.filter(contestant__navigation_task=task).update(calculator_finished=True)
+        self.assertFalse(task_scores_are_provisional(task))
+
+    def test_the_explanation_agrees(self):
+        from display.services.scoring_explanation import explain_navigation_task
+
+        circle = self.make_task(CIRCLE)
+        self.assertFalse(explain_navigation_task(circle)["provisional"]["depends_on_other_pilots"])
+        theoretical = self.make_task(PRECISION_NAVIGATION)
+        theoretical.scorecard.config["qmax_policy"] = QMAX_THEORETICAL
+        theoretical.scorecard.save(update_fields=["config"])
+        self.assertFalse(explain_navigation_task(theoretical)["provisional"]["depends_on_other_pilots"])
+
+
+class TestScoreScale(MessageTestCase):
+    """What the task score is out of: the circle's score is Q itself (250), not a share of the task value."""
+
+    def test_the_circle_is_out_of_its_perfect_score_not_the_task_value(self):
+        from display.services.task_scoring import scoring_parameters
+
+        task = self.make_task(CIRCLE)
+        self.assertEqual(1000, scoring_parameters(task).task_value)
+        self.assertEqual(250, scoring_parameters(task).score_scale)
+
+    def test_the_anr_task_is_out_of_the_task_value(self):
+        from display.services.task_scoring import scoring_parameters
+
+        self.assertEqual(1000, scoring_parameters(self.make_task(ANR_CATALOGUE, self.anr_original)).score_scale)
+
+    def test_the_other_quality_tasks_are_out_of_the_task_value(self):
+        from display.services.task_scoring import scoring_parameters
+
+        self.assertEqual(1000, scoring_parameters(self.make_task(PRECISION_NAVIGATION)).score_scale)
+
+    def test_the_task_payload_sends_it(self):
+        from display.serialisers import NavigationTaskNestedTeamRouteSerialiser
+
+        task = self.make_task(CIRCLE)
+        self.assertEqual(250, NavigationTaskNestedTeamRouteSerialiser().get_score_scale(task))
 
 
 class TestOutsideContributors(TaskScoringTestCase):

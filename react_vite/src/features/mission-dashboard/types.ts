@@ -104,6 +104,7 @@ export interface NavigationTask {
     scores_provisional?: boolean | null;
     scoring_explanation?: import('../../utils/taskScore').ScoringExplanation | null;
     qmax_absolute_reference?: number | null;
+    score_scale?: number | null;
     score_measures?: Record<string, { symbol: string; unit: string; is_change: boolean }> | null;
     user_has_change_permission: boolean;
     calculation_delay_minutes?: number;

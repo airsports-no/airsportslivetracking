@@ -15,6 +15,11 @@ export interface TaskScoring {
     /** The absolute policy's scale: Q divided by this scores the whole task value. */
     qmax_absolute_reference?: number | null;
     /**
+     * What the task score is out of: the task value, but the raw quality of a perfect flight (250) where the score is Q
+     * itself and ignores the task value (the circle); null where that is not known.
+     */
+    score_scale?: number | null;
+    /**
      * The score types whose log entries are a measure and not points of Q (2.A3's V, 2.A4's S), by score type, as the
      * backend's task type registry declares them. `is_change`: each entry changes the measure ("V +1"); otherwise an
      * entry is the value of the measure ("S = 62.4 kt").
@@ -115,15 +120,30 @@ export const roundHalfUp = (value: number): number => Math.floor(Math.round(valu
 export const formatTaskScore = (score: number, scoring?: TaskScoring | null, fractionDigits = 0): string =>
     isQualityTask(scoring) ? String(roundHalfUp(score)) : score.toFixed(fractionDigits);
 
-/** "874 / 1000" where the task value is known, else just the score. Penalty tasks: the score as before. */
+/**
+ * What a quality task's score is out of, or null for no "of": the backend's `score_scale`. An older payload without it
+ * gets the task value, except under the absolute policy without a scale, where the score is Q itself and the task value
+ * would be wrong (the circle).
+ */
+export const scoreScale = (scoring?: TaskScoring | null): number | null => {
+    if (!isQualityTask(scoring)) return null;
+    if (scoring?.score_scale !== undefined) return scoring.score_scale || null;
+    if (scoring?.qmax_policy === 'absolute' && !scoring.qmax_absolute_reference) return null;
+    return scoring?.task_value || null;
+};
+
+/** "874 / 1000" where the scale is known, else just the score. Penalty tasks: the score as before. */
 export const formatScoreOutOf = (score: number, scoring?: TaskScoring | null, fractionDigits = 0): string => {
     const text = formatTaskScore(score, scoring, fractionDigits);
-    return isQualityTask(scoring) && scoring?.task_value ? `${text} / ${trimmedNumber(scoring.task_value)}` : text;
+    const scale = scoreScale(scoring);
+    return scale ? `${text} / ${trimmedNumber(scale)}` : text;
 };
 
 /** The heading of the score column: "Score (of 1000)" for a quality task, "Score" otherwise. */
-export const scoreHeading = (scoring?: TaskScoring | null, base = 'Score'): string =>
-    isQualityTask(scoring) && scoring?.task_value ? `${base} (of ${trimmedNumber(scoring.task_value)})` : base;
+export const scoreHeading = (scoring?: TaskScoring | null, base = 'Score'): string => {
+    const scale = scoreScale(scoring);
+    return scale ? `${base} (of ${trimmedNumber(scale)})` : base;
+};
 
 /** Sorts in place of a copy: `items` ordered by their score in the task's direction (stable; equal scores keep their order). */
 export function sortByScore<T>(items: readonly T[], getScore: (item: T) => number, scoring: TaskScoring | null | undefined, scorecardDirection: 'asc' | 'desc'): T[] {
@@ -132,12 +152,23 @@ export function sortByScore<T>(items: readonly T[], getScore: (item: T) => numbe
 }
 
 /**
- * Whether the scores of the task can still change because of other flights. A quality task's scores are provisional
- * until every flight is finished; a task of the other model never is. With the tracks of the task the answer follows
- * them (so a live page notices the last flight finishing), else the flag the API sent.
+ * Whether a pilot's score can change because other pilots fly: the backend's explanation says so; an older payload
+ * without it is taken to, except under the absolute policy, a fixed scale that never does.
+ */
+export const scoresDependOnOtherPilots = (scoring?: TaskScoring | null): boolean => {
+    if (!isQualityTask(scoring)) return false;
+    const explained = scoring?.scoring_explanation?.depends_on_other_pilots;
+    return typeof explained === 'boolean' ? explained : scoring?.qmax_policy !== 'absolute';
+};
+
+/**
+ * Whether the scores of the task can still change because of other flights. A quality task whose scores depend on the
+ * other pilots is provisional until every flight is finished; a task of the other model, or a fixed scale (2.A7, 2.A8),
+ * never is. With the tracks of the task the answer follows them (so a live page notices the last flight finishing), else
+ * the flag the API sent.
  */
 export function scoresAreProvisional(scoring: TaskScoring | null | undefined, tracks?: readonly (TrackScore | null | undefined)[]): boolean {
-    if (!isQualityTask(scoring)) return false;
+    if (!scoresDependOnOtherPilots(scoring)) return false;
     if (tracks && tracks.length > 0) return tracks.some(track => !track?.calculator_finished);
     return !!scoring?.scores_provisional;
 }

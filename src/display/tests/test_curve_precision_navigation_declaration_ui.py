@@ -31,7 +31,7 @@ from display.models import (
     Scorecard,
     Team,
 )
-from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.contestant_task_compiler import ContestantTaskCompiler, _join_names
 from display.utilities.task_types import CURVE_NAVIGATION_TIME_ESTIMATION, PRECISION_NAVIGATION
 from utilities.mock_utilities import TraccarMock
 
@@ -145,10 +145,10 @@ class TestPrecisionNavigationDeclaration(CurvePrecisionNavigationDeclarationTest
             reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
         )
         contestant_payload = next(c for c in detail_response.json()["contestant_set"] if c["id"] == contestant.pk)
-        self.assertEqual(
-            contestant_payload["declaration_status"],
-            {"required": True, "complete": False, "errors": ["Precision navigation requires known_time_gate_predictions."]},
-        )
+        status = contestant_payload["declaration_status"]
+        self.assertEqual((True, False), (status["required"], status["complete"]))
+        expected_names = [wp.name for wp in self.route.waypoints if wp.type in ("tp", "fp")]
+        self.assertEqual([f"Give a time for {_join_names(expected_names)}."], status["errors"])
 
     def test_declaring_the_turn_points_and_the_finish_point_only_makes_declaration_valid(self):
         contestant = self._create_contestant()
@@ -225,7 +225,8 @@ class TestPrecisionNavigationDeclaration(CurvePrecisionNavigationDeclarationTest
             reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
         )
         contestant_payload = next(c for c in detail_response.json()["contestant_set"] if c["id"] == contestant.pk)
-        self.assertEqual(contestant_payload["declaration_status"], {"required": True, "complete": True, "errors": []})
+        status = contestant_payload["declaration_status"]
+        self.assertEqual((True, True, []), (status["required"], status["complete"], status["errors"]))
 
     def test_declaring_predictions_for_only_some_waypoints_stays_invalid(self):
         contestant = self._create_contestant()
@@ -240,7 +241,7 @@ class TestPrecisionNavigationDeclaration(CurvePrecisionNavigationDeclarationTest
         contestant.refresh_from_db()
         self.assertFalse(contestant.contestanttaskconfiguration.is_valid)
         self.assertIn(
-            "Missing precision navigation predictions",
+            "Give a time for",
             " ".join(contestant.contestanttaskconfiguration.validation_errors),
         )
 
@@ -275,7 +276,8 @@ class TestCurveNavigationDeclaration(CurvePrecisionNavigationDeclarationTestBase
             reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
         )
         contestant_payload = next(c for c in detail_response.json()["contestant_set"] if c["id"] == contestant.pk)
-        self.assertEqual(contestant_payload["declaration_status"], {"required": True, "complete": True, "errors": []})
+        status = contestant_payload["declaration_status"]
+        self.assertEqual((True, True, []), (status["required"], status["complete"], status["errors"]))
 
     def test_declaration_rejected_beyond_tmax(self):
         self.navigation_task.task_config = {"curve_navigation_tmax_seconds": 60}

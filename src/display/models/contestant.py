@@ -731,6 +731,9 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         config = getattr(self, "contestanttaskconfiguration", None)
         if config is None:
             return []
+        if (config.declaration_payload or {}).get("time_reference") == "start_point":
+            # Declared as seconds after the start point: they move with the schedule, nothing goes stale.
+            return []
         declared_times = []
         for value in (config.declaration_payload or {}).get(declaration_time_key, {}).values():
             if isinstance(value, str):
@@ -888,7 +891,11 @@ Flying off track by more than {"{:.0f}".format(scorecard.backtracking_bearing_di
         """
         gate_times = self.calculate_missing_gate_times({}, starting_point_time)
         if not stored_task_type(self.navigation_task).gate_times_from_declared_period:
-            return gate_times
+            # Times declared as seconds after the start point follow the start that was flown. Times declared as clock
+            # times are not applied after an adaptive start (the route's times are used), as before.
+            from display.services.contestant_task_compiler import ContestantTaskCompiler
+
+            return ContestantTaskCompiler(self).gate_times_for_adaptive_start(gate_times, starting_point_time)
         config = getattr(self, "contestanttaskconfiguration", None)
         payload = (config.compiled_gate_times_payload or {}) if config and config.is_valid else {}
         waypoints = self.navigation_task.route.waypoints

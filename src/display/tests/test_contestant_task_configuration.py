@@ -263,7 +263,7 @@ class TestContestantTaskConfiguration(TestCase):
         )
 
         self.assertFalse(compiled.is_valid)
-        self.assertIn("Curve navigation declarations may not exceed Tmax.", compiled.validation_errors)
+        self.assertIn("(Tmax)", " ".join(compiled.validation_errors))
 
     def test_curve_navigation_build_declaration_payload_from_input_normalizes_predictions(self):
         payload = ContestantTaskCompiler(self.contestant).build_declaration_payload_from_input(
@@ -891,8 +891,7 @@ class TestContestantTaskConfiguration(TestCase):
 
         self.assertFalse(compiled.is_valid)
         joined_errors = " ".join(compiled.validation_errors)
-        self.assertIn("Missing compulsory point time(s): FP", joined_errors)
-        self.assertIn("exactly three compulsory point times", joined_errors)
+        self.assertIn("Give a time for FP.", joined_errors)
 
     def test_turnpoint_hunt_declared_sequence_requires_compulsory_points_in_time_order(self):
         editable_route = EditableRoute.objects.create(
@@ -1020,7 +1019,7 @@ class TestContestantTaskConfiguration(TestCase):
             force=True,
         )
         self.assertFalse(duplicate.is_valid)
-        self.assertIn("Duplicate turnpoint hunt target(s): A", " ".join(duplicate.validation_errors))
+        self.assertIn("A is in your sequence more than once.", " ".join(duplicate.validation_errors))
 
         unknown = ContestantTaskCompiler(self.contestant).compile(
             declaration_payload={
@@ -1034,7 +1033,7 @@ class TestContestantTaskConfiguration(TestCase):
             force=True,
         )
         self.assertFalse(unknown.is_valid)
-        self.assertIn("Unknown turnpoint hunt target(s): Z", " ".join(unknown.validation_errors))
+        self.assertIn("Z is not a target of this task.", " ".join(unknown.validation_errors))
 
     def test_turnpoint_hunt_compile_normalizes_compulsory_order_from_predicted_times(self):
         editable_route = EditableRoute.objects.create(

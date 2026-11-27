@@ -208,6 +208,11 @@ PIPELINE_POKER = (_POKER, _PROHIBITED_ZONE, _PENALTY_ZONE)
 PIPELINE_DEFAULT = (_GATE,)
 
 
+DECLARATION_NOT_NEEDED = "not_needed"
+DECLARATION_OPTIONAL = "optional"
+DECLARATION_REQUIRED = "required"
+
+
 @dataclass(frozen=True)
 class TaskTypeDefinition:
     key: str
@@ -231,8 +236,11 @@ class TaskTypeDefinition:
     declaration_schema_key: str | None = None
     # ContestantTaskConfiguration.is_valid stays False until the contestant has declared.
     declaration_required: bool = False
-    # The declaration_payload key holding predicted gate times as absolute timestamps. Rescheduling the take-off after
-    # such a declaration would leave the times stale, so the contestant's schedule is locked once they are declared.
+    # The crew may declare something but the task works without it (2.A4 turn point times, 2.B2 times and sequence).
+    declaration_optional: bool = False
+    # The declaration_payload key holding predicted gate times, as absolute timestamps or (time_reference "start_point")
+    # as the seconds after the start point they were declared as. Rescheduling the take-off after an absolute declaration
+    # would leave the times stale, so the contestant's schedule is locked once they are declared.
     absolute_time_declaration_key: str | None = None
     # The default scoring model of the task's scorecard copy (see SCORING_QUALITY). A task whose scorecard stores no
     # scoring_model behaves as this.
@@ -315,6 +323,15 @@ class TaskTypeDefinition:
     contestant_compiler_strategy: str | None = None
     # Only set on the family's default task type, see family_default_scorecard_shortcut_name.
     _family_default_scorecard_shortcut_name: str | None = field(default=None, repr=False)
+
+    @property
+    def declaration_need(self) -> str:
+        """DECLARATION_REQUIRED, DECLARATION_OPTIONAL or DECLARATION_NOT_NEEDED: what the crew has to do before the flight."""
+        if self.declaration_required:
+            return DECLARATION_REQUIRED
+        if self.declaration_optional:
+            return DECLARATION_OPTIONAL
+        return DECLARATION_NOT_NEEDED
 
     @property
     def display_name(self) -> str:
@@ -583,6 +600,7 @@ _DEFINITIONS = (
         # Most points are speed-derived and move with the schedule, so only declared overrides lock the schedule.
         requires_contestant_configuration=True,
         route_requirements=_BACKBONE,
+        declaration_optional=True,
         absolute_time_declaration_key="turnpoint_time_overrides",
         scoring_model=SCORING_QUALITY,
         quality_start=QUALITY_START_GATE_DEFICIT,
@@ -723,6 +741,7 @@ _DEFINITIONS = (
         declaration_schema_key=LIMITED_FUEL_TURNPOINT_HUNT,
         # The declaration is entirely optional (minimum_required=0), so it never fails validation.
         declaration_required=False,
+        declaration_optional=True,
         absolute_time_declaration_key="compulsory_point_times",
         scoring_model=SCORING_QUALITY,
         scoring_modules=(

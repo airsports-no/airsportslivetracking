@@ -91,12 +91,14 @@ from display.services.contestant_persistence import (
     update_contestant_with_related_state,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.declaration_access import declaration_status
 from display.services.route_compatibility import assert_route_compatible_with_task_type
 from display.services.scoring_explanation import explain_navigation_task, offered_qmax_policies
 from display.services.task_compiler import TaskCompiler
 from display.services.task_scoring import (
     score_measures,
     scoring_parameters,
+    scores_depend_on_other_pilots,
     task_scores_are_provisional,
     validate_task_value,
 )
@@ -2158,7 +2160,14 @@ class ContestantSerialiser(serializers.ModelSerializer):
         # generic "Missing required declaration" tooltip either way, with no way to tell why a
         # just-saved declaration didn't fix it.
         errors = list(config.validation_errors or []) if config else []
-        return {"required": required, "complete": complete, "errors": errors}
+        # The rest says who may change it and until when; filled in for the flight's own crew and for organisers only
+        status = declaration_status(
+            contestant,
+            getattr(self.context.get("request"), "user", None),
+            role_cache=self.context.setdefault("_declaration_roles", {}),
+        )
+        extra = {key: status[key] for key in ("need", "state", "can_edit", "edit_until", "edit_url")}
+        return {"required": required, "complete": complete, "errors": errors, **extra}
 
     def get_first_position_time(self, contestant) -> Optional[datetime.datetime]:
         first = contestant.contestantreceivedposition_set.order_by("time").first()
@@ -2400,7 +2409,8 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
     """
     One of the signed-in pilot's own flights, for the mobile app's lists. An explicit list of fields on purpose: a crew
     member may fly in a contest they may not view, so this carries the flight's schedule and the contest/task METADATA
-    (names, images, venue, type) but nothing about the route, the gates, the declarations or the results. It is also
+    (names, images, venue, type) but nothing about the route, the gates, the declared times or the results (only whether a
+    declaration is needed and made, see declaration_status). It is also
     cheap: no nested team, no track and no compilation of the route, which the full contestant payload does per flight.
     """
 
@@ -2416,6 +2426,7 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
     contest_website = serializers.SerializerMethodField()
     map_viewable = serializers.SerializerMethodField()
     flight_order_path = serializers.SerializerMethodField()
+    declaration_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Contestant
@@ -2441,8 +2452,17 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
             "wind_direction",
             "adaptive_start",
             "flight_order_path",
+            "declaration_status",
         )
         read_only_fields = fields
+
+    def get_declaration_status(self, obj: Contestant) -> dict:
+        """What the crew has to declare for this flight and until when they may (see display.services.declaration_access)."""
+        return declaration_status(
+            obj,
+            getattr(self.context.get("request"), "user", None),
+            role_cache=self.context.setdefault("_declaration_roles", {}),
+        )
 
     def get_flight_order_path(self, obj: Contestant) -> Optional[str]:
         """The download page of the newest generated flight order (map and orders PDF), if one has been made."""
@@ -2572,6 +2592,7 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     task_value = serializers.SerializerMethodField()
     scores_provisional = serializers.SerializerMethodField()
     qmax_absolute_reference = serializers.SerializerMethodField()
+    score_scale = serializers.SerializerMethodField()
     score_measures = serializers.SerializerMethodField()
     scoring_explanation = serializers.SerializerMethodField()
 
@@ -2582,6 +2603,10 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     def get_score_measures(self, obj) -> dict:
         """The score types whose log entries are a measure (V, S) and not points of Q, and how to show them."""
         return score_measures(stored_task_type(obj))
+
+    def get_score_scale(self, obj) -> Optional[float]:
+        """What the task score is out of (the task value, but 250 for the circle, whose score ignores it); null if unknown."""
+        return scoring_parameters(obj).score_scale
 
     def get_qmax_absolute_reference(self, obj) -> Optional[float]:
         """For the absolute policy: the raw quality that scores the whole task value (P = task value x Q / this)."""
@@ -2983,7 +3008,12 @@ class TaskTestNestedSerialiser(serializers.ModelSerializer):
             "qmax_policy": parameters.qmax_policy,
             "task_value": parameters.task_value,
             "qmax_absolute_reference": parameters.absolute_reference,
-            "scores_provisional": any(not finished for _, _, finished in tracks),
+            "score_scale": parameters.score_scale,
+            # Only where a flight of another pilot can change the score of this one
+            "scores_provisional": scores_depend_on_other_pilots(
+                navigation_task.scorecard, stored_task_type(navigation_task), parameters
+            )
+            and any(not finished for _, _, finished in tracks),
             "provisional_explanation": explain_navigation_task(navigation_task)["provisional"]["short"],
             "not_flown_team_ids": [team_id for team_id, started, _ in tracks if not started],
         }

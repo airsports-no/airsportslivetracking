@@ -144,4 +144,4 @@ class TestContractNavigationMissingMpValidation(TestCase):
 
         self.assertFalse(compiled.is_valid)
         joined_errors = " ".join(compiled.validation_errors)
-        self.assertIn("exactly one MP", joined_errors)
+        self.assertIn("must have MP exactly once", joined_errors)

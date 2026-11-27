@@ -235,10 +235,12 @@ class TestLimitedFuelTurnpointHuntDeclarationOptional(TestTurnpointHuntScheduleL
 
         response = self.client.get(self._detail_url(contestant))
         self.assertEqual(200, response.status_code)
+        status = response.json()["declaration_status"]
         self.assertEqual(
-            response.json()["declaration_status"],
+            {key: status[key] for key in ("required", "complete", "errors")},
             {"required": False, "complete": True, "errors": []},
         )
+        self.assertEqual(("optional", "missing"), (status["need"], status["state"]))
 
         # Nothing was ever declared, so the takeoff/finish window is free to move.
         response = self.client.patch(

@@ -155,6 +155,13 @@ to SP are converted server-side; adaptive start supported (F17).
 phone-sized declaration step before the `airsportsapp://registered` signal is sent. Reuse the logic of
 `ContestantDeclarationPage`, not its layout. "Edit declaration" on the pilot's own flight (F18).
 
+**S22b. Flight order status for the pilot** (added 2026-11-27 at the user's request, with S22). Saving the declaration
+starts the flight order generation (already gated: a task that needs a declaration does not generate one before it is
+saved). The pilot must not have to wait for an e-mail: the own-flight data carries a flight order status (waiting for
+the declaration / being made / ready / failed, with the reason) and the download link (`flight_order_path` exists);
+the booking flow and "my flights" show it, refresh it until it is ready and then offer the download directly. S23
+shows the same in the apps.
+
 **S23. Apps** (`airsports-mobile`, separate repository). Show "Declaration needed" on the flight card and an
 "Edit declaration" action that opens the web page; needs an app release (F19).
 

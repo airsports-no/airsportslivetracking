@@ -30,9 +30,33 @@ from display.utilities.route_building_utilities import (
 )
 
 
+# declaration_payload["time_reference"]: how the declared times were given. "start_point": as seconds after the start
+# point (kept in declaration_payload["relative_times"]; the timestamps under the task type's time key are what those
+# seconds come to for the current start, recalculated by every compile). Otherwise: as the timestamps themselves.
+TIME_REFERENCE = "time_reference"
+TIME_REFERENCE_START_POINT = "start_point"
+TIME_REFERENCE_ABSOLUTE = "absolute"
+RELATIVE_TIMES = "relative_times"
+
+
+def _join_names(names) -> str:
+    """"TP1", "TP1 and TP2", "TP1, TP2 and FP"."""
+    names = list(names)
+    if len(names) <= 1:
+        return "".join(names)
+    return f"{', '.join(names[:-1])} and {names[-1]}"
+
+
 class ContestantTaskCompilerStrategy:
     def __init__(self, compiler: "ContestantTaskCompiler"):
         self.compiler = compiler
+
+    def declaration_form(self, compiled_task) -> dict:
+        """
+        What a crew needs to fill in the declaration: names only, so that nothing the route keeps secret (hidden gates,
+        positions) is given away. The organiser's page reads the compiled route payload instead.
+        """
+        return {}
 
     def validate_declaration(self, declaration_payload: dict, compiled_task) -> list[str]:
         return []
@@ -60,9 +84,11 @@ class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
         errors = []
         if not isinstance(predictions, dict) or len(predictions) == 0:
             if self.subtype == CURVE_NAVIGATION_TIME_ESTIMATION:
-                errors.append("Curve navigation requires known_time_gate_predictions.")
+                errors.append("Give the time you expect to be at each turn point and at the finish point.")
             else:
-                errors.append("Precision navigation requires known_time_gate_predictions.")
+                errors.append(
+                    f"Give a time for {_join_names(self.compiler._get_declared_time_gate_names())}."
+                )
             return errors
 
         if self.subtype == CURVE_NAVIGATION_TIME_ESTIMATION:
@@ -72,7 +98,10 @@ class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
                 fp_time = parser.parse(fp_prediction)
                 sp_time = self.compiler.contestant.takeoff_time + datetime.timedelta(minutes=self.compiler.contestant.minutes_to_starting_point)
                 if (fp_time - sp_time).total_seconds() > tmax_seconds:
-                    errors.append("Curve navigation declarations may not exceed Tmax.")
+                    errors.append(
+                        f"The time you gave for FP is more than {tmax_seconds // 60} min {tmax_seconds % 60:02d} s "
+                        "after SP, the longest time allowed (Tmax). Give an earlier time for FP."
+                    )
             return errors
 
         # 2.A2: the pilot declares the visible turn points and the finish point. Times of other points in a declaration
@@ -80,7 +109,7 @@ class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
         required_names = self.compiler._get_declared_time_gate_names()
         missing = [name for name in required_names if name not in predictions]
         if missing:
-            errors.append(f"Missing precision navigation predictions for: {', '.join(missing)}")
+            errors.append(f"Give a time for {_join_names(missing)}.")
         return errors
 
     def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
@@ -127,24 +156,16 @@ class CurveOrPrecisionNavigationStrategy(ContestantTaskCompilerStrategy):
             return {}
         if not isinstance(predictions, dict):
             raise serializers.ValidationError({"known_time_gate_predictions": "Expected a dictionary of gate predictions."})
-        normalized_predictions = {}
         # 2.A2 asks for the turn points and the finish point only: times of other points are dropped, not rejected.
         declared_names = (
             set(self.compiler._get_declared_time_gate_names()) if self.subtype == PRECISION_NAVIGATION else None
         )
-        for key, value in predictions.items():
-            if value in (None, "") or (declared_names is not None and key not in declared_names):
-                continue
-            if isinstance(value, str):
-                normalized_predictions[key] = parser.parse(value).isoformat()
-            elif isinstance(value, datetime.datetime):
-                normalized_predictions[key] = value.isoformat()
-            else:
-                raise serializers.ValidationError({"known_time_gate_predictions": f"Invalid prediction value for {key}."})
-        self.compiler._require_declared_times_within_contestant_window(
-            normalized_predictions, "known_time_gate_predictions"
+        return self.compiler.declared_times_payload(
+            declaration_input, "known_time_gate_predictions", predictions, accepted_names=declared_names
         )
-        return {"known_time_gate_predictions": normalized_predictions} if normalized_predictions else {}
+
+    def declaration_form(self, compiled_task) -> dict:
+        return {"time_points": self.compiler._get_declared_time_gate_names()}
 
 
 class ContractNavigationStrategy(ContestantTaskCompilerStrategy):
@@ -152,30 +173,36 @@ class ContractNavigationStrategy(ContestantTaskCompilerStrategy):
         errors = []
         declared_sequence = declaration_payload.get("declared_sequence")
         if not isinstance(declared_sequence, list) or len(declared_sequence) == 0:
-            errors.append("Contract navigation requires declared_sequence.")
+            errors.append(
+                "Choose the turn points you will fly, in order: before MP, and between MP and FP."
+            )
         else:
             catalogue_names = set(compiled_task.get_compiled_primitives().get("catalogue_turnpoint", []))
             mandatory_names = {"SP", "MP", "FP"}
             for item in declared_sequence:
                 if item not in catalogue_names and item not in mandatory_names:
-                    errors.append(f"Unknown declared sequence item: {item}")
+                    errors.append(f"{item} is not a turn point of this task. Take it out of your sequence.")
             if declared_sequence.count("MP") != 1:
-                errors.append("Contract navigation requires exactly one MP in declared_sequence.")
+                errors.append("Your sequence must have MP exactly once.")
             if declared_sequence.count("FP") != 1:
-                errors.append("Contract navigation requires exactly one FP in declared_sequence.")
+                errors.append("Your sequence must have FP exactly once.")
             if declared_sequence[-1] != "FP":
-                errors.append("Contract navigation requires FP to be the last declared sequence item.")
+                errors.append("Your sequence must end with FP.")
 
         declared_t_seconds = declaration_payload.get("declared_t_seconds")
         if declared_t_seconds in (None, ""):
-            errors.append("Contract navigation requires declared_t_seconds.")
+            errors.append("Give your period T: the time you will use from SP to MP, and again from MP to FP.")
         else:
             try:
                 if float(declared_t_seconds) <= 0:
-                    errors.append("Contract navigation declared_t_seconds must be greater than zero.")
+                    errors.append("Your period T must be longer than zero.")
             except (TypeError, ValueError):
-                errors.append("Contract navigation declared_t_seconds must be numeric.")
+                errors.append("Your period T must be a number of seconds.")
         return errors
+
+    def declaration_form(self, compiled_task) -> dict:
+        names = compiled_task.get_compiled_primitives().get("catalogue_turnpoint", [])
+        return {"mandatory_points": ["SP", "MP", "FP"], "turnpoints": [name for name in names if isinstance(name, str)]}
 
     def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
         declared_sequence = declaration_payload.get("declared_sequence", [])
@@ -233,40 +260,52 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
         # Where the declaration is optional, no compulsory time is required either.
         minimum_required = 3 if stored_task_type(self.compiler.contestant.navigation_task).declaration_required else 0
         if not isinstance(compulsory_point_times, dict):
-            errors.append("Turnpoint hunt requires exactly three compulsory point times.")
+            errors.append(f"Give a time for each of the compulsory points: {_join_names(compulsory_point_names)}.")
         else:
             expected_names = set(compulsory_point_names)
             provided_names = set(compulsory_point_times.keys())
             unexpected = sorted(provided_names - expected_names)
             missing = [name for name in compulsory_point_names if name not in compulsory_point_times]
             if unexpected:
-                errors.append(f"Unknown compulsory point time(s): {', '.join(unexpected)}")
+                errors.append(
+                    f"{_join_names(unexpected)} {'is' if len(unexpected) == 1 else 'are'} not "
+                    f"{'a compulsory point' if len(unexpected) == 1 else 'compulsory points'} of this task. "
+                    "Take the time out."
+                )
             if minimum_required > 0 and missing:
-                errors.append(f"Missing compulsory point time(s): {', '.join(missing)}")
-            if minimum_required > 0 and len(provided_names) != len(expected_names):
-                errors.append("Turnpoint hunt requires exactly three compulsory point times.")
+                errors.append(f"Give a time for {_join_names(missing)}.")
         if declared_sequence:
             if not isinstance(declared_sequence, list):
-                errors.append("Turnpoint hunt declared_sequence must be a list.")
+                errors.append("Give your sequence as a list of the points in the order you will fly them.")
             else:
                 normalized_sequence = [item for item in declared_sequence if isinstance(item, str)]
                 allowed_compulsory_names = set(compulsory_point_names)
                 unknown = [item for item in normalized_sequence if item not in expected_free_targets and item not in allowed_compulsory_names]
                 if unknown:
-                    errors.append(f"Unknown turnpoint hunt target(s): {', '.join(unknown)}")
+                    errors.append(
+                        f"{_join_names(unknown)} {'is not a target' if len(unknown) == 1 else 'are not targets'} of this "
+                        "task. Take it out of your sequence."
+                    )
                 duplicates = sorted({item for item in normalized_sequence if normalized_sequence.count(item) > 1})
                 if duplicates:
-                    errors.append(f"Duplicate turnpoint hunt target(s): {', '.join(duplicates)}")
+                    errors.append(
+                        f"{_join_names(duplicates)} is in your sequence more than once. List each point once."
+                    )
                 compulsory_sequence = [item for item in normalized_sequence if item in allowed_compulsory_names]
                 if sorted(compulsory_sequence) != sorted(compulsory_point_names):
-                    errors.append("Turnpoint hunt declared_sequence must include each compulsory point exactly once.")
+                    errors.append(
+                        f"Your sequence must have each compulsory point ({_join_names(compulsory_point_names)}) exactly once."
+                    )
                 else:
                     ordered_compulsory_names = self.compiler._get_turnpoint_hunt_ordered_compulsory_point_names(compulsory_point_times, compulsory_point_names)
                     if compulsory_sequence != ordered_compulsory_names:
-                        errors.append("Turnpoint hunt compulsory points must appear in predicted-time order.")
+                        errors.append(
+                            f"Put the compulsory points in the order of the times you gave: {_join_names(ordered_compulsory_names)}. "
+                            "Change the times or the sequence."
+                        )
         fuel_metadata = declaration_payload.get("fuel_metadata") or {}
         if fuel_metadata and not isinstance(fuel_metadata, dict):
-            errors.append("Fuel metadata must be a dictionary.")
+            errors.append("Give your fuel endurance as a number of minutes.")
         return errors
 
     def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
@@ -339,32 +378,26 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
             compulsory_point_times = declaration_input.get("predicted_gate_times") or {}
         fuel_metadata = declaration_input.get("fuel_metadata") or {}
         if not isinstance(compulsory_point_times, dict):
-            raise serializers.ValidationError({"compulsory_point_times": "Expected a dictionary of compulsory point times."})
+            raise serializers.ValidationError({"compulsory_point_times": "Give the times as a list of compulsory points with a time each."})
         if not isinstance(fuel_metadata, dict):
-            raise serializers.ValidationError({"fuel_metadata": "Expected a dictionary of fuel metadata."})
+            raise serializers.ValidationError({"fuel_metadata": "Give the fuel endurance as a number of minutes."})
         declared_sequence = declaration_input.get("declared_sequence") or declaration_input.get("predicted_sequence") or []
         if declared_sequence and not isinstance(declared_sequence, list):
             raise serializers.ValidationError({"declared_sequence": "Expected a list of declared turnpoints."})
-        normalized_point_times = {}
-        for key, value in compulsory_point_times.items():
-            if value in (None, ""):
-                continue
-            if isinstance(value, str):
-                normalized_point_times[key] = parser.parse(value).isoformat()
-            elif isinstance(value, datetime.datetime):
-                normalized_point_times[key] = value.isoformat()
-            else:
-                raise serializers.ValidationError({"compulsory_point_times": f"Invalid prediction value for {key}."})
-        self.compiler._require_declared_times_within_contestant_window(normalized_point_times, "compulsory_point_times")
+        payload = self.compiler.declared_times_payload(declaration_input, "compulsory_point_times", compulsory_point_times)
         normalized_sequence = [item for item in declared_sequence if isinstance(item, str) and item]
-        payload = {}
-        if normalized_point_times:
-            payload["compulsory_point_times"] = normalized_point_times
         if normalized_sequence:
             payload["declared_sequence"] = normalized_sequence
         if fuel_metadata:
             payload["fuel_metadata"] = fuel_metadata
         return payload
+
+    def declaration_form(self, compiled_task) -> dict:
+        return {
+            "compulsory_points": self.compiler._get_turnpoint_hunt_compulsory_point_names(compiled_task),
+            "targets": [item["name"] for item in self.compiler._build_turnpoint_hunt_targets_payload()],
+            "asks_for_fuel_endurance": stored_task_type(self.compiler.contestant.navigation_task).has_fuel_deadline,
+        }
 
     def normalize_declaration_payload(self, declaration_payload: dict, compiled_task) -> dict:
         normalized_payload = dict(declaration_payload or {})
@@ -453,12 +486,18 @@ class KnownCircuitStrategy(ContestantTaskCompilerStrategy):
         if not overrides:
             return []
         if not isinstance(overrides, dict):
-            return ["turnpoint_time_overrides must be a dictionary of turnpoint name to time."]
+            return ["Give the turn point times as a list of turn points with a time each."]
         valid_names = set(self.compiler._get_precision_navigation_prediction_names())
         unknown = sorted(set(overrides.keys()) - valid_names)
         if unknown:
-            return [f"Unknown turnpoint override name(s): {', '.join(unknown)}"]
+            return [
+                f"{_join_names(unknown)} {'is not a point' if len(unknown) == 1 else 'are not points'} of this "
+                "circuit. Take the time out."
+            ]
         return []
+
+    def declaration_form(self, compiled_task) -> dict:
+        return {"time_points": self.compiler._get_declared_time_gate_names()}
 
     def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
         payload = self.compiler._build_observation_evidence_payload(compiled_task)
@@ -485,25 +524,9 @@ class KnownCircuitStrategy(ContestantTaskCompilerStrategy):
             return {}
         if not isinstance(overrides, dict):
             raise serializers.ValidationError(
-                {"turnpoint_time_overrides": "Expected a dictionary of turnpoint name to time."}
+                {"turnpoint_time_overrides": "Give the turn point times as a list of turn points with a time each."}
             )
-        normalized_overrides = {}
-        for key, value in overrides.items():
-            if value in (None, ""):
-                continue
-            if isinstance(value, str):
-                normalized_overrides[key] = parser.parse(value).isoformat()
-            elif isinstance(value, datetime.datetime):
-                normalized_overrides[key] = value.isoformat()
-            else:
-                raise serializers.ValidationError(
-                    {"turnpoint_time_overrides": f"Invalid override value for '{key}'."}
-                )
-        if normalized_overrides:
-            self.compiler._require_declared_times_within_contestant_window(
-                normalized_overrides, "turnpoint_time_overrides"
-            )
-        return {"turnpoint_time_overrides": normalized_overrides} if normalized_overrides else {}
+        return self.compiler.declared_times_payload(declaration_input, "turnpoint_time_overrides", overrides)
 
 
 class UnknownLegsStrategy(ContestantTaskCompilerStrategy):
@@ -540,11 +563,126 @@ class ContestantTaskCompiler:
             raise serializers.ValidationError(
                 {
                     field_name: (
-                        f"Declared time(s) for {', '.join(out_of_window)} fall outside the contestant's "
-                        f"takeoff time ({takeoff_time}) to finished by time ({finished_by_time})."
+                        f"The time for {_join_names(out_of_window)} is outside this flight, which is from take-off at "
+                        f"{takeoff_time.astimezone(datetime.timezone.utc):%Y-%m-%d %H:%M} UTC to "
+                        f"{finished_by_time.astimezone(datetime.timezone.utc):%Y-%m-%d %H:%M} UTC. Give a time "
+                        "during the flight."
                     )
                 }
             )
+
+    def declared_times_payload(
+        self, declaration_input: dict, key: str, raw_times: dict, accepted_names: set | None = None
+    ) -> dict:
+        """
+        The declaration_payload part for the declared times [raw_times] (point name to a timestamp, or to seconds after the
+        start point when declaration_input["time_reference"] is "start_point"). Always holds the timestamps under [key],
+        which is what the rest of the compiler reads; a declaration in seconds also keeps them (relative_times) and says so
+        (time_reference), so that they follow the start point when it moves. Names outside [accepted_names] are dropped.
+        """
+        reference = declaration_input.get(TIME_REFERENCE) or TIME_REFERENCE_ABSOLUTE
+        if reference not in (TIME_REFERENCE_ABSOLUTE, TIME_REFERENCE_START_POINT):
+            raise serializers.ValidationError(
+                {TIME_REFERENCE: f'Use "{TIME_REFERENCE_START_POINT}" for times in seconds after the start point, or '
+                 f'"{TIME_REFERENCE_ABSOLUTE}" for clock times.'}
+            )
+        relative = reference == TIME_REFERENCE_START_POINT
+        times: dict[str, str] = {}
+        offsets: dict[str, float] = {}
+        anchor = self.contestant.gate_time_anchor()
+        longest = (self.contestant.finished_by_time - self.contestant.takeoff_time).total_seconds()
+        for name, value in raw_times.items():
+            if value in (None, "") or (accepted_names is not None and name not in accepted_names):
+                continue
+            if relative:
+                seconds = self._parse_seconds_after_start(name, value, key)
+                if seconds < 0 or seconds > longest:
+                    raise serializers.ValidationError(
+                        {key: f"The time for {name} is outside the flight. Give the time after the start point, "
+                              f"between 0 and {int(longest // 60)} minutes."}
+                    )
+                offsets[name] = int(seconds) if float(seconds).is_integer() else seconds
+                times[name] = (anchor + datetime.timedelta(seconds=seconds)).isoformat()
+            elif isinstance(value, str):
+                try:
+                    times[name] = parser.parse(value).isoformat()
+                except (ValueError, OverflowError):
+                    raise serializers.ValidationError({key: f"The time for {name} is not a valid date and time."})
+            elif isinstance(value, datetime.datetime):
+                times[name] = value.isoformat()
+            else:
+                raise serializers.ValidationError({key: f"The time for {name} is not a valid date and time."})
+        # With an adaptive start the clock time of the start is not known yet: the offsets are checked above instead.
+        if not (relative and self.contestant.adaptive_start):
+            self._require_declared_times_within_contestant_window(times, key)
+        if not times:
+            return {}
+        if relative:
+            return {key: times, TIME_REFERENCE: TIME_REFERENCE_START_POINT, RELATIVE_TIMES: offsets}
+        return {key: times}
+
+    @staticmethod
+    def _parse_seconds_after_start(name: str, value, key: str) -> float:
+        """Seconds from a number, a numeric string or a "minutes:seconds" / "hours:minutes:seconds" string."""
+        message = {key: f'The time for {name} must be the time after the start point, like "12:30" or 750 seconds.'}
+        if isinstance(value, bool):
+            raise serializers.ValidationError(message)
+        if isinstance(value, (int, float)):
+            return float(value)
+        if isinstance(value, str):
+            try:
+                parts = [float(part) for part in value.strip().split(":")]
+            except ValueError:
+                raise serializers.ValidationError(message)
+            if 1 <= len(parts) <= 3 and all(part >= 0 for part in parts):
+                seconds = 0.0
+                for part in parts:
+                    seconds = seconds * 60 + part
+                return seconds
+        raise serializers.ValidationError(message)
+
+    def materialise_relative_times(self, declaration_payload: dict, anchor: datetime.datetime | None = None) -> dict:
+        """
+        The declaration with the timestamps of a declaration made in seconds after the start point calculated from those
+        seconds and [anchor] (default: the start point as known now: planned, or with an adaptive start the real crossing
+        once there is one and else a placeholder at midnight). Other declarations are returned as they are.
+        """
+        if not isinstance(declaration_payload, dict) or declaration_payload.get(TIME_REFERENCE) != TIME_REFERENCE_START_POINT:
+            return declaration_payload
+        key = stored_task_type(self.contestant.navigation_task).absolute_time_declaration_key
+        offsets = declaration_payload.get(RELATIVE_TIMES)
+        if not key or not isinstance(offsets, dict):
+            return declaration_payload
+        anchor = anchor or self.contestant.gate_time_anchor()
+        materialised = dict(declaration_payload)
+        materialised[key] = {
+            name: (anchor + datetime.timedelta(seconds=float(seconds))).isoformat() for name, seconds in offsets.items()
+        }
+        return materialised
+
+    def gate_times_for_adaptive_start(
+        self, gate_times: dict[str, datetime.datetime], starting_point_time: datetime.datetime
+    ) -> dict[str, datetime.datetime]:
+        """
+        [gate_times] (calculated from the route for a start at [starting_point_time]) with the times the crew declared as
+        seconds after the start point applied to that start. A declaration in clock times, or none, leaves them as they are.
+        """
+        config = getattr(self.contestant, "contestanttaskconfiguration", None)
+        declaration = (config.declaration_payload or {}) if config and config.is_valid else {}
+        if declaration.get(TIME_REFERENCE) != TIME_REFERENCE_START_POINT:
+            return gate_times
+        declaration = self.materialise_relative_times(declaration, starting_point_time)
+        compiled_task = TaskCompiler(self.contestant.navigation_task).compile()
+        effective = self._build_effective_route_payload(compiled_task, declaration)
+        updated = self._get_strategy().update_gate_times(
+            {name: time.isoformat() for name, time in gate_times.items()}, declaration, compiled_task, effective
+        )
+        return {name: parser.parse(value) if isinstance(value, str) else value for name, value in updated.items()}
+
+    def declaration_form(self) -> dict:
+        """The points a crew declares, by name (see ContestantTaskCompilerStrategy.declaration_form)."""
+        compiled_task = TaskCompiler(self.contestant.navigation_task).compile()
+        return self._get_strategy().declaration_form(compiled_task)
 
     def _get_strategy(self) -> ContestantTaskCompilerStrategy:
         strategy_path = stored_task_type(self.contestant.navigation_task).contestant_compiler_strategy
@@ -564,6 +702,7 @@ class ContestantTaskCompiler:
         # so subtype validation, payload synthesis, and gate-time overrides all
         # depend on one authoritative view of task primitives/config.
         compiled_task = TaskCompiler(self.contestant.navigation_task).compile()
+        declaration_payload = self.materialise_relative_times(declaration_payload)
         declaration_payload = self._get_strategy().normalize_declaration_payload(declaration_payload, compiled_task)
         compiled_effective_route_payload = self._build_effective_route_payload(compiled_task, declaration_payload)
         compiled_gate_times_payload = self._build_gate_times_payload(

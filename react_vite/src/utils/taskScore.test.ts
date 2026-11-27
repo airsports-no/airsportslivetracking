@@ -10,7 +10,9 @@ import {
     roundHalfUp,
     scoreArithmetic,
     scoreHeading,
+    scoreScale,
     scoresAreProvisional,
+    scoresDependOnOtherPilots,
     sortByScore,
     sortDirection,
     TaskScoring,
@@ -71,6 +73,43 @@ describe('provisional', () => {
         expect(scoresAreProvisional({ ...quality, scores_provisional: false })).toBe(false);
         expect(scoresAreProvisional(penalties, [{ calculator_finished: false }])).toBe(false);
         expect(scoresAreProvisional(undefined, [{ calculator_finished: false }])).toBe(false);
+    });
+});
+
+describe('tasks whose score does not depend on the other pilots', () => {
+    const explained = (depends: boolean) => ({ scoring_explanation: { depends_on_other_pilots: depends } as TaskScoring['scoring_explanation'] });
+    it('is never provisional, also while flights are not finished', () => {
+        const circle: TaskScoring = { ...quality, qmax_policy: 'absolute', score_scale: 250, ...explained(false) };
+        expect(scoresDependOnOtherPilots(circle)).toBe(false);
+        expect(scoresAreProvisional(circle, [{ calculator_finished: false }])).toBe(false);
+        expect(scoresAreProvisional({ ...circle, scores_provisional: true })).toBe(false);
+    });
+    it('follows the explanation of a theoretical task: without relative terms it is final at landing', () => {
+        const theoretical: TaskScoring = { ...quality, qmax_policy: 'theoretical' };
+        expect(scoresAreProvisional({ ...theoretical, ...explained(false) }, [{ calculator_finished: false }])).toBe(false);
+        expect(scoresAreProvisional({ ...theoretical, ...explained(true) }, [{ calculator_finished: false }])).toBe(true);
+    });
+    it('treats an older payload without an explanation as dependent, except under the absolute policy', () => {
+        expect(scoresDependOnOtherPilots({ ...quality, qmax_policy: 'theoretical' })).toBe(true);
+        expect(scoresDependOnOtherPilots({ ...quality, qmax_policy: 'absolute' })).toBe(false);
+    });
+});
+
+describe('what the score is out of', () => {
+    it('is the circle\'s 250, not the task value that its score ignores', () => {
+        const circle: TaskScoring = { ...quality, qmax_policy: 'absolute', task_value: 1000, score_scale: 250 };
+        expect(formatScoreOutOf(180, circle)).toBe('180 / 250');
+        expect(scoreHeading(circle)).toBe('Score (of 250)');
+    });
+    it('is the task value of the ANR task, whose Q is scaled to it', () => {
+        const anr: TaskScoring = { ...quality, qmax_policy: 'absolute', task_value: 1000, qmax_absolute_reference: 2000, score_scale: 1000 };
+        expect(formatScoreOutOf(900, anr)).toBe('900 / 1000');
+    });
+    it('is left out where it is not known, and for an older circle payload', () => {
+        expect(scoreScale({ ...quality, score_scale: null })).toBeNull();
+        expect(formatScoreOutOf(180, { ...quality, score_scale: null })).toBe('180');
+        expect(scoreHeading({ ...quality, qmax_policy: 'absolute' })).toBe('Score');
+        expect(scoreScale(penalties)).toBeNull();
     });
 });
 

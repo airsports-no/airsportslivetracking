@@ -557,6 +557,15 @@ class TestResultsPayload(TaskScoringTestCase):
         self.assertIn("final when all flights are finished", scoring["provisional_explanation"])
         self.assertEqual([c.team_id], scoring["not_flown_team_ids"])
 
+    def test_a_circle_test_is_never_provisional_and_is_out_of_250(self):
+        from display.utilities.task_types import CIRCLE
+
+        circle = self.make_task(CIRCLE)
+        self.make_contestant(circle, 1)  # a flight that is not finished
+        (test,) = self.linked_tests(self.results(), circle)
+        self.assertFalse(test["scoring"]["scores_provisional"])
+        self.assertEqual(250, test["scoring"]["score_scale"])
+
     def test_the_test_is_final_when_every_flight_is_finished(self):
         from display.models import ContestantTrack
 

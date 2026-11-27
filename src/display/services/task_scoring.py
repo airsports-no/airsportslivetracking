@@ -48,6 +48,7 @@ from display.utilities.task_types import (
     MAX_TASK_VALUE,
     MIN_TASK_VALUE,
     QMAX_ABSOLUTE,
+    QMAX_BEST_IN_TASK,
     QMAX_POLICIES,
     QMAX_THEORETICAL,
     QUALITY_START_FIXED,
@@ -81,10 +82,22 @@ class ScoringParameters:
     task_value: float
     # Q divided by this is the absolute scale of QMAX_ABSOLUTE; None: P = Q.
     absolute_reference: Optional[float] = None
+    # The starting quality of a fixed-quality task type (2.A7: 250), the scale of P = Q where there is no absolute reference.
+    fixed_quality: Optional[float] = None
 
     @property
     def is_quality(self) -> bool:
         return self.model == SCORING_QUALITY
+
+    @property
+    def score_scale(self) -> Optional[float]:
+        """
+        What the task score is out of: the task value, except where P = Q (2.A7), whose score is out of the raw quality of
+        a perfect flight and ignores the task value. None where that is not known.
+        """
+        if self.qmax_policy == QMAX_ABSOLUTE and not self.absolute_reference:
+            return self.fixed_quality
+        return self.task_value
 
 
 def scoring_parameters_for(scorecard, definition: TaskTypeDefinition) -> ScoringParameters:
@@ -105,6 +118,7 @@ def scoring_parameters_for(scorecard, definition: TaskTypeDefinition) -> Scoring
         qmax_policy=policy,
         task_value=float(task_value) if task_value else DEFAULT_TASK_VALUE,
         absolute_reference=definition.absolute_reference,
+        fixed_quality=definition.fixed_quality,
     )
 
 
@@ -583,12 +597,25 @@ def contestant_deleted(navigation_task_id: int) -> None:
         recompute_task_scores(navigation_task)
 
 
+def scores_depend_on_other_pilots(scorecard, definition: TaskTypeDefinition, parameters: ScoringParameters) -> bool:
+    """
+    Whether a pilot's score can change because other pilots fly: it is scaled against the best pilot of the task
+    (best_in_task), or has a term that is (2.A3 V, 2.A4 S) that the scorecard gives a value. An absolute scale never
+    does, and neither does a theoretical maximum of the pilot's own flight when the task type has no such term.
+    """
+    if not parameters.is_quality or parameters.qmax_policy == QMAX_ABSOLUTE:
+        return False
+    return parameters.qmax_policy == QMAX_BEST_IN_TASK or bool(relative_term_values(scorecard, definition))
+
+
 def task_scores_are_provisional(navigation_task) -> bool:
-    """The scores of a quality task are provisional until every contestant's flight is finished: a later, better
-    flight lowers the others' scores."""
+    """The scores of a quality task are provisional while a better flight of another pilot can still lower them: until
+    every contestant's flight is finished, and only where the scores depend on the other pilots at all."""
     from display.models import ContestantTrack
 
-    if not is_quality_task(navigation_task):
+    if not scores_depend_on_other_pilots(
+        navigation_task.scorecard, stored_task_type(navigation_task), scoring_parameters(navigation_task)
+    ):
         return False
     return ContestantTrack.objects.filter(
         contestant__navigation_task=navigation_task, calculator_finished=False

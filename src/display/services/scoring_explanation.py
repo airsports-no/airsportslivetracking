@@ -22,6 +22,7 @@ from display.services.catalogue_gate_quality import CatalogueGateQuality
 from display.services.task_scoring import (
     backtracking_penalty_percentage_for,
     relative_term_values,
+    scores_depend_on_other_pilots,
     scoring_parameters_for,
 )
 from display.utilities.cima_scoring_config import CimaScoringConfig
@@ -540,7 +541,7 @@ def _provisional(definition: TaskTypeDefinition, scorecard, parameters) -> dict:
                 "task can lower yours. Scores are final when all flights are finished."
             ),
         }
-    if relative:
+    if relative and scores_depend_on_other_pilots(scorecard, definition, parameters):
         names = _join(relative)
         return {
             "depends_on_other_pilots": True,

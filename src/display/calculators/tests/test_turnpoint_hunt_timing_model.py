@@ -124,6 +124,41 @@ class TestTurnpointHuntTimingModel(TestCase):
         self.assertEqual(gate_by_name['SC 1/1'].expected_time.isoformat(), '2020-08-01T08:12:45+00:00')
         self.assertEqual(gate_by_name['TP1'].expected_time.isoformat(), '2020-08-01T08:17:47+00:00')
 
+    RELATIVE = {
+        "time_reference": "start_point",
+        "compulsory_point_times": {"CP1": 300, "CP2": "10:00", "CP3": 1500},
+    }
+
+    def _declare_relative(self, subtype=TURNPOINT_HUNT):
+        self.navigation_task.task_subtype = subtype
+        self.navigation_task.save(update_fields=["task_subtype"])
+        compiler = ContestantTaskCompiler(self.contestant)
+        return compiler.compile(declaration_payload=compiler.build_declaration_payload_from_input(self.RELATIVE), force=True)
+
+    def test_hunt_times_in_seconds_after_the_start_point_are_stored_and_converted(self):
+        self._set_editable_route()
+        compiled = self._declare_relative()
+        self.assertTrue(compiled.is_valid, compiled.validation_errors)
+        self.assertEqual({"CP1": 300, "CP2": 600, "CP3": 1500}, compiled.declaration_payload["relative_times"])
+        # SP is 6 minutes after the take-off at 08:05
+        times = compiled.declaration_payload["compulsory_point_times"]
+        self.assertEqual("2020-08-01T08:16:00+00:00", times["CP1"])
+        self.assertEqual("2020-08-01T08:21:00+00:00", times["CP2"])
+        self.assertEqual("2020-08-01T08:36:00+00:00", compiled.compiled_gate_times_payload["CP3"])
+
+    def test_hunt_times_in_seconds_are_applied_to_the_actual_start_of_an_adaptive_start(self):
+        self._set_editable_route()
+        Contestant.objects.filter(pk=self.contestant.pk).update(adaptive_start=True)
+        self.contestant.refresh_from_db()
+        compiled = self._declare_relative(LIMITED_FUEL_TURNPOINT_HUNT)
+        self.assertTrue(compiled.is_valid, compiled.validation_errors)
+        contestant = Contestant.objects.get(pk=self.contestant.pk)
+        start = datetime.datetime(2020, 8, 1, 8, 31, tzinfo=datetime.timezone.utc)
+        gate_times = contestant.adaptive_start_gate_times(start)
+        self.assertEqual(start + datetime.timedelta(seconds=300), gate_times["CP1"])
+        self.assertEqual(start + datetime.timedelta(seconds=600), gate_times["CP2"])
+        self.assertEqual(start + datetime.timedelta(seconds=1500), gate_times["CP3"])
+
     def test_turnpoint_hunt_compiled_payload_includes_unordered_free_targets(self):
         self._set_editable_route()
         compiled = self._compile_turnpoint_hunt()
@@ -188,7 +223,7 @@ class TestTurnpointHuntTimingModel(TestCase):
             force=True,
         )
         self.assertFalse(compiled.is_valid)
-        self.assertIn('exactly three compulsory point times', ' '.join(compiled.validation_errors))
+        self.assertIn('Give a time for CP1, CP2 and CP3.', ' '.join(compiled.validation_errors))
 
     def test_turnpoint_hunt_compulsory_timing_gate_within_tolerance_is_information(self):
         self._set_editable_route()
