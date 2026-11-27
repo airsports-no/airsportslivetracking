@@ -155,6 +155,7 @@ CIMA_PRECISION_SCORECARD = "CIMA Precision"
 CIMA_ANR_SCORECARD = "CIMA ANR"
 CIMA_DURATION_SCORECARD = "CIMA Duration"
 AIR_SPORTS_RACE_2025_SCORECARD = "Air Sports Race 2025"
+AIR_SPORT_CHALLENGE_2025_SCORECARD = "Air Sport Challenge 2025"
 
 
 @dataclass(frozen=True)
@@ -439,6 +440,7 @@ _DEFINITIONS = (
         calculator_pipeline=PIPELINE_ANR_STYLE,
         default_for_family=True,
         route_requirements=_BACKBONE + _LEGACY_CORRIDOR_FORBIDDEN,
+        _family_default_scorecard_shortcut_name=AIR_SPORT_CHALLENGE_2025_SCORECARD,
     ),
     TaskTypeDefinition(
         key=LEGACY_POKER,

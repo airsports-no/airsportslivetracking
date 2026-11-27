@@ -355,7 +355,10 @@ class TestRegistryHoldsPreviousContents(SimpleTestCase):
         self.assertEqual(set(TASK_TYPE_SCORECARD_SHORTCUT_NAMES), PREVIOUS_SUBTYPE_SHORTCUTS)
 
     def test_default_scorecard_shortcut_names(self):
-        self.assertEqual(DEFAULT_SCORECARD_SHORTCUT_NAMES, {"airsports": "Air Sports Race 2025"})
+        self.assertEqual(
+            DEFAULT_SCORECARD_SHORTCUT_NAMES,
+            {"airsports": "Air Sports Race 2025", "airsportchallenge": "Air Sport Challenge 2025"},
+        )
 
     def test_navigation_task_types(self):
         self.assertEqual(

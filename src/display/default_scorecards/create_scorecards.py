@@ -53,6 +53,7 @@ def create_scorecards():
     default_scorecard_landing.get_default_scorecard()
     default_scorecard_airsports.get_default_scorecard()
     default_scorecard_airsports_2025.get_default_scorecard()
+    default_scorecard_airsports_2025.get_airsport_challenge_scorecard()
     default_scorecard_airsport_challenge.get_default_scorecard()
     default_scorecard_nordic_asr.get_default_scorecard()
     default_scorecard_cima_precision.get_default_scorecard()

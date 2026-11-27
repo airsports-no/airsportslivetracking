@@ -32,7 +32,7 @@ from display.calculators.tests.test_simulated_legacy_flights import (
     timing_penalty,
     zone_feature,
 )
-from display.utilities.task_types import AIRSPORTS, ANR_CORRIDOR
+from display.utilities.task_types import AIRSPORT_CHALLENGE, AIRSPORTS, ANR_CORRIDOR
 
 # ---------------------------------------------------------------------------------------------------------------------
 # Corridor task types: ANR and Air Sports Race
@@ -346,3 +346,35 @@ class AirSportsRace2025ScenariosTest(CorridorScenarios, ScenarioCase):
         self.assertEqual([entry[:2] for entry in penalties(result)], [(BACKTRACKING, "SP"), (BACKTRACKING, "TP1")])
         self.assertEqual(result.score_by_type[BACKTRACKING], maximum)
         self.assertEqual(result.score, maximum)
+
+
+class AirSportChallenge2025ScenariosTest(AirSportsRace2025ScenariosTest):
+    """Air Sport Challenge with the Annex 9 scorecard: the same scenarios, the same expectations as Air Sports Race."""
+
+    task_type = AIRSPORT_CHALLENGE
+    scorecard_shortcut = "Air Sport Challenge 2025"
+
+
+class AirSportChallengeScoresLikeAirSportsRaceTest(ScenarioCase):
+    """The same flight on the same Annex 9 route scores identically under both families."""
+
+    hidden = ("TP2",)
+    build_options = {"rounded_corners": False}
+
+    def score_under(self, task_type, scorecard_shortcut):
+        self.task_type = task_type
+        self.scorecard_shortcut = scorecard_shortcut
+        self.build()
+        track, result = self.fly(TimeOffset("TP1", 5), TimeOffset("TP2", -5), MissGate("FP", margin_m=20))
+        return self.scorecard, result
+
+    def test_a_flight_with_late_early_and_missed_gates_scores_the_same(self):
+        race_scorecard, race = self.score_under(AIRSPORTS, "Air Sports Race 2025")
+        challenge_scorecard, challenge = self.score_under(AIRSPORT_CHALLENGE, "Air Sport Challenge 2025")
+        self.assertNotEqual(race_scorecard.pk, challenge_scorecard.pk)
+        self.assertEqual(race_scorecard.calculator, AIRSPORTS)
+        self.assertEqual(challenge_scorecard.calculator, AIRSPORT_CHALLENGE)
+        self.assertGreater(race.score, 0)
+        self.assertEqual(penalties(race), penalties(challenge))
+        self.assertEqual(race.score, challenge.score)
+        self.assertEqual(race.missed_gates, challenge.missed_gates)

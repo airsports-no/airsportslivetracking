@@ -16,7 +16,7 @@ This guide is for contest organisers who run the microlight tasks of the FAI tas
 3. [One section per task](#3-the-tasks-one-by-one): what the pilot does, what the route needs, how it is scored, with an example.
 4. [For pilots](#4-for-pilots): booking, the declaration, the flight order.
 5. [Known limits](#5-known-limits): what the system does not do.
-6. [Air Sports Race](#6-air-sports-race-annex-9): the Annex 9 scorecard.
+6. [Air Sports Race and Air Sport Challenge](#6-air-sports-race-annex-9): the Annex 9 scorecard.
 
 ---
 
@@ -532,15 +532,11 @@ These are things the system does not detect or does not do. Each one has been ch
 - **Landing strips.** Landing strip scoring is judged at the field. The system does not score it, and has no table of strips A to E.
 - **Departure and arrival route check for Air Sports Race.** There is no check of the route to the start and from the finish. Only 2.A8 checks the route to SP and from FP.
 
-**Not done yet**
-
-- **Air Sport Challenge** still has its own older scorecard.
-
 ---
 
 ## 6. Air Sports Race (Annex 9)
 
-The **Air Sports Race** family uses the scorecard **Air Sports Race 2025 (Annex 9)**. It is preselected when you create a task of this family. It follows table 6.7.5 of Annex 9. It is **not** a CIMA task. Penalties add up, and the **lowest total wins**. There is no task score, no scaling and no provisional state. The older "Air Sports Race" scorecard stays available for tasks that were made from it.
+The **Air Sports Race** family uses the scorecard **Air Sports Race 2025 (Annex 9)**. It is preselected when you create a task of this family. The **Air Sport Challenge** family now does the same with the scorecard **Air Sport Challenge 2025 (Annex 9)**. It has exactly the same rules, and the two families score a flight in the same way. It follows table 6.7.5 of Annex 9. It is **not** a CIMA task. Penalties add up, and the **lowest total wins**. There is no task score, no scaling and no provisional state. The older "Air Sports Race" and "Air Sport Challenge 2023" scorecards stay available. Tasks that were made from them keep them, and you can still choose them when you create a new task.
 
 | Mistake | Default |
 |---|---|

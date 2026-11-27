@@ -11,10 +11,12 @@ from display.utilities.gate_definitions import (
     TURNPOINT,
     UNKNOWN_LEG,
 )
-from display.utilities.task_types import AIRSPORTS
+from display.utilities.task_types import AIR_SPORT_CHALLENGE_2025_SCORECARD, AIRSPORT_CHALLENGE, AIRSPORTS
 
 NAME = "Air Sports Race 2025 (Annex 9)"
 SHORTCUT_NAME = "Air Sports Race 2025"
+CHALLENGE_NAME = "Air Sport Challenge 2025 (Annex 9)"
+CHALLENGE_SHORTCUT_NAME = AIR_SPORT_CHALLENGE_2025_SCORECARD
 
 GATE_FIELDS = [
     ["Penalties", "penalty_per_second", "maximum_penalty", "missed_penalty"],
@@ -46,6 +48,21 @@ def get_default_scorecard():
     The navigation penalties of the FAI Sporting Code Section 10, Annex 9 (Air Sport Race), 2025 edition, table 6.7.5.
     The older "Air Sports Race" scorecard is kept for the tasks made from it; this one is the family's default
     (DEFAULT_SCORECARD_SHORTCUT_NAMES).
+    """
+    return _build_scorecard(AIRSPORTS, NAME, SHORTCUT_NAME)
+
+
+def get_airsport_challenge_scorecard():
+    """
+    The same Annex 9 rules for the Air Sport Challenge family. A scorecard's calculator is the family of the tasks made
+    from it, so the family needs a row of its own; the rules are built by the same code and cannot drift apart. The
+    older "Air Sport Challenge 2023" scorecard is kept for the tasks made from it.
+    """
+    return _build_scorecard(AIRSPORT_CHALLENGE, CHALLENGE_NAME, CHALLENGE_SHORTCUT_NAME)
+
+
+def _build_scorecard(family: str, name: str, shortcut_name: str):
+    """
 
     Not scored here, because nothing detects them: leaving the quarantine late (100) and not following the departure and
     arrival instructions at the airfield (200). The contest director gives those as manual penalties.
@@ -93,9 +110,9 @@ def get_default_scorecard():
     }
 
     scorecard, created = Scorecard.objects.update_or_create(
-        name=NAME,
+        name=name,
         defaults={
-            "shortcut_name": SHORTCUT_NAME,
+            "shortcut_name": shortcut_name,
             "valid_from": datetime.datetime(2025, 1, 1, tzinfo=datetime.timezone.utc),
             # 6.7.4: cumulative penalties, the fewest win
             "score_sorting_direction": "asc",
@@ -104,8 +121,8 @@ def get_default_scorecard():
             "backtracking_grace_time_seconds": 5,
             "backtracking_maximum_penalty": 100,
             "use_procedure_turns": False,
-            "task_type": [AIRSPORTS],
-            "calculator": AIRSPORTS,
+            "task_type": [family],
+            "calculator": family,
             # Outside the corridor or inside a penalty zone: 1 point per second after 5 seconds, no maximum (0)
             "corridor_maximum_penalty": 0,
             "corridor_outside_penalty": 1,
