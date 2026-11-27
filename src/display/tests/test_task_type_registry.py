@@ -160,7 +160,7 @@ _PREVIOUS_DEFINITIONS_WITH_PRIMITIVES = {
         ("catalogue_turnpoint", "known_time_gate"),
         (),
         "turnpoint_hunt",
-        ("predicted_sequence", "compulsory_timing_gates", "observation_evidence", "backtracking"),
+        ("predicted_sequence", "compulsory_timing_gates", "observation_evidence"),
         "CIMA Precision",
     ),
     "circle": (
@@ -193,7 +193,7 @@ _PREVIOUS_DEFINITIONS_WITH_PRIMITIVES = {
         ("catalogue_turnpoint", "known_time_gate"),
         (),
         "limited_fuel_turnpoint_hunt",
-        ("all_gate_crossings", "compulsory_timing_gates", "observation_evidence", "fuel_compliance", "backtracking"),
+        ("all_gate_crossings", "compulsory_timing_gates", "observation_evidence", "fuel_compliance"),
         "CIMA Precision",
     ),
     "duration": ("duration", "2.B3 Duration", "precision", False, (), (), None, (), None),
@@ -404,8 +404,10 @@ class TestRegistryHoldsPreviousContents(SimpleTestCase):
         self.assertEqual(having("scores_duration"), {"duration"})
         self.assertEqual(
             {key for key, d in TASK_TYPE_REGISTRY.items() if not d.has_backtracking_detection},
-            {"circle", "legacy_landing", "legacy_poker"},
+            # The turnpoint hunts have no backtracking penalty in the catalogue (2.A6, 2.B2).
+            {"circle", "legacy_landing", "legacy_poker", "turnpoint_hunt", "limited_fuel_turnpoint_hunt"},
         )
+        self.assertEqual(having("free_order_gate_matching"), {"limited_fuel_turnpoint_hunt"})
 
     def test_contestant_strategies(self):
         self.assertEqual(
@@ -485,9 +487,14 @@ class TestCalculatorPipelines(SimpleTestCase):
             "contract_navigation_time_controls",
             "known_circuit",
             "unknown_legs",
-            "turnpoint_hunt",
-            "limited_fuel_turnpoint_hunt",
         ):
+            self.assertEqual(_pipeline(key), expected, key)
+            self.assertEqual(get_calculators_for_task(_task("precision", key)), expected)
+
+    def test_turnpoint_hunts_have_no_backtracking_calculator(self):
+        # The catalogue has no backtracking penalty for 2.A6 and 2.B2.
+        expected = self._classes("Gate", "TakeoffLanding", "ProhibitedZone", "PenaltyZone")
+        for key in ("turnpoint_hunt", "limited_fuel_turnpoint_hunt"):
             self.assertEqual(_pipeline(key), expected, key)
             self.assertEqual(get_calculators_for_task(_task("precision", key)), expected)
 

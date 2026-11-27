@@ -50,6 +50,8 @@ EXPECTED_SCORECARD_NESTED_KEYS = {
     "anr_route_to_sp_penalty",
     "anr_route_from_fp_penalty",
     "compulsory_timing_tolerance_seconds",
+    "compulsory_timing_penalty_per_second",
+    "turnpoint_hunt_time_gate_value",
     "maximum_task_duration_minutes",
     "maximum_task_duration_penalty",
     "fuel_deadline_penalty",

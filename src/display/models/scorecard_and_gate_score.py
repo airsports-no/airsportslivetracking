@@ -42,6 +42,8 @@ SCORECARD_CONFIG_FIELDS = [
     "anr_route_to_sp_penalty",
     "anr_route_from_fp_penalty",
     "compulsory_timing_tolerance_seconds",
+    "compulsory_timing_penalty_per_second",
+    "turnpoint_hunt_time_gate_value",
     "maximum_task_duration_minutes",
     "maximum_task_duration_penalty",
     "fuel_deadline_penalty",
@@ -272,9 +274,14 @@ class Scorecard(models.Model):
     anr_route_to_sp_penalty = ConfigField(200)
     anr_route_from_fp_penalty = ConfigField(200)
 
+    # 2.A6, 2.B2 (Annex 4): a compulsory timing gate within the tolerance costs nothing, beyond it every second costs
+    # compulsory_timing_penalty_per_second; a time gate crossed is worth turnpoint_hunt_time_gate_value less that; every
+    # second the last gate is crossed after the maximum task duration costs maximum_task_duration_penalty.
     compulsory_timing_tolerance_seconds = ConfigField(10)
+    compulsory_timing_penalty_per_second = ConfigField(10)
+    turnpoint_hunt_time_gate_value = ConfigField(200)
     maximum_task_duration_minutes = ConfigField(None)
-    maximum_task_duration_penalty = ConfigField(100)
+    maximum_task_duration_penalty = ConfigField(10)
     fuel_deadline_penalty = ConfigField(100)
     duration_normalization_policy = ConfigField("")
     duration_residual_fuel_required = ConfigField(False)

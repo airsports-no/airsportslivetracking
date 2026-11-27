@@ -260,7 +260,7 @@ def theoretical_gate_quality(contestant) -> float:
 def achievable_quality(contestant) -> float:
     """
     The theoretical maximum of an achievement-style task (2.A6, 2.B2): everything the contestant can earn, the target
-    values of their own declared targets plus the scorecard's sequence bonus. 0 without a valid declaration.
+    values of their own declared targets, the time gates and the scorecard's sequence bonus. 0 without a valid declaration.
     """
     config = getattr(contestant, "contestanttaskconfiguration", None)
     if config is None or not config.is_valid:
@@ -269,6 +269,10 @@ def achievable_quality(contestant) -> float:
     scored_target_values = payload.get("scored_target_values") or {}
     total = sum(float(value) for value in scored_target_values.values())
     total += contestant.navigation_task.scorecard.turnpoint_hunt_sequence_bonus or 0
+    # Every time gate crossed exactly on its declared time earns its value (200 each).
+    total += len(payload.get("compulsory_timing_gate_names") or []) * (
+        contestant.navigation_task.scorecard.turnpoint_hunt_time_gate_value or 0
+    )
     return float(total)
 
 

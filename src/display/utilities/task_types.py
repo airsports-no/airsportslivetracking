@@ -192,6 +192,8 @@ PIPELINE_DURATION = (
     _PROHIBITED_ZONE,
     _PENALTY_ZONE,
 )
+# The turnpoint hunts (2.A6, 2.B2) have no backtracking penalty in the catalogue, so no backtracking detection either.
+PIPELINE_TURNPOINT_HUNT = (_GATE, _TAKEOFF_LANDING, _PROHIBITED_ZONE, _PENALTY_ZONE)
 PIPELINE_ANR_STYLE = (_GATE, _TAKEOFF_LANDING, _BACKTRACKING, _ANR_CORRIDOR, _PROHIBITED_ZONE, _PENALTY_ZONE)
 PIPELINE_LANDING = (_LANDING_PATTERN,)
 PIPELINE_POKER = (_POKER, _PROHIBITED_ZONE, _PENALTY_ZONE)
@@ -265,6 +267,10 @@ class TaskTypeDefinition:
     # Turnpoints are targets that earn points when collected: compulsory timing gates, target values, the order they
     # were collected in, the sequence bonus and the maximum duration (2.A6, 2.B2).
     scores_turnpoint_hunt_targets: bool = False
+    # The targets (and the timed points) may be flown in any order and every one flown scores, in either direction; the
+    # gates are matched as they are crossed, not in the declared order, and no gate is missed by flying another first
+    # (2.B2: "all gate crossings provide points"). 2.A6 follows its declared sequence.
+    free_order_gate_matching: bool = False
     # The flight is penalised for gates passed after the declared fuel endurance (2.B2).
     has_fuel_deadline: bool = False
     # Legs flown faster or slower than the declared speed are penalised, when the scorecard asks for it (2.A4), and the
@@ -620,7 +626,7 @@ _DEFINITIONS = (
         catalogue_code="2.A6",
         title="Turnpoint hunt",
         coarse_family=PRECISION,
-        calculator_pipeline=PIPELINE_PRECISION,
+        calculator_pipeline=PIPELINE_TURNPOINT_HUNT,
         requires_contestant_configuration=True,
         # Exactly three standalone timed turnpoints plus free catalogue turnpoints.
         has_backbone=False,
@@ -630,7 +636,7 @@ _DEFINITIONS = (
         absolute_time_declaration_key="compulsory_point_times",
         # Additive from zero: the maximum depends on how many photos and gates the organiser places.
         scoring_model=SCORING_QUALITY,
-        scoring_modules=("predicted_sequence", "compulsory_timing_gates", "observation_evidence", "backtracking"),
+        scoring_modules=("predicted_sequence", "compulsory_timing_gates", "observation_evidence"),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         scores_turnpoint_hunt_targets=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "TurnpointHuntStrategy",
@@ -686,7 +692,7 @@ _DEFINITIONS = (
         catalogue_code="2.B2",
         title="Limited fuel turnpoint hunt",
         coarse_family=PRECISION,
-        calculator_pipeline=PIPELINE_PRECISION,
+        calculator_pipeline=PIPELINE_TURNPOINT_HUNT,
         requires_contestant_configuration=True,
         has_backbone=False,
         route_requirements=_FREE_TURNPOINTS_REQUIREMENTS,
@@ -700,10 +706,10 @@ _DEFINITIONS = (
             "compulsory_timing_gates",
             "observation_evidence",
             "fuel_compliance",
-            "backtracking",
         ),
         scorecard_shortcut_name=CIMA_PRECISION_SCORECARD,
         scores_turnpoint_hunt_targets=True,
+        free_order_gate_matching=True,
         has_fuel_deadline=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "TurnpointHuntStrategy",
         gate_types_without_backbone=(TURNPOINT,),

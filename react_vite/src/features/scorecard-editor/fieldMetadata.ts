@@ -60,6 +60,8 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
         title: 'Duration',
         fields: [
             'compulsory_timing_tolerance_seconds',
+            'compulsory_timing_penalty_per_second',
+            'turnpoint_hunt_time_gate_value',
             'maximum_task_duration_minutes',
             'maximum_task_duration_penalty',
             'fuel_deadline_penalty',
@@ -164,8 +166,14 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
     anr_route_to_sp_penalty: { label: 'ANR route to SP penalty', kind: 'number', min: 0 },
     anr_route_from_fp_penalty: { label: 'ANR route from FP penalty', kind: 'number', min: 0 },
     compulsory_timing_tolerance_seconds: { label: 'Compulsory timing tolerance', kind: 'integer', unit: 's', min: 0 },
+    compulsory_timing_penalty_per_second: {
+        label: 'Compulsory timing penalty per second beyond the tolerance',
+        kind: 'number',
+        min: 0,
+    },
+    turnpoint_hunt_time_gate_value: { label: 'Time gate value', kind: 'number', min: 0 },
     maximum_task_duration_minutes: { label: 'Maximum task duration', kind: 'integer', unit: 'min', min: 0 },
-    maximum_task_duration_penalty: { label: 'Maximum task duration penalty', kind: 'number', min: 0 },
+    maximum_task_duration_penalty: { label: 'Maximum task duration penalty per second over', kind: 'number', min: 0 },
     fuel_deadline_penalty: { label: 'Fuel deadline penalty', kind: 'number', min: 0 },
     duration_normalization_policy: {
         label: 'Duration normalization policy',

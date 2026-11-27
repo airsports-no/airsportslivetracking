@@ -72,6 +72,11 @@ ADAPTIVE_TIMING_START_SCORE_TYPE = "adaptive_timing_start"
 # as ACHIEVEMENT messages); every other score type is a penalty.
 TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE = "turnpoint_hunt_target_value"
 TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE = "turnpoint_hunt_sequence_bonus"
+# 200 per time gate crossed (an achievement) and what its timing error costs beyond the tolerance (a penalty); the
+# catalogue charges the error once, so the generic gate timing score is not charged on a compulsory gate (Annex 4, 2.A6).
+TURNPOINT_HUNT_TIME_GATE_VALUE_SCORE_TYPE = "turnpoint_hunt_time_gate_value"
+TURNPOINT_HUNT_COMPULSORY_TIMING_SCORE_TYPE = "turnpoint_hunt_compulsory_timing"
+TURNPOINT_HUNT_MAXIMUM_DURATION_SCORE_TYPE = "turnpoint_hunt_maximum_duration_exceeded"
 # A hidden gate that was crossed again or crossed against the route is invalidated (Annex 4: "crossing the same gate
 # more than once in any direction invalidates the gate"). The score type is stable (it was introduced for 2.A1) and
 # is also what the one log entry of the invalidation carries for 2.A2, 2.A4 and 2.A5.
@@ -111,6 +116,8 @@ class GateCalculator(Calculator):
             projector=projector,
         )
         self.starting_line: Gate = None
+        # 2.B2: the gates are matched as they are crossed, in any order (see TaskTypeDefinition.free_order_gate_matching).
+        self._free_order = stored_task_type(contestant.navigation_task).free_order_gate_matching
         self.initiate_gates()
         # What a gate is worth and costs where the task follows the catalogue's formulas literally (2.A1, 2.A2), the
         # same weights that make the contestant's starting quality; None for the scorecard's flat scores.
@@ -133,6 +140,9 @@ class GateCalculator(Calculator):
         # Timed hidden gates charged as not crossed, with the time they were charged at, watched for a crossing after it.
         self._missed_timed_hidden_gates: List[tuple] = []
         self.scored_turnpoint_hunt_compulsory_gates = set()
+        # 2.A6/2.B2: the seconds over the maximum task duration already charged, so that every later gate crossed only
+        # costs the seconds since the previous one and the total is the seconds the last gate was crossed after the end.
+        self._hunt_seconds_over_charged = 0.0
         self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self._last_speed_keeping_gate: Optional[Gate] = None
         self._last_speed_keeping_time: Optional[datetime.datetime] = None
@@ -249,9 +259,7 @@ class GateCalculator(Calculator):
         else:
             planned_time_to_crossing = (position.time - gate.expected_time).total_seconds()
 
-        score = self.scorecard.get_gate_timing_score_for_gate_type(
-            gate.type, gate.expected_time, estimated_crossing_time
-        )
+        score = self._timing_score(gate, gate.expected_time, estimated_crossing_time)
 
         if self.live_processing:
             self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(
@@ -406,7 +414,7 @@ class GateCalculator(Calculator):
         position_time.
         """
         planned_time_to_crossing = (position_time - gate.expected_time).total_seconds()
-        score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, estimated_crossing_time)
+        score = self._timing_score(gate, gate.expected_time, estimated_crossing_time)
         self.websocket_facade.transmit_seconds_to_crossing_time_and_crossing_estimate(
             self.contestant,
             gate.name,
@@ -460,6 +468,11 @@ class GateCalculator(Calculator):
         Detection logic using OrchestratorState.
         """
         events = []
+
+        if self._free_order:
+            events.extend(self._check_free_order_intersections(state, track))
+            self.publish_next_timed_gate()
+            return events
 
         # Handle crossing the starting line if we are looking for it
         if self.gates and state.next_gate and state.next_gate == self.gates[0]:
@@ -573,6 +586,32 @@ class GateCalculator(Calculator):
         self.check_gate_in_range(track, state, events)
         self.publish_next_timed_gate()
 
+        return events
+
+    def _check_free_order_intersections(
+        self, state: OrchestratorState, track: Sequence[ContestantReceivedPosition]
+    ) -> List[OrchestratorEvent]:
+        """
+        2.B2 ("all gate crossings provide points"): a gate counts when it is crossed, whichever it is, in either
+        direction, and flying one gate before another never marks the other as missed. Every outstanding gate is tested
+        against the latest positions, which costs the distance to its centre per position (the crossing test returns at
+        once for a gate more than its radius plus 500 m away) and a line intersection only for the gate the aircraft is
+        at; gates already crossed leave the list, so the cost falls as the flight proceeds. Gates not crossed are charged
+        nothing, so there is no missed-gate detection either.
+        """
+        crossed = []
+        for gate in self.outstanding_gates:
+            intersection_time = gate.get_gate_intersection_time(state.projector, track)
+            if intersection_time:
+                crossed.append((intersection_time, gate))
+        events: List[OrchestratorEvent] = []
+        for intersection_time, gate in sorted(crossed, key=lambda item: item[0]):
+            index = self.gates.index(gate)
+            previous_gate = self.gates[index - 1] if index > 0 else None
+            events.append(GatePassedEvent(gate, track[-1], intersection_time, previous_gate=previous_gate))
+            self.outstanding_gates.remove(gate)
+        if crossed:
+            events.append(NextGateExpectedEvent(self._get_next_gate(), track[-1]))
         return events
 
     def _hidden_gates_crossed_backwards(self, crossings, track) -> List[OrchestratorEvent]:
@@ -814,6 +853,10 @@ class GateCalculator(Calculator):
         logger.info(f"{self.contestant}: Scoring missed gate {event.gate}")
         event.gate.missed = True
 
+        if self._task_type.scores_turnpoint_hunt_targets:
+            # 2.A6, 2.B2: a gate or target not flown earns nothing and costs nothing (Annex 4).
+            return
+
         if event.gate.gate_check:
             wrong_direction = event.gate.name in self._wrong_direction_hidden_gates
             if self.catalogue_quality:
@@ -897,7 +940,10 @@ class GateCalculator(Calculator):
         message = "passing gate"
         self._watch_passed_hidden_gate(event.gate, passing_time)
 
-        if self.catalogue_quality.is_timed(event.gate) if self.catalogue_quality else event.gate.time_check:
+        if self._is_turnpoint_hunt_compulsory_gate(event.gate):
+            # Its timing is scored once, below, as the time gate it is (value less the error beyond the tolerance).
+            self.transmit_actual_crossing(event.gate, passing_position)
+        elif self.catalogue_quality.is_timed(event.gate) if self.catalogue_quality else event.gate.time_check:
             gate_score = self.scorecard.get_gate_timing_score_for_gate_type(
                 event.gate.type, event.gate.expected_time, passing_time
             )
@@ -976,41 +1022,78 @@ class GateCalculator(Calculator):
     def _task_type(self):
         return stored_task_type(self.contestant.navigation_task)
 
-    def _score_turnpoint_hunt_compulsory_timing(self, gate: Gate, position, passing_time: datetime.datetime):
+    def _turnpoint_hunt_payload(self) -> dict:
+        """The compiled effective route of a valid declaration of a turnpoint hunt, else nothing."""
         if not self._task_type.scores_turnpoint_hunt_targets:
-            return
+            return {}
         if not hasattr(self.contestant, "contestanttaskconfiguration"):
-            return
+            return {}
         config = self.contestant.contestanttaskconfiguration
         if not config.is_valid:
-            return
-        payload = config.compiled_effective_route_payload or {}
-        compulsory_names = payload.get("compulsory_timing_gate_names") or []
-        if gate.name not in compulsory_names:
+            return {}
+        return config.compiled_effective_route_payload or {}
+
+    def _is_turnpoint_hunt_compulsory_gate(self, gate: Gate) -> bool:
+        return gate.name in (self._turnpoint_hunt_payload().get("compulsory_timing_gate_names") or [])
+
+    def _turnpoint_hunt_timing_penalty(self, seconds_off: float) -> float:
+        """Annex 4 2.A6: nothing within the tolerance, beyond it every second costs the scorecard's points per second."""
+        beyond = abs(seconds_off) - self.cima_config.compulsory_timing_tolerance_seconds
+        return max(0.0, beyond) * self.cima_config.compulsory_timing_penalty_per_second
+
+    def _timing_score(self, gate: Gate, expected_time, actual_time) -> float:
+        """What a crossing of the gate at `actual_time` costs, for the gate score the live map shows."""
+        if self._is_turnpoint_hunt_compulsory_gate(gate):
+            if actual_time is None:
+                return 0
+            return self._turnpoint_hunt_timing_penalty((actual_time - expected_time).total_seconds())
+        return self.scorecard.get_gate_timing_score_for_gate_type(gate.type, expected_time, actual_time)
+
+    def _score_turnpoint_hunt_compulsory_timing(self, gate: Gate, position, passing_time: datetime.datetime):
+        """
+        2.A6/2.B2: a compulsory time gate crossed is worth `turnpoint_hunt_time_gate_value` (200) and loses 10 points per
+        second its crossing is off the declared time beyond the tolerance of 10 s, once (the generic gate timing score
+        is not charged on these gates). A gate not crossed earns and costs nothing.
+        """
+        if not self._is_turnpoint_hunt_compulsory_gate(gate):
             return
         if gate.name in self.scored_turnpoint_hunt_compulsory_gates:
             return
         self.scored_turnpoint_hunt_compulsory_gates.add(gate.name)
-        tolerance_seconds = int(payload.get("compulsory_timing_tolerance_seconds", 10) or 10)
-        diff_seconds = abs((passing_time - gate.expected_time).total_seconds())
-        if diff_seconds <= tolerance_seconds:
-            score = 0
-            message = f"compulsory timing gate within {tolerance_seconds} s"
-            annotation_type = INFORMATION
+        tolerance_seconds = self.cima_config.compulsory_timing_tolerance_seconds
+        seconds_off = (passing_time - gate.expected_time).total_seconds()
+        # A gate without a declared time has nothing to be timed against (its expected time is a placeholder).
+        declared = gate.name in (self._turnpoint_hunt_payload().get("compulsory_point_times") or {})
+        penalty = self._turnpoint_hunt_timing_penalty(seconds_off) if declared else 0
+        direction = "late" if seconds_off > 0 else "early"
+        if penalty:
+            timing = f"{abs(seconds_off):.0f} s {direction}, {abs(seconds_off) - tolerance_seconds:.0f} s beyond the tolerance"
         else:
-            score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, passing_time)
-            message = f"compulsory timing gate outside {tolerance_seconds} s"
-            annotation_type = ANOMALY
-        self.update_gate_score(
-            position,
-            gate,
-            score,
-            "turnpoint_hunt_compulsory_timing",
-            message,
-            annotation_type,
-            gate.expected_time,
-            passing_time,
-        )
+            timing = f"{abs(seconds_off):.0f} s {direction}, within the {tolerance_seconds} s tolerance"
+        value = float(self.cima_config.turnpoint_hunt_time_gate_value)
+        if value:
+            self.update_gate_score(
+                position,
+                gate,
+                value,
+                TURNPOINT_HUNT_TIME_GATE_VALUE_SCORE_TYPE,
+                f"time gate crossed {timing}",
+                INFORMATION,
+                gate.expected_time,
+                passing_time,
+                kind=ACHIEVEMENT,
+            )
+        if penalty:
+            self.update_gate_score(
+                position,
+                gate,
+                penalty,
+                TURNPOINT_HUNT_COMPULSORY_TIMING_SCORE_TYPE,
+                f"compulsory timing gate {timing}",
+                ANOMALY,
+                gate.expected_time,
+                passing_time,
+            )
 
     def _track_turnpoint_hunt_actual_order(self, gate: Gate):
         """
@@ -1118,29 +1201,27 @@ class GateCalculator(Calculator):
         )
 
     def _score_turnpoint_hunt_maximum_duration(self, gate: Gate, position, passing_time: datetime.datetime):
-        if not self._task_type.scores_turnpoint_hunt_targets:
-            return
-        if not hasattr(self.contestant, "contestanttaskconfiguration"):
-            return
-        config = self.contestant.contestanttaskconfiguration
-        if not config.is_valid:
-            return
-        payload = config.compiled_effective_route_payload or {}
-        deadline = payload.get("maximum_task_duration_deadline")
+        """
+        2.A6/2.B2: every second the flight lasts beyond the maximum task duration costs the scorecard's points per second.
+        The application has no event for the end of the task, so the end is the last gate crossed: each gate crossed after
+        the deadline charges the seconds since the previous charge, and the charges add up to the seconds the last gate was
+        crossed after the deadline.
+        """
+        deadline = self._turnpoint_hunt_payload().get("maximum_task_duration_deadline")
         if not deadline:
             return
         deadline_dt = datetime.datetime.fromisoformat(deadline)
-        if passing_time <= deadline_dt:
+        seconds_over = (passing_time - deadline_dt).total_seconds()
+        additional = seconds_over - self._hunt_seconds_over_charged
+        if additional <= 0:
             return
-        if any(score_type == "turnpoint_hunt_maximum_duration_exceeded" for _, score_type in self.scored_gates if _ == gate.name):
-            return
-        penalty = self.cima_config.maximum_task_duration_penalty
+        self._hunt_seconds_over_charged = seconds_over
         self.update_gate_score(
             position,
             gate,
-            penalty,
-            "turnpoint_hunt_maximum_duration_exceeded",
-            "maximum task duration exceeded",
+            additional * self.cima_config.maximum_task_duration_penalty,
+            TURNPOINT_HUNT_MAXIMUM_DURATION_SCORE_TYPE,
+            f"maximum task duration exceeded: {additional:.0f} s more (crossed {seconds_over:.0f} s after the end)",
             ANOMALY,
             deadline_dt,
             passing_time,

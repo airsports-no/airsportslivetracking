@@ -300,6 +300,8 @@ class TaskCompiler:
         scorecard = getattr(self.navigation_task, "scorecard", None)
         scorecard_signature = (
             getattr(scorecard, "compulsory_timing_tolerance_seconds", None),
+            getattr(scorecard, "compulsory_timing_penalty_per_second", None),
+            getattr(scorecard, "turnpoint_hunt_time_gate_value", None),
             getattr(scorecard, "maximum_task_duration_minutes", None),
             getattr(scorecard, "maximum_task_duration_penalty", None),
             getattr(scorecard, "fuel_deadline_penalty", None),

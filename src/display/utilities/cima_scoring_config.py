@@ -45,8 +45,10 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class CimaScoringConfig:
     compulsory_timing_tolerance_seconds: int = 10
+    compulsory_timing_penalty_per_second: float = 10
+    turnpoint_hunt_time_gate_value: float = 200
     maximum_task_duration_minutes: Optional[int] = None
-    maximum_task_duration_penalty: float = 100
+    maximum_task_duration_penalty: float = 10
     fuel_deadline_penalty: float = 100
     duration_normalization_policy: str = ""
     duration_residual_fuel_required: bool = False
@@ -63,6 +65,8 @@ class CimaScoringConfig:
     def from_scorecard(cls, scorecard: "Scorecard") -> "CimaScoringConfig":
         return cls(
             compulsory_timing_tolerance_seconds=scorecard.compulsory_timing_tolerance_seconds,
+            compulsory_timing_penalty_per_second=scorecard.compulsory_timing_penalty_per_second,
+            turnpoint_hunt_time_gate_value=scorecard.turnpoint_hunt_time_gate_value,
             maximum_task_duration_minutes=scorecard.maximum_task_duration_minutes,
             maximum_task_duration_penalty=scorecard.maximum_task_duration_penalty,
             fuel_deadline_penalty=scorecard.fuel_deadline_penalty,

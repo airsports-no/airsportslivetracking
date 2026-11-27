@@ -324,6 +324,13 @@ class TurnpointHuntStrategy(ContestantTaskCompilerStrategy):
             if isinstance(value, str):
                 gate_times[key] = parser.parse(value).isoformat()
         gate_times.update(self.compiler._build_turnpoint_hunt_declared_gate_times(compiled_effective_route_payload, declaration_payload))
+        # Every gate of the effective route needs an expected time (GateCalculator.create_gates). A free target the
+        # declared sequence does not place (no sequence, or a target left out of it) has no time of its own and is never
+        # scored on one, so it takes the earliest declared time; 2.B2 flies such targets in any order.
+        known = [parser.parse(value) for name, value in gate_times.items() if name in compulsory_point_times and isinstance(value, str)]
+        placeholder = (min(known) if known else self.compiler.contestant.gate_time_anchor()).isoformat()
+        for name in compiled_effective_route_payload.get("effective_waypoint_names") or []:
+            gate_times.setdefault(name, placeholder)
         return gate_times
 
     def build_declaration_payload_from_input(self, declaration_input: dict) -> dict:
@@ -1265,6 +1272,24 @@ class ContestantTaskCompiler:
                     continue
                 lon, lat = coordinates
                 waypoint = build_waypoint(target_name, lat, lon, "tp", reference_waypoint.width, False, True)
+                waypoint.gate_line = [list(reference_waypoint.gate_line[0]), list(reference_waypoint.gate_line[1])] if reference_waypoint.gate_line else []
+                waypoint.elevation = getattr(reference_waypoint, "elevation", 0)
+                effective_waypoints.append(waypoint)
+        if effective_waypoints and stored_task_type(self.contestant.navigation_task).free_order_gate_matching:
+            # 2.B2: every target flown scores, whether or not the declared sequence names it, so every target is a gate.
+            present = {waypoint.name for waypoint in effective_waypoints}
+            reference_waypoint = effective_waypoints[1] if len(effective_waypoints) > 1 else effective_waypoints[0]
+            for target in self._build_turnpoint_hunt_targets_payload():
+                coordinates = target.get("coordinates") or []
+                if target["name"] in present or len(coordinates) != 2:
+                    continue
+                lon, lat = coordinates
+                # A target on top of a gate has no leg to draw its crossing line from (and cannot be told apart from
+                # that gate by a crossing anyway): the gate already there is the one that is crossed.
+                if any(abs(waypoint.latitude - lat) < 1e-6 and abs(waypoint.longitude - lon) < 1e-6 for waypoint in effective_waypoints):
+                    continue
+                present.add(target["name"])
+                waypoint = build_waypoint(target["name"], lat, lon, "tp", reference_waypoint.width, False, True)
                 waypoint.gate_line = [list(reference_waypoint.gate_line[0]), list(reference_waypoint.gate_line[1])] if reference_waypoint.gate_line else []
                 waypoint.elevation = getattr(reference_waypoint, "elevation", 0)
                 effective_waypoints.append(waypoint)

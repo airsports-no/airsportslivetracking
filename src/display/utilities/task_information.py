@@ -389,7 +389,7 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
             "Three compulsory timing gates must be crossed within the configured tolerance; one may require a precision touchdown depending on the briefing.",
         ])
         info["scoring"] = _clean_lines([
-            "Turnpoint and gate values are accumulated according to the declared sequence and successfully collected targets.",
+            "Every target collected scores its value and every compulsory timing gate crossed scores 200 less its timing error, in whatever order the targets are flown.",
             f"Compulsory timing gates currently use a tolerance of {tolerance} seconds before timing penalties apply.",
             "Fuel-compliance effects are applied in addition to the normal turnpoint-hunt sequence and timing scoring.",
         ])

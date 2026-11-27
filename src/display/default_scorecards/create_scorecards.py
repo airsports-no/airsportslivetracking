@@ -30,7 +30,7 @@ def _seed_cima_runtime_defaults():
     for card in Scorecard.objects.filter(shortcut_name="FAI Precision"):
         card.compulsory_timing_tolerance_seconds = 10
         card.maximum_task_duration_minutes = None
-        card.maximum_task_duration_penalty = 100
+        card.maximum_task_duration_penalty = 10
         card.fuel_deadline_penalty = 100
         card.anr_route_to_sp_penalty = 200
         card.anr_route_from_fp_penalty = 200

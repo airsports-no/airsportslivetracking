@@ -759,6 +759,8 @@ class ScorecardForm(forms.ModelForm):
     anr_route_to_sp_penalty = forms.FloatField()
     anr_route_from_fp_penalty = forms.FloatField()
     compulsory_timing_tolerance_seconds = forms.IntegerField()
+    compulsory_timing_penalty_per_second = forms.FloatField(min_value=0)
+    turnpoint_hunt_time_gate_value = forms.FloatField(min_value=0)
     maximum_task_duration_minutes = forms.IntegerField(required=False)
     maximum_task_duration_penalty = forms.FloatField()
     fuel_deadline_penalty = forms.FloatField()
@@ -863,6 +865,8 @@ class ScorecardForm(forms.ModelForm):
                 [
                     "Turnpoint hunt configuration",
                     "compulsory_timing_tolerance_seconds",
+                    "compulsory_timing_penalty_per_second",
+                    "turnpoint_hunt_time_gate_value",
                     "maximum_task_duration_minutes",
                     "maximum_task_duration_penalty",
                     "fuel_deadline_penalty",

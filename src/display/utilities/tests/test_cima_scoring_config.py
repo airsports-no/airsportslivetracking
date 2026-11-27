@@ -18,7 +18,10 @@ class TestCimaScoringConfigDefaults(SimpleTestCase):
         config = CimaScoringConfig()
         self.assertEqual(config.compulsory_timing_tolerance_seconds, 10)
         self.assertIsNone(config.maximum_task_duration_minutes)
-        self.assertEqual(config.maximum_task_duration_penalty, 100)
+        # Points per second over the maximum task duration (2.A6, 2.B2), no longer a flat amount.
+        self.assertEqual(config.maximum_task_duration_penalty, 10)
+        self.assertEqual(config.compulsory_timing_penalty_per_second, 10)
+        self.assertEqual(config.turnpoint_hunt_time_gate_value, 200)
         self.assertEqual(config.fuel_deadline_penalty, 100)
         self.assertEqual(config.duration_normalization_policy, "")
         self.assertFalse(config.duration_residual_fuel_required)

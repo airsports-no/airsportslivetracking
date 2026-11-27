@@ -1534,6 +1534,8 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     anr_route_to_sp_penalty = serializers.FloatField(required=False)
     anr_route_from_fp_penalty = serializers.FloatField(required=False)
     compulsory_timing_tolerance_seconds = serializers.IntegerField(required=False)
+    compulsory_timing_penalty_per_second = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    turnpoint_hunt_time_gate_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     maximum_task_duration_minutes = serializers.IntegerField(required=False, allow_null=True)
     maximum_task_duration_penalty = serializers.FloatField(required=False)
     fuel_deadline_penalty = serializers.FloatField(required=False)
@@ -1606,6 +1608,8 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "anr_route_to_sp_penalty",
             "anr_route_from_fp_penalty",
             "compulsory_timing_tolerance_seconds",
+            "compulsory_timing_penalty_per_second",
+            "turnpoint_hunt_time_gate_value",
             "maximum_task_duration_minutes",
             "maximum_task_duration_penalty",
             "fuel_deadline_penalty",

@@ -50,6 +50,8 @@ export interface ScorecardData {
     anr_route_to_sp_penalty?: number;
     anr_route_from_fp_penalty?: number;
     compulsory_timing_tolerance_seconds?: number;
+    compulsory_timing_penalty_per_second?: number;
+    turnpoint_hunt_time_gate_value?: number;
     maximum_task_duration_minutes?: number | null;
     maximum_task_duration_penalty?: number;
     fuel_deadline_penalty?: number;

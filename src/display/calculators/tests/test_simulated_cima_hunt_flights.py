@@ -21,6 +21,8 @@ import pytest
 from display.calculators.tests import catalogue_oracle as oracle
 from display.calculators.tests.cima_scenario_support import CimaScenarioCase, first_crossing_errors
 from display.calculators.tests.flight_simulator import (
+    LateralOffset,
+    Reverse,
     SkipGate,
     TimeOffset,
     add_contestant,
@@ -132,35 +134,18 @@ class TurnpointHuntFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 1000)
         self.assert_final_score(result, expected, "perfect flight")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F8 / S16: the generic gate timing score (1 point per second) is charged "
-        "on a compulsory gate inside its 10 s tolerance, which must cost nothing",
-    )
     def test_a_timing_gate_eight_seconds_off_is_inside_the_tolerance_and_costs_nothing(self):
         self.build()
         result, expected = self.fly(TimeOffset("CP2", 8))
         self.assertEqual(expected, 1000)
         self.assert_final_score(result, expected, "CP2 8 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F8 / S16: a compulsory gate 25 s off is charged twice (the generic gate "
-        "timing score and the compulsory timing score, 25 points each); the "
-        "catalogue charges 10 points per second beyond the 10 s tolerance (150)",
-    )
     def test_a_timing_gate_twenty_five_seconds_off_costs_ten_points_per_second_beyond_the_tolerance(self):
         self.build()
         result, expected = self.fly(TimeOffset("CP2", 25))
         self.assertEqual(expected, oracle.round_half_up(1000 * (1050 - 150) / 1050))
         self.assert_final_score(result, expected, "CP2 25 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F9 / S16: a time gate crossed earns nothing in the application (200 per time "
-        "gate in the catalogue), so a missed target costs a fifth of what it "
-        "should",
-    )
     def test_a_target_missed_loses_its_points_and_the_sequence_bonus(self):
         self.build()
         result, expected = self.fly(SkipGate("B"))
@@ -169,9 +154,10 @@ class TurnpointHuntFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="F10 / S16: the time over the maximum task duration costs a flat 100 points "
-        "per gate crossed after it in the application; the catalogue 10 points "
-        "per second over (480 for 48 s)",
+        reason="S16 scenario flaw, not an application fault: the application charges 480 points for the 48 s (10 per "
+        "second, see test_the_time_over_the_maximum_duration_costs_ten_points_per_second_of_q), but the reference pilot who sets Qmax flies the same "
+        "schedule, crosses CP3 at the same 08:20:48 and loses the same 480, so the best Q of the task is 570 and the "
+        "pilot scores 1000 where the test expects 1000 x 570 / 1050 against a Qmax nobody flew",
     )
     def test_time_over_the_maximum_duration_costs_ten_points_per_second(self):
         self.build(maximum_duration=MAX_DURATION_MINUTES)
@@ -179,11 +165,22 @@ class TurnpointHuntFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, oracle.round_half_up(1000 * (1050 - 480) / 1050))
         self.assert_final_score(result, expected, "CP3 48 s after the maximum duration")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F9 / S16: the full sequence bonus is awarded but the time gates earn nothing, so the "
-        "second pilot's Q is negative (score 0 against 534)",
-    )
+    def test_the_time_over_the_maximum_duration_costs_ten_points_per_second_of_q(self):
+        """The raw quality of the over-duration flight: the catalogue's Q, whatever the best pilot of the task flew."""
+        self.build(maximum_duration=MAX_DURATION_MINUTES)
+        result = self.task.run(self.task.generate_track([]))
+        self.assertEqual(result.raw_quality, PERFECT_2A6 - 480)
+        over = result.messages_of_type("turnpoint_hunt_maximum_duration_exceeded")
+        self.assertEqual([(m.gate.name, m.kind, m.score) for m in over], [("CP3", "penalty", 480.0)])
+
+    def test_backtracking_is_not_penalised(self):
+        """The catalogue has no backtracking penalty for the hunts (2.A1-2.A5 have 50%)."""
+        self.build()
+        track = self.task.generate_track([Reverse("CP1", seconds=12, fraction=0.5)])
+        result = self.task.run(track)
+        self.assertEqual(result.messages_of_type("backtracking"), [])
+        self.assertEqual(result.raw_quality, PERFECT_2A6)
+
     def test_two_pilots_in_the_same_task_are_scored_against_the_best(self):
         self.build()
         second = add_contestant(self.task).declare(declaration())
@@ -234,24 +231,12 @@ class LimitedFuelTurnpointHuntFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 1000)
         self.assert_final_score(result, expected, "perfect flight")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F8 / S16: a compulsory gate 25 s off is charged twice (generic gate score "
-        "and compulsory timing, 25 each) and the time gates earn nothing (F9); the "
-        "catalogue charges 150 points",
-    )
     def test_a_timing_gate_twenty_five_seconds_off(self):
         self.build()
         result, expected = self.fly(TimeOffset("CP2", 25))
         self.assertEqual(expected, oracle.round_half_up(1000 * (800 - 150) / 800))
         self.assert_final_score(result, expected, "CP2 25 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F11 / S16: the application matches the targets in the declared order: "
-        "flying A where B was declared marks the gates in between as missed; in "
-        "2.B2 the order is free and every target scores",
-    )
     def test_targets_flown_in_an_order_different_from_the_declaration_all_score(self):
         self.build(sequence=["CP1", "B", "CP2", "A", "CP3"])
         order = ["CP1", "A", "CP2", "B", "CP3"]
@@ -261,13 +246,6 @@ class LimitedFuelTurnpointHuntFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 1000)
         self.assert_final_score(result, expected, "A and B flown the other way round")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="NEW: without a declared sequence the free targets get no gate time and "
-        "GateCalculator.create_gates raises KeyError, so nothing is scored "
-        "(gate_calculator.py: expected_times[item.name]); the catalogue scores "
-        "every target flown",
-    )
     def test_no_declared_sequence_at_all(self):
         self.build(sequence=None)
         order = ["CP1", "A", "CP2", "B", "CP3"]
@@ -276,3 +254,44 @@ class LimitedFuelTurnpointHuntFlightsTest(CimaScenarioCase):
         expected = self.expected(track, order)
         self.assertEqual(expected, 1000)
         self.assert_final_score(result, expected, "no declared sequence")
+
+    def test_a_target_not_flown_costs_nothing_but_its_value(self):
+        self.build()
+        result, expected = self.fly(SkipGate("A"))
+        self.assertEqual(result.raw_quality, oracle.q_limited_fuel_turnpoint_hunt([100], [0, 0, 0]))
+        self.assertEqual(result.messages_of_type("gate_score"), [m for m in result.messages_of_type("gate_score") if not m.score])
+        self.assert_final_score(result, expected, "A missed")
+
+    def test_a_timed_point_not_flown_earns_and_costs_nothing(self):
+        self.build()
+        result = self.task.run(self.task.generate_track([LateralOffset("CP3", 3000)]))
+        self.assertEqual(result.raw_quality, oracle.q_limited_fuel_turnpoint_hunt([100, 100], [0, 0, None]))
+
+    def test_every_gate_is_charged_once_and_scores_in_raw_points(self):
+        self.build()
+        result = self.task.run(self.task.generate_track([TimeOffset("CP2", 25)]))
+        scored = [(m.gate.name, m.score_type, m.kind, m.score) for m in result.messages if m.score]
+        self.assertEqual(
+            scored,
+            [
+                ("CP1", "turnpoint_hunt_time_gate_value", "achievement", 200.0),
+                ("A", "turnpoint_hunt_target_value", "achievement", 100.0),
+                ("CP2", "turnpoint_hunt_time_gate_value", "achievement", 200.0),
+                ("CP2", "turnpoint_hunt_compulsory_timing", "penalty", 150.0),
+                ("B", "turnpoint_hunt_target_value", "achievement", 100.0),
+                ("CP3", "turnpoint_hunt_time_gate_value", "achievement", 200.0),
+            ],
+        )
+
+    def test_backtracking_is_not_penalised(self):
+        self.build()
+        result = self.task.run(self.task.generate_track([Reverse("CP1", seconds=12, fraction=0.5)]))
+        self.assertEqual(result.messages_of_type("backtracking"), [])
+        self.assertEqual(result.raw_quality, PERFECT_2B2)
+
+    def test_a_target_the_declared_sequence_leaves_out_still_scores(self):
+        self.build(sequence=["CP1", "A", "CP2", "CP3"])
+        order = ["CP1", "A", "CP2", "B", "CP3"]
+        track = self.flown_in_order(order)
+        result = self.task.run(track)
+        self.assertEqual(result.raw_quality, PERFECT_2B2)

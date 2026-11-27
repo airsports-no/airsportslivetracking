@@ -158,6 +158,17 @@ phone-sized declaration step before the `airsportsapp://registered` signal is se
 **S23. Apps** (`airsports-mobile`, separate repository). Show "Declaration needed" on the flight card and an
 "Edit declaration" action that opens the web page; needs an app release (F19).
 
+**S20b. Scoring explained to the organiser** (added 2026-11-27 at the user's request, runs after S20). An organiser
+who starts a default CIMA task must not be surprised that scores are scaled against the best pilot and move until all
+have flown, even without opening the scorecard. One plain-language summary per task type, generated in one place from
+the registry and the task's scorecard (formula in words, task value, Qmax policy, which terms are relative to the best
+pilot, percentage penalties, "provisional until all flights are finished") and served by the API, shown in:
+- the scorecard editor (top of the page, above the fields);
+- task creation, when a CIMA task type is chosen (short form, with the choice of Qmax policy explained);
+- the navigation task page for organisers (a "How this task is scored" card with a link to the scorecard);
+- the live map and results, as an explanation behind the "Provisional" badge, for pilots and spectators.
+Also gives the measure entries of 2.A3 (V) and 2.A4 (S) their own wording in the score log.
+
 **S24. Documentation.** Rewrite `11_CIMA_Task_Guide.md` for the new scorecards, scoring and declaration flow (F20).
 
 ## Phase 6 — Annex 9 leftovers (optional, decide later)

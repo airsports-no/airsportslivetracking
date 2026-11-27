@@ -389,3 +389,130 @@ class TestTurnpointHuntTimingModel(TestCase):
 
         bonus_messages = [msg for msg in self._drain_queue(calculator) if msg.score_type == 'turnpoint_hunt_sequence_bonus']
         self.assertEqual(bonus_messages, [])
+
+    # Annex 4, 2.A6 and 2.B2: 200 per time gate, a timing error costs nothing within 10 s and 10 points per second
+    # beyond it, charged once; every second over the maximum task duration costs 10 points.
+
+    def _fire_at_offset(self, calculator, gate_name: str, seconds: float):
+        gate = {gate.name: gate for gate in calculator.gates}[gate_name]
+        passing_time = gate.expected_time + datetime.timedelta(seconds=seconds)
+        event = GatePassedEvent(
+            gate,
+            type('Pos', (), {'time': passing_time, 'latitude': gate.latitude, 'longitude': gate.longitude})(),
+            passing_time,
+            previous_gate=calculator.starting_line,
+        )
+        calculator.on_gate_passed(event)
+        return self._drain_queue(calculator)
+
+    def _hunt_calculator(self, **scorecard_config):
+        # The scorecard first: the maximum duration deadline is compiled into the contestant's payload.
+        if scorecard_config:
+            self.navigation_task.scorecard.config.update(scorecard_config)
+            self.navigation_task.scorecard.save(update_fields=['config'])
+        return self._compile_and_build_calculator_with_declared_sequence(['CP1', 'A', 'CP2', 'B', 'CP3'])
+
+    @staticmethod
+    def _points(messages):
+        return [(m.gate.name, m.score_type, m.kind, m.score) for m in messages if m.score]
+
+    def test_compulsory_gate_inside_the_tolerance_earns_its_value_and_costs_nothing(self):
+        calculator = self._hunt_calculator()
+        messages = self._fire_at_offset(calculator, 'CP1', 8)
+        self.assertEqual(self._points(messages), [('CP1', 'turnpoint_hunt_time_gate_value', 'achievement', 200.0)])
+        self.assertIn('8 s late, within the 10 s tolerance', messages[0].message)
+
+    def test_compulsory_gate_is_charged_once_ten_points_per_second_beyond_the_tolerance(self):
+        calculator = self._hunt_calculator()
+        messages = self._fire_at_offset(calculator, 'CP2', 25)
+        # Not also charged by the generic gate timing score (1 point per second): one penalty of 150, no 'gate_score'.
+        self.assertEqual(
+            self._points(messages),
+            [
+                ('CP2', 'turnpoint_hunt_time_gate_value', 'achievement', 200.0),
+                ('CP2', 'turnpoint_hunt_compulsory_timing', 'penalty', 150.0),
+            ],
+        )
+        self.assertNotIn('gate_score', [m.score_type for m in messages if m.score])
+        self.assertIn('25 s late', messages[-1].message)
+
+    def test_a_compulsory_gate_flown_early_is_charged_like_a_late_one(self):
+        calculator = self._hunt_calculator()
+        messages = self._fire_at_offset(calculator, 'CP3', -12)
+        self.assertEqual(
+            self._points(messages),
+            [
+                ('CP3', 'turnpoint_hunt_time_gate_value', 'achievement', 200.0),
+                ('CP3', 'turnpoint_hunt_compulsory_timing', 'penalty', 20.0),
+            ],
+        )
+
+    def test_the_time_gate_value_tolerance_and_rate_come_from_the_scorecard(self):
+        calculator = self._hunt_calculator(
+            turnpoint_hunt_time_gate_value=300, compulsory_timing_penalty_per_second=5, compulsory_timing_tolerance_seconds=0
+        )
+        messages = self._fire_at_offset(calculator, 'CP1', 4)
+        self.assertEqual(
+            self._points(messages),
+            [
+                ('CP1', 'turnpoint_hunt_time_gate_value', 'achievement', 300.0),
+                ('CP1', 'turnpoint_hunt_compulsory_timing', 'penalty', 20.0),
+            ],
+        )
+
+    def test_a_target_crossed_carries_no_timing_score(self):
+        calculator = self._hunt_calculator()
+        messages = self._fire_at_offset(calculator, 'A', 120)
+        self.assertEqual(self._points(messages), [('A', 'turnpoint_hunt_target_value', 'achievement', 42.0)])
+
+    def test_gates_not_flown_cost_nothing(self):
+        calculator = self._hunt_calculator()
+        self._finalise_with_synthetic_track(calculator)
+        self.assertEqual(self._points(self._drain_queue(calculator)), [])
+
+    def test_time_over_the_maximum_duration_costs_ten_points_per_second_in_total(self):
+        # Take-off 08:05, 11 minutes: the task ends 08:16:00. CP2 is on time, CP3 crossed 60 s late (08:17:00).
+        calculator = self._hunt_calculator(maximum_task_duration_minutes=11)
+        messages = self._fire_at_offset(calculator, 'CP2', 0)
+        self.assertEqual([m for m in messages if m.score_type == 'turnpoint_hunt_maximum_duration_exceeded'], [])
+        messages = self._fire_at_offset(calculator, 'CP3', 0)
+        over = [m for m in messages if m.score_type == 'turnpoint_hunt_maximum_duration_exceeded']
+        self.assertEqual([(m.kind, m.score) for m in over], [('penalty', 600.0)])
+        # A later gate crossed 30 s after CP3 only costs the 30 s since.
+        gates = {gate.name: gate for gate in calculator.gates}
+        thirty_seconds_later = (gates['CP3'].expected_time - gates['B'].expected_time).total_seconds() + 30
+        messages = self._fire_at_offset(calculator, 'B', thirty_seconds_later)
+        over = [m for m in messages if m.score_type == 'turnpoint_hunt_maximum_duration_exceeded']
+        self.assertEqual([(m.kind, m.score) for m in over], [('penalty', 300.0)])
+
+    def test_the_maximum_duration_penalty_per_second_comes_from_the_scorecard(self):
+        calculator = self._hunt_calculator(maximum_task_duration_minutes=11, maximum_task_duration_penalty=3)
+        messages = self._fire_at_offset(calculator, 'CP3', 0)
+        over = [m for m in messages if m.score_type == 'turnpoint_hunt_maximum_duration_exceeded']
+        self.assertEqual([m.score for m in over], [180.0])
+
+    def test_free_targets_get_a_gate_and_a_time_without_a_declared_sequence_in_2b2_only(self):
+        self._set_editable_route()
+        declaration = {
+            'compulsory_point_times': {
+                'CP1': '2020-08-01T08:15:00Z',
+                'CP2': '2020-08-01T08:16:00Z',
+                'CP3': '2020-08-01T08:17:00Z',
+            },
+        }
+        self.navigation_task.task_subtype = LIMITED_FUEL_TURNPOINT_HUNT
+        self.navigation_task.save(update_fields=['task_subtype'])
+        compiled = ContestantTaskCompiler(self.contestant).compile(declaration_payload=declaration, force=True)
+        self.assertTrue(compiled.is_valid, compiled.validation_errors)
+        self.assertEqual(
+            compiled.compiled_effective_route_payload['effective_waypoint_names'], ['CP1', 'CP2', 'CP3', 'A', 'B']
+        )
+        self.assertEqual(
+            sorted(gate.name for gate in self._build_calculator().gates), ['A', 'B', 'CP1', 'CP2', 'CP3']
+        )
+        self.assertIn('A', compiled.compiled_gate_times_payload)
+
+        self.navigation_task.task_subtype = TURNPOINT_HUNT
+        self.navigation_task.save(update_fields=['task_subtype'])
+        compiled = ContestantTaskCompiler(self.contestant).compile(declaration_payload=declaration, force=True)
+        self.assertEqual(compiled.compiled_effective_route_payload['effective_waypoint_names'], ['CP1', 'CP2', 'CP3'])

@@ -317,6 +317,8 @@ class ScorecardAdminForm(forms.ModelForm):
     anr_route_to_sp_penalty = forms.FloatField(required=False)
     anr_route_from_fp_penalty = forms.FloatField(required=False)
     compulsory_timing_tolerance_seconds = forms.IntegerField(required=False)
+    compulsory_timing_penalty_per_second = forms.FloatField(required=False, min_value=0)
+    turnpoint_hunt_time_gate_value = forms.FloatField(required=False, min_value=0)
     maximum_task_duration_minutes = forms.IntegerField(required=False)
     maximum_task_duration_penalty = forms.FloatField(required=False)
     fuel_deadline_penalty = forms.FloatField(required=False)
