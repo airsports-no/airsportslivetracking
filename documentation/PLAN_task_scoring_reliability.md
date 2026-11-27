@@ -3,6 +3,13 @@
 Status: **approved 2026-11-26**, D1, D2 and D9 decided (see the table). Implementation runs slice by slice on the branch
 `task-scoring-reliability`.
 
+**Progress, 2026-11-27:** Phases 1 to 5 (S1 to S24, with S20b and S22b) are implemented and committed on the branch; the
+app part (S23) is on the branch `pilot-declaration-status` of `airsports-mobile`. Nothing is pushed. Phase 6 (S25 to
+S28) is not started. Decided during implementation: several backtracks add up (the catalogue gives no cap); no
+disqualification concept; existing CIMA tasks and scorecards are not migrated (none were used for real); stored positions
+are metres and knots from every source. Not yet done by anyone: a click-through in a browser and on a phone. What the
+implementation does not cover is listed under "Known limits" in `airsports_static/src/pages/docs/11_CIMA_Task_Guide.md`.
+
 Goal: the route editor → navigation task → pilot declaration → calculators → scores chain produces predictable,
 deterministic results that match the official rules, and pilots and organisers can complete the flow themselves.
 
