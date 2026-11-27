@@ -771,12 +771,14 @@ class ScorecardForm(forms.ModelForm):
     circle_radius_max_m = forms.FloatField()
     circle_altitude_band_ft = forms.FloatField(min_value=0)
     circle_altitude_penalty_percent = forms.FloatField(min_value=0, max_value=100)
+    circle_centre_outside_penalty_percent = forms.FloatField(min_value=0, max_value=100)
     speed_keeping_enabled = forms.BooleanField(required=False)
     speed_keeping_tolerance_kt = forms.FloatField()
     speed_keeping_penalty_per_kt = forms.FloatField()
     speed_term_value = forms.FloatField(min_value=0)
     # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
     turnpoint_hunt_sequence_bonus = forms.FloatField(min_value=0)
+    observation_hidden_gate_value = forms.FloatField(min_value=0)
     observation_photo_penalty = forms.FloatField(min_value=0)
     observation_photo_value = forms.FloatField(min_value=0)
     observation_photo_full_tolerance_mm = forms.FloatField(required=False, min_value=0)
@@ -899,8 +901,11 @@ class ScorecardForm(forms.ModelForm):
                     "circle_radius_max_m",
                     "circle_altitude_band_ft",
                     "circle_altitude_penalty_percent",
+                    "circle_centre_outside_penalty_percent",
                 ]
             )
+        if navigation_task and stored_task_type(navigation_task).hidden_gate_value_field:
+            _append_block_once(["Hidden gates", "observation_hidden_gate_value"])
         if navigation_task and stored_task_type(navigation_task).scores_speed_keeping:
             _append_block_once(
                 [

@@ -296,6 +296,62 @@ class TestCurveNavigationDeclaration(CurvePrecisionNavigationDeclarationTestBase
         self.assertFalse(contestant.contestanttaskconfiguration.is_valid)
         self.assertIn("Tmax", " ".join(contestant.contestanttaskconfiguration.validation_errors))
 
+    def _update_details_url(self):
+        return reverse(
+            "navigationtasks-update-details", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk}
+        )
+
+    def test_tmax_saved_through_the_update_details_action_reaches_the_declaration_check(self):
+        contestant = self._create_contestant()
+        response = self.client.post(
+            self._update_details_url(), {"curve_navigation_tmax_seconds": 60}, content_type="application/json"
+        )
+        self.assertEqual(200, response.status_code, response.content)
+        self.navigation_task.refresh_from_db()
+        self.assertEqual({"curve_navigation_tmax_seconds": 60}, self.navigation_task.task_config)
+
+        response = self.client.patch(
+            self._contestant_detail_url(contestant),
+            # SP at 10:00, FP declared 30 minutes later
+            {"declaration_payload": {"known_time_gate_predictions": {"FP": "2026-08-01T10:30:00Z"}}},
+            content_type="application/json",
+        )
+        self.assertEqual(200, response.status_code, response.content)
+        contestant.refresh_from_db()
+        self.assertFalse(contestant.contestanttaskconfiguration.is_valid)
+        self.assertIn("Tmax", " ".join(contestant.contestanttaskconfiguration.validation_errors))
+
+    def test_an_empty_tmax_removes_the_limit_and_keeps_the_other_settings(self):
+        self.navigation_task.task_config = {"curve_navigation_tmax_seconds": 60, "other": 1}
+        self.navigation_task.save(update_fields=["task_config"])
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self._update_details_url(), {"curve_navigation_tmax_seconds": None}, content_type="application/json"
+        )
+        self.assertEqual(200, response.status_code, response.content)
+        self.navigation_task.refresh_from_db()
+        self.assertEqual({"other": 1}, self.navigation_task.task_config)
+
+    def test_tmax_is_left_alone_when_the_update_does_not_mention_it(self):
+        self.navigation_task.task_config = {"curve_navigation_tmax_seconds": 600}
+        self.navigation_task.save(update_fields=["task_config"])
+        self.client.force_login(self.user)
+        response = self.client.post(self._update_details_url(), {"name": "Renamed"}, content_type="application/json")
+        self.assertEqual(200, response.status_code, response.content)
+        self.navigation_task.refresh_from_db()
+        self.assertEqual({"curve_navigation_tmax_seconds": 600}, self.navigation_task.task_config)
+
+    def test_a_task_of_another_type_does_not_take_a_tmax(self):
+        self.navigation_task.task_subtype = PRECISION_NAVIGATION
+        self.navigation_task.save(update_fields=["task_subtype"])
+        self.client.force_login(self.user)
+        response = self.client.post(
+            self._update_details_url(), {"curve_navigation_tmax_seconds": 60}, content_type="application/json"
+        )
+        self.assertEqual(400, response.status_code)
+        self.navigation_task.refresh_from_db()
+        self.assertFalse((self.navigation_task.task_config or {}).get("curve_navigation_tmax_seconds"))
+
 
 class PrecisionNavigationGateTimeInterpolationTest(SimpleTestCase):
     """2.A2: the organisation estimates the hidden gate times between the declared times."""

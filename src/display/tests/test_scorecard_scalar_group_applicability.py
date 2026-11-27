@@ -63,6 +63,12 @@ class TestScorecardScalarGroupApplicability(TestCase):
             get_applicable_scalar_groups(navigation_task),
         )
 
+    def test_known_circuit_shows_what_a_hidden_gate_is_worth_and_the_other_tasks_do_not(self):
+        navigation_task = self._make_navigation_task(PRECISION, task_subtype=KNOWN_CIRCUIT)
+        self.assertIn("Hidden gates", get_applicable_scalar_groups(navigation_task))
+        navigation_task = self._make_navigation_task(PRECISION)
+        self.assertNotIn("Hidden gates", get_applicable_scalar_groups(navigation_task))
+
     def test_circle_subtype_removes_backtracking_and_adds_circle(self):
         navigation_task = self._make_navigation_task(PRECISION, task_subtype=CIRCLE)
         groups = get_applicable_scalar_groups(navigation_task)

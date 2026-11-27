@@ -90,8 +90,9 @@ On the task's page, open the **Scorecard**. This is the private copy. Press **Sa
 | Corridor | Corridor grace time, Corridor outside penalty, Corridor maximum penalty | 2.A8 |
 | ANR route | ANR route to SP penalty, ANR route from FP penalty | 2.A8 |
 | Duration | Compulsory timing tolerance, Compulsory timing penalty per second beyond the tolerance, Time gate value, Maximum task duration, Maximum task duration penalty per second over, Fuel deadline penalty, Landing outside the area penalty, Turnpoint hunt sequence bonus | 2.A6, 2.B2, 2.B3 |
-| Circle | Circle radius min, Circle radius max, Circle altitude band, Circle altitude penalty | 2.A7 |
+| Circle | Circle radius min, Circle radius max, Circle altitude band, Circle altitude penalty, Circle centre outside penalty | 2.A7 |
 | Speed keeping | Speed term value (Vs), Penalise deviation from the declared speed, tolerance and penalty per kt | 2.A4 |
+| Hidden gates | Points per hidden gate (2.A4, 2.A5) | 2.A4, 2.A5 |
 | Observation photos | Points per observation (CIMA), tolerances | 2.A4, 2.A5 |
 
 Below the groups are the **gate settings** for each gate type: *Turning Point*, *Starting Point*, *Finish Point*, *Secret Point* (the hidden gates), *Takeoff Gate* and *Landing Gate*. Each has **Penalty per second**, **Maximum penalty**, **Missed penalty** and **Grace period before/after**. In the catalogue's words, **Emax**, the largest timing error that counts at one gate (typically 180), is the *Maximum penalty* of the gate type.
@@ -179,7 +180,9 @@ In every example, the pilot is compared with a best pilot who flew perfectly in 
 
 **What the route needs.** A route path with at least one curved leg. To make a curved leg, hold the curve modifier while placing a point, or select a point and change its leg to curved. Hidden gates are optional. Click a leg of the finished route to insert one.
 
-**What is declared (required).** A time for each visible turn point (points on a curved part are not asked for) and for FP. At least one time must be given. A turn point without a declared time is scored against the time calculated from the planned airspeed. If a longest allowed time (Tmax) is set for the task, the declared FP time may not be later than it. FP itself is not scored as a time gate.
+**What is declared (required).** A time for each visible turn point (points on a curved part are not asked for) and for FP. At least one time must be given. A turn point without a declared time is scored against the time calculated from the planned airspeed. If a longest allowed time (Tmax) is set for the task, the declared FP time may not be later than that long after SP. FP itself is not scored as a time gate.
+
+**Setting Tmax.** Open the task's management menu and choose **Update**. For 2.A1 there is a field **Longest time from SP to FP (Tmax)**, in minutes and seconds. Leave both empty for no limit. A pilot who gives a later FP time is told to give an earlier one. Pilots who declared before you changed Tmax are checked again when they save their declaration.
 
 **How it is scored.**
 
@@ -194,7 +197,7 @@ In every example, the pilot is compared with a best pilot who flew perfectly in 
 
 Raw points are **Q = Qh + Qt**. The task score is **P = 1000 × Q / Qmax**.
 
-**What you can change.** Emax, points per second and missed penalty (gate settings of *Turning Point* and *Secret Point*), the backtracking percentage and grace time, *Scaled to* and *Task value*.
+**What you can change.** Emax, points per second and missed penalty (gate settings of *Turning Point* and *Secret Point*), Tmax (in the task details), the backtracking percentage and grace time, *Scaled to* and *Task value*.
 
 **Example.** The route has 4 hidden gates and 2 time gates, so a perfect flight is 1000 + 2 × 180 = **1360** raw points.
 
@@ -283,7 +286,7 @@ Declaring more points can earn more. Each declared point that you then fail to f
 
 | Part | Rule | Default |
 |---|---|---|
-| Hidden gates | A gate crossed correctly keeps its value. A gate missed, crossed twice or first crossed against the route loses it. | 180 each |
+| Hidden gates | A gate crossed correctly keeps its value, **Vh**. A gate missed, crossed twice or first crossed against the route loses it. The value is its own setting, *Points per hidden gate*. It is not the gate setting of the *Secret Point*, which is 180 for 2.A1 and 2.A2. | 100 each |
 | Time gates | Worth up to Emax each. Every second of error takes 1 point off, at most Emax. A gate not flown loses Emax. | 180, 1 per second |
 | Observation photos | Each photo marked at the right place earns its value, half if it is marked a little off. This only counts when **Allow observation registration in the app** is ticked on the task. | 100 each. Full within 2 mm and half within 5 mm on the map |
 | Speed term | **Qv = Vs × S / Smax.** S is the ground speed in knots between the first and the last time gate the pilot crossed. Smax is the best S in the task. Vs is set in the scorecard. | Vs = 0, so not used |
@@ -292,15 +295,15 @@ Declaring more points can earn more. Each declared point that you then fail to f
 
 The speed term is **always shared against the best pilot** in the task.
 
-**What you can change.** The hidden gate and time gate values (gate settings), *Speed term value (Vs)*, the photo value and tolerances, the speed-keeping rule and the backtracking percentage.
+**What you can change.** *Points per hidden gate* (Vh), the time gate values (gate settings), *Speed term value (Vs)*, the photo value and tolerances, the speed-keeping rule and the backtracking percentage.
 
-**Example.** SP, TP1, TP2 and FP are time gates, and there are 4 hidden gates, all worth 180. A perfect flight is **1440** raw points.
+**Example.** SP, TP1, TP2 and FP are time gates worth 180 each, and there are 4 hidden gates worth 100 each. A perfect flight is 4 × 100 + 4 × 180 = **1120** raw points.
 
 | What happened | Raw points | Task score |
 |---|---|---|
-| Perfect flight | 1440 | 1000 |
-| TP2 crossed 36 s early | 1404 | 975 |
-| One hidden gate missed | 1260 | 875 |
+| Perfect flight | 1120 | 1000 |
+| TP2 crossed 36 s early | 1084 | 968 |
+| One hidden gate missed | 1020 | 911 |
 
 (`test_simulated_cima_circuit_flights.py`.) With Vs = 100, a pilot who flies at 90% of the best pilot's ground speed gets 90 points for the speed term (worked by hand).
 
@@ -316,7 +319,7 @@ The speed term is **always shared against the best pilot** in the task.
 
 **What you can change.** As for 2.A4.
 
-**Example.** The numbers of 2.A4 apply (perfect 1440, one hidden gate missed 875). The same tests cover both tasks.
+**Example.** The numbers of 2.A4 apply (perfect 1120, one hidden gate missed 911). The same tests cover both tasks.
 
 ### 2.A6 Turnpoint hunt
 
@@ -369,9 +372,12 @@ A late gate can cost more than its value, because the points per second are not 
 | The radius goes outside the limits during the scored circle | The whole score | 200 to 750 m |
 | Rmin / Rmax is 0.5 or lower | The whole score | |
 | The scored circle is not completed | The whole score | |
+| CM is outside the circle the pilot flew | 100% of the score | 100% |
 | The highest and the lowest point of the scored circle are more than the altitude band apart | 20% of the score | 200 ft |
 
-**What you can change.** *Circle radius min*, *Circle radius max*, *Circle altitude band* and *Circle altitude penalty*.
+**CM outside the circle.** If the pilot flies a whole circle but CM is not inside it, the system gives the percentage penalty and says so in the score log. It tells this from the angle around CM. A circle around CM takes that angle past a half turn. A circle beside CM does not. A pilot who does not fly a whole circle at all gets "scored arc not completed" instead.
+
+**What you can change.** *Circle radius min*, *Circle radius max*, *Circle altitude band*, *Circle altitude penalty* and *Circle centre outside penalty* (set it to 0 and the flight is then judged as an incomplete circle).
 
 **Example.**
 
@@ -380,6 +386,7 @@ A late gate can cost more than its value, because the points per second are not 
 | Constant radius of 500 m | 250 |
 | Radius between 450 m and 550 m (ratio 0.818) | 159 |
 | Constant radius, altitude band exceeded (250 less 20%) | 200 |
+| A circle of 500 m flown beside CM, not around it | 0 |
 | Radius reaches 800 m during the circle | 0 |
 
 (`test_simulated_cima_circle_flights.py`.)
@@ -499,12 +506,10 @@ These are things the system does not detect or does not do. Each one has been ch
 - **Microlight backtracking clause.** Backtracking is flying more than 90 degrees off the intended direction for more than 5 seconds, inside the corridor of the leg and outside the turn point radius. For microlight tasks the catalogue also counts rejoining the track line at a point before the point where it was left. That part is not detected.
 - **Backtracks add up.** Each backtrack in 2.A1 to 2.A5 costs 50%, so two backtracks cost 100%. One long backtrack counts once.
 - **The last 10 degrees of the 2.A7 circle are not measured.** Radius and altitude are measured until the pilot is within 10 degrees of the full 360, because the aircraft turns off towards WP there.
-- **2.A7: "CM outside the circle"** is not checked separately.
 - **2.A4 speed section.** The catalogue does not say where the speed is measured. The system measures S from the first to the last time gate the pilot crossed.
 - **2.A3: turn points visited once.** A point counts once. Flying over it again gives nothing and costs nothing extra.
 - **Time errors are rounded to the nearest second.**
 - **Photo identification in the hunts and in 2.A3.** Targets score when the aircraft crosses them. The catalogue's "photo wrongly identified: 50% of its value" is not implemented, and the photos of these tasks are not scored. Photos are scored only in 2.A4 and 2.A5, and only when the app registration is allowed.
-- **2.A4 hidden gate value.** The catalogue says Vh is typically 100. The system uses the scorecard's value for the hidden gate, 180 by default. An observation photo is worth 100.
 - **Only the true route is active in 2.A5.** Backtracking is not judged on the extension waypoints.
 - **Two time limits count from take-off**, not from the start point: the maximum task duration and the fuel endurance. The end of a hunt is the last gate crossed.
 - **The residual fuel setting of 2.B3** is information only. It is not scored.
@@ -519,14 +524,16 @@ These are things the system does not detect or does not do. Each one has been ch
 
 **Setup limits**
 
-- **2.A1 Tmax** (the longest time allowed from SP to FP) cannot be set in the web pages. It is read from the task's configuration, and the declaration only checks it when it is there.
 - **2.A8 route to SP and route from FP.** The checks only run if the route has those paths. The route editor cannot draw them, so by default they are not scored.
 - **There is no class in a task.** All contestants of a task are compared with each other.
 
+**Not part of the system**
+
+- **Landing strips.** Landing strip scoring is judged at the field. The system does not score it, and has no table of strips A to E.
+- **Departure and arrival route check for Air Sports Race.** There is no check of the route to the start and from the finish. Only 2.A8 checks the route to SP and from FP.
+
 **Not done yet**
 
-- **Landing strips.** The landing task has no table of strips A to E and no judged landing penalties.
-- **Departure and arrival route check for Air Sports Race.** Only 2.A8 checks the route to SP and from FP.
 - **Air Sport Challenge** still has its own older scorecard.
 
 ---

@@ -62,12 +62,14 @@ export interface ScorecardData {
     circle_radius_max_m?: number;
     circle_altitude_band_ft?: number;
     circle_altitude_penalty_percent?: number;
+    circle_centre_outside_penalty_percent?: number;
     // 2.A4: the speed-keeping deviation penalty is off unless enabled; speed_term_value is Vs of Qv = Vs x S / Smax.
     speed_keeping_enabled?: boolean;
     speed_keeping_tolerance_kt?: number;
     speed_keeping_penalty_per_kt?: number;
     speed_term_value?: number;
     turnpoint_hunt_sequence_bonus?: number;
+    observation_hidden_gate_value?: number;
     observation_photo_penalty?: number;
     observation_photo_value?: number;
     observation_photo_full_tolerance_mm?: number | null;

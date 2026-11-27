@@ -311,6 +311,8 @@ class TaskCompiler:
             getattr(scorecard, "circle_radius_max_m", None),
             getattr(scorecard, "circle_altitude_band_ft", None),
             getattr(scorecard, "circle_altitude_penalty_percent", None),
+            getattr(scorecard, "circle_centre_outside_penalty_percent", None),
+            getattr(scorecard, "observation_hidden_gate_value", None),
             getattr(scorecard, "anr_route_to_sp_penalty", None),
             getattr(scorecard, "anr_route_from_fp_penalty", None),
         )

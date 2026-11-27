@@ -72,11 +72,15 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
     },
     {
         title: 'Circle',
-        fields: ['circle_radius_min_m', 'circle_radius_max_m', 'circle_altitude_band_ft', 'circle_altitude_penalty_percent'],
+        fields: ['circle_radius_min_m', 'circle_radius_max_m', 'circle_altitude_band_ft', 'circle_altitude_penalty_percent', 'circle_centre_outside_penalty_percent'],
     },
     {
         title: 'Speed keeping',
         fields: ['speed_term_value', 'speed_keeping_enabled', 'speed_keeping_tolerance_kt', 'speed_keeping_penalty_per_kt'],
+    },
+    {
+        title: 'Hidden gates',
+        fields: ['observation_hidden_gate_value'],
     },
     {
         title: 'Observation photos',
@@ -210,6 +214,14 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
         max: 100,
         help: 'Circle (2.A7): the percentage of the task score lost when the altitude band is exceeded (20%).',
     },
+    circle_centre_outside_penalty_percent: {
+        label: 'Circle centre outside penalty',
+        kind: 'number',
+        unit: '%',
+        min: 0,
+        max: 100,
+        help: 'Circle (2.A7): the percentage of the task score lost when CM, the centre mark, is outside the circle the pilot flew (100%).',
+    },
     speed_term_value: {
         label: 'Speed term value (Vs)',
         kind: 'number',
@@ -227,6 +239,12 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
     speed_keeping_tolerance_kt: { label: 'Speed keeping tolerance', kind: 'number', unit: 'kt', min: 0 },
     speed_keeping_penalty_per_kt: { label: 'Speed keeping penalty per kt', kind: 'number', min: 0 },
     turnpoint_hunt_sequence_bonus: { label: 'Turnpoint hunt sequence bonus', kind: 'number', min: 0 },
+    observation_hidden_gate_value: {
+        label: 'Points per hidden gate (2.A4, 2.A5)',
+        kind: 'number',
+        min: 0,
+        help: 'Known circuit and unknown legs (Vh): what a hidden gate crossed once, in order and in the right direction is worth (typically 100).',
+    },
     observation_photo_penalty: { label: 'Penalty per missed observation (legacy)', kind: 'number', min: 0 },
     observation_photo_value: { label: 'Points per observation (CIMA)', kind: 'number', min: 0 },
     observation_photo_full_tolerance_mm: { label: 'Full score within (blank: 1 mm legacy, 2 mm CIMA)', kind: 'number', unit: 'mm', min: 0 },

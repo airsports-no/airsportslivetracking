@@ -79,11 +79,20 @@ class TestTheoreticalGateQuality(TestCase):
         self.assertEqual(0, theoretical_gate_quality(self._contestant(KNOWN_CIRCUIT, [])))
 
     def test_sums_worst_case_per_gate_using_the_worse_of_missed_and_maximum_penalty(self):
-        # tp: worse of 200/150 = 200. secret: worse of 50/50 = 50. Two tp + one secret.
+        # tp: worse of 200/150 = 200. Two tp + one hidden gate of the secret type (see the next test).
         contestant = self._contestant(
             KNOWN_CIRCUIT, [self._waypoint(TURNPOINT), self._waypoint("secret"), self._waypoint(TURNPOINT)]
         )
-        self.assertEqual(200 + 50 + 200, theoretical_gate_quality(contestant))
+        self.assertEqual(200 + 100 + 200, theoretical_gate_quality(contestant))
+
+    def test_a_hidden_gate_of_2a4_and_2a5_is_worth_the_scorecards_hidden_gate_value_not_its_gate_score(self):
+        for subtype in (KNOWN_CIRCUIT, UNKNOWN_LEGS):
+            for value in (100, 60):
+                self.scorecard.observation_hidden_gate_value = value
+                contestant = self._contestant(subtype, [self._waypoint("secret", time_check=False)])
+                self.assertEqual(value, theoretical_gate_quality(contestant), (subtype, value))
+        contestant = self._contestant(KNOWN_CIRCUIT, [self._waypoint("secret", gate_check=False, time_check=False)])
+        self.assertEqual(0, theoretical_gate_quality(contestant))
 
     def test_dummy_and_curved_segment_waypoints_are_excluded(self):
         contestant = self._contestant(

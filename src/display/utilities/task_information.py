@@ -426,7 +426,7 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
         ])
         info["penalties"] = _clean_lines([
             "A 100% penalty applies if the circle is flown clockwise.",
-            "A 100% penalty applies if CM is outside the flown circle.",
+            f"A {_number(circle.circle_centre_outside_penalty_percent)}% penalty applies if CM is outside the flown circle.",
             "A 100% penalty applies if entry is not flown over the briefed SP/CM line limits.",
             "A 100% penalty applies if the aircraft leaves the permitted radius band.",
             "A 100% penalty applies if Rmin / Rmax is 0.5 or smaller.",

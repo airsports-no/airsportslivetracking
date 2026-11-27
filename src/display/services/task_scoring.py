@@ -40,9 +40,9 @@ from typing import Iterable, Optional, Sequence
 from django.db import transaction
 
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
-from display.services.catalogue_gate_quality import CatalogueGateQuality
+from display.services.catalogue_gate_quality import CatalogueGateQuality, flat_hidden_gate_value
 from display.utilities.db_retry import retry_on_lock_timeout
-from display.utilities.gate_definitions import DUMMY, LANDING_GATE, TAKEOFF_GATE
+from display.utilities.gate_definitions import DUMMY, LANDING_GATE, SECRETPOINT, TAKEOFF_GATE
 from display.utilities.task_types import (
     DEFAULT_TASK_VALUE,
     MAX_TASK_VALUE,
@@ -269,19 +269,23 @@ def theoretical_gate_quality(contestant) -> float:
     total = 0.0
     waypoints = get_effective_route_waypoints(navigation_task, contestant)
     # 2.A1 and 2.A2 weigh the gates as the catalogue's formulas say, by the same object that makes the live deductions.
-    catalogue = CatalogueGateQuality.for_task_type(stored_task_type(navigation_task), scorecard, waypoints)
+    definition = stored_task_type(navigation_task)
+    catalogue = CatalogueGateQuality.for_task_type(definition, scorecard, waypoints)
     for waypoint in waypoints:
         if waypoint.type == DUMMY or getattr(waypoint, "on_curved_segment", False):
             continue
         if catalogue:
             total += catalogue.starting_quality(waypoint)
             continue
-        total += _worst_case_penalty(
-            scorecard,
-            waypoint.type,
-            gate_check=bool(getattr(waypoint, "gate_check", False)),
-            time_check=bool(getattr(waypoint, "time_check", False)),
-        )
+        gate_check = bool(getattr(waypoint, "gate_check", False))
+        time_check = bool(getattr(waypoint, "time_check", False))
+        hidden_value = flat_hidden_gate_value(definition, scorecard) if waypoint.type == SECRETPOINT else None
+        if hidden_value is not None:
+            # 2.A4, 2.A5: a hidden gate that is checked is worth Vh, not its gate score's missed penalty.
+            timing_cap = abs(scorecard.get_gate_scorecard(waypoint.type).maximum_penalty) if time_check else 0.0
+            total += max(hidden_value if gate_check else 0.0, timing_cap)
+            continue
+        total += _worst_case_penalty(scorecard, waypoint.type, gate_check=gate_check, time_check=time_check)
     route = navigation_task.route
     if route.takeoff_gates:
         total += _worst_case_penalty(scorecard, TAKEOFF_GATE, gate_check=False, time_check=True)

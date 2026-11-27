@@ -268,6 +268,9 @@ class TaskTypeDefinition:
     # The gates are weighed as the catalogue's formulas say instead of by the scorecard's flat per-gate scores
     # (2.A1: Qh = 1000 x H / Nh, Qt = Emax x Nt - Et; 2.A2: Qp = Emax x Ng, Qt = -sum(Ei)). None: the scorecard's.
     catalogue_gate_model: CatalogueGateModel | None = None
+    # The scorecard field that holds what a hidden gate correctly crossed is worth (Vh, "typically 100") for the tasks
+    # that score the gates by flat scores (2.A4, 2.A5). None: the hidden gate's own gate score (its missed penalty).
+    hidden_gate_value_field: str | None = None
     # Terms of Q that are a share of the best contestant of the task (2.A3 Qp, 2.A4 Qv).
     relative_quality_terms: tuple[RelativeQualityTerm, ...] = ()
     # Backtracking costs a percentage of the task score instead of flat points (2.A1-2.A5: "a 50% penalty will be
@@ -610,6 +613,7 @@ _DEFINITIONS = (
         backtracking_within_corridor=True,
         repeated_hidden_gate_crossing_invalidates=True,
         scores_speed_keeping=True,
+        hidden_gate_value_field="observation_hidden_gate_value",
         # Qv = Vs x S / Smax; Vs is briefed, in the scorecard (0: no speed term)
         relative_quality_terms=(RelativeQualityTerm(SPEED_TERM_SCORE_TYPE, scorecard_field="speed_term_value", symbol="S", unit="kt"),),
         observation_photos_award_points=True,
@@ -657,6 +661,7 @@ _DEFINITIONS = (
         backtracking_within_corridor=True,
         repeated_hidden_gate_crossing_invalidates=True,
         has_unknown_legs=True,
+        hidden_gate_value_field="observation_hidden_gate_value",
         observation_photos_award_points=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "UnknownLegsStrategy",
     ),

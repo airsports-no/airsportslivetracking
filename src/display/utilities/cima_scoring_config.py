@@ -57,6 +57,7 @@ class CimaScoringConfig:
     circle_radius_max_m: float = 750
     circle_altitude_band_ft: float = 200
     circle_altitude_penalty_percent: float = 20
+    circle_centre_outside_penalty_percent: float = 100
     speed_keeping_enabled: bool = False
     speed_keeping_tolerance_kt: float = 5
     speed_keeping_penalty_per_kt: float = 1
@@ -80,6 +81,7 @@ class CimaScoringConfig:
             circle_radius_max_m=scorecard.circle_radius_max_m,
             circle_altitude_band_ft=scorecard.circle_altitude_band_ft,
             circle_altitude_penalty_percent=scorecard.circle_altitude_penalty_percent,
+            circle_centre_outside_penalty_percent=scorecard.circle_centre_outside_penalty_percent,
             speed_keeping_enabled=scorecard.speed_keeping_enabled,
             speed_keeping_tolerance_kt=scorecard.speed_keeping_tolerance_kt,
             speed_keeping_penalty_per_kt=scorecard.speed_keeping_penalty_per_kt,

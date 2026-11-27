@@ -102,6 +102,7 @@ DURATION_GROUP = "Duration"
 CIRCLE_GROUP = "Circle"
 SPEED_KEEPING = "Speed keeping"
 OBSERVATION_PHOTOS = "Observation photos"
+HIDDEN_GATES_GROUP = "Hidden gates"
 
 
 def get_applicable_scalar_groups(navigation_task: "NavigationTask") -> set[str]:
@@ -131,6 +132,9 @@ def get_applicable_scalar_groups(navigation_task: "NavigationTask") -> set[str]:
             # services/photo_observations.py
             if task_type.is_legacy or task_type.observation_photos_award_points:
                 groups.add(OBSERVATION_PHOTOS)
+            # 2.A4/2.A5: what a hidden gate is worth (Vh), see CatalogueGateQuality's flat_hidden_gate_value
+            if task_type.hidden_gate_value_field:
+                groups.add(HIDDEN_GATES_GROUP)
         return groups
 
     if family in (ANR_CORRIDOR, AIRSPORTS, AIRSPORT_CHALLENGE):

@@ -45,6 +45,11 @@ ENTRY_CENTRE_DISTANCE_M = 75.0
 # passed CM.
 STRAIGHT_RUN_MAXIMUM_PROGRESS_DEG = 45.0
 
+# A displacement shorter than this does not give a heading (a standing or creeping aircraft, GPS noise).
+MINIMUM_HEADING_STEP_M = 5.0
+# A circle is flown when the aircraft has turned this much to the left (CM outside the circle: see _centre_outside_circle).
+FLOWN_CIRCLE_MINIMUM_TURN_DEG = FULL_CIRCLE_DEG - ARC_TOLERANCE_DEG
+
 NOT_STARTED, WAITING_FOR_FIRST_CROSSING, IN_SCORED_ARC, ARC_COMPLETED = range(4)
 
 
@@ -146,6 +151,10 @@ class CircleCalculator(Calculator):
         self.progress_deg = 0.0
         self._tracking_start_deg = 0.0
         self.maximum_progress_deg = 0.0
+        # The signed turn of the heading since passing CM (counter-clockwise positive): a circle is flown when it reaches
+        # 360 degrees, whether it encloses CM or not (the progress around CM then tells which).
+        self.turned_deg = 0.0
+        self._last_heading_deg: Optional[float] = None
         self.clockwise = False
         self._previous = None  # (x, y, angle, side, altitude) relative to CM
         self.crossings = 0
@@ -355,6 +364,7 @@ class CircleCalculator(Calculator):
         step = (angle - previous_angle + 180.0) % 360.0 - 180.0
         side = self._side(x, y)
         progress_before = self.progress_deg
+        self._follow_heading(x - previous_x, y - previous_y)
         self.progress_deg += step
         self.maximum_progress_deg = max(self.maximum_progress_deg, self.progress_deg)
         if self.progress_deg <= -(ORIENTATION_ARC_DEG - ARC_TOLERANCE_DEG):
@@ -400,6 +410,15 @@ class CircleCalculator(Calculator):
                     self.progress_deg,
                 )
 
+    def _follow_heading(self, dx: float, dy: float) -> None:
+        """Adds the turn of the heading of the last displacement to `turned_deg`."""
+        if math.hypot(dx, dy) < MINIMUM_HEADING_STEP_M:
+            return
+        heading = math.degrees(math.atan2(dy, dx))
+        if self._last_heading_deg is not None:
+            self.turned_deg += (heading - self._last_heading_deg + 180.0) % 360.0 - 180.0
+        self._last_heading_deg = heading
+
     def _add_sample(self, radius: float, altitude: float) -> None:
         self.arc_samples += 1
         self.radius_min_m = radius if self.radius_min_m is None else min(self.radius_min_m, radius)
@@ -437,6 +456,24 @@ class CircleCalculator(Calculator):
             return
         config = self.cima_config
         reason = self._disqualifying_reason(config)
+        if (
+            reason is not None
+            and reason[1] == "circle_incomplete_scored_arc"
+            and config.circle_centre_outside_penalty_percent > 0
+            and self._centre_outside_circle()
+        ):
+            self._emit(
+                anchor,
+                config.circle_centre_outside_penalty_percent,
+                f"circle flown with CM outside it: the aircraft turned {self.turned_deg:.0f} degrees but went only "
+                f"{self.maximum_progress_deg:.0f} degrees around CM",
+                ANOMALY,
+                "circle_centre_outside",
+                kind=PERCENTAGE_PENALTY,
+            )
+            if via_exit:
+                self._emit(anchor, 0, "circle exit passed", INFORMATION, "circle_exit")
+            return
         if reason is not None:
             self._disqualify(anchor, *reason)
             return
@@ -466,6 +503,20 @@ class CircleCalculator(Calculator):
             )
         if via_exit:
             self._emit(anchor, 0, "circle exit passed", INFORMATION, "circle_exit")
+
+    def _centre_outside_circle(self) -> bool:
+        """
+        Whether the aircraft flew a circle (turned a full 360 degrees to the left after passing CM) that did not enclose
+        CM. A circle around CM takes the signed angle around CM past the half turn long before that (it follows the
+        heading, 90 degrees behind it); one beside it swings the angle out and back and never gets there. (Whether the
+        entry and the direction are right has been judged by the caller.)
+        """
+        return (
+            self.tracking
+            and not self.clockwise
+            and self.turned_deg >= FLOWN_CIRCLE_MINIMUM_TURN_DEG
+            and self.maximum_progress_deg < ORIENTATION_ARC_DEG - ARC_TOLERANCE_DEG
+        )
 
     def _arc_completed(self) -> bool:
         return self.arc_state == ARC_COMPLETED or (self.arc_state == IN_SCORED_ARC and self._snapshot is not None)

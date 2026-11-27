@@ -18,7 +18,7 @@ import copy
 import logging
 from typing import Optional
 
-from display.services.catalogue_gate_quality import CatalogueGateQuality
+from display.services.catalogue_gate_quality import CatalogueGateQuality, flat_hidden_gate_value
 from display.services.task_scoring import (
     backtracking_penalty_percentage_for,
     relative_term_values,
@@ -264,7 +264,7 @@ def _gate_model_lines(definition: TaskTypeDefinition, scorecard, counts: dict) -
     return lines
 
 
-def _flat_gate_lines(scorecard) -> list[str]:
+def _flat_gate_lines(definition: TaskTypeDefinition, scorecard) -> list[str]:
     """The tasks without catalogue formulas of their own (2.A4, 2.A5): the scorecard's gate scores."""
     gate = _gate(scorecard, TURNPOINT)
     if gate is None:
@@ -278,7 +278,14 @@ def _flat_gate_lines(scorecard) -> list[str]:
     grace = max(gate.graceperiod_before, gate.graceperiod_after)
     if grace > 0:
         text += f" Errors of up to {_num(grace)} seconds cost nothing."
-    return [text]
+    lines = [text]
+    hidden_value = flat_hidden_gate_value(definition, scorecard)
+    if hidden_value is not None:
+        lines.append(
+            f"A hidden gate crossed once, in the right direction, is worth {_points(hidden_value)}; one that is not "
+            "crossed loses that."
+        )
+    return lines
 
 
 def _hunt_lines(definition: TaskTypeDefinition, scorecard) -> list[str]:
@@ -364,7 +371,7 @@ def _raw_points(definition: TaskTypeDefinition, scorecard, parameters, counts: d
             "full task value."
         )
     elif definition.quality_start == QUALITY_START_GATE_DEFICIT:
-        lines.extend(_flat_gate_lines(scorecard))
+        lines.extend(_flat_gate_lines(definition, scorecard))
     if definition.observation_photos_award_points:
         lines.append(
             f"Each observation photo marked at the right place earns {_points(scorecard.observation_photo_value)} "
@@ -439,6 +446,11 @@ def _percentage_penalties(definition: TaskTypeDefinition, scorecard) -> list[str
     backtracking = backtracking_penalty_percentage_for(scorecard, definition)
     if backtracking:
         lines.append(f"Backtracking: each backtrack costs {_num(backtracking)}% of the task score.")
+    if definition.scores_circle and config.circle_centre_outside_penalty_percent > 0:
+        lines.append(
+            f"Circle centre: {_num(config.circle_centre_outside_penalty_percent)}% of the task score is lost if the "
+            "centre marker (CM) is outside the circle the pilot flew."
+        )
     if definition.scores_circle and config.circle_altitude_penalty_percent > 0:
         lines.append(
             f"Circle altitude: {_num(config.circle_altitude_penalty_percent)}% of the task score is lost if the "

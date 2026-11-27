@@ -60,6 +60,7 @@ export interface NavigationTaskDetail {
   tracking_link: string;
   time_zone: string;
   task_subtype?: string | null;
+  task_config?: Record<string, unknown> | null;
   task_subtype_definition?: {
     key: string;
     display_name: string;

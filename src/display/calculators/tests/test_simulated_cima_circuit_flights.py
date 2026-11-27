@@ -3,9 +3,9 @@
 2.A4 Navigation over a known circuit and 2.A5 Navigation with unknown legs score the same way: Qh = Vh x Nh for the
 hidden gates correctly crossed, Qt = sum(Vt - Ei) over the time gates crossed, 50% for backtracking, a hidden gate
 crossed twice invalid. The route is the standard one of the scenario tests (SP, TP1, TP2, FP, four hidden gates); SP,
-TP1, TP2 and FP are the time gates. The briefed values are the scorecard's own, 180 for a hidden gate and for a time
-gate, so that the application's worst case (Qmax) equals the perfect pilot's Q of the catalogue and the scenarios show
-the differences that are not about the briefing. 2.A4 also has the optional declared time of a turn point and the speed
+TP1, TP2 and FP are the time gates. The briefed values are the scorecard's own, 100 for a hidden gate (Vh, the
+catalogue's "typically 100") and 180 for a time gate, so that the application's worst case (Qmax) equals the perfect
+pilot's Q of the catalogue and the scenarios show the differences that are not about the briefing. 2.A4 also has the optional declared time of a turn point and the speed
 element; 2.A5's route has an unknown-leg point with extension waypoints and is flown along the true backbone.
 """
 
@@ -41,9 +41,10 @@ from display.utilities.task_types import KNOWN_CIRCUIT, UNKNOWN_LEGS
 
 BACKTRACKING = [oracle.BACKTRACKING_PENALTY]
 TIME_GATES = ["SP", "TP1", "TP2", "FP"]
-GATE_VALUE = 180.0  # Vh and Vt, as briefed in the scorecard
-PERFECT_Q = oracle.q_observation_navigation(4, [0, 0, 0, 0], hidden_value=GATE_VALUE, gate_value=GATE_VALUE)
-LATE = 36  # seconds: 36 / 1440 x 1000 is a whole 25 points
+GATE_VALUE = 180.0  # Vt, as briefed in the scorecard
+HIDDEN_VALUE = 100.0  # Vh, the scorecard's observation_hidden_gate_value
+PERFECT_Q = oracle.q_observation_navigation(4, [0, 0, 0, 0], hidden_value=HIDDEN_VALUE, gate_value=GATE_VALUE)
+LATE = 36  # seconds
 VERY_LATE = 200  # more than Vt: the error counts Vt
 
 
@@ -88,7 +89,7 @@ class ObservationNavigationFlights:
         crossings = task.crossings(track, [*time_gates, *HIDDEN_NAMES])
         errors = [error for error in first_crossing_errors(crossings, time_gates) if error is not None]
         return oracle.q_observation_navigation(
-            correct_gate_count(crossings, HIDDEN_NAMES), errors, hidden_value=GATE_VALUE, gate_value=GATE_VALUE
+            correct_gate_count(crossings, HIDDEN_NAMES), errors, hidden_value=HIDDEN_VALUE, gate_value=GATE_VALUE
         )
 
     def fly(self, *deviations, backtracking=False, **options):
@@ -109,37 +110,37 @@ class ObservationNavigationFlights:
     def test_small_timing_error_at_a_time_gate(self):
         self.build()
         result, expected = self.fly(TimeOffset("TP1", 8))
-        self.assertEqual(expected, oracle.round_half_up(1000 * (1440 - 8) / 1440))
+        self.assertEqual(expected, oracle.round_half_up(1000 * (PERFECT_Q - 8) / PERFECT_Q))
         self.assert_final_score(result, expected, "TP1 8 s late")
 
     def test_large_timing_error_at_a_time_gate(self):
         self.build()
         result, expected = self.fly(TimeOffset("TP2", -LATE))
-        self.assertEqual(expected, 975)
+        self.assertEqual(expected, oracle.round_half_up(1000 * (PERFECT_Q - LATE) / PERFECT_Q))
         self.assert_final_score(result, expected, "TP2 36 s early")
 
     def test_timing_error_beyond_the_gate_value_counts_the_gate_value(self):
         self.build()
         result, expected = self.fly(TimeOffset("FP", VERY_LATE), lead_out_s=VERY_LATE + 60)
-        self.assertEqual(expected, 875)
+        self.assertEqual(expected, oracle.round_half_up(1000 * (PERFECT_Q - GATE_VALUE) / PERFECT_Q))
         self.assert_final_score(result, expected, "FP 200 s late")
 
     def test_hidden_gate_missed(self):
         self.build()
         result, expected = self.fly(MissGate("HG2", margin_m=100))
-        self.assertEqual(expected, 875)
+        self.assertEqual(expected, oracle.round_half_up(1000 * (PERFECT_Q - HIDDEN_VALUE) / PERFECT_Q))
         self.assert_final_score(result, expected, "HG2 missed")
 
     def test_hidden_gate_crossed_in_the_wrong_direction(self):
         self.build()
         result, expected = self.fly(WrongDirectionCrossing("HG2", **BRIEF_LOOP))
-        self.assertEqual(expected, 875)
+        self.assertEqual(expected, oracle.round_half_up(1000 * (PERFECT_Q - HIDDEN_VALUE) / PERFECT_Q))
         self.assert_final_score(result, expected, "HG2 crossed against the route")
 
     def test_hidden_gate_crossed_twice_is_invalidated(self):
         self.build()
         result, expected = self.fly(DoubleCrossing("HG2", gap_s=BRIEF_LOOP_GAP_S, **BRIEF_LOOP))
-        self.assertEqual(expected, 875)
+        self.assertEqual(expected, oracle.round_half_up(1000 * (PERFECT_Q - HIDDEN_VALUE) / PERFECT_Q))
         self.assert_final_score(result, expected, "HG2 crossed twice")
 
     def test_gates_flown_out_of_order(self):
@@ -162,7 +163,7 @@ class ObservationNavigationFlights:
         qs = [self.quality(self.task, track_a), self.quality(second, track_b)]
         expected = oracle.final_scores(qs)
         self.assertEqual(expected[0], 1000)
-        self.assertEqual(expected[1], 971)  # (1440 - 36 - 180) / (1440 - 180)
+        self.assertEqual(expected[1], 965)  # (1120 - 36 - 100) / (1120 - 100)
         self.assertEqual((a.score, b.score), tuple(expected))
 
 
@@ -193,13 +194,13 @@ class KnownCircuitFlightsTest(ObservationNavigationFlights, CimaScenarioCase):
         result = undeclared.run(track)
         self.assertEqual(measured_error(undeclared.crossings(track, ["TP2"])["TP2"][0]), LATE)
         expected = self.final_against_reference(self.quality(undeclared, track), PERFECT_Q)
-        self.assertEqual(expected, 975)
+        self.assertEqual(expected, oracle.round_half_up(1000 * (PERFECT_Q - LATE) / PERFECT_Q))
         self.assert_final_score(result, expected, "the declared flight scored without the declaration")
 
     def test_a_timing_error_does_not_cost_a_second_time_through_the_speed_element(self):
         self.build(speed_keeping=True)
         result, expected = self.fly(TimeOffset("TP2", LATE))
-        self.assertEqual(expected, 975)
+        self.assertEqual(expected, oracle.round_half_up(1000 * (PERFECT_Q - LATE) / PERFECT_Q))
         self.assert_final_score(result, expected, "TP2 36 s late with the speed element on")
 
     def test_flying_faster_than_the_declared_speed_is_not_penalised(self):
@@ -219,10 +220,10 @@ class KnownCircuitFlightsTest(ObservationNavigationFlights, CimaScenarioCase):
         q = oracle.q_observation_navigation(
             correct_gate_count(crossings, HIDDEN_NAMES),
             [error for error in first_crossing_errors(crossings, ["SP"]) if error is not None],
-            hidden_value=GATE_VALUE,
+            hidden_value=HIDDEN_VALUE,
             gate_value=GATE_VALUE,
         )
-        self.assertEqual(q, 4 * GATE_VALUE + GATE_VALUE)
+        self.assertEqual(q, 4 * HIDDEN_VALUE + GATE_VALUE)
         self.assert_final_score(result, 1000, "20% faster than declared, only SP timed")
 
 
@@ -251,7 +252,7 @@ class KnownCircuitFlightsTest(ObservationNavigationFlights, CimaScenarioCase):
             oracle.q_observation_navigation(
                 correct_gate_count(crossings, HIDDEN_NAMES),
                 [error for error in first_crossing_errors(crossings, TIME_GATES) if error is not None],
-                hidden_value=GATE_VALUE,
+                hidden_value=HIDDEN_VALUE,
                 gate_value=GATE_VALUE,
                 speed_value=vs,
                 speed=speed,

@@ -148,3 +148,14 @@ class CatalogueGateQuality:
         if crossing_time is not None and expected is not None and self.is_timed(item):
             loss += self.timing_loss(item, expected, crossing_time)
         return loss
+
+
+def flat_hidden_gate_value(definition: TaskTypeDefinition, scorecard) -> Optional[float]:
+    """
+    What a hidden gate is worth in a task that scores its gates by flat scores (2.A4, 2.A5: Vh, typically 100), None
+    where the hidden gate's own gate score (its missed penalty) is what it is worth.
+    """
+    if not definition.hidden_gate_value_field:
+        return None
+    value = getattr(scorecard, definition.hidden_gate_value_field, None)
+    return None if value is None else abs(float(value))

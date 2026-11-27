@@ -104,6 +104,7 @@ from display.services.task_scoring import (
     validate_task_value,
 )
 from display.utilities.task_types import (
+    CURVE_NAVIGATION_TIME_ESTIMATION,
     find_task_type,
     QMAX_POLICIES,
     SCORING_MODELS,
@@ -1562,12 +1563,16 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     circle_altitude_penalty_percent = serializers.FloatField(
         required=False, validators=[MinValueValidator(0), MaxValueValidator(100)]
     )
+    circle_centre_outside_penalty_percent = serializers.FloatField(
+        required=False, validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
     speed_keeping_enabled = serializers.BooleanField(required=False)
     speed_keeping_tolerance_kt = serializers.FloatField(required=False)
     speed_keeping_penalty_per_kt = serializers.FloatField(required=False)
     speed_term_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
     turnpoint_hunt_sequence_bonus = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    observation_hidden_gate_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     observation_photo_penalty = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     observation_photo_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     observation_photo_full_tolerance_mm = serializers.FloatField(
@@ -1637,11 +1642,13 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "circle_radius_max_m",
             "circle_altitude_band_ft",
             "circle_altitude_penalty_percent",
+            "circle_centre_outside_penalty_percent",
             "speed_keeping_enabled",
             "speed_keeping_tolerance_kt",
             "speed_keeping_penalty_per_kt",
             "speed_term_value",
             "turnpoint_hunt_sequence_bonus",
+            "observation_hidden_gate_value",
             "observation_photo_penalty",
             "observation_photo_value",
             "observation_photo_full_tolerance_mm",
@@ -1858,11 +1865,38 @@ class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
     excluding original_scorecard (disabled once the task exists, same as the classic form) and
     task_subtype (the form gates its choices by the user's visible task-type families - not worth
     replicating here until this action needs to support changing it).
+
+    The task type's own settings kept in NavigationTask.task_config are set here as well: today only 2.A1's Tmax, the
+    longest time allowed from SP to FP, in seconds (null removes the limit).
     """
+
+    curve_navigation_tmax_seconds = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1, write_only=True
+    )
+
+    def validate(self, attrs):
+        if "curve_navigation_tmax_seconds" in attrs and self.instance is not None:
+            if self.instance.effective_task_subtype != CURVE_NAVIGATION_TIME_ESTIMATION:
+                raise serializers.ValidationError(
+                    {"curve_navigation_tmax_seconds": "Tmax is only set for curve navigation with time estimation."}
+                )
+        return super().validate(attrs)
+
+    def update(self, instance, validated_data):
+        if "curve_navigation_tmax_seconds" in validated_data:
+            tmax_seconds = validated_data.pop("curve_navigation_tmax_seconds")
+            task_config = dict(instance.task_config or {})
+            if tmax_seconds:
+                task_config["curve_navigation_tmax_seconds"] = tmax_seconds
+            else:
+                task_config.pop("curve_navigation_tmax_seconds", None)
+            validated_data["task_config"] = task_config
+        return super().update(instance, validated_data)
 
     class Meta:
         model = NavigationTask
         fields = (
+            "curve_navigation_tmax_seconds",
             "name",
             "start_time",
             "finish_time",

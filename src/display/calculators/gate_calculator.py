@@ -27,7 +27,7 @@ from display.calculators.update_score_message import ACHIEVEMENT, PENALTY, Updat
 from display.flight_order_and_maps.effective_route_rendering import get_effective_route_waypoints
 from display.models import ANOMALY, INFORMATION
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.services.catalogue_gate_quality import CatalogueGateQuality
+from display.services.catalogue_gate_quality import CatalogueGateQuality, flat_hidden_gate_value
 from display.services.task_scoring import relative_term_values
 from display.utilities.task_types import CONTRACT_POINTS_SCORE_TYPE, SPEED_TERM_SCORE_TYPE, stored_task_type
 from display.utilities.coordinate_utilities import (
@@ -673,7 +673,7 @@ class GateCalculator(Calculator):
             else:
                 # The gate is worth what a gate not correctly crossed is worth: its missed score less the timing score
                 # its first crossing already cost (which is where its time keeps coming from).
-                missed_score = self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
+                missed_score = self._flat_missed_score(gate)
                 invalidation_score = max(0, missed_score - self._hidden_timing_charged.get(gate.name, 0))
             self.update_gate_score(
                 track[-1],
@@ -878,9 +878,7 @@ class GateCalculator(Calculator):
                 if not score:
                     return  # SP, or a gate the task does not score: nothing was lost
             else:
-                score = self.scorecard.get_gate_timing_score_for_gate_type(
-                    event.gate.type, event.gate.expected_time, None
-                )
+                score = self._flat_missed_score(event.gate)
             message = "missing gate"
             score_type = GATE_SCORE_TYPE
             if wrong_direction:
@@ -1013,6 +1011,15 @@ class GateCalculator(Calculator):
                 ANOMALY,
                 time_override=time,
             )
+
+    def _flat_missed_score(self, gate: Gate) -> float:
+        """What a gate not correctly crossed costs where the gates have flat scores: a hidden gate of 2.A4 and 2.A5 is
+        worth the task's Vh, every other gate its missed penalty."""
+        if gate.type == SECRETPOINT:
+            value = flat_hidden_gate_value(self._task_type, self.scorecard)
+            if value is not None:
+                return value
+        return self.scorecard.get_gate_timing_score_for_gate_type(gate.type, gate.expected_time, None)
 
     def _watch_passed_hidden_gate(self, gate: Gate, passing_time: datetime.datetime):
         """A hidden gate just passed is watched for a second crossing, see _invalidate_repeated_hidden_gate_crossings."""

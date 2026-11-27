@@ -690,6 +690,7 @@ def circle_flight(
     direction: str = "left",
     radius_m=500.0,
     sweep_deg: float = 810.0,
+    centre_shift_m: float = 0.0,
     speed_kt: float = 75.0,
     lead_in_m: float = 1500.0,
     lead_out_m: float = 1500.0,
@@ -703,7 +704,8 @@ def circle_flight(
     the line start point -> centre), then turns `direction` ("left" is counter-clockwise, "right" clockwise) through
     `sweep_deg`. `radius_m` is a number or a function of the angle swept so far in degrees. It then flies straight to
     `exit_point` and `lead_out_m` beyond. `start_time` is the time at the start point. Positions are generated in a
-    projection centred on the circle centre.
+    projection centred on the circle centre. `centre_shift_m` moves the middle of the circle that far along the straight run
+    past `centre`: more than the radius and the circle is flown beside `centre`, which is not inside it.
     """
     radius = radius_m if callable(radius_m) else (lambda _angle: float(radius_m))
     projector = Projector(*centre)
@@ -726,7 +728,9 @@ def circle_flight(
         angle = sweep_deg * k / steps
         bearing = math.radians(entry_bearing + sign * angle)
         r = radius(angle)
-        points.append((r * math.sin(bearing), r * math.cos(bearing)))
+        points.append(
+            (centre_shift_m * approach[0] + r * math.sin(bearing), centre_shift_m * approach[1] + r * math.cos(bearing))
+        )
     out = _unit(exit_xy[0] - points[-1][0], exit_xy[1] - points[-1][1])
     points.extend([exit_xy, (exit_xy[0] + out[0] * lead_out_m, exit_xy[1] + out[1] * lead_out_m)])
     deduplicated = [points[0]]

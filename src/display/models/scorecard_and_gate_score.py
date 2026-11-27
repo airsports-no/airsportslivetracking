@@ -54,11 +54,13 @@ SCORECARD_CONFIG_FIELDS = [
     "circle_radius_max_m",
     "circle_altitude_band_ft",
     "circle_altitude_penalty_percent",
+    "circle_centre_outside_penalty_percent",
     "speed_keeping_enabled",
     "speed_keeping_tolerance_kt",
     "speed_keeping_penalty_per_kt",
     "speed_term_value",
     "turnpoint_hunt_sequence_bonus",
+    "observation_hidden_gate_value",
     "observation_photo_penalty",
     "observation_photo_value",
     "observation_photo_full_tolerance_mm",
@@ -297,6 +299,9 @@ class Scorecard(models.Model):
     # otherwise circle_altitude_penalty_percent of the task score is lost (20%).
     circle_altitude_band_ft = ConfigField(200)
     circle_altitude_penalty_percent = ConfigField(20)
+    # 2.A7: if the centre mark CM is outside the circle the pilot flew, circle_centre_outside_penalty_percent of the task
+    # score is lost (100%).
+    circle_centre_outside_penalty_percent = ConfigField(100)
     # 2.A4: the speed-keeping rule (a penalty for every leg flown off the declared speed) is the application's own and
     # not part of the catalogue, so it is off unless the organiser turns it on.
     speed_keeping_enabled = ConfigField(False)
@@ -310,6 +315,9 @@ class Scorecard(models.Model):
     # observation that is missed (not marked, or marked more than 1 mm from the target); CIMA tasks (2.A4/2.A5)
     # award the value per observation (Vh in the catalogue), full within 2 mm, half within 5 mm.
     observation_photo_penalty = ConfigField(100)
+    # 2.A4, 2.A5: Vh, what a hidden gate crossed once, in order and in the right direction is worth ("typically 100",
+    # like an observation photo). The hidden gate's own gate score still sets what a time error costs where it is timed.
+    observation_hidden_gate_value = ConfigField(100)
     observation_photo_value = ConfigField(100)
     # Distance along the track, in millimetres on the printed map, within which an observation scores in full /
     # half. None uses the rule of the task type: 1 mm (no half band) for legacy tasks, 2 mm / 5 mm for CIMA.

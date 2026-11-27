@@ -76,6 +76,15 @@ class CircleFlightsTest(CimaScenarioCase):
             **options,
         )
 
+    def build_with_centre_penalty(self, percent):
+        self.task = build_task(
+            circle_route_geojson(CENTRE, START_M, ENTRY_M, EXIT_NORTH),
+            task_subtype=CIRCLE,
+            scorecard_shortcut="CIMA Precision",
+            configure_scorecard=lambda scorecard: setattr(scorecard, "circle_centre_outside_penalty_percent", percent),
+        )
+        return self.task
+
     def fly(self, radius=500.0, **options):
         track = self.circle(radius_m=radius, **options)
         return self.task.run(track)
@@ -194,3 +203,32 @@ class CircleFlightsTest(CimaScenarioCase):
         expected = (oracle.circle_final_score(rmin, rmax), oracle.circle_final_score(500, 500))
         self.assertEqual(expected, (159, 250))
         self.assertEqual((first_result.score, second_result.score), expected)
+
+    def test_a_circle_around_cm_has_no_centre_penalty(self):
+        self.build()
+        result = self.fly(radius=500.0)
+        self.assertEqual(result.messages_of_type("circle_centre_outside"), [])
+        self.assert_final_score(result, 250, "circle of 500 m around CM")
+
+    def test_a_circle_flown_beside_cm_scores_zero(self):
+        """CM is 1200 m from the middle of a 500 m circle, so it is outside the circle the pilot flew: 100%."""
+        self.build()
+        result = self.fly(radius=500.0, centre_shift_m=1200.0)
+        penalties = result.messages_of_type("circle_centre_outside")
+        self.assertEqual(len(penalties), 1)
+        self.assertEqual(penalties[0].score, 100)
+        self.assertIn("CM outside", penalties[0].message)
+        expected = oracle.circle_final_score(500, 500, centre_outside_circle=True)
+        self.assertEqual(expected, 0)
+        self.assert_final_score(result, expected, "circle of the same size flown beside CM")
+
+    def test_a_circle_flown_beside_cm_is_not_also_judged_incomplete(self):
+        self.build()
+        result = self.fly(radius=500.0, centre_shift_m=1200.0)
+        self.assertEqual(result.messages_of_type("circle_incomplete_scored_arc"), [])
+
+    def test_the_centre_penalty_percentage_is_the_scorecards(self):
+        self.build_with_centre_penalty(50)
+        result = self.fly(radius=500.0, centre_shift_m=1200.0)
+        self.assertEqual(result.messages_of_type("circle_centre_outside")[0].score, 50)
+        self.assert_final_score(result, 125, "50% for CM outside the circle")

@@ -317,6 +317,8 @@ export interface NavigationTaskDetailsUpdate {
   calculation_delay_minutes?: number;
   notify_managers_on_start?: boolean;
   notify_managers_on_finish?: boolean;
+  /** 2.A1 only: Tmax in seconds, null for no limit. */
+  curve_navigation_tmax_seconds?: number | null;
 }
 
 export async function updateNavigationTaskDetails(

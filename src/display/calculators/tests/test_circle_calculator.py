@@ -442,9 +442,12 @@ class TestCircleCalculator(TestCase):
         last = self._circle(calculator, radius=300.0, centre=(0.0, 450.0), degrees=540.0)
         self._exit(calculator, last)
         messages = self._messages(calculator)
-        self.assertEqual("circle_incomplete_scored_arc", messages[-1].score_type)
-        self.assertEqual(CIRCLE_MAXIMUM_SCORE, messages[-1].score)
-        self.assertIn("scored arc not completed", messages[-1].message)
+        penalty = [m for m in messages if m.score_type == "circle_centre_outside"]
+        self.assertEqual(1, len(penalty))
+        self.assertEqual(PERCENTAGE_PENALTY, penalty[0].kind)
+        self.assertEqual(100, penalty[0].score)
+        self.assertIn("CM outside", penalty[0].message)
+        self.assertNotIn("circle_incomplete_scored_arc", [m.score_type for m in messages])
         self.assertNotIn("circle_score", [m.score_type for m in messages])
 
     def test_x_crossed_once_is_an_incomplete_circle(self):

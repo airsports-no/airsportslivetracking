@@ -329,6 +329,7 @@ class ScorecardAdminForm(forms.ModelForm):
     circle_radius_max_m = forms.FloatField(required=False)
     circle_altitude_band_ft = forms.FloatField(required=False, min_value=0)
     circle_altitude_penalty_percent = forms.FloatField(required=False, min_value=0, max_value=100)
+    circle_centre_outside_penalty_percent = forms.FloatField(required=False, min_value=0, max_value=100)
     speed_keeping_enabled = forms.BooleanField(required=False)
     speed_keeping_tolerance_kt = forms.FloatField(required=False)
     speed_keeping_penalty_per_kt = forms.FloatField(required=False)
@@ -337,6 +338,7 @@ class ScorecardAdminForm(forms.ModelForm):
     # as an achievement score (an ACHIEVEMENT message) - a negative
     # value would silently subtract from a contestant's score for completing the full sequence.
     turnpoint_hunt_sequence_bonus = forms.FloatField(required=False, min_value=0)
+    observation_hidden_gate_value = forms.FloatField(required=False, min_value=0)
     observation_photo_penalty = forms.FloatField(required=False, min_value=0)
     observation_photo_value = forms.FloatField(required=False, min_value=0)
     observation_photo_full_tolerance_mm = forms.FloatField(required=False, min_value=0)
