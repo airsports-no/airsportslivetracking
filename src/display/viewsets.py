@@ -251,6 +251,7 @@ from display.services.task_scoring import (
     score_measures,
     scoring_parameters,
     scoring_parameters_for,
+    task_scores_are_provisional,
 )
 from display.services.task_templates import (
     no_compatible_task_types_message,
@@ -697,6 +698,7 @@ class UserPersonViewSet(GenericViewSet):
         last_received = last_received_position_time(device_name)
 
         tasks_map = {}
+        task_score_context = {}  # per task: the scale and provisional state of the score (one query at most)
         map_viewable = {}  # per task: the permission check can hit the database
         for contestant, is_simulator in contestants_data:
             task = contestant.navigation_task
@@ -728,7 +730,8 @@ class UserPersonViewSet(GenericViewSet):
                     # positions, which the task's calculation delay holds back) this is not delayed.
                     "last_received_time": last_received.isoformat() if last_received else None,
                     "calculation_delay_minutes": task.calculation_delay_minutes,
-                    "score": own_score_for(contestant, task, map_viewable[task.pk]),
+                    "score": (score := own_score_for(contestant, task, map_viewable[task.pk])),
+                    **score_context_for(contestant, score, task_score_context),
                     "flight_order_path": flight_order_path_for(contestant),
                     "flight_order_status": flight_order_status(contestant, request.user),
                     "training_available": training_available_for(contestant),
@@ -778,6 +781,32 @@ def own_score_for(contestant, task, may_view):
         return None
     track = getattr(contestant, "contestanttrack", None)
     return track.score if track is not None else None
+
+
+def score_context_for(contestant, score, cache: dict) -> dict:
+    """
+    What the pilot's app needs to read ``score``: ``score_scale`` (what it is out of; null for a legacy task and where there
+    is no score), ``scores_provisional`` (a better flight of another pilot can still lower it) and
+    ``provisional_explanation`` (the short text of the scoring explanation, only while provisional). The same functions as the
+    contest results' ``scoring`` block. ``cache`` is per request and task: a legacy task or a flight without a score costs no
+    query, any other task one (the unfinished flights) and, while provisional, the explanation.
+    """
+    empty = {"score_scale": None, "scores_provisional": False, "provisional_explanation": None}
+    if score is None:
+        return empty
+    task = contestant.navigation_task
+    if task.pk not in cache:
+        parameters = scoring_parameters(task)
+        if not parameters.is_quality:
+            cache[task.pk] = empty
+        else:
+            provisional = task_scores_are_provisional(task)
+            cache[task.pk] = {
+                "score_scale": parameters.score_scale,
+                "scores_provisional": provisional,
+                "provisional_explanation": explain_navigation_task(task)["provisional"]["short"] if provisional else None,
+            }
+    return cache[task.pk]
 
 
 def flight_order_path_for(contestant):
