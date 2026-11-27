@@ -57,6 +57,7 @@ export interface ScorecardData {
     fuel_deadline_penalty?: number;
     duration_normalization_policy?: string;
     duration_residual_fuel_required?: boolean;
+    duration_landing_area_penalty_percent?: number;
     circle_radius_min_m?: number;
     circle_radius_max_m?: number;
     circle_altitude_band_ft?: number;

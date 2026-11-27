@@ -7,6 +7,7 @@ from display.models import EditableRoute, Scorecard
 from display.utilities.task_types import (
     ANR_CATALOGUE,
     CIMA_ANR_SCORECARD,
+    CIMA_DURATION_SCORECARD,
     CIMA_PRECISION_SCORECARD,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     DURATION,
@@ -46,8 +47,13 @@ class TestCimaScorecards(TestCase):
         cima_anr = Scorecard.get_originals().get(shortcut_name=CIMA_ANR_SCORECARD)
         self.assertEqual(("asc", 0), (fai_anr.score_sorting_direction, fai_anr.initial_score))
         self.assertEqual(("desc", 1000), (cima_anr.score_sorting_direction, cima_anr.initial_score))
-        self.assertEqual(fai_anr.config["gates"], cima_anr.config["gates"])
-        self.assertEqual(400, cima_anr.backtracking_maximum_penalty)
+        # The gates differ from FAI ANR 2022 in the catalogue's values only: 1 s of grace at SP and FP, 100 for take-off.
+        fai_gates, cima_gates = fai_anr.config["gates"], cima_anr.config["gates"]
+        self.assertEqual(
+            {key for key, value in cima_gates.items() if value != fai_gates[key]},
+            {"sp", "fp", "to"},
+        )
+        self.assertEqual(-1, cima_anr.backtracking_maximum_penalty)  # 200 each, no maximum (FAI ANR 2022: 400)
         self.assertEqual(ANR_CORRIDOR, cima_anr.calculator)
 
     def test_a_cima_subtype_is_offered_only_its_own_scorecard(self):
@@ -56,12 +62,13 @@ class TestCimaScorecards(TestCase):
             self._choices(task_type=PRECISION, task_subtype=CONTRACT_NAVIGATION_TIME_CONTROLS),
         )
         self.assertEqual([CIMA_ANR_SCORECARD], self._choices(task_type=ANR_CORRIDOR, task_subtype=ANR_CATALOGUE))
+        self.assertEqual([CIMA_DURATION_SCORECARD], self._choices(task_type=PRECISION, task_subtype=DURATION))
 
     def test_legacy_tasks_and_subtypes_without_a_scorecard_are_not_offered_cima_scorecards(self):
-        for params in ({"task_type": PRECISION}, {"task_type": PRECISION, "task_subtype": DURATION}):
-            choices = self._choices(**params)
-            self.assertIn("FAI Precision", choices)
-            self.assertNotIn(CIMA_PRECISION_SCORECARD, choices)
+        choices = self._choices(task_type=PRECISION)
+        self.assertIn("FAI Precision", choices)
+        self.assertNotIn(CIMA_PRECISION_SCORECARD, choices)
+        self.assertNotIn(CIMA_DURATION_SCORECARD, choices)
         self.assertNotIn(CIMA_ANR_SCORECARD, self._choices(task_type=ANR_CORRIDOR))
 
     def test_route_from_cima_precision_has_no_procedure_turns(self):

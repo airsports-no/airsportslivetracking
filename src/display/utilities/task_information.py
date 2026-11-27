@@ -371,6 +371,8 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
         info["scoring"] = _clean_lines([
             "Competitors start with 2000 points on the catalogue's own scale; penalties are subtracted for corridor deviations, timing errors, start/take-off issues, route-to-SP / route-from-FP violations, and backtracking/circling.",
             "Timing penalties at SP and FP apply after ±1 second with 3 points per full second up to 200 points per gate.",
+            "SP and FP must be crossed within their 0.6 NM gate; a crossing beside it counts as not crossed and costs 200 points.",
+            "Taking off before the given time or more than 60 seconds after it costs 100 points.",
             "Route compliance outside the corridor is accumulated according to the configured corridor grace time and penalty rate.",
             "The catalogue then normalizes that 0-2000 total onto the platform's standard 0-1000 scale (halving it) for the officially displayed score, so it stays comparable with every other task type.",
         ])
@@ -418,11 +420,11 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
         info["summary"] = _clean_lines([
             "The task is fuel-limited and normally ends with landing in a designated landing area briefed by the organizer.",
             "If a residual-fuel requirement is configured, quarantine fuel checking applies after landing.",
-            "Duration scoring currently follows the configured normalization policy in the task configuration.",
+            "The longest flight scores the task value and every other flight in proportion to its time airborne.",
         ])
         info["scoring"] = _clean_lines([
-            "The duration result is based on airborne duration measured from take-off to landing.",
-            "Any configured normalization policy is applied on top of the raw airborne duration.",
+            "The duration result is the airborne duration measured from take-off to landing.",
+            "The task score is the task value times the flight's duration divided by the longest duration of the task, so it can change until every flight is finished.",
             "Landing-area and residual-fuel requirements are enforced through the configured task rules.",
         ])
         info["penalties"] = _clean_lines([
@@ -430,9 +432,10 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
             "Flight in a prohibited area is a 100% penalty.",
             "Landing outside the specified area but inside the airfield boundary is scored as briefed.",
         ])
-        if task_config.get("duration_normalization_policy"):
+        landing_penalty = getattr(navigation_task.scorecard, "duration_landing_area_penalty_percent", None)
+        if landing_penalty is not None:
             info["overrides"].append(
-                f"Configured duration normalization policy is '{task_config['duration_normalization_policy']}'."
+                f"Landing outside the specified area costs {_format_float(landing_penalty)}% of the task score."
             )
         if task_config.get("duration_residual_fuel_required"):
             info["overrides"].append("Residual fuel is required at landing for this task.")

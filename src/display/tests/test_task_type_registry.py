@@ -196,7 +196,7 @@ _PREVIOUS_DEFINITIONS_WITH_PRIMITIVES = {
         ("all_gate_crossings", "compulsory_timing_gates", "observation_evidence", "fuel_compliance"),
         "CIMA Precision",
     ),
-    "duration": ("duration", "2.B3 Duration", "precision", False, (), (), None, (), None),
+    "duration": ("duration", "2.B3 Duration", "precision", False, (), (), None, (), "CIMA Duration"),
 }
 PREVIOUS_DEFINITIONS = {
     key: values[:4] + values[6:] for key, values in _PREVIOUS_DEFINITIONS_WITH_PRIMITIVES.items()
@@ -237,7 +237,7 @@ PREVIOUS_DECLARATION_REQUIRED = {
     "curve_navigation_time_estimation",
     "turnpoint_hunt",
 }
-PREVIOUS_SUBTYPE_SHORTCUTS = {"CIMA Precision", "CIMA ANR"}
+PREVIOUS_SUBTYPE_SHORTCUTS = {"CIMA Precision", "CIMA ANR", "CIMA Duration"}
 
 
 def _pipeline(task_type_key):

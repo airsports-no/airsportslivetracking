@@ -56,6 +56,12 @@ class TakeoffAndLandingGateCalculator(Calculator):
 
         self.scored_takeoff = False
         self.scored_landing = False
+        # 2.B3 has no finish point, so its landing gate is looked for once the aircraft has taken off (from a take-off
+        # gate or inferred from the speed).
+        self._landing_gate_without_finish_point = stored_task_type(
+            contestant.navigation_task
+        ).landing_gate_without_finish_point
+        self._has_taken_off = False
         self.websocket_facade = WebsocketFacade()
 
     def initiate_takeoff_and_landing_gates(self):
@@ -125,8 +131,8 @@ class TakeoffAndLandingGateCalculator(Calculator):
                     intersected_gate = self.takeoff_gate.intersected_gate
                     events.append(TakeoffPassedEvent(intersected_gate, track[-1], intersection_time))
 
-        # Handle landing gate after finish point
-        if state.has_passed_finishpoint:
+        # Handle landing gate after finish point, or after take-off where the task has no finish point to wait for
+        if state.has_passed_finishpoint or (self._landing_gate_without_finish_point and self._has_taken_off):
             if self.landing_gate is not None and not self.scored_landing:
                 if not self.landing_gate.has_been_passed():
                     intersection_time = self.landing_gate.get_gate_intersection_time(self.projector, track)
@@ -136,6 +142,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
         return events
 
     def on_takeoff_passed(self, event: TakeoffPassedEvent):
+        self._has_taken_off = True
         if self.scored_takeoff:
             return
         if not self.takeoff_gate:

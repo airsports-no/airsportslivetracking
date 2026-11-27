@@ -766,6 +766,7 @@ class ScorecardForm(forms.ModelForm):
     fuel_deadline_penalty = forms.FloatField()
     duration_normalization_policy = forms.ChoiceField(choices=DURATION_NORMALIZATION_POLICIES, required=False)
     duration_residual_fuel_required = forms.BooleanField(required=False)
+    duration_landing_area_penalty_percent = forms.FloatField(min_value=0, max_value=100)
     circle_radius_min_m = forms.FloatField()
     circle_radius_max_m = forms.FloatField()
     circle_altitude_band_ft = forms.FloatField(min_value=0)
@@ -886,7 +887,7 @@ class ScorecardForm(forms.ModelForm):
             _append_block_once(
                 [
                     "Duration configuration",
-                    "duration_normalization_policy",
+                    "duration_landing_area_penalty_percent",
                     "duration_residual_fuel_required",
                 ]
             )

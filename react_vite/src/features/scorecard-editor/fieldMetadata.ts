@@ -65,7 +65,7 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
             'maximum_task_duration_minutes',
             'maximum_task_duration_penalty',
             'fuel_deadline_penalty',
-            'duration_normalization_policy',
+            'duration_landing_area_penalty_percent',
             'duration_residual_fuel_required',
             'turnpoint_hunt_sequence_bonus',
         ],
@@ -175,13 +175,22 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
     maximum_task_duration_minutes: { label: 'Maximum task duration', kind: 'integer', unit: 'min', min: 0 },
     maximum_task_duration_penalty: { label: 'Maximum task duration penalty per second over', kind: 'number', min: 0 },
     fuel_deadline_penalty: { label: 'Fuel deadline penalty', kind: 'number', min: 0 },
+    // No longer read: the duration (2.B3) is always an achievement scaled against the best flight of the task.
     duration_normalization_policy: {
-        label: 'Duration normalization policy',
+        label: 'Duration normalization policy (not used)',
         kind: 'choice',
         choices: [
             { value: '', label: '---------' },
             { value: 'raw_minutes', label: 'Raw minutes' },
         ],
+    },
+    duration_landing_area_penalty_percent: {
+        label: 'Landing outside the area penalty',
+        kind: 'number',
+        unit: '%',
+        min: 0,
+        max: 100,
+        help: 'Duration (2.B3): the percentage of the task score lost when the aircraft lands outside the specified landing area. The catalogue leaves the penalty to the briefing.',
     },
     duration_residual_fuel_required: { label: 'Duration residual fuel required', kind: 'boolean' },
     circle_radius_min_m: { label: 'Circle radius min', kind: 'number', unit: 'm', min: 0 },

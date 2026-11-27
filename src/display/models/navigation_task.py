@@ -485,7 +485,7 @@ class NavigationTask(models.Model):
                 route = self.editable_route.create_precision_route(self.route.use_procedure_turns, self.scorecard)
         elif self.scorecard.calculator == ANR_CORRIDOR:
             route = self.editable_route.create_anr_route(
-                self.route.rounded_corners, self.route.corridor_width, self.scorecard
+                self.route.rounded_corners, self.route.corridor_width, self.scorecard, self.task_subtype
             )
         elif self.scorecard.calculator in (AIRSPORTS, AIRSPORT_CHALLENGE):
             route = self.editable_route.create_airsports_route(self.route.rounded_corners, self.scorecard)

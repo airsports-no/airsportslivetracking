@@ -52,6 +52,7 @@ class CimaScoringConfig:
     fuel_deadline_penalty: float = 100
     duration_normalization_policy: str = ""
     duration_residual_fuel_required: bool = False
+    duration_landing_area_penalty_percent: float = 50
     circle_radius_min_m: float = 200
     circle_radius_max_m: float = 750
     circle_altitude_band_ft: float = 200
@@ -74,6 +75,7 @@ class CimaScoringConfig:
             fuel_deadline_penalty=scorecard.fuel_deadline_penalty,
             duration_normalization_policy=scorecard.duration_normalization_policy,
             duration_residual_fuel_required=scorecard.duration_residual_fuel_required,
+            duration_landing_area_penalty_percent=scorecard.duration_landing_area_penalty_percent,
             circle_radius_min_m=scorecard.circle_radius_min_m,
             circle_radius_max_m=scorecard.circle_radius_max_m,
             circle_altitude_band_ft=scorecard.circle_altitude_band_ft,

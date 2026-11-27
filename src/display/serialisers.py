@@ -1543,6 +1543,9 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
         choices=DURATION_NORMALIZATION_POLICIES, required=False, allow_blank=True
     )
     duration_residual_fuel_required = serializers.BooleanField(required=False)
+    duration_landing_area_penalty_percent = serializers.FloatField(
+        required=False, validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
     circle_radius_min_m = serializers.FloatField(required=False)
     circle_radius_max_m = serializers.FloatField(required=False)
     circle_altitude_band_ft = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
@@ -1619,6 +1622,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "fuel_deadline_penalty",
             "duration_normalization_policy",
             "duration_residual_fuel_required",
+            "duration_landing_area_penalty_percent",
             "circle_radius_min_m",
             "circle_radius_max_m",
             "circle_altitude_band_ft",

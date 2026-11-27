@@ -5,11 +5,8 @@ corridor (each excursion), 3 points per full second beyond one second of timing 
 (200 for a gate not crossed), and 200 for each backtracking or circling; P = 1000 x Q / 2000, an absolute score that is
 not divided by the best pilot. The time gates at SP and FP are 0.6 NM wide.
 
-Tests marked xfail(strict=True) are known disagreements of the application, with the finding and the slice of
-docs/PLAN_task_scoring_reliability.md that will fix them.
+The values of the scorecard and the registry flags are checked in test_anr_catalogue_scoring.py.
 """
-
-import pytest
 
 from display.calculators.tests import catalogue_oracle as oracle
 from display.calculators.tests.cima_scenario_support import CimaScenarioCase, first_crossing_errors
@@ -82,22 +79,12 @@ class AnrCatalogueFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 1000)
         self.assert_final_score(result, expected, "SP 1 s late, FP 1 s early")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F16 / S20: the SP/FP grace time is the 2 s of FAI ANR 2022; the catalogue "
-        "gives 1 s (5 s late costs 12 points in the catalogue, 9 in the application)",
-    )
     def test_start_five_seconds_late_costs_three_points_per_second_beyond_the_first(self):
         self.build()
         track, result, expected = self.fly(TimeOffset("SP", 5))
         self.assertEqual(expected, 994)  # 2000 - 12 -> 994
         self.assert_final_score(result, expected, "SP 5 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F16 / S20: the SP/FP grace time is the 2 s of FAI ANR 2022; the catalogue "
-        "gives 1 s (8 s early costs 21 points in the catalogue, 18 in the application)",
-    )
     def test_finish_eight_seconds_early(self):
         self.build()
         track, result, expected = self.fly(TimeOffset("FP", -8))
@@ -109,12 +96,6 @@ class AnrCatalogueFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 900)
         self.assert_final_score(result, expected, "SP 90 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="NEW: crossing SP outside the briefed 0.6 NM time gate is a valid crossing "
-        "in the application, the gate is as wide as the corridor (1.0 NM); the "
-        "catalogue gives 200 points for not crossing SP",
-    )
     def test_start_point_crossed_outside_the_time_gate_is_not_crossed(self):
         self.build()
         offset = TIME_GATE_HALF_WIDTH_M + 150  # inside the 1 NM corridor and gate, outside the 0.6 NM time gate
@@ -123,11 +104,6 @@ class AnrCatalogueFlightsTest(CimaScenarioCase):
         self.assertLess(offset, HALF_CORRIDOR_M)
         self.assert_final_score(result, expected, "SP crossed 700 m off centre")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="NEW: the start point missed sideways costs nothing in the application "
-        "(no 'missing gate' score for SP); the catalogue gives 200 points",
-    )
     def test_start_point_missed_costs_two_hundred_points(self):
         self.build()
         track, result, expected = self.fly(MissGate("SP", margin_m=20), sp_error=None)
@@ -140,11 +116,6 @@ class AnrCatalogueFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 900)
         self.assert_final_score(result, expected, "FP missed")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F16 / S20: the time gates at SP and FP are 0.6 NM wide in the catalogue; "
-        "the application makes them as wide as the corridor (1.0 NM)",
-    )
     def test_the_time_gates_are_six_tenths_of_a_nautical_mile_wide(self):
         task = self.build()
         widths = {w.name: w.width for w in task.effective_waypoints}

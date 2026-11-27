@@ -4,7 +4,11 @@ from shapely.geometry import Point, Polygon
 
 from display.calculators.calculator import Calculator, LandingPassedEvent, TakeoffPassedEvent
 from display.models import ANOMALY, INFORMATION
-from display.calculators.update_score_message import ACHIEVEMENT, UpdateScoreMessage
+from display.calculators.update_score_message import ACHIEVEMENT, PERCENTAGE_PENALTY, UpdateScoreMessage
+
+
+DURATION_SCORE_TYPE = "duration_score"
+LANDING_AREA_SCORE_TYPE = "duration_landing_area_outside"
 
 
 class DurationCalculator(Calculator):
@@ -35,13 +39,15 @@ class DurationCalculator(Calculator):
                 actual=event.intersection_time,
             )
         )
-        self._emit_normalized_duration_score(event)
+        self._emit_duration_score(event)
         self._emit_landing_area_penalty(event)
 
-    def _emit_normalized_duration_score(self, event: LandingPassedEvent):
-        policy = self.cima_config.duration_normalization_policy
-        if policy != "raw_minutes":
-            return
+    def _emit_duration_score(self, event: LandingPassedEvent):
+        """
+        The flight scores its time airborne, one point of Q per minute (2.B3: the longest flight wins). It is the task
+        that scales it, P = task value x Q / Qmax of the best flight (display.services.task_scoring), so this is the
+        only place the duration becomes a score and nothing is normalised here.
+        """
         duration_seconds = (event.intersection_time - self.takeoff_intersection_time).total_seconds()
         duration_minutes = duration_seconds / 60
         self.update_score(
@@ -49,13 +55,12 @@ class DurationCalculator(Calculator):
                 event.intersection_time,
                 event.gate,
                 duration_minutes,
-                "duration normalized using raw minutes",
+                f"airborne for {duration_minutes:.1f} minutes (one point per minute, scaled against the longest flight "
+                "of the task)",
                 event.position.latitude,
                 event.position.longitude,
                 INFORMATION,
-                "duration_normalized_score",
-                planned=self.takeoff_intersection_time,
-                actual=event.intersection_time,
+                DURATION_SCORE_TYPE,
                 kind=ACHIEVEMENT,
             )
         )
@@ -120,14 +125,13 @@ class DurationCalculator(Calculator):
             UpdateScoreMessage(
                 event.intersection_time,
                 event.gate,
-                float(self.scorecard.prohibited_zone_penalty),
-                "landing outside specified area",
+                float(self.cima_config.duration_landing_area_penalty_percent),
+                "landed outside the specified landing area",
                 event.position.latitude,
                 event.position.longitude,
                 ANOMALY,
-                "duration_landing_area_outside",
-                planned=self.takeoff_intersection_time,
-                actual=event.intersection_time,
+                LANDING_AREA_SCORE_TYPE,
+                kind=PERCENTAGE_PENALTY,
             )
         )
 

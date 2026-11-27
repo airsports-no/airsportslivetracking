@@ -493,7 +493,9 @@ class EditableRoute(models.Model):
         self.amend_route_with_additional_features(route)
         return route
 
-    def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: "Scorecard") -> "Route|None":
+    def create_anr_route(
+        self, rounded_corners: bool, corridor_width: float, scorecard: "Scorecard", task_subtype: str | None = None
+    ) -> "Route|None":
         """
         Build a Route object self as a ANR route using the provided scorecard.
         """
@@ -517,7 +519,12 @@ class EditableRoute(models.Model):
         # waypoint_list[-1].width = scorecard.get_extended_gate_width_for_gate_type(FINISHPOINT)
 
         route = create_anr_corridor_route_from_waypoint_list(
-            self.name, waypoint_list, rounded_corners, scorecard, corridor_width=corridor_width
+            self.name,
+            waypoint_list,
+            rounded_corners,
+            scorecard,
+            corridor_width=corridor_width,
+            time_gate_width_nm=task_type_or_unspecified(task_subtype).start_finish_gate_width_nm,
         )
         self.amend_route_with_additional_features(route)
         return route
@@ -817,7 +824,7 @@ class EditableRoute(models.Model):
                 raise ValidationError(f"Missing 'rounded_corners' for task type {task_type}")
             if corridor_width is None:
                 raise ValidationError(f"Missing 'corridor_width' for task type {task_type}")
-            route = self.create_anr_route(rounded_corners, corridor_width, scorecard)
+            route = self.create_anr_route(rounded_corners, corridor_width, scorecard, task_subtype)
         elif task_type in (AIRSPORTS, AIRSPORT_CHALLENGE):
             if rounded_corners is None:
                 raise ValidationError(f"Missing 'rounded_corners' for task type {task_type}")

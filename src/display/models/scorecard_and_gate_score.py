@@ -49,6 +49,7 @@ SCORECARD_CONFIG_FIELDS = [
     "fuel_deadline_penalty",
     "duration_normalization_policy",
     "duration_residual_fuel_required",
+    "duration_landing_area_penalty_percent",
     "circle_radius_min_m",
     "circle_radius_max_m",
     "circle_altitude_band_ft",
@@ -287,6 +288,9 @@ class Scorecard(models.Model):
     fuel_deadline_penalty = ConfigField(100)
     duration_normalization_policy = ConfigField("")
     duration_residual_fuel_required = ConfigField(False)
+    # 2.B3: landing outside the specified area costs this percentage of the task score; the catalogue leaves the penalty
+    # "to be briefed" and its other penalties (quarantine, prohibited area) are percentages, so this one is as well.
+    duration_landing_area_penalty_percent = ConfigField(50)
     circle_radius_min_m = ConfigField(200)
     circle_radius_max_m = ConfigField(750)
     # 2.A7: the circle may span at most circle_altitude_band_ft between its lowest and highest point (200 ft / 61 m),

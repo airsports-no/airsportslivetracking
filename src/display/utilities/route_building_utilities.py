@@ -465,6 +465,7 @@ def create_anr_corridor_route_from_waypoint_list(
     rounded_corners: bool,
     scorecard: Scorecard,
     corridor_width: float | None = None,
+    time_gate_width_nm: float | None = None,
 ) -> Route:
     """
 
@@ -472,6 +473,9 @@ def create_anr_corridor_route_from_waypoint_list(
     :param waypoint_list:
     :param rounded_corners:
     :param corridor_width: If this is set, use this for corridor width and leave the gates as they should be
+    :param time_gate_width_nm: The width of the time gates at SP and FP where the task type sets its own (2.A8: 0.6 NM),
+        so that the waypoints say the width of the gates as well as the line does. Without it the line is 0.6 NM and the
+        waypoints keep the corridor's width, as before.
     :return:
     """
     if len(waypoint_list) < 2:
@@ -508,6 +512,8 @@ def create_anr_corridor_route_from_waypoint_list(
         fp_line = extend_line(fp.gate_line[0], fp.gate_line[1], anr_gate_width_nm - fp.width)
         if fp_line:
             fp.gate_line = [list(fp_line[0]), list(fp_line[1])]
+        if time_gate_width_nm is not None:
+            sp.width = fp.width = time_gate_width_nm
 
     for waypoint in waypoint_list:
         waypoint.gate_line_extended = calculate_extended_gate(waypoint, scorecard)

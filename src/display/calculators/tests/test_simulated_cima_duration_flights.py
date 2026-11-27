@@ -30,21 +30,22 @@ from display.utilities.task_types import DURATION
 
 START = (60.0, 11.0)
 LANDING_ALONG_M = 18000.0
-SPEED_INFERENCE_DELAY_S = 59  # touchdown is recognised at the 60th low-speed sample
+# The duration runs from the first fast sample (take-off) to the first stationary one (touchdown), so it is the time
+# airborne exactly: the application used to recognise touchdown at the 60th low-speed sample, a minute late (N3).
+SPEED_INFERENCE_DELAY_S = 0
 LONG_S, SHORT_S = 3600, 1800
 LANDING_AREA = landing_area_feature(START, (17000, 19000), (-500, 500))
 
 
-def build(raw_minutes=False, landing_penalty=0.0, features=(LANDING_AREA,)):
+def build(landing_penalty_percent=None, features=(LANDING_AREA,)):
     def configure(scorecard):
-        if raw_minutes:
-            scorecard.duration_normalization_policy = "raw_minutes"
-        scorecard.prohibited_zone_penalty = landing_penalty
+        if landing_penalty_percent is not None:
+            scorecard.duration_landing_area_penalty_percent = landing_penalty_percent
 
     return build_task(
         {"type": "FeatureCollection", "features": list(features)},
         task_subtype=DURATION,
-        scorecard_shortcut="CIMA Precision",
+        scorecard_shortcut="CIMA Duration",
         configure_scorecard=configure,
     )
 
@@ -66,52 +67,27 @@ def recognised_duration(airborne_s):
 
 
 class DurationFlightsTest(CimaScenarioCase):
-    def test_the_application_sees_the_time_airborne_plus_the_minute_at_rest(self):
-        result = fly(build(raw_minutes=True), LONG_S)
+    def test_the_application_sees_the_time_airborne(self):
+        result = fly(build(), LONG_S)
         (message,) = result.messages_of_type("duration_airborne_time")
         self.assertEqual((message.actual - message.planned).total_seconds(), recognised_duration(LONG_S))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F14 / S18: no CIMA scorecard scores the duration (the policy is empty by default), so "
-        "the only flight earns nothing: Q is 0 and the task score is 0",
-    )
     def test_a_single_flight_scores_the_task_value(self):
         task = build()
         expected = oracle.final_scores([oracle.q_duration(recognised_duration(LONG_S))])
         self.assertEqual(expected, [1000])
         self.assertEqual(fly(task, LONG_S).score, expected[0])
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F14 / S18: no CIMA scorecard scores the duration (the policy is empty by "
-        "default): the pilot who flew an hour and the one who flew half an hour "
-        "both score 1000",
-    )
     def test_the_longer_flight_scores_higher_on_the_default_scorecard(self):
         task = build()
         second = add_contestant(task)
         longer, shorter = fly(task, LONG_S).score, fly(second, SHORT_S).score
         expected = oracle.final_scores([oracle.q_duration(recognised_duration(s)) for s in (LONG_S, SHORT_S)])
-        self.assertEqual(expected, [1000, 508])
+        self.assertEqual(expected, [1000, 500])
         self.assertEqual((longer, shorter), tuple(expected))
 
-    def test_the_longer_flight_scores_higher_with_raw_minutes(self):
-        task = build(raw_minutes=True)
-        second = add_contestant(task)
-        longer, shorter = fly(task, LONG_S).score, fly(second, SHORT_S).score
-        expected = oracle.final_scores([oracle.q_duration(recognised_duration(s)) for s in (LONG_S, SHORT_S)])
-        self.assertGreater(longer, shorter, "the longest flight must score the most")
-        self.assertEqual((longer, shorter), tuple(expected))
-
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F14 / S18: the landing-area penalty is a number of points subtracted from "
-        "the score (0 in the CIMA scorecard, 100 here), not the percentage of the "
-        "score the briefing sets (50% here)",
-    )
     def test_landing_outside_the_area_costs_the_briefed_penalty(self):
-        task = build(raw_minutes=True, landing_penalty=100)
+        task = build(landing_penalty_percent=50)
         second = add_contestant(task)
         inside, outside = fly(task, LONG_S), fly(second, LONG_S, across_m=800.0)
         self.assertTrue(outside.messages_of_type("duration_landing_area_outside"))
@@ -123,11 +99,11 @@ class DurationFlightsTest(CimaScenarioCase):
 
     @pytest.mark.xfail(
         strict=True,
-        reason="NEW: with a landing gate authored the landing is never recognised: "
-        "TakeoffAndLandingGateCalculator only looks for the landing gate after the "
-        "finish point (takeoff_and_landing_gate_calculator.py: "
-        "state.has_passed_finishpoint), and 2.B3 has none; the duration is never "
-        "scored and the gate counts as missed",
+        reason="SCENARIO GEOMETRY (the application part of N3 is fixed in S18, see "
+        "test_duration_scoring.py): the track starts on the line of the take-off gate "
+        "and stops on the line of the landing gate, so it never crosses either (the "
+        "take-off gate is missed and the landing gate with it); a flight that crosses "
+        "both is scored in test_duration_scoring.py",
     )
     def test_an_authored_landing_gate_is_recognised(self):
         features = [
@@ -135,7 +111,7 @@ class DurationFlightsTest(CimaScenarioCase):
             runway_gate_feature("landing", START, LANDING_ALONG_M, 1000.0),
             LANDING_AREA,
         ]
-        task = build(raw_minutes=True, features=features)
+        task = build(features=features)
         result = fly(task, LONG_S)
         self.assertEqual(result.messages_of_type("gate_score")[-1].message, "passed landing gate")
         self.assertTrue(result.messages_of_type("duration_airborne_time"), "the duration was never scored")

@@ -324,6 +324,7 @@ class ScorecardAdminForm(forms.ModelForm):
     fuel_deadline_penalty = forms.FloatField(required=False)
     duration_normalization_policy = forms.ChoiceField(choices=DURATION_NORMALIZATION_POLICIES, required=False)
     duration_residual_fuel_required = forms.BooleanField(required=False)
+    duration_landing_area_penalty_percent = forms.FloatField(required=False, min_value=0, max_value=100)
     circle_radius_min_m = forms.FloatField(required=False)
     circle_radius_max_m = forms.FloatField(required=False)
     circle_altitude_band_ft = forms.FloatField(required=False, min_value=0)

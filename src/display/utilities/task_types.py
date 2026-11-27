@@ -147,6 +147,7 @@ class RelativeQualityTerm:
 # Scorecards (by shortcut_name) the task types are created from.
 CIMA_PRECISION_SCORECARD = "CIMA Precision"
 CIMA_ANR_SCORECARD = "CIMA ANR"
+CIMA_DURATION_SCORECARD = "CIMA Duration"
 AIR_SPORTS_RACE_2025_SCORECARD = "Air Sports Race 2025"
 
 
@@ -288,6 +289,15 @@ class TaskTypeDefinition:
     has_auxiliary_route_checks: bool = False
     # The take-off gate is scored as take-off timing under its own score type (2.A8).
     scores_takeoff_timing: bool = False
+    # The starting point only counts when it is crossed within its own gate line. Legacy tasks accept a crossing of the
+    # infinite line through the starting point as the start; the catalogue's time gate is a fixed width (2.A8: "Time
+    # gates width at the SP and FP will be 0.6 NM"), a crossing beside it is a gate not crossed.
+    start_point_must_be_crossed_in_gate: bool = False
+    # The width in NM of the time gates at SP and FP where it is not the corridor's (2.A8: 0.6 NM). None: the route's.
+    start_finish_gate_width_nm: float | None = None
+    # A landing gate that was authored ends the flight when it is crossed after take-off, also where the route has no
+    # finish point to come after (2.B3: no backbone). Otherwise the landing gate is only looked for after the finish point.
+    landing_gate_without_finish_point: bool = False
     # The crew does not know the route legs in advance: the flight order only gives the start and finish times, and
     # the targets come from the compiled payload (2.A5).
     has_unknown_legs: bool = False
@@ -685,6 +695,8 @@ _DEFINITIONS = (
         scorecard_shortcut_name=CIMA_ANR_SCORECARD,
         has_auxiliary_route_checks=True,
         scores_takeoff_timing=True,
+        start_point_must_be_crossed_in_gate=True,
+        start_finish_gate_width_nm=0.6,
     ),
     TaskTypeDefinition(
         key=LIMITED_FUEL_TURNPOINT_HUNT,
@@ -728,6 +740,9 @@ _DEFINITIONS = (
         route_requirements=(rr.present(rr.DURATION_LANDING_AREA, "Duration landing area"),),
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "DurationStrategy",
         gate_types_without_backbone=(TAKEOFF_GATE, LANDING_GATE),
+        # Q is the time airborne and P = 1000 x Q / Qmax over the best flight of the task, the default policy.
+        scorecard_shortcut_name=CIMA_DURATION_SCORECARD,
+        landing_gate_without_finish_point=True,
     ),
 )
 

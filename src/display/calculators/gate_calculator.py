@@ -118,6 +118,8 @@ class GateCalculator(Calculator):
         self.starting_line: Gate = None
         # 2.B2: the gates are matched as they are crossed, in any order (see TaskTypeDefinition.free_order_gate_matching).
         self._free_order = stored_task_type(contestant.navigation_task).free_order_gate_matching
+        # 2.A8: the starting point counts only when it is crossed within its gate, not anywhere on the line through it.
+        self._start_in_gate_only = stored_task_type(contestant.navigation_task).start_point_must_be_crossed_in_gate
         self.initiate_gates()
         # What a gate is worth and costs where the task follows the catalogue's formulas literally (2.A1, 2.A2), the
         # same weights that make the contestant's starting quality; None for the scorecard's flat scores.
@@ -484,7 +486,10 @@ class GateCalculator(Calculator):
                     self.last_backwards = intersection_time
                     events.append(StartingLineExtendedPassedWrongDirectionEvent(self.starting_line, track[-1]))
             elif not self.starting_line.has_infinite_been_passed():
-                intersection_time = self.starting_line.get_gate_infinite_intersection_time(state.projector, track)
+                if self._start_in_gate_only:
+                    intersection_time = self.starting_line.get_gate_intersection_time(state.projector, track)
+                else:
+                    intersection_time = self.starting_line.get_gate_infinite_intersection_time(state.projector, track)
                 if intersection_time and self.starting_line.is_passed_in_correct_direction_track(track):
                     self.contestant.terminate_concurrent_contestants(intersection_time)
                     self.starting_line.pass_infinite_gate(intersection_time, track[-1])
