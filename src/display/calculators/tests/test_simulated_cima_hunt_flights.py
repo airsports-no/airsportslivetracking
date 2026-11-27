@@ -16,7 +16,6 @@ docs/PLAN_task_scoring_reliability.md that will fix them.
 
 import datetime
 
-import pytest
 
 from display.calculators.tests import catalogue_oracle as oracle
 from display.calculators.tests.cima_scenario_support import CimaScenarioCase, first_crossing_errors
@@ -112,8 +111,8 @@ class TurnpointHuntFlightsTest(CimaScenarioCase):
         self.assertTrue(self.task.contestant.contestanttaskconfiguration.is_valid)
         return self.task
 
-    def fly(self, *deviations, maximum_duration=None, **options):
-        self.fly_reference_pilot()
+    def fly(self, *deviations, maximum_duration=None, reference_declared=None, **options):
+        self.fly_reference_pilot(declared=reference_declared)
         track = self.task.generate_track(list(deviations), **options)
         result = self.task.run(track)
         photos, errors, full, over = hunt_quality(self.task, track, SEQUENCE, maximum_duration_minutes=maximum_duration)
@@ -152,16 +151,12 @@ class TurnpointHuntFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, oracle.round_half_up(1000 * (100 + 600) / 1050))
         self.assert_final_score(result, expected, "B missed")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="S16 scenario flaw, not an application fault: the application charges 480 points for the 48 s (10 per "
-        "second, see test_the_time_over_the_maximum_duration_costs_ten_points_per_second_of_q), but the reference pilot who sets Qmax flies the same "
-        "schedule, crosses CP3 at the same 08:20:48 and loses the same 480, so the best Q of the task is 570 and the "
-        "pilot scores 1000 where the test expects 1000 x 570 / 1050 against a Qmax nobody flew",
-    )
     def test_time_over_the_maximum_duration_costs_ten_points_per_second(self):
         self.build(maximum_duration=MAX_DURATION_MINUTES)
-        result, expected = self.fly(maximum_duration=MAX_DURATION_MINUTES)
+        # The reference pilot who sets Qmax declares one minute earlier, so CP3 is crossed at 08:19:48, inside the
+        # maximum duration (deadline 08:20:00), and flies a perfect Q of 1050; the pilot under test is 48 s over.
+        early = declaration(seconds=(-60, 114, 288))
+        result, expected = self.fly(maximum_duration=MAX_DURATION_MINUTES, reference_declared=early)
         self.assertEqual(expected, oracle.round_half_up(1000 * (1050 - 480) / 1050))
         self.assert_final_score(result, expected, "CP3 48 s after the maximum duration")
 

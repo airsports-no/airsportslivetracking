@@ -34,7 +34,7 @@ from display.utilities.task_types import (
 # Bump whenever the ruleset (the task types' route requirements, or the primitive extraction itself)
 # changes in a way that could change the outcome for an already-saved route, so callers can tell a
 # stale EditableRoute.compatible_task_types apart from a freshly computed one.
-ROUTE_COMPATIBILITY_RULESET_VERSION = 3
+ROUTE_COMPATIBILITY_RULESET_VERSION = 4
 
 # The keys TaskCompiler._build_compiled_primitives has historically returned, in that order. Kept
 # here so the compiler can subset extract_route_primitives() without changing its persisted

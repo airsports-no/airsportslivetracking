@@ -100,8 +100,9 @@ const GateTimesModal = forwardRef<GateTimesModalHandle, GateTimesModalProps>(
 
     const quality = isQualityTask(data);
     // A quality task's entry is raw quality points or a percentage of the task score, not points of the task score
-    const entryText = (entry: { text: string; points?: number; score_kind?: string }) =>
-      quality && entry.points !== undefined
+    // A measure's text (V, S) comes from the backend already worded and has no leading "points"
+    const entryText = (entry: { text: string; points?: number; score_kind?: string; score_type?: string }) =>
+      quality && entry.points !== undefined && !(entry.score_type && data?.score_measures?.[entry.score_type])
         ? `${describeQualityLogEntry({ points: entry.points, score_kind: entry.score_kind }).text} ${entry.text.replace(/^\S+ points /, '')}`
         : entry.text;
     const numericValue = Number(mode === 'percentage' ? percentage : points);

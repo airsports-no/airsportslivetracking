@@ -93,7 +93,12 @@ from display.services.contestant_persistence import (
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.route_compatibility import assert_route_compatible_with_task_type
 from display.services.task_compiler import TaskCompiler
-from display.services.task_scoring import scoring_parameters, task_scores_are_provisional, validate_task_value
+from display.services.task_scoring import (
+    score_measures,
+    scoring_parameters,
+    task_scores_are_provisional,
+    validate_task_value,
+)
 from display.utilities.task_types import (
     QMAX_POLICIES,
     SCORING_MODELS,
@@ -2565,6 +2570,11 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     task_value = serializers.SerializerMethodField()
     scores_provisional = serializers.SerializerMethodField()
     qmax_absolute_reference = serializers.SerializerMethodField()
+    score_measures = serializers.SerializerMethodField()
+
+    def get_score_measures(self, obj) -> dict:
+        """The score types whose log entries are a measure (V, S) and not points of Q, and how to show them."""
+        return score_measures(stored_task_type(obj))
 
     def get_qmax_absolute_reference(self, obj) -> Optional[float]:
         """For the absolute policy: the raw quality that scores the whole task value (P = task value x Q / this)."""

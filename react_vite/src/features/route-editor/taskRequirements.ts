@@ -30,6 +30,7 @@ export const REQUIREMENT_STEP_KEYS: Record<string, string> = {
   circle_exit_marker: 'circle_exit',
   duration_landing_area: 'duration_landing_area',
   landing_gate: 'landing_gate',
+  hidden_gate: 'hidden_gate',
 };
 
 // Which requirement carries the counts shown on a step when several share it.

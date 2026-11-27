@@ -39,7 +39,7 @@ function escapeHtml(text: string): string {
 /** An annotation's label on the map, in the panel's style (hud-tooltip in components/hud/hud.css). */
 function annotationLabel(
     ann: { gate: string; message: string; time: string },
-    scoreLog: { points: number; score_kind?: string | null } | null | undefined,
+    scoreLog: { points: number; score_kind?: string | null; score_type?: string | null } | null | undefined,
     timeZone: string | undefined,
     pointsArePenalties: boolean,
     scoring?: TaskScoring | null,

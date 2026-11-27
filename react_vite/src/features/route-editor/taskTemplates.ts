@@ -182,12 +182,12 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     label: '2.A2 Precision navigation',
     group: 'CIMA',
     subtype: 'precision_navigation',
-    description: 'This is a standard precision route with visible turn points. Hidden gates along the corridor are optional but recommended.',
+    description: 'This is a standard precision route with visible turn points. At least one hidden gate along the corridor is required: the task is scored on the hidden gates.',
     guideOnly: true,
-    guideSummary: 'Build the visible precision route first. Hidden gates are not required, but consider adding a few along the route corridor for spatial-precision scoring.',
+    guideSummary: 'Build the visible precision route first, then insert at least one hidden gate along the route corridor: without one every pilot scores zero.',
     steps: [
       routeStep('Build the visible route: the start point (SP) must be the first waypoint, then at least one visible turn point, and the finish point (FP) must be the last waypoint (at least three waypoints in total).'),
-      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route corridor to add spatial-precision scoring. Click a leg of the finished route to insert one there.', 'secret', 'route_waypoint', 'route_insert'),
+      pointStep('hidden_gate', 'Hidden gates', 'Insert at least one hidden gate along the route corridor: the task is scored on the hidden gates. Click a leg of the finished route to insert one there.', 'secret', 'route_waypoint', 'route_insert'),
     ],
   },
   {

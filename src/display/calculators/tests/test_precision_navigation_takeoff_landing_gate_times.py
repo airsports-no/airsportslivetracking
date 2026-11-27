@@ -57,6 +57,21 @@ class TestPrecisionNavigationTakeoffLandingGateTimes(TestCase):
                         "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
                     },
                     {
+                        # 2.A2 needs at least one hidden gate
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-hg",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 300,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.05, 60.05]},
+                    },
+                    {
                         "type": "Feature",
                         "properties": {
                             "id": "wp-2",
@@ -66,7 +81,7 @@ class TestPrecisionNavigationTakeoffLandingGateTimes(TestCase):
                             "width": 1852,
                             "isTiming": True,
                             "isPassing": True,
-                            "sequence": 1,
+                            "sequence": 2,
                         },
                         "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
                     },
@@ -80,7 +95,7 @@ class TestPrecisionNavigationTakeoffLandingGateTimes(TestCase):
                             "width": 1852,
                             "isTiming": True,
                             "isPassing": True,
-                            "sequence": 2,
+                            "sequence": 3,
                         },
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },

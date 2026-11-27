@@ -130,8 +130,8 @@ class TestRouteCompatibilityRuleset(TestCase):
         ):
             self.assertNotIn(subtype, compatible)
 
-    def test_hidden_gate_is_never_required(self):
-        # Hidden gates are optional evidence on every task type, not a structural prerequisite.
+    def test_hidden_gate_is_only_required_by_precision_navigation(self):
+        # Hidden gates are optional evidence on the other task types; 2.A2 is scored on them, so it needs one.
         route = EditableRoute.objects.create(
             name="Plain precision route",
             route={
@@ -144,9 +144,13 @@ class TestRouteCompatibilityRuleset(TestCase):
                 ],
             },
         )
-        for subtype in (PRECISION_NAVIGATION, KNOWN_CIRCUIT):
-            self.assertEqual(get_blocking_reasons(extract_route_primitives(route), subtype), [])
-            self.assertIn(subtype, get_compatible_task_subtypes(route))
+        self.assertEqual(get_blocking_reasons(extract_route_primitives(route), KNOWN_CIRCUIT), [])
+        self.assertIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route))
+        self.assertNotIn(PRECISION_NAVIGATION, get_compatible_task_subtypes(route))
+        self.assertEqual(
+            ["Precision navigation needs at least one hidden gate: the task is scored on them."],
+            get_blocking_reasons(extract_route_primitives(route), PRECISION_NAVIGATION),
+        )
 
     def test_circle_requires_all_four_markers(self):
         route = EditableRoute.objects.create(

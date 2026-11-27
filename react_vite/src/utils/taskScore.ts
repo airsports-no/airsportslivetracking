@@ -14,6 +14,18 @@ export interface TaskScoring {
     scores_provisional?: boolean | null;
     /** The absolute policy's scale: Q divided by this scores the whole task value. */
     qmax_absolute_reference?: number | null;
+    /**
+     * The score types whose log entries are a measure and not points of Q (2.A3's V, 2.A4's S), by score type, as the
+     * backend's task type registry declares them. `is_change`: each entry changes the measure ("V +1"); otherwise an
+     * entry is the value of the measure ("S = 62.4 kt").
+     */
+    score_measures?: Record<string, ScoreMeasure> | null;
+}
+
+export interface ScoreMeasure {
+    symbol: string;
+    unit: string;
+    is_change: boolean;
 }
 
 /** The parts of a contestant's track that a score is made from. */
@@ -30,6 +42,7 @@ export interface TrackScore {
 export interface LogEntryScore {
     points: number;
     score_kind?: string | null;
+    score_type?: string | null;
 }
 
 export const PROVISIONAL_HELP =
@@ -110,7 +123,9 @@ export interface LogPointsText {
  * A quality task's log entry in its own terms: raw points with their meaning ("-12 raw", "+100 raw") or the percentage
  * of the task score ("-50% of task score"). Never looks like points of the task score.
  */
-export function describeQualityLogEntry(entry: LogEntryScore): LogPointsText {
+export function describeQualityLogEntry(entry: LogEntryScore, scoring?: TaskScoring | null): LogPointsText {
+    const measure = entry.score_type ? scoring?.score_measures?.[entry.score_type] : undefined;
+    if (measure) return describeMeasureLogEntry(entry, measure);
     if (entry.score_kind === 'percentage_penalty') {
         const text = `${MINUS}${trimmedNumber(entry.points)}% of task score`;
         return { text, penalty: entry.points !== 0, title: `A percentage penalty: ${trimmedNumber(entry.points)}% of the task score is taken off after scoring` };
@@ -126,9 +141,21 @@ export function describeQualityLogEntry(entry: LogEntryScore): LogPointsText {
     };
 }
 
+/** An entry that carries a measure: "V +1" or "S = 62.4 kt", never "raw" points. */
+function describeMeasureLogEntry(entry: LogEntryScore, measure: ScoreMeasure): LogPointsText {
+    const title = `${measure.symbol} is a measure, not points of Q: it is compared with the best flight of the task`;
+    if (measure.is_change) {
+        const negative = entry.points < 0;
+        const text = entry.points === 0 ? `${measure.symbol} 0` : `${measure.symbol} ${negative ? MINUS : '+'}${trimmedNumber(Math.abs(entry.points))}`;
+        return { text, penalty: negative, title };
+    }
+    const unit = measure.unit ? ` ${measure.unit}` : '';
+    return { text: `${measure.symbol} = ${trimmedNumber(entry.points)}${unit}`, penalty: false, title };
+}
+
 /** The log entry's points as the panel and the map show them: unchanged for a penalty task. */
 export function logPointsText(entry: LogEntryScore, scoring: TaskScoring | null | undefined, pointsArePenalties: boolean): LogPointsText {
-    if (isQualityTask(scoring)) return describeQualityLogEntry(entry);
+    if (isQualityTask(scoring)) return describeQualityLogEntry(entry, scoring);
     const sign = entry.points > 0 ? '+' : '';
     return {
         text: entry.points === 0 ? '0' : `${sign}${entry.points.toFixed(0)}`,

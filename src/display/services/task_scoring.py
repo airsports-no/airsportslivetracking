@@ -138,6 +138,29 @@ def relative_term_values(scorecard, definition: TaskTypeDefinition) -> dict[str,
     return values
 
 
+def score_measures(definition: TaskTypeDefinition) -> dict[str, dict]:
+    """
+    The score types of the task type whose log entries carry a measure (V, S) and not points of Q, with how to show
+    them: {"speed_term": {"symbol": "S", "unit": "kt", "is_change": False}}. The API sends this with the task so that
+    the displays need not know the score types.
+    """
+    return {
+        term.score_type: {"symbol": term.symbol, "unit": term.unit, "is_change": term.is_change}
+        for term in definition.relative_quality_terms
+        if term.symbol
+    }
+
+
+def measure_text(definition: TaskTypeDefinition, score_type: str, points: float) -> Optional[str]:
+    """A log entry that carries a measure in the words of the catalogue ("V +1", "S = 62.4 kt"); None for other entries."""
+    measure = score_measures(definition).get(score_type)
+    if measure is None:
+        return None
+    if measure["is_change"]:
+        return f"{measure['symbol']} {points:+g}"
+    return f"{measure['symbol']} = {points:g}" + (f" {measure['unit']}" if measure["unit"] else "")
+
+
 def scoring_parameters(navigation_task) -> ScoringParameters:
     return scoring_parameters_for(navigation_task.scorecard, stored_task_type(navigation_task))
 

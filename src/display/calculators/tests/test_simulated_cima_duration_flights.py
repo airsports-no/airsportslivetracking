@@ -14,8 +14,6 @@ Tests marked xfail(strict=True) are known disagreements of the application, with
 docs/PLAN_task_scoring_reliability.md that will fix them.
 """
 
-import pytest
-
 from display.calculators.tests import catalogue_oracle as oracle
 from display.calculators.tests.cima_scenario_support import CimaScenarioCase
 from display.calculators.tests.flight_simulator import (
@@ -97,21 +95,17 @@ class DurationFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, [1000, 500])
         self.assertEqual((inside.score, outside.score), tuple(expected))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="SCENARIO GEOMETRY (the application part of N3 is fixed in S18, see "
-        "test_duration_scoring.py): the track starts on the line of the take-off gate "
-        "and stops on the line of the landing gate, so it never crosses either (the "
-        "take-off gate is missed and the landing gate with it); a flight that crosses "
-        "both is scored in test_duration_scoring.py",
-    )
     def test_an_authored_landing_gate_is_recognised(self):
         features = [
-            runway_gate_feature("takeoff", START, 0.0),
-            runway_gate_feature("landing", START, LANDING_ALONG_M, 1000.0),
+            # The track stands on START and stops at LANDING_ALONG_M: gates on those lines are never crossed, so the
+            # take-off gate is 100 m after the start and the landing gate 500 m before the stop. The aircraft crosses
+            # the landing gate at 10 kt and comes to rest 100 s later, which is what a landing looks like to the guard
+            # against overflights.
+            runway_gate_feature("takeoff", START, 100.0),
+            runway_gate_feature("landing", START, LANDING_ALONG_M - 500.0, 1000.0),
             LANDING_AREA,
         ]
         task = build(features=features)
         result = fly(task, LONG_S)
-        self.assertEqual(result.messages_of_type("gate_score")[-1].message, "passed landing gate")
+        self.assertTrue(result.messages_of_type("gate_score")[-1].message.startswith("passed landing gate"))
         self.assertTrue(result.messages_of_type("duration_airborne_time"), "the duration was never scored")

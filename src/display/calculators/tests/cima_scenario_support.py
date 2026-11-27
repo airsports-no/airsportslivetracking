@@ -63,13 +63,17 @@ class CimaScenarioCase(TestCase):
 
     task_type = PRECISION
 
-    def fly_reference_pilot(self, task=None, **track_options):
+    def fly_reference_pilot(self, task=None, declared=None, **track_options):
         """The best pilot of the task that `final_against_reference` measures against: a second pilot with the same
         declaration who flies the task perfectly. Qmax is the best Q of the task, so the application only gives the
-        pilot under test the catalogue's share when that pilot has actually flown."""
+        pilot under test the catalogue's share when that pilot has actually flown. `declared` gives the reference
+        pilot a declaration of their own, for scenarios where the pilot under test does something the best pilot does
+        not (such as flying beyond the maximum duration)."""
         task = task or self.task
         configuration = getattr(task.contestant, "contestanttaskconfiguration", None)
         declaration = dict(configuration.declaration_payload or {}) if configuration is not None else None
+        if declared is not None:
+            declaration = declared
         reference = add_contestant(task, declaration_payload=declaration or None)
         return reference.run(reference.generate_track([], **track_options))
 

@@ -213,11 +213,14 @@ class PrecisionNavigationFlightsTest(CimaScenarioCase):
 
     def test_large_timing_error_at_a_hidden_gate(self):
         self.build()
-        # 15 s, not 30: the simulator crosses HG1 29.62 s late for a requested 30, which the application (whose crossing
-        # time is about 0.2 s earlier than the simulator's) rounds to 29 s and the oracle to 30. Errors whose crossing
-        # time ends in .5 to .75 s are ambiguous between them; 15 s ends in .81.
-        result, expected = self.fly(TimeOffset("HG1", 15))
-        self.assert_final_score(result, expected, "HG1 15 s late")
+        # Moving only HG1 by 30 s changes the ground speed at the gate by a factor of about seven (the leg before it is
+        # stretched, the one after it squeezed). Both the simulator's measure of the crossing (between two samples) and
+        # the application's (over two intervals, track[-3] to track[-1]) interpolate linearly in distance across that
+        # speed step, so each is early by up to a sampling interval, and by different amounts: with 1 Hz samples the
+        # simulator says 29.62 s and the application 29.09 s for a true 30.00 s, which rounds to 30 and 29. Sampling
+        # at 4 Hz makes both errors a quarter as large (29.89 s and 29.78 s), clear of the rounding boundary.
+        result, expected = self.fly(TimeOffset("HG1", 30), interval_s=0.25, sample_offset_s=0.1)
+        self.assert_final_score(result, expected, "HG1 30 s late")
 
     def test_timing_error_beyond_emax_counts_emax(self):
         self.build()

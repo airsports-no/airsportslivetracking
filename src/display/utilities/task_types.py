@@ -142,6 +142,12 @@ class RelativeQualityTerm:
     score_type: str
     value: float = 0.0
     scorecard_field: str | None = None
+    # How the log shows the entry: it carries a measure, not points of Q ("V +1", "S = 62.4 kt"). `symbol` is the
+    # catalogue's letter, `unit` what the measure is in (empty for a count), and `is_change` says whether each entry is
+    # a change of the measure (V: +1 or -1 per declared point) or its value (S: the speed itself).
+    symbol: str = ""
+    unit: str = ""
+    is_change: bool = False
 
 
 # Scorecards (by shortcut_name) the task types are created from.
@@ -482,6 +488,12 @@ _DEFINITIONS = (
                 depends_on=("route_waypoints",),
                 message="Precision navigation route waypoints must start at SP and finish at FP.",
             ),
+            # The catalogue scores 2.A2 on hidden gates (Qp = Emax x Ng): without one every pilot scores 0.
+            rr.present(
+                rr.HIDDEN_GATE,
+                "Hidden gates",
+                message="Precision navigation needs at least one hidden gate: the task is scored on them.",
+            ),
         ),
         declaration_schema_key=PRECISION_NAVIGATION,
         declaration_required=True,
@@ -555,7 +567,7 @@ _DEFINITIONS = (
             time_gate_is_worth_emax=True,
             declared_points_count_in_v=True,
         ),
-        relative_quality_terms=(RelativeQualityTerm(CONTRACT_POINTS_SCORE_TYPE, value=1000.0),),
+        relative_quality_terms=(RelativeQualityTerm(CONTRACT_POINTS_SCORE_TYPE, value=1000.0, symbol="V", is_change=True),),
         general_map_shows_backbone_only=True,
         gate_times_from_declared_period=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "ContractNavigationStrategy",
@@ -581,7 +593,7 @@ _DEFINITIONS = (
         repeated_hidden_gate_crossing_invalidates=True,
         scores_speed_keeping=True,
         # Qv = Vs x S / Smax; Vs is briefed, in the scorecard (0: no speed term)
-        relative_quality_terms=(RelativeQualityTerm(SPEED_TERM_SCORE_TYPE, scorecard_field="speed_term_value"),),
+        relative_quality_terms=(RelativeQualityTerm(SPEED_TERM_SCORE_TYPE, scorecard_field="speed_term_value", symbol="S", unit="kt"),),
         observation_photos_award_points=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "KnownCircuitStrategy",
     ),

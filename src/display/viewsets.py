@@ -239,7 +239,13 @@ from display.services.route_compatibility import (
 )
 from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
 from display.services.task_compiler import TaskCompiler
-from display.services.task_scoring import quality_track_fields, scoring_parameters, scoring_parameters_for
+from display.services.task_scoring import (
+    measure_text,
+    quality_track_fields,
+    score_measures,
+    scoring_parameters,
+    scoring_parameters_for,
+)
 from display.services.task_templates import (
     no_compatible_task_types_message,
     normalize_task_template_selection,
@@ -4335,13 +4341,17 @@ class ContestantViewSet(ModelViewSet):
         )
         distances = {waypoint.name: waypoint.distance_previous / 1852 for waypoint in rendered_waypoints}
         log: dict[str, list] = {}
+        task_type = stored_task_type(contestant.navigation_task)
         for item in contestant.scorelogentry_set.all().order_by("time"):
+            # A measure (2.A3 V, 2.A4 S) is not points: "V +1", "S = 62.4 kt"
+            measure = measure_text(task_type, item.score_type, item.points)
             log.setdefault(item.gate, []).append(
                 {
                     "pk": item.pk,
-                    "text": f"{item.points} points {item.message}",
+                    "text": f"{measure} {item.message}" if measure else f"{item.points} points {item.message}",
                     "points": item.points,
                     "score_kind": item.score_kind,
+                    "score_type": item.score_type,
                 }
             )
         actual_times = {item.gate: item.time for item in contestant.actualgatetime_set.all()}
@@ -4379,6 +4389,7 @@ class ContestantViewSet(ModelViewSet):
                 "scoring_model": scoring.model,
                 "qmax_policy": scoring.qmax_policy,
                 "task_value": scoring.task_value,
+                "score_measures": score_measures(task_type),
             }
         )
 

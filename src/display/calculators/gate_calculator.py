@@ -866,7 +866,7 @@ class GateCalculator(Calculator):
             wrong_direction = event.gate.name in self._wrong_direction_hidden_gates
             if self.catalogue_quality:
                 self._score_declared_point_not_flown(
-                    event.gate, event.position, event_time, "declared point not flown or not in order (V -1)"
+                    event.gate, event.position, event_time, "declared point not flown or not in order"
                 )
                 if wrong_direction:
                     # Timed from its only crossing, the one against the route.
@@ -930,7 +930,7 @@ class GateCalculator(Calculator):
                 event.gate,
                 passing_position,
                 passing_time,
-                "invalid post-MP point flown before MP time (declared point not flown, V -1)",
+                "invalid post-MP point flown before MP time (declared point not flown)",
             )
             return
 
@@ -993,7 +993,7 @@ class GateCalculator(Calculator):
                 gate,
                 self.catalogue_quality.v_gain(gate),
                 CONTRACT_POINTS_SCORE_TYPE,
-                "declared point flown in order (V +1)",
+                "declared point flown in order",
                 INFORMATION,
                 time_override=passing_time,
                 kind=ACHIEVEMENT,

@@ -118,7 +118,7 @@ export interface GateTimesResponse {
   rendered_waypoints: string[];
   distances: Record<string, number>;
   total_distance: number;
-  log: Record<string, { pk: number; text: string; points?: number; score_kind?: string }[]>;
+  log: Record<string, { pk: number; text: string; points?: number; score_kind?: string; score_type?: string }[]>;
   planned_times: Record<string, string>;
   actual_times: Record<string, string>;
   can_apply_quarantine_penalty: boolean;
@@ -126,6 +126,8 @@ export interface GateTimesResponse {
   scoring_model?: string;
   qmax_policy?: string;
   task_value?: number;
+  /** The score types whose entries are a measure (V, S) and not points of Q; see utils/taskScore.ts. */
+  score_measures?: Record<string, { symbol: string; unit: string; is_change: boolean }>;
   administrative_penalty_categories: Record<string, AdministrativePenaltyCategory>;
   compiled_fuel_review: {
     declared_endurance_minutes?: number;

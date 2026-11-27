@@ -119,6 +119,7 @@ def waypoint_copy(geojson: dict, name: str, new_name: str, sequence: int, **prop
 
 
 PRECISION_ROUTE = precision_route_geojson()
+HIDDEN_GATE_ROUTE = precision_route_geojson(hidden_gates={1: [0.5]})
 CURVED_ROUTE = precision_route_geojson(curved=["TP1"])
 CONTRACT_ROUTE = contract_route_geojson(catalogue={"A": (5000.0, 1000.0)})
 UNKNOWN_LEGS_ROUTE = precision_route_geojson(unknown_legs=EXTENSION)
@@ -166,7 +167,7 @@ def unknown_legs_with_two_waypoints() -> dict:
 
 
 def precision_with_two_waypoints() -> dict:
-    return without(without(PRECISION_ROUTE, name="TP1"), name="TP2")
+    return without(without(HIDDEN_GATE_ROUTE, name="TP1"), name="TP2")
 
 
 def with_dummy_branch_removed() -> dict:
@@ -200,16 +201,17 @@ CASES = {
         },
     ),
     PRECISION_NAVIGATION: (
-        PRECISION_ROUTE,
+        HIDDEN_GATE_ROUTE,
         {
-            "route_path": [without(PRECISION_ROUTE, feature_type="route_path")],
+            "route_path": [without(HIDDEN_GATE_ROUTE, feature_type="route_path")],
             "route_waypoints": [
-                without(PRECISION_ROUTE, feature_type="route_waypoint"),
-                precision_with_two_waypoints(),
+                without(HIDDEN_GATE_ROUTE, feature_type="route_waypoint"),
+                without(precision_with_two_waypoints(), name="HG1"),
             ],
+            "hidden_gate": [PRECISION_ROUTE, without(HIDDEN_GATE_ROUTE, name="HG1")],
             "route_waypoint_order": [
-                with_properties(PRECISION_ROUTE, "FP", pointType="tp"),
-                with_properties(PRECISION_ROUTE, "SP", pointType="tp"),
+                with_properties(HIDDEN_GATE_ROUTE, "FP", pointType="tp"),
+                with_properties(HIDDEN_GATE_ROUTE, "SP", pointType="tp"),
             ],
         },
     ),
@@ -286,7 +288,11 @@ for _legacy_corridor in (LEGACY_ANR_CORRIDOR, LEGACY_AIRSPORTS, LEGACY_AIRSPORT_
 
 
 # A route without waypoints has no curved leg either: for these the requirement cannot be broken on its own.
-ALSO_UNMET = {(CURVE_NAVIGATION_TIME_ESTIMATION, "route_waypoint"): {"curved_leg"}}
+# The hidden gates of 2.A2 are route waypoints too: without waypoints there is no hidden gate either.
+ALSO_UNMET = {
+    (CURVE_NAVIGATION_TIME_ESTIMATION, "route_waypoint"): {"curved_leg"},
+    (PRECISION_NAVIGATION, "route_waypoints"): {"hidden_gate"},
+}
 
 
 def route_of(geojson: dict) -> EditableRoute:
@@ -372,8 +378,10 @@ class TestTheGapsThisSliceCloses(TestCase):
     def test_a_route_without_a_curved_leg_is_not_curve_navigation(self):
         straight = route_of(PRECISION_ROUTE)
         compatible = get_compatible_task_subtypes(straight)
-        for key in (LEGACY_PRECISION, PRECISION_NAVIGATION, KNOWN_CIRCUIT, ANR_CATALOGUE):
+        for key in (LEGACY_PRECISION, KNOWN_CIRCUIT, ANR_CATALOGUE):
             self.assertIn(key, compatible)
+        self.assertNotIn(PRECISION_NAVIGATION, compatible)
+        self.assertIn(PRECISION_NAVIGATION, get_compatible_task_subtypes(route_of(HIDDEN_GATE_ROUTE)))
         self.assertNotIn(CURVE_NAVIGATION_TIME_ESTIMATION, compatible)
         self.assertIn(CURVE_NAVIGATION_TIME_ESTIMATION, get_compatible_task_subtypes(route_of(CURVED_ROUTE)))
 
@@ -574,6 +582,7 @@ class TestRequirementKeysSharedWithTheRouteEditor(TestCase):
         "curved_leg",
         "dummy_waypoint",
         "duration_landing_area",
+        "hidden_gate",
         "known_time_gate",
         "landing_gate",
         "route_path",

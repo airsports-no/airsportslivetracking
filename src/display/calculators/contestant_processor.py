@@ -15,10 +15,12 @@ from display.calculators.update_score_message import PERCENTAGE_PENALTY, UpdateS
 from display.models.contestant_track import ContestantTrack
 from display.services.task_scoring import (
     initial_track_score,
+    measure_text,
     refresh_contestant_quality,
     scoring_parameters,
     signed_contribution,
 )
+from display.utilities.task_types import stored_task_type
 from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
 from display.utilities.calculator_termination_utilities import is_termination_requested
 from display.utilities.tracking_definitions import TrackingService
@@ -842,9 +844,18 @@ class ContestantProcessor:
         if is_percentage:
             string = "{}: {}".format(update_score_message.gate.name, update_score_message.message)
         else:
-            string = "{}: {} points {}".format(
-                update_score_message.gate.name, display_score, update_score_message.message
+            # A measure (2.A3 V, 2.A4 S) is not points: "V +1", "S = 62.4 kt"
+            measure = (
+                measure_text(stored_task_type(self.contestant.navigation_task), update_score_message.score_type, logged_points)
+                if parameters.is_quality
+                else None
             )
+            if measure:
+                string = "{}: {} {}".format(update_score_message.gate.name, measure, update_score_message.message)
+            else:
+                string = "{}: {} points {}".format(
+                    update_score_message.gate.name, display_score, update_score_message.message
+                )
         times_string = ""
         if update_score_message.planned and update_score_message.actual:
             times_string = "planned: {}\nactual: {}".format(planned_time, actual_time)

@@ -106,6 +106,38 @@ describe('score log entries', () => {
     });
 });
 
+describe('score log entries that carry a measure', () => {
+    // As the backend sends them with the task (the registry's relative quality terms)
+    const scoring = {
+        scoring_model: 'quality',
+        score_measures: {
+            contract_points: { symbol: 'V', unit: '', is_change: true },
+            speed_term: { symbol: 'S', unit: 'kt', is_change: false },
+        },
+    };
+    it('shows the declared points as a change of V', () => {
+        expect(logPointsText({ points: 1, score_kind: 'achievement', score_type: 'contract_points' }, scoring, false)).toMatchObject({ text: 'V +1', penalty: false });
+        expect(logPointsText({ points: -1, score_kind: 'penalty', score_type: 'contract_points' }, scoring, false)).toMatchObject({ text: 'V −1', penalty: true });
+    });
+    it('shows the speed as a value in knots', () => {
+        const shown = logPointsText({ points: 62.4, score_kind: 'achievement', score_type: 'speed_term' }, scoring, false);
+        expect(shown).toMatchObject({ text: 'S = 62.4 kt', penalty: false });
+        expect(shown.title).toContain('not points of Q');
+    });
+    it('does not call a measure raw points', () => {
+        for (const entry of [{ points: 1, score_type: 'contract_points' }, { points: 62.4, score_type: 'speed_term' }]) {
+            expect(logPointsText(entry, scoring, false).text).not.toContain('raw');
+        }
+    });
+    it('leaves every other entry, and a task that declares no measures, as raw points', () => {
+        expect(logPointsText({ points: 60, score_kind: 'achievement', score_type: 'duration_score' }, scoring, false).text).toBe('+60 raw');
+        expect(logPointsText({ points: 1, score_kind: 'achievement', score_type: 'contract_points' }, quality, false).text).toBe('+1 raw');
+    });
+    it('is not applied to a task of the penalty model', () => {
+        expect(logPointsText({ points: 1, score_type: 'contract_points' }, { ...scoring, scoring_model: 'penalties' }, true).text).toBe('+1');
+    });
+});
+
 describe('the arithmetic of a score', () => {
     const tracks = [
         { calculator_started: true, raw_quality: 812, score: 437, percentage_penalty: 50 },

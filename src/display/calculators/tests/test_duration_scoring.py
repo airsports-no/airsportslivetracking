@@ -8,14 +8,19 @@ the catalogue oracle.
 from display.calculators.tests import catalogue_oracle as oracle
 from display.calculators.tests.cima_scenario_support import CimaScenarioCase
 from display.calculators.tests.flight_simulator import (
+    KNOT_IN_MS,
+    Knot,
+    Plan,
     add_contestant,
     build_task,
     duration_flight,
     landing_area_feature,
     local_point,
     runway_gate_feature,
+    sample_plan,
 )
 from display.calculators.update_score_message import ACHIEVEMENT, PERCENTAGE_PENALTY
+from display.utilities.coordinate_utilities import Projector
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Scorecard
 from display.utilities.task_types import CIMA_DURATION_SCORECARD, DURATION, TASK_TYPE_REGISTRY
@@ -154,3 +159,88 @@ class DurationLandingRecognitionTest(CimaScenarioCase):
         self.assertAlmostEqual(flown_s, (message.actual - message.planned).total_seconds(), delta=1.0)
         self.assertAlmostEqual(flown_s / 60, result.messages_of_type("duration_score")[0].score, delta=1.0 / 60)
         self.assertEqual(1000, result.score)
+
+
+class LandingGateOverflightTest(CimaScenarioCase):
+    """The authored landing gate of 2.B3 ends the flight only when the aircraft lands at it: an overflight at cruise
+    speed, or slowly into wind, must not end the duration."""
+
+    TAKEOFF_ALONG, GATE_ALONG = 100.0, 6000.0
+    CRUISE_KT, SLOW_KT = 80.0, 30.0
+
+    def task(self):
+        features = [
+            runway_gate_feature("takeoff", START, self.TAKEOFF_ALONG),
+            runway_gate_feature("landing", START, self.GATE_ALONG, 1000.0),
+            LANDING_AREA,
+        ]
+        return build(features=features)
+
+    def track(self, task, legs):
+        """`legs` are (x metres east of START, speed kt) knots after take-off at x=0; the aircraft stands still before
+        take-off and after the last knot."""
+        projector = Projector(*START)
+        knots = [Knot(0.0, 0.0, -90.0), Knot(0.0, 0.0, 0.0)]
+        for x, speed_kt in legs:
+            previous = knots[-1]
+            knots.append(Knot(x, 0.0, previous.t + abs(x - previous.x) / (speed_kt * KNOT_IN_MS)))
+        knots.append(Knot(knots[-1].x, 0.0, knots[-1].t + 90.0))
+        return sample_plan(Plan(knots, projector, task.contestant.takeoff_time)), knots
+
+    def landing_time(self, result):
+        (message,) = result.messages_of_type("duration_airborne_time")
+        return (message.actual - message.planned).total_seconds()
+
+    def test_an_overflight_at_cruise_speed_does_not_end_the_flight(self):
+        task = self.task()
+        # It comes to rest 20 km (about eight minutes) past the gate. A gate is authored, so nothing is inferred from
+        # the speed: the landing gate is the only thing that could have ended the flight, and it did not.
+        positions, _ = self.track(task, [(self.GATE_ALONG + 20000.0, self.CRUISE_KT)])
+        result = task.run(positions)
+        self.assertEqual([], result.messages_of_type("duration_airborne_time"))
+        self.assertEqual([], result.messages_of_type("duration_score"))
+
+    def test_a_slow_overflight_into_wind_that_flies_on_does_not_end_the_flight(self):
+        task = self.task()
+        positions, _ = self.track(task, [(self.GATE_ALONG + 30000.0, self.SLOW_KT)])
+        result = task.run(positions[:-100])
+        self.assertEqual([], result.messages_of_type("duration_airborne_time"))
+
+    def test_a_landing_through_the_gate_ends_the_flight_at_the_crossing(self):
+        task = self.task()
+        # Cruise, approach at 35 kt through the gate, roll out 100 m further and stop.
+        positions, knots = self.track(
+            task, [(self.GATE_ALONG - 1000.0, self.CRUISE_KT), (self.GATE_ALONG + 100.0, 35.0)]
+        )
+        result = task.run(positions)
+        crossing_s = knots[2].t + 1000.0 / (35.0 * KNOT_IN_MS)
+        self.assertAlmostEqual(crossing_s, self.landing_time(result), delta=1.5)
+        self.assertTrue(result.messages_of_type("gate_score")[-1].message.startswith("passed landing gate"))
+
+    def test_an_overflight_followed_by_a_landing_through_the_gate_gets_the_later_time(self):
+        task = self.task()
+        gate, cruise = self.GATE_ALONG, self.CRUISE_KT * KNOT_IN_MS
+        # Over the gate at cruise speed, a wide loop to the north (clear of the gate line) and back to approach it
+        # again at 35 kt, landing 100 m beyond it.
+        points = [
+            (0.0, 0.0),
+            (gate + 500.0, 0.0),
+            (gate + 500.0, 6000.0),
+            (gate - 1500.0, 6000.0),
+            (gate - 1000.0, 0.0),
+        ]
+        knots = [Knot(0.0, 0.0, -90.0)]
+        t = 0.0
+        for index, (x, y) in enumerate(points):
+            if index:
+                t += ((x - points[index - 1][0]) ** 2 + (y - points[index - 1][1]) ** 2) ** 0.5 / cruise
+            knots.append(Knot(x, y, t))
+        first_crossing_s = knots[2].t - 500.0 / cruise
+        approach = 35.0 * KNOT_IN_MS
+        gate_time = t + 1000.0 / approach
+        knots.append(Knot(gate, 0.0, gate_time))
+        knots.append(Knot(gate + 100.0, 0.0, gate_time + 100.0 / approach))
+        knots.append(Knot(gate + 100.0, 0.0, knots[-1].t + 90.0))
+        result = task.run(sample_plan(Plan(knots, Projector(*START), task.contestant.takeoff_time)))
+        self.assertAlmostEqual(gate_time, self.landing_time(result), delta=1.5)
+        self.assertGreater(self.landing_time(result), first_crossing_s + 100.0)

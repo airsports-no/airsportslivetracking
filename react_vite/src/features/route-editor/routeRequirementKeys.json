@@ -9,6 +9,7 @@
     "curved_leg",
     "dummy_waypoint",
     "duration_landing_area",
+    "hidden_gate",
     "known_time_gate",
     "landing_gate",
     "route_path",
