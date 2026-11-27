@@ -84,6 +84,14 @@ export interface ContestTeam {
 export interface ContestResults {
   summary_score_sorting_direction: string;
   autosum_scores?: boolean;
+  /** 'sum_of_scores' (default, absent from older servers) or 'standings_points' */
+  overall_result_method?: string;
+  /** Places and points per task when the overall result is made from standings points, else null */
+  standings_points?: {
+    points_table: number[];
+    ranks: Record<string, number>;
+    tasks: Record<string, Record<string, { place: number; points: number }>>;
+  } | null;
   contestsummary_set: ContestSummary[];
   task_set: Task[];
   contest_teams: ContestTeam[];
@@ -278,6 +286,17 @@ export const mergeTestScoring = (results: ContestResults, fresh: ContestResults)
   };
 };
 
+/**
+ * The standings points and overall results of `fresh` in `results`: a score changes the places of the other teams, which
+ * a score update does not say.
+ */
+export const mergeStandingsPoints = (results: ContestResults, fresh: ContestResults): ContestResults => ({
+  ...results,
+  overall_result_method: fresh.overall_result_method,
+  standings_points: fresh.standings_points,
+  contestsummary_set: fresh.standings_points ? fresh.contestsummary_set || results.contestsummary_set : results.contestsummary_set,
+});
+
 /** Whether the test of the results is linked to a task of the quality model, whose scores depend on the other flights. */
 export const isQualityTest = (results: ContestResults, testId: number | undefined): boolean =>
   testId !== undefined &&
@@ -340,7 +359,10 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
     if (message.type === 'score.update') {
       const update = message as ScoreUpdateMessage;
       set({ results: applyScoreUpdate(currentResults, update) });
-      if (isQualityTest(currentResults, update.task_test_id ?? update.test_score?.task_test)) {
+      if (
+        currentResults.overall_result_method === 'standings_points' ||
+        isQualityTest(currentResults, update.task_test_id ?? update.test_score?.task_test)
+      ) {
         get().scheduleScoringRefresh();
       }
     }
@@ -358,7 +380,10 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
         if (!response.ok) return;
         const fresh = await response.json();
         const latest = get().results;
-        if (latest) set({ results: mergeTestScoring(latest, fresh) });
+        if (latest) {
+          const merged = mergeTestScoring(latest, fresh);
+          set({ results: latest.overall_result_method === 'standings_points' ? mergeStandingsPoints(merged, fresh) : merged });
+        }
       } catch {
         // The table is still right about the scores; only the provisional note may be a moment old
       }

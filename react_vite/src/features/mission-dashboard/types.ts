@@ -37,6 +37,8 @@ export interface Contest {
     organizing_club?: number | null;
     summary_score_sorting_direction: string;
     autosum_scores: boolean;
+    overall_result_method?: 'sum_of_scores' | 'standings_points';
+    standings_points_table?: number[];
     name: string;
     location: string;
     start_time: string;

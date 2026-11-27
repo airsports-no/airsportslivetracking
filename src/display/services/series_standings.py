@@ -177,7 +177,7 @@ def load_legs(series: Series) -> tuple[list[LegResults], dict]:
     display: dict[tuple, dict] = {}
     for link in SeriesContest.objects.filter(series=series).select_related("contest"):
         contest = link.contest
-        highest_wins = contest.summary_score_sorting_direction == contest.DESCENDING
+        highest_wins = contest.overall_sorting_direction == contest.DESCENDING
         scores: dict[tuple, float] = {}
         registered: set[tuple] = set()
         for contest_team in ContestTeam.objects.filter(contest=contest).select_related(

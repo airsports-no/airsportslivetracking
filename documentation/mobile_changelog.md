@@ -13,6 +13,10 @@ that says what a pilot, an organiser or an admin gets.
 
 ## Changes after the initial development
 
+### 2026-11-28
+#### Backend
+- **Overall result by standings points (additive):** a contest has `overall_result_method` (`sum_of_scores` default, `standings_points`) and `standings_points_table` (points for first, second, third… place in a task); with standings points `ContestSummary.points` is the sum of the points for the place in each task (highest total wins, `summary_score_sorting_direction` is then reported as `desc`), and `results_details` gains `standings_points` (`null` otherwise; else `points_table`, `ranks` by team id with countback, and `tasks` by task id then team id with `place` and `points`); contests left on the default are unchanged (migration `0219`).
+
 ### 2026-11-27
 #### Backend
 - **Air Sport Challenge tasks are now created with the Annex 9 scorecard (no API change):** a new scorecard "Air Sport Challenge 2025 (Annex 9)" (`shortcut_name` `Air Sport Challenge 2025`, family `airsportchallenge`) is listed first for the family in `/api/v1/scorecards/choices/`; existing tasks and "Air Sport Challenge 2023" are unchanged.

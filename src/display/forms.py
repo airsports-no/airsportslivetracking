@@ -42,6 +42,7 @@ from display.models import (
     Club,
 )
 
+from display.models.contest import default_standings_points_table
 from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES, SCORECARD_CONFIG_FIELDS
 from display.models.user_uploaded_map import validate_file_size
 from display.models.my_user import MyUser
@@ -408,6 +409,13 @@ class ContestForm(forms.ModelForm):
         model = Contest
         exclude = ("contest_teams", "is_featured", "is_public", "latitude", "longitude", "country")
 
+    def clean_overall_result_method(self):
+        return self.cleaned_data.get("overall_result_method") or Contest.SUM_OF_SCORES
+
+    def clean_standings_points_table(self):
+        table = self.cleaned_data.get("standings_points_table")
+        return default_standings_points_table() if table is None else table
+
     def __init__(self, *args, **kwargs):
         token_grant_queryset = kwargs.pop("token_grant_queryset", UserTokenGrant.objects.none())
         managed_club_queryset = kwargs.pop("managed_club_queryset", Club.objects.none())
@@ -421,6 +429,9 @@ class ContestForm(forms.ModelForm):
         ].help_text = "Assign a token immediately when creating the contest. Spent tokens are never restored."
         self.fields["organizing_club"].queryset = managed_club_queryset
         self.fields["organizing_club"].required = False
+        # A post that does not mention the overall result (older pages, API clients of the form) keeps the defaults
+        self.fields["overall_result_method"].required = False
+        self.fields["standings_points_table"].required = False
         datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
         self.fields["start_time"].widget = datetime_widget
         self.fields["finish_time"].widget = datetime_widget
@@ -446,6 +457,8 @@ class ContestForm(forms.ModelForm):
                 "initial_token_grant",
                 "summary_score_sorting_direction",
                 "autosum_scores",
+                "overall_result_method",
+                "standings_points_table",
             ),
             ButtonHolder(Submit("submit", "Submit")),
         )

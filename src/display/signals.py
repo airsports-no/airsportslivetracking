@@ -229,8 +229,46 @@ def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
         pass
 
 
+@receiver(pre_save, sender=Contest)
+def remember_overall_result_settings(sender, instance: Contest, **kwargs):
+    instance._overall_result_before_save = (
+        Contest.objects.filter(pk=instance.pk).values_list("overall_result_method", "standings_points_table").first()
+        if instance.pk
+        else None
+    )
+
+
+@receiver(post_save, sender=Contest)
+def recompute_overall_result_on_contest_change(sender, instance: Contest, created=False, **kwargs):
+    """Changing the method or the points table changes every overall result, so they are all written again."""
+    if created or kwargs.get("raw"):
+        return
+    before = getattr(instance, "_overall_result_before_save", None)
+    now = (instance.overall_result_method, instance.standings_points_table)
+    if before is None or tuple(before) == now or not instance.autosum_scores:
+        return
+    if instance.overall_result_method == Contest.STANDINGS_POINTS:
+        from display.services.contest_standings_points import recompute_contest_summaries
+
+        recompute_contest_summaries(instance)
+        return
+    for contest_summary in ContestSummary.objects.filter(contest=instance):
+        contest_summary.contest = instance
+        contest_summary._skip_results_broadcast = True
+        contest_summary.update_sum()
+    from display.services.contest_standings_points import announce_results
+
+    announce_results(instance)
+
+
 @receiver(pre_delete, sender=Task)
 def update_contest_summary_on_task_delete(sender, instance: Task, **kwargs):
+    if instance.contest.overall_result_method == Contest.STANDINGS_POINTS:
+        # One recomputation for all teams (the task and its results are gone from it by the post_delete signals)
+        from display.services.contest_standings_points import recompute_contest_summaries
+
+        recompute_contest_summaries(instance.contest, exclude_task_id=instance.pk)
+        return
     for contest_summary in ContestSummary.objects.filter(contest=instance.contest):
         contest_summary.update_sum()
 

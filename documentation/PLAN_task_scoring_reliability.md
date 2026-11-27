@@ -191,6 +191,8 @@ Also gives the measure entries of 2.A3 (V) and 2.A4 (S) their own wording in the
 - S26: Air Sport Challenge on the Annex 9 scorecard (D7).
 - S27: dropped. No route-to-SP / route-from-FP check for Air Sports Race, and the route editor will not draw those paths.
 - S28: overall result by standings points (25/20/16/…) as a contest option.
+Status 2026-11-28: S26, S28 and S29 are done (full backend suite: 3143 passed, 2 expected failures).
+
 - S29: rule alignment left to the implementer's judgment: 2.A4/2.A5 hidden gate value 100 (the catalogue's typical Vh),
   2.A7 "CM outside the circle" scores 100%, 2.A1 Tmax can be set in the web pages.
 

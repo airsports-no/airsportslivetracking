@@ -1564,7 +1564,7 @@ class ContestViewSet(DeleteWhileCalculatorsRunMixin, ContestSquadronsMixin, Mode
             "team", "team__crew__member1", "team__crew__member2"
         ).order_by("points")
 
-        if contest.summary_score_sorting_direction == Contest.DESCENDING:
+        if contest.overall_sorting_direction == Contest.DESCENDING:
             summaries = summaries.order_by("-points")
         else:
             summaries = summaries.order_by("points")

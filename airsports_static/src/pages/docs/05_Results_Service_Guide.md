@@ -359,6 +359,25 @@ Then:
 
 `Contest Summary = (120×1.0) + (60×0.5) = 120 + 30 = 150`
 
+### 8.3 Overall result by standings points
+
+Some rules do not add the task scores. FAI Sporting Code Section 10, Annex 9 (Air Sport Race), 6.7.7, gives an example: each task gives points for the place in it, 25 for first, 20 for second, 16 for third and so on. The points are added up and the highest total wins. The annex gives this as an example, so your local rules decide whether to use it and which points to give.
+
+To use it, open the contest settings and set **Overall result** to **Standings points per task placing**. Then edit the points table. Give the points for first place, second place and so on, separated by commas. Places beyond the end of the table get no points. The default table is 25, 20, 16, 13, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1.
+
+How it works:
+
+- Each task is ranked by its own rule. In a task where the highest score wins, the highest score is first. In a task where the lowest score wins, the lowest is first.
+- Teams with the same score share a place. The next place is skipped, so two teams in first place are followed by a team in third place.
+- A team with no result in a task gets no points for it.
+- The task weights are not used. Each task counts once.
+- Teams with the same total are separated by countback. The team with more first places wins, then the team with more second places, and so on.
+- The sorting direction setting does not apply. The highest total always wins.
+
+The results table shows the points total in the overall column. Each task column shows the score, the place and the points, for example "1,120 · 2nd · 20 p". A line above the table explains the method. A change of one team's score can change the places, and so the points, of the other teams. The table updates for all teams.
+
+This works with **Automatically sum scores across tasks**. If you turn it off, you edit the overall result by hand, as before. For CIMA tasks the scores can still be provisional while flights are in progress, and the overall result follows them. Go back to **Sum of task scores** at any time. The overall result is then calculated again.
+
 ---
 
 ## 9. Understanding the Weighting System

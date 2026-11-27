@@ -72,6 +72,8 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_available_map_source_definitions_for_navigation_task,
     validate_map_zoom_level,
 )
+from display.models.contest import validate_points_table
+from display.services.contest_standings_points import standings_points_details
 from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import (
@@ -1055,6 +1057,12 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             )
         except:
             pass
+        method = validated_data.get("overall_result_method", getattr(self.instance, "overall_result_method", None))
+        table = validated_data.get("standings_points_table", getattr(self.instance, "standings_points_table", None))
+        if method == Contest.STANDINGS_POINTS and not table:
+            raise serializers.ValidationError(
+                {"standings_points_table": "An overall result by standings points needs a points table."}
+            )
         return validated_data
 
     class Meta:
@@ -1065,6 +1073,13 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     def validate_is_public(self, value):
         if not value and self.instance is not None:
             assert_contest_can_be_private(self.instance)
+        return value
+
+    def validate_standings_points_table(self, value):
+        try:
+            validate_points_table(value)
+        except CoreValidationError as e:
+            raise serializers.ValidationError(e.messages)
         return value
 
     def get_permissions_map(self, created):
@@ -3084,6 +3099,18 @@ class ContestResultsDetailsSerialiser(CountryFieldMixin, serializers.ModelSerial
     time_zone = TimeZoneSerializerField(required=True)
     permission_change_contest = serializers.BooleanField(read_only=True)
     country = CountryField(required=False)
+    # The place and the points of each team in each task when the overall result is made from standings points; null
+    # for a contest that sums its task scores
+    standings_points = serializers.SerializerMethodField()
+
+    def get_standings_points(self, contest) -> Optional[dict]:
+        return standings_points_details(contest)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Whatever the contest says, the highest total of standings points wins
+        data["summary_score_sorting_direction"] = instance.overall_sorting_direction
+        return data
 
     class Meta:
         model = Contest

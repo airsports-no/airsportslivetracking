@@ -554,3 +554,5 @@ A crossing of SP in the wrong direction costs nothing on this scorecard.
 
 - Leaving the quarantine late: **100**.
 - Not following the departure and arrival instructions at the airfield: **200**.
+
+**Overall result by standings points.** Annex 9, 6.7.7, gives an example where the overall result is made from points for the place in each task (25, 20, 16 and so on) instead of the sum of the task scores. ASLT has this as a contest option: **Overall result: Standings points per task placing**. The points table is only an example in the annex, and your local rules decide whether to use it and what the table is. You can edit the table in the contest settings. See section 8.3 of the Results Service Guide.

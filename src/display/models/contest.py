@@ -90,6 +90,19 @@ class ContestTeam(models.Model):
         return ""
 
 
+def default_standings_points_table() -> list[int]:
+    """Points for a first, second, third… place in a task when the overall result is made from standings points."""
+    return [25, 20, 16, 13, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]
+
+
+def validate_points_table(table) -> None:
+    """A points table is a list of numbers that are not negative (shared by the contest and the series)."""
+    if not isinstance(table, list) or not all(
+        isinstance(item, (int, float)) and not isinstance(item, bool) and item >= 0 for item in table
+    ):
+        raise ValidationError("The points table is a list of numbers that are not negative.")
+
+
 class Contest(models.Model):
     """
     A contest represents a flying competition that consists of a set of tasks. A contest has a time period and a
@@ -109,6 +122,25 @@ class Contest(models.Model):
     autosum_scores = models.BooleanField(
         default=True,
         help_text="If true, contest summary points for a team will be updated with the new sum when any task is updated",
+    )
+    SUM_OF_SCORES = "sum_of_scores"
+    STANDINGS_POINTS = "standings_points"
+    OVERALL_RESULT_METHODS = (
+        (SUM_OF_SCORES, "Sum of task scores"),
+        (STANDINGS_POINTS, "Standings points per task placing"),
+    )
+    overall_result_method = models.CharField(
+        max_length=20,
+        choices=OVERALL_RESULT_METHODS,
+        default=SUM_OF_SCORES,
+        help_text="How the overall result is made when scores are summed automatically: add the task scores, or give "
+        "points for the place in each task (FAI Annex 9, 6.7.7) and add the points. With standings points the highest "
+        "total always wins.",
+    )
+    standings_points_table = models.JSONField(
+        default=default_standings_points_table,
+        blank=True,
+        help_text="Points for first, second, third… place in a task. Used with standings points; later places get nothing.",
     )
     name = models.CharField(max_length=100, unique=True)
     time_zone = TimeZoneField()
@@ -221,6 +253,19 @@ class Contest(models.Model):
         if update_fields is not None and "is_public" in update_fields:
             kwargs["update_fields"] = {*update_fields, "is_featured"}
         super().save(*args, **kwargs)
+
+    @property
+    def overall_sorting_direction(self) -> str:
+        """The direction the overall result is sorted in: standings points are always won by the highest total."""
+        if self.overall_result_method == self.STANDINGS_POINTS:
+            return self.DESCENDING
+        return self.summary_score_sorting_direction
+
+    def clean(self):
+        super().clean()
+        validate_points_table(self.standings_points_table)
+        if self.overall_result_method == self.STANDINGS_POINTS and not self.standings_points_table:
+            raise ValidationError("An overall result by standings points needs a points table.")
 
     def __str__(self):
         return self.name
