@@ -19,6 +19,7 @@ from display.services.declaration_access import (
     declaration_status,
     pilot_edit_refusal,
 )
+from display.services.flight_order_status import flight_order_status
 from display.services.self_registration import send_flight_order_after_declaration, stored_declaration
 from display.utilities.task_types import DECLARATION_NOT_NEEDED, stored_task_type
 
@@ -62,11 +63,21 @@ class ContestantDeclarationViewSet(ViewSet):
                 # With an adaptive start the clock time of the start is not known before it is flown
                 "start_point_time": (None if contestant.adaptive_start else contestant.gate_time_anchor().isoformat()),
             }
+        task = contestant.navigation_task
         return Response(
             {
                 "contestant_id": contestant.pk,
+                "contest_id": task.contest_id,
+                "navigation_task_id": task.pk,
+                "contest_name": task.contest.name,
+                "navigation_task_name": task.name,
+                "time_zone": str(task.contest.time_zone),
                 "task_type": task_type.key,
                 "status": declaration_status(contestant, self.request.user),
+                # Why a pilot may only read it (the cut-off has passed), in words for the pilot
+                "read_only_reason": pilot_edit_refusal(contestant) if role == ROLE_PILOT else None,
+                # Where the flight order stands (see display.services.flight_order_status); saving a complete declaration starts it
+                "flight_order_status": flight_order_status(contestant, self.request.user),
                 "declaration_payload": (config.declaration_payload or {}) if config else {},
                 "form": form,
             }

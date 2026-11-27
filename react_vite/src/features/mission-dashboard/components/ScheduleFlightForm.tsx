@@ -3,6 +3,7 @@ import CreatableSelect from 'react-select/creatable';
 import { selectStyles } from '../../../utils/selectStyles';
 import { Contest, MyParticipatingContest, Club, Aircraft, Copilot, RegisterTeamPayload, ScheduleFlightPayload, MyContestTeam, Team } from '../types';
 import * as api from '../api';
+import { Contestant } from '../../competition-map/types';
 import { useMissionDashboardStore } from '../store';
 import PersonPicker from '../../../components/common/PersonPicker';
 import { PersonOption, personOptionFromPerson } from '../../../components/common/personOption';
@@ -44,7 +45,7 @@ interface ScheduleFlightFormProps {
     myContestTeams: MyContestTeam[];
     onClose: (warnings?: string[]) => void;
     /** Called instead of onClose after a successful registration (Cancel still uses onClose). */
-    onRegistered?: (warnings?: string[]) => void;
+    onRegistered?: (warnings?: string[], contestant?: Contestant) => void;
 }
 
 const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, navigationTaskId, myContestTeams, onClose, onRegistered }) => {
@@ -236,12 +237,9 @@ const ScheduleFlightForm: React.FC<ScheduleFlightFormProps> = ({ contest, naviga
                     ...(clientFlightMode || !flightMode ? {} : { flight_mode: flightMode }),
                 };
                 const result = await api.scheduleFlight(contest.id, navigationTaskId, schedulePayload);
-                const done = onRegistered ?? onClose;
-                if (result && result.overlap_warnings && result.overlap_warnings.length > 0) {
-                    done(result.overlap_warnings);
-                } else {
-                    done();
-                }
+                const warnings = result?.overlap_warnings?.length ? result.overlap_warnings : undefined;
+                if (onRegistered) onRegistered(warnings, result);
+                else onClose(warnings);
             } else {
                 setError("Failed to obtain contest team ID for scheduling flight.");
                 console.error("Failed to obtain contest team ID for scheduling flight:");

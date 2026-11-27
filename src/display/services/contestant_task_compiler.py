@@ -202,7 +202,12 @@ class ContractNavigationStrategy(ContestantTaskCompilerStrategy):
 
     def declaration_form(self, compiled_task) -> dict:
         names = compiled_task.get_compiled_primitives().get("catalogue_turnpoint", [])
-        return {"mandatory_points": ["SP", "MP", "FP"], "turnpoints": [name for name in names if isinstance(name, str)]}
+        return {
+            "mandatory_points": ["SP", "MP", "FP"],
+            "turnpoints": [name for name in names if isinstance(name, str)],
+            # The period T (declared_t_seconds) is asked for besides the sequence
+            "asks_for_period": True,
+        }
 
     def build_effective_route_payload(self, compiled_task, declaration_payload: dict) -> dict:
         declared_sequence = declaration_payload.get("declared_sequence", [])

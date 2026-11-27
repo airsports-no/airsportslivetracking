@@ -203,6 +203,10 @@ export interface Contestant {
   progress?: number;
   last_position_received_at?: number;
   latest_emaillink?: { url: string; created_at: string };
+  /** Own flights (the lists of my flights): what is to declare and where the flight order stands, see features/pilot-declaration */
+  declaration_status?: import('../pilot-declaration/types').DeclarationStatus;
+  flight_order_status?: import('../pilot-declaration/types').FlightOrderStatus | null;
+  flight_order_path?: string | null;
   overlap_warnings?: string[];
   overlapping_tasks?: {
     task_id: number;

@@ -350,6 +350,17 @@ def append_cache_dict(cache_key, dict_key, value):
 def generate_and_maybe_notify_flight_order(
     contestant_pk: int, email: str, first_name: str, transmit_immediately: bool = False
 ):
+    from display.services.flight_order_status import (
+        MARKER_DONE,
+        MARKER_FAILED,
+        MARKER_QUEUED,
+        MARKER_RUNNING,
+        REASON_GENERIC,
+        REASON_TOO_LARGE,
+        read_flight_order_state,
+        record_flight_order_state,
+    )
+
     try:
         try:
             contestant = Contestant.objects.get(pk=contestant_pk)
@@ -360,6 +371,8 @@ def generate_and_maybe_notify_flight_order(
             logger.warning("Could not find contestant for contestant key {}".format(contestant_pk))
             return
         logger.info(f"Generating flight order for {contestant}")
+        started = datetime.datetime.now(datetime.timezone.utc)
+        record_flight_order_state(contestant.pk, MARKER_RUNNING)
         append_cache_dict(f"completed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, False)
         try:
             from display.flight_order_and_maps.generate_flight_orders import generate_flight_orders
@@ -369,6 +382,16 @@ def generate_and_maybe_notify_flight_order(
                 c.close_if_unusable_or_obsolete()
             contestant.emailmaplink_set.all().delete()
             mail_link = EmailMapLink.objects.create(contestant=contestant, orders=bytes(orders))
+            queued_since = read_flight_order_state(contestant.pk)
+            if (
+                queued_since
+                and queued_since["state"] == MARKER_QUEUED
+                and datetime.datetime.fromisoformat(queued_since["at"]) > started
+            ):
+                # The declaration changed while this was made and a newer flight order is queued: this one shows the old
+                # declaration, so it is not offered (or sent) and the newer run makes the real one.
+                mail_link.delete()
+                return
             if transmit_immediately:
                 mail_link.send_email(email, first_name)
         except Exception as e:
@@ -379,14 +402,17 @@ def generate_and_maybe_notify_flight_order(
         for c in connections.all():
             c.close_if_unusable_or_obsolete()
         append_cache_dict(f"completed_flight_orders_map_{contestant.navigation_task.pk}", contestant.pk, True)
+        record_flight_order_state(contestant.pk, MARKER_DONE)
     except Exception as e:
         from display.flight_order_and_maps.map_plotter import MemoryEstimationExceededError
 
         # Too heavy even at the lowest zoom: the flight order configuration, not a bug (recorded as failed above)
         if isinstance(e, MemoryEstimationExceededError):
             logger.warning(f"Flight order for contestant {contestant_pk} needs too much memory: {e}")
+            record_flight_order_state(contestant_pk, MARKER_FAILED, REASON_TOO_LARGE)
         else:
             logger.exception("Exception in generate_flight_order")
+            record_flight_order_state(contestant_pk, MARKER_FAILED, REASON_GENERIC)
 
 
 @app.task

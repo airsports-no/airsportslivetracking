@@ -22,11 +22,13 @@ from display.models import (
     Club,
     Contest,
     Contestant,
+    ContestantTaskConfiguration,
     ContestantTrack,
     ContestSummary,
     ContestTeam,
     ContestTokenAssignment,
     Crew,
+    EmailMapLink,
     EditableRoute,
     FlightOrderConfiguration,
     MyUser,
@@ -423,6 +425,20 @@ def delete_flight_order_and_gate_times_if_changed(sender, instance: Contestant, 
                 )
                 instance.predefined_gate_times = None
                 previous_version.emailmaplink_set.all().delete()
+
+
+@receiver(pre_save, sender=ContestantTaskConfiguration)
+def delete_flight_orders_of_changed_declaration(sender, instance: ContestantTaskConfiguration, **kwargs):
+    """
+    A flight order shows the declared route, so one made for an earlier declaration must not stay downloadable as if it were
+    current: it goes when the declaration changes (whoever changes it and whether or not the new one is complete). Where a new
+    one is due, the code that saved the declaration queues it (send_flight_order_after_declaration).
+    """
+    if not instance.pk:
+        return
+    previous = ContestantTaskConfiguration.objects.filter(pk=instance.pk).values_list("declaration_payload", flat=True).first()
+    if previous is not None and previous != instance.declaration_payload:
+        EmailMapLink.objects.filter(contestant_id=instance.contestant_id).delete()
 
 
 @receiver(pre_delete, sender=Contestant)

@@ -181,3 +181,14 @@ class TestSelfRegistrationDeclarationFlightOrder(TestCase):
         self.navigation_task.save(update_fields=["task_subtype"])
         contestant = self._self_register()
         flight_order.assert_called_once_with((contestant.pk, self.user.email, "Declaring", True))
+
+    def test_the_declaration_page_is_told_to_ask_for_the_period_(self, *_args):
+        contestant = self._self_register()
+        response = self.client.get(reverse("declarations-detail", kwargs={"pk": contestant.pk}))
+        self.assertEqual(200, response.status_code, response.content)
+        form = response.json()["form"]
+        self.assertEqual(["SP", "MP", "FP"], form["mandatory_points"])
+        self.assertTrue(form["asks_for_period"])
+        # An organiser is never held to the cut-off
+        self.assertIsNone(response.json()["read_only_reason"])
+        self.assertEqual("waiting_for_declaration", response.json()["flight_order_status"]["state"])

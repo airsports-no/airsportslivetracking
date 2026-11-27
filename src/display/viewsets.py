@@ -172,6 +172,7 @@ from display.serialisers import (
     TodaysNavigationSerialiser,
     TrackAnnotationSerialiser,
 )
+from display.services.flight_order_status import flight_order_status
 from display.services.gate_results import gate_results_for
 from display.services.map_access import can_view_task_map, map_path_for
 from display.services.people_search import user_identities
@@ -729,6 +730,7 @@ class UserPersonViewSet(GenericViewSet):
                     "calculation_delay_minutes": task.calculation_delay_minutes,
                     "score": own_score_for(contestant, task, map_viewable[task.pk]),
                     "flight_order_path": flight_order_path_for(contestant),
+                    "flight_order_status": flight_order_status(contestant, request.user),
                     "training_available": training_available_for(contestant),
                     "training_feedback": training_feedback_for(contestant),
                     # Whether the positions of this device are used for the flight (the task's simulator policy and the flight

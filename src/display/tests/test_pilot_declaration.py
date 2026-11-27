@@ -206,7 +206,7 @@ class TestDeclarationStatus(PilotDeclarationTestBase):
             self.assertEqual([f"Give a time for {self._names_in_words()}."], status["errors"])
             self.assertTrue(status["can_edit"])
             self.assertEqual(
-                f"/contestant-declaration/{self.contest.pk}/{self.navigation_task.pk}/{self.contestant.pk}",
+                f"/declaration/{self.contestant.pk}",
                 status["edit_url"],
             )
 

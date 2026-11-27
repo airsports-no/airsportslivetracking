@@ -88,10 +88,15 @@ def pilot_edit_refusal(contestant: Contestant, now: Optional[datetime.datetime] 
     return None
 
 
-def declaration_edit_path(contestant: Contestant) -> str:
-    """The page (website path) where the declaration is edited. Change here when the pilot gets a page of their own (S22)."""
-    task = contestant.navigation_task
-    return f"/contestant-declaration/{task.contest_id}/{task.pk}/{contestant.pk}"
+def declaration_edit_path(contestant: Contestant, role: str = ROLE_PILOT) -> str:
+    """
+    The page (website path) where the declaration is edited: the pilot's own page (routes.json PILOT_DECLARATION, made for a
+    phone) or, for an organiser, the organiser's page of the contestant (CONTESTANT_DECLARATION). The one place that builds it.
+    """
+    if role == ROLE_ORGANISER:
+        task = contestant.navigation_task
+        return f"/contestant-declaration/{task.contest_id}/{task.pk}/{contestant.pk}"
+    return f"/declaration/{contestant.pk}"
 
 
 def _has_declared_something(payload: dict) -> bool:
@@ -160,5 +165,5 @@ def declaration_status(
         "can_edit": can_edit,
         # An organiser may always change it, so there is no time to give them
         "edit_until": cutoff.isoformat() if role == ROLE_PILOT else None,
-        "edit_url": declaration_edit_path(contestant) if role else None,
+        "edit_url": declaration_edit_path(contestant, role) if role else None,
     }

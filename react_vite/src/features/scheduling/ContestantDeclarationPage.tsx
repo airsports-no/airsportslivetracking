@@ -23,6 +23,7 @@ import {
     buildFormState,
     moveItem,
     moveItemToInsertionIndex,
+    declarationTimesPayload,
 } from './declarationSequences';
 
 type DeclarationPageData = {
@@ -999,21 +1000,29 @@ const ContestantDeclarationPage: React.FC = () => {
                 declarationPayload.declared_sequence = buildContractNavigationSequence(formState.contractNavigation);
                 declarationPayload.declared_t_seconds = Number(formState.contractDeclaredTSeconds || compiledPayload.time_model?.t_seconds || 0);
             } else if (isKnownCircuit) {
-                declarationPayload.turnpoint_time_overrides = Object.fromEntries(
-                    Object.entries(formState.turnpointTimeOverrides).filter(([, value]) => !!value),
-                );
+                Object.assign(declarationPayload, declarationTimesPayload(
+                    contestant?.declaration_payload,
+                    'turnpoint_time_overrides',
+                    Object.fromEntries(Object.entries(formState.turnpointTimeOverrides).filter(([, value]) => !!value)),
+                ));
             } else if (isKnownTimeGatePrediction) {
                 // Times of points the task does not ask for (an older declaration of 2.A2 has the start point and the
                 // hidden gates) are left out.
-                declarationPayload.known_time_gate_predictions = Object.fromEntries(
-                    Object.entries(formState.knownTimeGatePredictions).filter(
-                        ([name, value]) => !!value && (!isPrecisionNavigation || knownTimeGateNames.includes(name)),
+                Object.assign(declarationPayload, declarationTimesPayload(
+                    contestant?.declaration_payload,
+                    'known_time_gate_predictions',
+                    Object.fromEntries(
+                        Object.entries(formState.knownTimeGatePredictions).filter(
+                            ([name, value]) => !!value && (!isPrecisionNavigation || knownTimeGateNames.includes(name)),
+                        ),
                     ),
-                );
+                ));
             } else {
-                declarationPayload.compulsory_point_times = Object.fromEntries(
-                    Object.entries(formState.compulsoryPointTimes).filter(([, value]) => !!value),
-                );
+                Object.assign(declarationPayload, declarationTimesPayload(
+                    contestant?.declaration_payload,
+                    'compulsory_point_times',
+                    Object.fromEntries(Object.entries(formState.compulsoryPointTimes).filter(([, value]) => !!value)),
+                ));
                 declarationPayload.declared_sequence = normalizedTurnpointHuntSequence;
                 if (isLimitedFuel && formState.declaredEnduranceMinutes) {
                     declarationPayload.fuel_metadata = {

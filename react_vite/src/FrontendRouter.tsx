@@ -14,6 +14,7 @@ const ScorecardEditorPage = lazy(() => import("./features/scorecard-editor/Score
 const ContestResultsTable = lazy(() => import("./features/contest-results/ContestResultsTable").then(module => ({ default: module.ContestResultsTable })));
 const ContestantScheduling = lazy(() => import("./features/scheduling/ContestantScheduling"));
 const ContestantDeclarationPage = lazy(() => import("./features/scheduling/ContestantDeclarationPage"));
+const PilotDeclarationPage = lazy(() => import("./features/pilot-declaration/PilotDeclarationPage"));
 const PhotoManagementPage = lazy(() => import("./features/competition-map/PhotoManagementPage"));
 const ScheduleFlightPage = lazy(() => import("./features/mission-dashboard/ScheduleFlightPage"));
 const OpenTodayPage = lazy(() => import("./features/open-today/OpenTodayPage"));
@@ -56,6 +57,7 @@ const AppRoutes = () => {
             <Route path={routes.OPEN_TODAY} element={wrap(<OpenTodayPage />)} />
             <Route path={routes.CONTESTANT_SCHEDULING} element={wrap(<ContestantScheduling />)} />
             <Route path={routes.CONTESTANT_DECLARATION} element={wrap(<ContestantDeclarationPage />)} />
+            <Route path={routes.PILOT_DECLARATION} element={wrap(<PilotDeclarationPage />)} />
             <Route path={routes.SERIES_LIST} element={wrap(<SeriesListPage />)} />
             <Route path={routes.SERIES_DETAIL} element={wrap(<SeriesPage />)} />
             <Route path={routes.SQUADRONS} element={wrap(<SquadronsPage />)} />

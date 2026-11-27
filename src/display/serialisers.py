@@ -92,6 +92,7 @@ from display.services.contestant_persistence import (
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 from display.services.declaration_access import declaration_status
+from display.services.flight_order_status import flight_order_status
 from display.services.route_compatibility import assert_route_compatible_with_task_type
 from display.services.scoring_explanation import explain_navigation_task, offered_qmax_policies
 from display.services.task_compiler import TaskCompiler
@@ -2426,6 +2427,7 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
     contest_website = serializers.SerializerMethodField()
     map_viewable = serializers.SerializerMethodField()
     flight_order_path = serializers.SerializerMethodField()
+    flight_order_status = serializers.SerializerMethodField()
     declaration_status = serializers.SerializerMethodField()
 
     class Meta:
@@ -2452,9 +2454,18 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
             "wind_direction",
             "adaptive_start",
             "flight_order_path",
+            "flight_order_status",
             "declaration_status",
         )
         read_only_fields = fields
+
+    def get_flight_order_status(self, obj: Contestant) -> Optional[dict]:
+        """Where the flight order of the flight stands, for its crew and organisers (display.services.flight_order_status)."""
+        return flight_order_status(
+            obj,
+            getattr(self.context.get("request"), "user", None),
+            role_cache=self.context.setdefault("_declaration_roles", {}),
+        )
 
     def get_declaration_status(self, obj: Contestant) -> dict:
         """What the crew has to declare for this flight and until when they may (see display.services.declaration_access)."""
