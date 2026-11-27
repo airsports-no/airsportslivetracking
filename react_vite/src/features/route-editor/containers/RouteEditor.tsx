@@ -17,6 +17,7 @@ import {
 import { getQuadraticBezierPoints } from '../../../utils/bezierPoints';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
+import { buildWizardChecklist, type CompatibilityStatus } from '../taskRequirements';
 import { getTaskTemplateById, getWizardRouteInsertLabel, isTaskSubtypeVisible } from '../taskTemplates';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
 import {
@@ -51,10 +52,13 @@ import {
   previousOnDummyBranch,
 } from '../unknownLegWizard';
 
+// The most markers a free-map step may place, taken from the backend's requirement for the step
+// (null while the backend has not answered: the backend still decides compatibility).
 const getFreeMapStepMaxCount = (
   selectedTaskTemplateId: string | null,
   wizardRouteInsertType: RoutePoint['type'] | null,
   wizardRouteInsertFeatureType: RoutePoint['featureType'] | undefined,
+  taskCompatibility: TaskCompatibilityResult | null,
 ) => {
   if (!selectedTaskTemplateId || !wizardRouteInsertType) return null;
   const template = getTaskTemplateById(selectedTaskTemplateId);
@@ -63,7 +67,9 @@ const getFreeMapStepMaxCount = (
     && item.featureType === wizardRouteInsertFeatureType
     && item.placement === 'free_map'
   ));
-  return step?.maxCount ?? null;
+  if (!template || !step) return null;
+  const checklist = buildWizardChecklist(template, taskCompatibility, 'ready', () => 0);
+  return checklist.steps.find((state) => state.step.key === step.key)?.maximum ?? null;
 };
 
 export default function RouteEditor() {
@@ -96,6 +102,8 @@ export default function RouteEditor() {
   const [selectedTaskTemplateId, setSelectedTaskTemplateId] = useState<string | null>(null);
   const [intendedTaskTypes, setIntendedTaskTypes] = useState<string[]>([]);
   const [taskCompatibility, setTaskCompatibility] = useState<TaskCompatibilityResult | null>(null);
+  // Which route content the latest answer (or failure) was for; see compatibilityStatus.
+  const [compatibilityAnswer, setCompatibilityAnswer] = useState<{ route: unknown; failed: boolean } | null>(null);
   const [wizardRouteInsertType, setWizardRouteInsertType] = useState<RoutePoint['type'] | null>(null);
   const [wizardRouteInsertFeatureType, setWizardRouteInsertFeatureType] = useState<RoutePoint['featureType'] | undefined>(undefined);
   const [wizardPolygonType, setWizardPolygonType] = useState<Polygon['type'] | null>(null);
@@ -262,24 +270,41 @@ export default function RouteEditor() {
   // yet saved) so the "Task types" settings panel can grey out unsupported types as the user
   // authors the route, without requiring a save first. display.services.route_compatibility on
   // the backend is the single source of truth for the ruleset.
+  const compatibilityRoute = useMemo(() => buildRouteEditorSavePayload({
+    routeName,
+    routePoints,
+    standalonePoints,
+    gates,
+    observationMarkers,
+    polygons,
+    showCorridor,
+    maxObsDist,
+    hideLabels,
+    selectedTaskTemplateId,
+    intendedTaskTypes,
+  }).route, [
+    routeName,
+    routePoints,
+    standalonePoints,
+    gates,
+    observationMarkers,
+    polygons,
+    showCorridor,
+    maxObsDist,
+    hideLabels,
+    selectedTaskTemplateId,
+    intendedTaskTypes,
+  ]);
+
   useEffect(() => {
-    const { route } = buildRouteEditorSavePayload({
-      routeName,
-      routePoints,
-      standalonePoints,
-      gates,
-      observationMarkers,
-      polygons,
-      showCorridor,
-      maxObsDist,
-      hideLabels,
-      selectedTaskTemplateId,
-      intendedTaskTypes,
-    });
+    const route = compatibilityRoute;
+    let superseded = false;
     const timer = setTimeout(() => {
       fetchTaskCompatibility(route)
         .then((result) => {
+          if (superseded) return;
           setTaskCompatibility(result);
+          setCompatibilityAnswer({ route, failed: false });
           if (!intendedTaskTypesLockedRef.current) {
             // Keep following the live suggestion as the route is built - e.g. placing the last
             // circle marker should auto-check Circle - until the user takes explicit control (see
@@ -294,26 +319,31 @@ export default function RouteEditor() {
             const suggested = activeTemplateSubtype && visibleCompatible.includes(activeTemplateSubtype)
               ? [activeTemplateSubtype]
               : visibleCompatible;
-            setIntendedTaskTypes(suggested);
+            // Keep the previous array when nothing changed: intendedTaskTypes is a dependency of this
+            // effect, so a new but equal array would trigger another request, forever.
+            setIntendedTaskTypes((previous) => (
+              previous.length === suggested.length && previous.every((key, index) => key === suggested[index])
+                ? previous
+                : suggested
+            ));
           }
         })
-        .catch((err) => console.error('Failed to check task type compatibility', err));
+        .catch((err) => {
+          console.error('Failed to check task type compatibility', err);
+          if (!superseded) setCompatibilityAnswer({ route, failed: true });
+        });
     }, 500);
-    return () => clearTimeout(timer);
-  }, [
-    routeName,
-    routePoints,
-    standalonePoints,
-    gates,
-    observationMarkers,
-    polygons,
-    showCorridor,
-    maxObsDist,
-    hideLabels,
-    selectedTaskTemplateId,
-    intendedTaskTypes,
-    visibleTaskTypeGroups,
-  ]);
+    return () => {
+      superseded = true;
+      clearTimeout(timer);
+    };
+  }, [compatibilityRoute, selectedTaskTemplateId, visibleTaskTypeGroups]);
+
+  // The answer only counts for the route content it was computed for; any later edit makes it
+  // 'pending' again until the debounced request returns.
+  const compatibilityStatus: CompatibilityStatus = compatibilityAnswer && compatibilityAnswer.route === compatibilityRoute
+    ? (compatibilityAnswer.failed ? 'failed' : 'ready')
+    : 'pending';
 
   const beginDummyBranchStep = useCallback((triggerId: string | null) => {
     const template = getTaskTemplateById(selectedTaskTemplateId);
@@ -361,7 +391,7 @@ export default function RouteEditor() {
 
     if (isCircleStandaloneTask && mode === 'add_point' && wizardRouteInsertType && standalonePointTypes.has(wizardRouteInsertType)) {
       const circleMarkerCount = standalonePoints.filter((point) => point.type === wizardRouteInsertType).length;
-      const maxCircleMarkerCount = getFreeMapStepMaxCount(selectedTaskTemplateId, wizardRouteInsertType, wizardRouteInsertFeatureType);
+      const maxCircleMarkerCount = getFreeMapStepMaxCount(selectedTaskTemplateId, wizardRouteInsertType, wizardRouteInsertFeatureType, taskCompatibility);
       if (maxCircleMarkerCount != null && circleMarkerCount >= maxCircleMarkerCount) {
         alert(`This circle task allows no more than ${maxCircleMarkerCount} ${wizardRouteInsertType.replace('circle_', '').replaceAll('_', ' ')} marker${maxCircleMarkerCount === 1 ? '' : 's'}.`);
         return;
@@ -393,7 +423,7 @@ export default function RouteEditor() {
     // 2.A6 / 2.B2: exactly three standalone timed turnpoints, no backbone.
     if (isTimedTurnpointStandaloneTask && mode === 'add_point' && wizardRouteInsertType === 'timed_turnpoint') {
       const timedTurnpointCount = standalonePoints.filter((point) => point.type === 'timed_turnpoint').length;
-      const maxTimedTurnpointCount = getFreeMapStepMaxCount(selectedTaskTemplateId, wizardRouteInsertType, wizardRouteInsertFeatureType);
+      const maxTimedTurnpointCount = getFreeMapStepMaxCount(selectedTaskTemplateId, wizardRouteInsertType, wizardRouteInsertFeatureType, taskCompatibility);
       if (maxTimedTurnpointCount != null && timedTurnpointCount >= maxTimedTurnpointCount) {
         alert(`This task allows no more than ${maxTimedTurnpointCount} timed turnpoints.`);
         return;
@@ -523,6 +553,7 @@ export default function RouteEditor() {
     isThreePointBackboneTask,
     isCircleStandaloneTask,
     isTimedTurnpointStandaloneTask,
+    taskCompatibility,
     selectedTaskTemplateId,
     selectionType,
     dummyBranchTriggerId,
@@ -941,6 +972,7 @@ export default function RouteEditor() {
             setIsDirty(true);
           }}
           taskCompatibility={taskCompatibility}
+          compatibilityStatus={compatibilityStatus}
           setSelectedId={setSelectedId}
           setSelectionType={setSelectionType}
           updateSelectedPoint={selectionType === 'standalone_point' ? updateSelectedStandalonePoint : updateSelectedPoint}

@@ -16,6 +16,7 @@ import HelpView from './HelpView';
 import TaskWizardPanel from './TaskWizardPanel';
 import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../../../types';
 import { TaskCompatibilityResult } from '../api';
+import type { CompatibilityStatus } from '../taskRequirements';
 import { isTaskSubtypeVisible } from '../taskTemplates';
 
 interface SidebarProps {
@@ -34,6 +35,7 @@ interface SidebarProps {
   intendedTaskTypes: string[];
   setIntendedTaskTypes: (types: string[]) => void;
   taskCompatibility: TaskCompatibilityResult | null;
+  compatibilityStatus: CompatibilityStatus;
   setSelectedId: (id: string | null) => void;
   setSelectionType: (type: SelectionType | null) => void;
   updateSelectedPoint: (field: keyof RoutePoint, value: any) => void;
@@ -76,6 +78,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   intendedTaskTypes,
   setIntendedTaskTypes,
   taskCompatibility,
+  compatibilityStatus,
   setSelectedId,
   setSelectionType,
   updateSelectedPoint,
@@ -154,6 +157,8 @@ const Sidebar: React.FC<SidebarProps> = ({
         gates={gates}
         observationMarkers={observationMarkers}
         polygons={polygons}
+        taskCompatibility={taskCompatibility}
+        compatibilityStatus={compatibilityStatus}
         startWizardStep={startWizardStep}
         stopWizardAction={stopWizardAction}
         currentWizardActionLabel={currentWizardActionLabel}

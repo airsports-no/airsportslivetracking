@@ -5,6 +5,8 @@ validation all reach the same verdict.
 """
 
 import copy
+import json
+from pathlib import Path
 from types import SimpleNamespace
 
 from django.contrib.auth import get_user_model
@@ -555,3 +557,52 @@ class TestTaskCompatibilityApiRequirements(TestCase):
         self.assertEqual(subtypes[DURATION]["requirements"][0]["found"], 0)
         self.assertIn(PRECISION, {entry["coarse_family"] for entry in subtypes.values()})
         self.assertIn(ANR_CORRIDOR, {entry["coarse_family"] for entry in subtypes.values()})
+
+
+class TestRequirementKeysSharedWithTheRouteEditor(TestCase):
+    # The route editor wizard maps every requirement key to a step or shows it generically
+    # (react_vite/src/features/route-editor/taskRequirements.ts). The keys are listed in
+    # react_vite/src/features/route-editor/routeRequirementKeys.json, which the vitest taskRequirements.test.ts checks
+    # the mapping against; this list must match that file. The test container may not mount react_vite/, so the
+    # registry is always checked against this constant and the file only when it can be read.
+    WIZARD_REQUIREMENT_KEYS = {
+        "catalogue_turnpoint",
+        "circle_center_marker",
+        "circle_entry_marker",
+        "circle_exit_marker",
+        "circle_start_marker",
+        "curved_leg",
+        "dummy_waypoint",
+        "duration_landing_area",
+        "known_time_gate",
+        "landing_gate",
+        "route_path",
+        "route_waypoint",
+        "route_waypoint_order",
+        "route_waypoints",
+        "unknown_leg",
+        "unknown_leg_extension",
+    }
+    FIXTURE_LOCATIONS = (
+        Path(__file__).resolve().parents[3] / "react_vite/src/features/route-editor/routeRequirementKeys.json",
+        Path("/workspace/react_vite/src/features/route-editor/routeRequirementKeys.json"),
+    )
+
+    def test_every_requirement_key_of_the_registry_is_known_to_the_wizard(self):
+        produced = {
+            requirement.key
+            for definition in TASK_TYPE_REGISTRY.values()
+            for requirement in definition.route_requirements
+        }
+        self.assertEqual(
+            produced,
+            self.WIZARD_REQUIREMENT_KEYS,
+            "Add the key to WIZARD_REQUIREMENT_KEYS here, to routeRequirementKeys.json and map it in "
+            "taskRequirements.ts (or let the wizard show it as a generic row).",
+        )
+
+    def test_the_list_matches_the_json_file_shared_with_the_route_editor(self):
+        fixture = next((path for path in self.FIXTURE_LOCATIONS if path.exists()), None)
+        if fixture is None:
+            self.skipTest("react_vite/ is not visible from this environment")
+        self.assertEqual(set(json.loads(fixture.read_text())["requirementKeys"]), self.WIZARD_REQUIREMENT_KEYS)

@@ -144,6 +144,20 @@ export const fetchEditableRoutes = async (): Promise<Route[]> => {
     return data;
 };
 
+// One route requirement of a task type as the backend evaluated it against the route's current
+// content (display.services.route_compatibility.evaluate_route_requirements). A maximum of null
+// means no upper limit; a maximum of 0 means the feature is forbidden (or, for derived facts such
+// as unknown_leg_extension, that no offenders are allowed).
+export interface RouteRequirementResult {
+    key: string;
+    label: string;
+    minimum: number;
+    maximum: number | null;
+    found: number;
+    satisfied: boolean;
+    message: string;
+}
+
 export interface TaskCompatibilitySubtype {
     key: string;
     display_name: string;
@@ -151,6 +165,8 @@ export interface TaskCompatibilitySubtype {
     coarse_family: string;
     compatible: boolean;
     missing_reasons: string[];
+    // Absent in responses from a backend older than the route requirements; treat as empty.
+    requirements?: RouteRequirementResult[];
 }
 
 export interface TaskCompatibilityResult {
