@@ -7,14 +7,9 @@ TP1, TP2 and FP are the time gates. The briefed values are the scorecard's own, 
 gate, so that the application's worst case (Qmax) equals the perfect pilot's Q of the catalogue and the scenarios show
 the differences that are not about the briefing. 2.A4 also has the optional declared time of a turn point and the speed
 element; 2.A5's route has an unknown-leg point with extension waypoints and is flown along the true backbone.
-
-Tests marked xfail(strict=True) are known disagreements of the application, with the finding and the slice of
-docs/PLAN_task_scoring_reliability.md that will fix them.
 """
 
 import datetime
-
-import pytest
 
 from display.calculators.tests import catalogue_oracle as oracle
 from display.calculators.tests.cima_scenario_support import (
@@ -41,6 +36,7 @@ from display.calculators.tests.flight_simulator import (
     generate_track,
     precision_route_geojson,
 )
+from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.task_types import KNOWN_CIRCUIT, UNKNOWN_LEGS
 
 BACKTRACKING = [oracle.BACKTRACKING_PENALTY]
@@ -51,15 +47,19 @@ LATE = 36  # seconds: 36 / 1440 x 1000 is a whole 25 points
 VERY_LATE = 200  # more than Vt: the error counts Vt
 
 
-def configure(brief_loops=True, speed_keeping=False):
+def configure(brief_loops=True, speed_keeping=False, speed_term_value=0, speed_keeping_enabled=False):
     """The scorecard of the scenarios: a long backtracking grace time so that the brief loops of the hidden-gate
-    scenarios are not backtracking, and the speed element (a 2.A4 rule of the application) off unless asked for."""
+    scenarios are not backtracking, the application's own speed-keeping rule (not in the catalogue, so off by default)
+    with its default penalty per kt unless `speed_keeping` is False and turned on only by `speed_keeping_enabled`, and
+    the speed term of the catalogue (Vs) as briefed."""
 
     def configure_scorecard(scorecard):
         if brief_loops:
             scorecard.backtracking_grace_time_seconds = LONG_BACKTRACKING_GRACE_S
         if not speed_keeping:
             scorecard.speed_keeping_penalty_per_kt = 0
+        scorecard.speed_term_value = speed_term_value
+        scorecard.speed_keeping_enabled = speed_keeping_enabled
 
     return configure_scorecard
 
@@ -70,13 +70,15 @@ class ObservationNavigationFlights:
     task_subtype = None
     route_options: dict = {}
 
-    def build(self, brief_loops=True, speed_keeping=False, **route_options):
+    def build(
+        self, brief_loops=True, speed_keeping=False, speed_term_value=0, speed_keeping_enabled=False, **route_options
+    ):
         options = {**self.route_options, **route_options}
         self.task = build_task(
             precision_route_geojson(hidden_gates=HIDDEN_GATES, **options),
             task_subtype=self.task_subtype,
             scorecard_shortcut="CIMA Precision",
-            configure_scorecard=configure(brief_loops, speed_keeping),
+            configure_scorecard=configure(brief_loops, speed_keeping, speed_term_value, speed_keeping_enabled),
             whole_second_gate_times=True,
         )
         self.assertTrue(self.task.contestant.contestanttaskconfiguration.is_valid)
@@ -194,24 +196,12 @@ class KnownCircuitFlightsTest(ObservationNavigationFlights, CimaScenarioCase):
         self.assertEqual(expected, 975)
         self.assert_final_score(result, expected, "the declared flight scored without the declaration")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F7 / S15: the speed element penalises every leg flown off the declared "
-        "speed, uncapped, on top of the timing error (about 19 points here); the "
-        "catalogue has no such penalty",
-    )
     def test_a_timing_error_does_not_cost_a_second_time_through_the_speed_element(self):
         self.build(speed_keeping=True)
         result, expected = self.fly(TimeOffset("TP2", LATE))
         self.assertEqual(expected, 975)
         self.assert_final_score(result, expected, "TP2 36 s late with the speed element on")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F7 / S15: flying faster than the declared speed costs points in the "
-        "application (speed-keeping deviation); in the catalogue the speed is "
-        "rewarded (Qv = Vs x S / Smax) or, not included, free",
-    )
     def test_flying_faster_than_the_declared_speed_is_not_penalised(self):
         task = build_task(
             precision_route_geojson(hidden_gates=HIDDEN_GATES, untimed=["TP1", "TP2", "FP"]),
@@ -234,6 +224,66 @@ class KnownCircuitFlightsTest(ObservationNavigationFlights, CimaScenarioCase):
         )
         self.assertEqual(q, 4 * GATE_VALUE + GATE_VALUE)
         self.assert_final_score(result, 1000, "20% faster than declared, only SP timed")
+
+
+    def ground_speed_kt(self, task, track) -> float:
+        """S of the catalogue's speed term from the geometry of the track: the route between the SP and FP gate lines
+        (the first and the last time gate) over the time between the two crossings."""
+        crossings = task.crossings(track, ["SP", "FP"])
+        seconds = (crossings["FP"][0].time - crossings["SP"][0].time).total_seconds()
+        points = [(w.latitude, w.longitude) for w in task.effective_waypoints if w.name in TIME_GATES]
+        metres = sum(calculate_distance_lat_lon(a, b) for a, b in zip(points, points[1:]))
+        return metres / seconds * 3600 / 1852
+
+    def test_the_speed_term_rewards_the_fastest_pilot_of_the_task(self):
+        """Qv = Vs x S / Smax: the faster pilot earns the whole of Vs, the slower a share, whatever their timing."""
+        vs = 100
+        task = self.build(speed_term_value=vs)
+        second = add_contestant(task)
+        start = task.gate_times["SP"]
+        fast_times = {name: start + (time - start) / 1.1 for name, time in task.gate_times.items()}
+        slow_track = task.generate_track([])
+        fast_track = generate_track(second.effective_waypoints, fast_times, projector=second.projector)
+        slow, fast = task.run(slow_track), second.run(fast_track)
+        speeds = [self.ground_speed_kt(task, slow_track), self.ground_speed_kt(second, fast_track)]
+        self.assertAlmostEqual(speeds[1] / speeds[0], 1.1, delta=0.01)
+        qs = [
+            oracle.q_observation_navigation(
+                correct_gate_count(crossings, HIDDEN_NAMES),
+                [error for error in first_crossing_errors(crossings, TIME_GATES) if error is not None],
+                hidden_value=GATE_VALUE,
+                gate_value=GATE_VALUE,
+                speed_value=vs,
+                speed=speed,
+                speed_max=max(speeds),
+            )
+            for crossings, speed in (
+                (task.crossings(slow_track, [*TIME_GATES, *HIDDEN_NAMES]), speeds[0]),
+                (second.crossings(fast_track, [*TIME_GATES, *HIDDEN_NAMES]), speeds[1]),
+            )
+        ]
+        expected = oracle.final_scores(qs)
+        # S is measured from the crossing times to the second in the oracle and to the millisecond in the application
+        self.assertAlmostEqual(slow.score, expected[0], delta=1)
+        self.assertAlmostEqual(fast.score, expected[1], delta=1)
+        self.assertEqual(slow.messages_of_type("speed_term")[0].gate.name, "FP")
+        self.assertAlmostEqual(slow.messages_of_type("speed_term")[0].score, speeds[0], delta=0.1)
+
+    def test_a_task_without_a_briefed_speed_term_has_none(self):
+        task = self.build()
+        track = task.generate_track([])
+        self.assertEqual(task.run(track).messages_of_type("speed_term"), [])
+
+    def test_the_speed_keeping_rule_penalises_deviation_only_when_the_scorecard_turns_it_on(self):
+        faster = {}
+        for enabled in (False, True):
+            task = self.build(speed_keeping=True, speed_keeping_enabled=enabled)
+            if not faster:
+                start = task.gate_times["SP"]
+                faster = {name: start + (time - start) / 1.2 for name, time in task.gate_times.items()}
+            track = generate_track(task.effective_waypoints, faster, projector=task.projector)
+            result = task.run(track)
+            self.assertEqual(bool(result.messages_of_type("speed_keeping")), enabled)
 
 
 class UnknownLegsFlightsTest(ObservationNavigationFlights, CimaScenarioCase):

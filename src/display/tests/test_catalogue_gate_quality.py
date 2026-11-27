@@ -12,6 +12,7 @@ from display.utilities.gate_definitions import DUMMY, FINISHPOINT, SECRETPOINT, 
 from display.utilities.task_types import (
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     CURVE_NAVIGATION_TIME_ESTIMATION,
+    KNOWN_CIRCUIT,
     PRECISION_NAVIGATION,
     get_task_type,
 )
@@ -154,9 +155,57 @@ class PrecisionNavigationWeightsTest(SimpleTestCase):
         self.assertEqual(weights.missed_loss(untimed), 180)
 
 
+def contract_route():
+    """SP, MP and FP (time gates) and two declared catalogue points without a time check."""
+    return [
+        gate("SP", STARTINGPOINT),
+        gate("A", TURNPOINT, time_check=False),
+        gate("MP", TURNPOINT),
+        gate("B", TURNPOINT, time_check=False),
+        gate("FP", FINISHPOINT),
+    ]
+
+
+class ContractNavigationWeightsTest(SimpleTestCase):
+    """2.A3: Qt = Emax x 3 - Et over SP, MP and FP; the declared points only count in V = N - Ep."""
+
+    def setUp(self):
+        self.items = contract_route()
+        self.weights = quality(CONTRACT_NAVIGATION_TIME_CONTROLS, self.items)
+        self.sp, self.a, self.mp, self.b, self.fp = self.items
+
+    def test_sp_mp_and_fp_are_the_time_gates_worth_emax_each(self):
+        self.assertEqual([self.weights.is_timed(item) for item in self.items], [True, False, True, False, True])
+        self.assertEqual(sum(self.weights.starting_quality(item) for item in self.items), 3 * 180)
+
+    def test_a_declared_point_is_worth_nothing_in_points_of_q(self):
+        self.assertEqual(self.weights.starting_quality(self.a), 0)
+        self.assertEqual(self.weights.missed_loss(self.a), 0)
+
+    def test_a_time_gate_not_flown_loses_emax(self):
+        for item in (self.sp, self.mp, self.fp):
+            self.assertEqual(self.weights.missed_loss(item), 180)
+
+    def test_a_declared_turn_point_adds_one_to_v_and_the_mandatory_points_nothing(self):
+        self.assertEqual([self.weights.v_gain(item) for item in self.items], [0, 1, 0, 1, 0])
+
+    def test_every_declared_point_not_flown_takes_one_off_v_sp_mp_and_fp_included(self):
+        self.assertEqual([self.weights.v_loss(item) for item in self.items], [1, 1, 1, 1, 1])
+
+    def test_a_point_nobody_checks_is_not_declared(self):
+        unchecked = gate("X", TURNPOINT, time_check=False, gate_check=False)
+        self.assertEqual((self.weights.v_gain(unchecked), self.weights.v_loss(unchecked)), (0, 0))
+
+    def test_the_other_task_types_do_not_count_in_v(self):
+        weights = quality(CURVE_NAVIGATION_TIME_ESTIMATION, route(hidden=2))
+        turn_point, start = gate("TP", TURNPOINT, time_check=False), gate("SP", STARTINGPOINT)
+        self.assertEqual((weights.v_gain(turn_point), weights.v_loss(start)), (0, 0))
+
+
 class OtherGatesAndTaskTypesTest(SimpleTestCase):
     def test_only_the_catalogue_task_types_have_weights(self):
-        self.assertIsNone(quality(CONTRACT_NAVIGATION_TIME_CONTROLS, route(hidden=2)))
+        # 2.A4 scores the gates by the scorecard's flat scores; 2.A3 has weights since its formulas are followed
+        self.assertIsNone(quality(KNOWN_CIRCUIT, route(hidden=2)))
 
     def test_gate_types_the_model_does_not_cover_keep_the_scorecards_flat_scores(self):
         takeoff = gate("TO", TAKEOFF_GATE, gate_check=False)

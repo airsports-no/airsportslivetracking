@@ -766,8 +766,10 @@ class ScorecardForm(forms.ModelForm):
     duration_residual_fuel_required = forms.BooleanField(required=False)
     circle_radius_min_m = forms.FloatField()
     circle_radius_max_m = forms.FloatField()
+    speed_keeping_enabled = forms.BooleanField(required=False)
     speed_keeping_tolerance_kt = forms.FloatField()
     speed_keeping_penalty_per_kt = forms.FloatField()
+    speed_term_value = forms.FloatField(min_value=0)
     # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
     turnpoint_hunt_sequence_bonus = forms.FloatField(min_value=0)
     observation_photo_penalty = forms.FloatField(min_value=0)
@@ -888,6 +890,16 @@ class ScorecardForm(forms.ModelForm):
                     "Circle configuration",
                     "circle_radius_min_m",
                     "circle_radius_max_m",
+                ]
+            )
+        if navigation_task and stored_task_type(navigation_task).scores_speed_keeping:
+            _append_block_once(
+                [
+                    "Speed configuration",
+                    "speed_term_value",
+                    "speed_keeping_enabled",
+                    "speed_keeping_tolerance_kt",
+                    "speed_keeping_penalty_per_kt",
                 ]
             )
         if navigation_task and stored_task_type(navigation_task).scoring_model == SCORING_QUALITY:

@@ -14,6 +14,10 @@ Where the numbers live
   `percentage_penalty`, `quality_breakdown` (contributions by score type) and the contestant's starting quality and
   theoretical maximum. They are always rebuilt from the log and the task type (`refresh_contestant_quality`), never
   incremented, so a calculator restart, a replayed event or a deleted log entry cannot make them drift.
+- Some terms of Q are a share of the best contestant of the task (2.A3 Qp = 1000 x V / Vmax, 2.A4 Qv = Vs x S /
+  Smax; see RelativeQualityTerm). For those the log holds the contestant's measure (V, S), not points; the points are
+  value x measure / best measure, derived for every contestant of the task each time (`_apply_relative_terms`), so
+  they follow every other contestant's result and are stored in the breakdown as points of Q like everything else.
 - ContestantTrack.score holds P. It is written by `recompute_task_scores` only (for a quality task).
 
 The per-task policy (Scorecard.config scoring_model, qmax_policy, task_value; the task type's registry entry supplies
@@ -115,6 +119,23 @@ def backtracking_penalty_percentage_for(scorecard, definition: TaskTypeDefinitio
     stored = scorecard.config.get("backtracking_penalty_percentage") if scorecard is not None else None
     percentage = definition.backtracking_penalty_percentage if stored is None else float(stored)
     return min(100.0, max(0.0, percentage))
+
+
+def relative_term_values(scorecard, definition: TaskTypeDefinition) -> dict[str, float]:
+    """
+    What each relative term of the task type is worth for the best contestant of the task: the registry's value, or the
+    scorecard's where the term names a scorecard field (Vs of the speed term, briefed per task). A term worth nothing
+    is left out.
+    """
+    values = {}
+    for term in definition.relative_quality_terms:
+        value = term.value
+        if term.scorecard_field and scorecard is not None:
+            stored = scorecard.config.get(term.scorecard_field)
+            value = float(stored) if stored is not None else term.value
+        if value > 0:
+            values[term.score_type] = value
+    return values
 
 
 def scoring_parameters(navigation_task) -> ScoringParameters:
@@ -256,7 +277,9 @@ def quality_baseline(contestant, definition: Optional[TaskTypeDefinition] = None
     definition = definition or stored_task_type(contestant.navigation_task)
     if definition.quality_start == QUALITY_START_GATE_DEFICIT:
         quality = theoretical_gate_quality(contestant)
-        return quality, quality
+        # The best contestant of the task earns the whole of a relative term (2.A3: 1000 for V = Vmax).
+        relative = sum(relative_term_values(contestant.navigation_task.scorecard, definition).values())
+        return quality, quality + relative
     if definition.quality_start == QUALITY_START_FIXED:
         quality = float(definition.fixed_quality or 0)
         return quality, quality
@@ -339,9 +362,10 @@ def _predates_quality_log(rows: Sequence[tuple[str, str, float]]) -> bool:
     return any(not score_kind and points for _, score_kind, points in rows)
 
 
-def _rebuild_track(track, contestant) -> bool:
+def _rebuild_track(track, contestant, relative_types: frozenset = frozenset()) -> bool:
     """Rebuilds the raw values of `track` from the score log and the task type (the caller holds the lock on the track
-    row); returns whether anything changed. A track whose log predates the quality model is left as it is."""
+    row); returns whether anything changed. A track whose log predates the quality model is left as it is. The log
+    entries of the relative terms hold measures, not points: they are left out here, see _apply_relative_terms."""
     from display.models import ScoreLogEntry
 
     rows = list(ScoreLogEntry.objects.filter(contestant=contestant).values_list("score_type", "score_kind", "points"))
@@ -350,6 +374,8 @@ def _rebuild_track(track, contestant) -> bool:
     if track.quality_start is None or track.quality_theoretical_maximum is None:
         track.quality_start, track.quality_theoretical_maximum = quality_baseline(contestant)
     contributions, percentage, breakdown = summarise_score_log(rows)
+    for score_type in relative_types:
+        contributions -= breakdown.pop(score_type, 0.0)
     raw_quality = track.quality_start + contributions
     changed = (
         track.raw_quality != raw_quality
@@ -369,6 +395,49 @@ def _rebuild_track(track, contestant) -> bool:
         ]
     )
     return changed
+
+
+def _apply_relative_terms(tracks: Sequence, definition: TaskTypeDefinition, values: dict[str, float]) -> None:
+    """
+    Turns the measures the calculators logged for the relative terms of the task type into points of Q, for every
+    contestant of the task: value x measure / best measure, the best being that of the contestants who flew (0 when
+    nobody measured above zero, as the catalogue gives no share then). Rebuilt from the log each time, so another
+    contestant's new best changes everybody's share, and running it again changes nothing.
+    """
+    from django.db.models import Sum
+
+    from display.models import ScoreLogEntry
+
+    types = {term.score_type for term in definition.relative_quality_terms}
+    built = [track for track in tracks if track.quality_start is not None]
+    if not types or not built:
+        return
+    measures: dict[tuple[int, str], float] = {
+        (row["contestant_id"], row["score_type"]): row["total"]
+        for row in ScoreLogEntry.objects.filter(
+            contestant_id__in=[t.contestant_id for t in built], score_type__in=types
+        )
+        .order_by()  # the model's default ordering would split the groups
+        .values("contestant_id", "score_type")
+        .annotate(total=Sum("points"))
+    }
+    best = {
+        score_type: max(
+            (measures.get((t.contestant_id, score_type), 0.0) for t in built if t.calculator_started), default=0.0
+        )
+        for score_type in types
+    }
+    for track in built:
+        breakdown = {key: value for key, value in track.quality_breakdown.items() if key not in types}
+        for score_type, value in values.items():
+            measure = measures.get((track.contestant_id, score_type))
+            if measure is not None:
+                breakdown[score_type] = value * measure / best[score_type] if best[score_type] > 0 else 0.0
+        raw_quality = track.quality_start + sum(breakdown.values())
+        if track.raw_quality != raw_quality or track.quality_breakdown != breakdown:
+            track.raw_quality = raw_quality
+            track.quality_breakdown = breakdown
+            track.save(update_fields=["raw_quality", "quality_breakdown"])
 
 
 def _is_legacy_track(track) -> bool:
@@ -416,11 +485,27 @@ def _recompute(navigation_task_id: int, refresh_ids: set) -> tuple[list, int]:
             ContestantTrack.objects.filter(pk__in=locked_ids).select_related("contestant__team__crew").order_by("pk")
         )
         parameters = scoring_parameters(navigation_task)
-        rebuilt = set()
+        definition = stored_task_type(navigation_task)
+        relative_types = frozenset(term.score_type for term in definition.relative_quality_terms)
+        before = {
+            track.pk: (track.raw_quality, track.percentage_penalty, dict(track.quality_breakdown)) for track in tracks
+        }
         for track in tracks:
             track.contestant.navigation_task = navigation_task
-            if track.contestant_id in refresh_ids and _rebuild_track(track, track.contestant):
-                rebuilt.add(track.pk)
+            if track.contestant_id in refresh_ids:
+                _rebuild_track(track, track.contestant, relative_types)
+        if relative_types:
+            _apply_relative_terms(
+                [track for track in tracks if not _is_legacy_track(track)],
+                definition,
+                relative_term_values(navigation_task.scorecard, definition),
+            )
+        rebuilt = {
+            track.pk
+            for track in tracks
+            if track.contestant_id in refresh_ids
+            and before[track.pk] != (track.raw_quality, track.percentage_penalty, track.quality_breakdown)
+        }
         scorable = [track for track in tracks if not _is_legacy_track(track)]
         scores = compute_task_scores(
             parameters,

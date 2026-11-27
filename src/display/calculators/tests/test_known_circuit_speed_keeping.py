@@ -125,7 +125,11 @@ class TestKnownCircuitSpeedKeeping(TestCase):
         )
         self.navigation_task.save(update_fields=["editable_route"])
 
-    def _build_calculator(self):
+    def _build_calculator(self, enable_speed_keeping=True):
+        """The speed-keeping rule is not part of the catalogue and off by default: these tests turn it on, None leaves
+        the scorecard as it is."""
+        if enable_speed_keeping is not None:
+            self.navigation_task.scorecard.speed_keeping_enabled = enable_speed_keeping
         with (
             patch("display.calculators.positions_and_gates.Gate.pre_project"),
             patch("display.calculators.gate_calculator.calculate_extended_gate"),
@@ -179,6 +183,22 @@ class TestKnownCircuitSpeedKeeping(TestCase):
         speed_keeping_messages = [m for m in messages if m.score_type == "speed_keeping"]
         self.assertEqual(len(speed_keeping_messages), 1, messages)
         self.assertGreater(speed_keeping_messages[0].score, 0)
+
+    def test_speed_keeping_is_off_unless_the_scorecard_turns_it_on(self):
+        self.assertFalse(self.navigation_task.scorecard.speed_keeping_enabled)
+        compiled = ContestantTaskCompiler(self.contestant).compile(force=True)
+        self.assertTrue(compiled.is_valid, compiled.validation_errors)
+        calculator = self._build_calculator(enable_speed_keeping=None)
+        first_gate, second_gate = calculator.gates[0], calculator.gates[1]
+        first_time = first_gate.expected_time
+        self._pass_gate(calculator, first_gate, first_time)
+        distance_m = calculate_distance_lat_lon(
+            (first_gate.latitude, first_gate.longitude), (second_gate.latitude, second_gate.longitude)
+        )
+        second_time = first_time + datetime.timedelta(seconds=distance_m / (150 * 1852 / 3600))
+
+        messages = self._pass_gate(calculator, second_gate, second_time)
+        self.assertNotIn("speed_keeping", [m.score_type for m in messages])
 
     def test_on_speed_leg_is_not_penalized(self):
         compiled = ContestantTaskCompiler(self.contestant).compile(force=True)

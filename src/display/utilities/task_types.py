@@ -96,6 +96,10 @@ QUALITY_START_GATE_DEFICIT = "gate_deficit"  # the worst possible gate deficit o
 QUALITY_START_FIXED = "fixed"  # TaskTypeDefinition.fixed_quality (2.A7, 2.A8)
 QUALITY_START_ACHIEVEMENT = "achievement"  # zero: the contestant earns points (2.A6, 2.B2, 2.B3)
 
+# The score types of the quality terms that depend on the whole task (see RelativeQualityTerm).
+CONTRACT_POINTS_SCORE_TYPE = "contract_points"
+SPEED_TERM_SCORE_TYPE = "speed_term"
+
 # The percentage of the task score one backtrack costs in 2.A1-2.A5 (Annex 4: "a 50% penalty will be imposed").
 CIMA_BACKTRACKING_PERCENTAGE = 50.0
 
@@ -119,6 +123,25 @@ class CatalogueGateModel:
     # Qt = Emax x Nt - Et (2.A1: a time gate is worth Emax and loses its error) against Qt = -sum(Ei) (2.A2: the errors
     # only deduct).
     time_gate_is_worth_emax: bool = False
+    # The declared points count in V = N - Ep (2.A3): a turn point without a time check flown in order is +1, any
+    # declared gate (SP, MP and FP included) not flown, or flown out of order, is -1. V is a count, not points of Q:
+    # Qp is 1000 x V / Vmax (see RelativeQualityTerm).
+    declared_points_count_in_v: bool = False
+
+
+@dataclass(frozen=True)
+class RelativeQualityTerm:
+    """
+    A term of Q that is a share of the best contestant of the task: value x measure / best measure (2.A3: Qp = 1000 x
+    V / Vmax; 2.A4: Qv = Vs x S / Smax). The calculators log the measure of the contestant (V, S) under
+    `score_type`, and display.services.task_scoring turns it into points of Q once the best measure of the task is
+    known, so the term follows every other contestant's result. The term is worth `value` for the best contestant, or what the scorecard
+    stores under `scorecard_field` where that is set (0, or no value, leaves the term out).
+    """
+
+    score_type: str
+    value: float = 0.0
+    scorecard_field: str | None = None
 
 
 # Scorecards (by shortcut_name) the task types are created from.
@@ -228,6 +251,8 @@ class TaskTypeDefinition:
     # The gates are weighed as the catalogue's formulas say instead of by the scorecard's flat per-gate scores
     # (2.A1: Qh = 1000 x H / Nh, Qt = Emax x Nt - Et; 2.A2: Qp = Emax x Ng, Qt = -sum(Ei)). None: the scorecard's.
     catalogue_gate_model: CatalogueGateModel | None = None
+    # Terms of Q that are a share of the best contestant of the task (2.A3 Qp, 2.A4 Qv).
+    relative_quality_terms: tuple[RelativeQualityTerm, ...] = ()
     # Backtracking costs a percentage of the task score instead of flat points (2.A1-2.A5: "a 50% penalty will be
     # imposed for backtracking"). The value is the percentage used when the task's scorecard stores none
     # (Scorecard.backtracking_penalty_percentage); 0 uses the flat points of the scorecard, which a stored 0 also does.
@@ -242,7 +267,8 @@ class TaskTypeDefinition:
     scores_turnpoint_hunt_targets: bool = False
     # The flight is penalised for gates passed after the declared fuel endurance (2.B2).
     has_fuel_deadline: bool = False
-    # Legs flown faster or slower than the declared speed are penalised (2.A4).
+    # Legs flown faster or slower than the declared speed are penalised, when the scorecard asks for it (2.A4), and the
+    # speed term Qv = Vs x S / Smax is scored when the scorecard gives it a value.
     scores_speed_keeping: bool = False
     # Points declared after the middle point are invalid when flown before the middle point's time (2.A3).
     has_post_mp_rule: bool = False
@@ -505,6 +531,15 @@ _DEFINITIONS = (
         backtracking_penalty_percentage=CIMA_BACKTRACKING_PERCENTAGE,
         backtracking_within_corridor=True,
         has_post_mp_rule=True,
+        # Qt = Emax x 3 - Et over SP, MP and FP (the time gates, each worth Emax), Qp = 1000 x V / Vmax with V = N - Ep
+        catalogue_gate_model=CatalogueGateModel(
+            hidden_gate_value_is_share_of_total=False,
+            start_point_timed=True,
+            finish_point_timed=True,
+            time_gate_is_worth_emax=True,
+            declared_points_count_in_v=True,
+        ),
+        relative_quality_terms=(RelativeQualityTerm(CONTRACT_POINTS_SCORE_TYPE, value=1000.0),),
         general_map_shows_backbone_only=True,
         gate_times_from_declared_period=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "ContractNavigationStrategy",
@@ -529,6 +564,8 @@ _DEFINITIONS = (
         backtracking_within_corridor=True,
         repeated_hidden_gate_crossing_invalidates=True,
         scores_speed_keeping=True,
+        # Qv = Vs x S / Smax; Vs is briefed, in the scorecard (0: no speed term)
+        relative_quality_terms=(RelativeQualityTerm(SPEED_TERM_SCORE_TYPE, scorecard_field="speed_term_value"),),
         observation_photos_award_points=True,
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "KnownCircuitStrategy",
     ),

@@ -57,8 +57,11 @@ export interface ScorecardData {
     duration_residual_fuel_required?: boolean;
     circle_radius_min_m?: number;
     circle_radius_max_m?: number;
+    // 2.A4: the speed-keeping deviation penalty is off unless enabled; speed_term_value is Vs of Qv = Vs x S / Smax.
+    speed_keeping_enabled?: boolean;
     speed_keeping_tolerance_kt?: number;
     speed_keeping_penalty_per_kt?: number;
+    speed_term_value?: number;
     turnpoint_hunt_sequence_bonus?: number;
     observation_photo_penalty?: number;
     observation_photo_value?: number;

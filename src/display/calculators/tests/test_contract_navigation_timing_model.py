@@ -191,4 +191,8 @@ class TestContractNavigationTimingModel(TestCase):
 
         self.assertTrue(c_gate.missed)
         score_msg = calculator.score_processing_queue.get_nowait()
-        self.assertEqual(score_msg.message, "invalid post-MP point flown before MP time")
+        # The point is a declared point not flown (Ep), so the entry also says what it does to V
+        self.assertEqual(
+            score_msg.message, "invalid post-MP point flown before MP time (declared point not flown, V -1)"
+        )
+        self.assertEqual((score_msg.score_type, score_msg.score, score_msg.kind), ("contract_points", 1, "penalty"))

@@ -7,17 +7,15 @@ Q = Qp + Qt, P = 1000 x Q / Qmax, 50% for backtracking. Points declared after MP
 time of MP.
 
 The route: SP, MP, FP on a line to the east (9260 m, T = 240 s at 75 kt) and four free catalogue points A, B (before MP)
-and C, D (after MP) beside the line. Tests marked xfail(strict=True) are known disagreements of the application, with
-the finding and the slice of docs/PLAN_task_scoring_reliability.md that will fix them.
+and C, D (after MP) beside the line.
 """
 
 import datetime
 
-import pytest
-
 from display.calculators.tests import catalogue_oracle as oracle
 from display.calculators.tests.cima_scenario_support import CimaScenarioCase, first_crossing_errors
 from display.calculators.tests.flight_simulator import (
+    MissGate,
     Reverse,
     SkipGate,
     TimeOffset,
@@ -109,52 +107,34 @@ class ContractNavigationFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 1000)
         self.assert_final_score(result, expected, "perfect flight")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F5 / S14: the application's Q starts at a worst case of 1260 (the gate penalties), the "
-        "catalogue's Qmax is the best pilot's Qp + Qt (1540), so 8 s of error costs a different "
-        "share (994 against 995)",
-    )
     def test_small_timing_error_at_mp(self):
         result, expected = self.fly(TimeOffset("MP", 8))
         self.assertEqual(expected, oracle.round_half_up(1000 * (1540 - 8) / 1540))
         self.assert_final_score(result, expected, "MP 8 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F5 / S14: the application's Q starts at a worst case of 1260, the catalogue's Qmax is "
-        "the best pilot's Qp + Qt (1540): 30 s of error costs 976 against 981",
-    )
     def test_large_timing_error_at_sp(self):
         result, expected = self.fly(TimeOffset("SP", 30))
         self.assert_final_score(result, expected, "SP 30 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F5 / S14: the application's Q starts at a worst case of 1260, the catalogue's Qmax is "
-        "the best pilot's Qp + Qt (1540): an error of Emax costs 857 against 883"
-    )
     def test_timing_error_beyond_emax_counts_emax(self):
         result, expected = self.fly(TimeOffset("FP", 200), lead_out_s=260)
         self.assertEqual(expected, oracle.round_half_up(1000 * (1540 - 180) / 1540))
         self.assert_final_score(result, expected, "FP 200 s late")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F5 / S14: a declared point not flown costs its missed-gate penalty (180 of "
-        "1260) in the application; the catalogue takes it off V (Qp = 1000 x V / Vmax)",
-    )
     def test_a_declared_point_that_is_not_flown(self):
         result, expected = self.fly(SkipGate("C"))
         self.assertEqual(expected, oracle.round_half_up(1000 * (500 + 540) / 1540))
         self.assert_final_score(result, expected, "C declared and not flown")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F4 / S14: a point declared after MP and flown before the time of MP is "
-        "invalid but costs nothing in the application (score 0, 'invalid post-MP "
-        "point'); the catalogue counts it in Ep",
-    )
+    def test_a_mandatory_point_not_flown_is_in_ep_and_costs_emax(self):
+        """SP, MP and FP are declared points as well: not flown, each takes one off V and costs Emax of time."""
+        miss = MissGate("MP", margin_m=300)
+        result, expected = self.fly(miss)
+        flown, not_flown, errors = flown_points(self.task, self.task.generate_track([miss]), self.declared)
+        self.assertEqual((flown, not_flown, errors[1]), (4, 1, None))
+        self.assert_final_score(result, expected, "MP not flown")
+        self.assertEqual(expected, oracle.round_half_up(1000 * (750 + 360) / 1540))
+
     def test_a_point_declared_after_mp_and_flown_before_the_time_of_mp(self):
         result, expected = self.fly(TimeOffset("MP", -40), TimeOffset("C", -100))
         flown, not_flown, errors = flown_points(
@@ -196,11 +176,6 @@ class ContractNavigationFlightsTest(CimaScenarioCase):
         self.assertEqual(expected, 500)
         self.assert_final_score(result, expected, "10 s backwards")
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F5 / S14: the score does not reward declaring more points (Qp = 1000 x V / Vmax is not "
-        "part of the application's Q): the pilot who declares none scores 815 against 338",
-    )
     def test_a_pilot_who_declares_and_flies_many_points_outscores_one_who_declares_none(self):
         many = self.task
         none = add_contestant(self.task).declare(NO_POINTS_DECLARATION)
@@ -215,11 +190,6 @@ class ContractNavigationFlightsTest(CimaScenarioCase):
         self.assertGreater(scores[0], scores[1], "the pilot with four points must outscore the one with none")
         self.assertEqual(scores, tuple(expected))
 
-    @pytest.mark.xfail(
-        strict=True,
-        reason="F5 / S14: Vmax (the best V of the task) is not part of the application's Q, so the "
-        "second pilot scores 429 against 351",
-    )
     def test_two_pilots_in_the_same_task_are_scored_against_the_best(self):
         second = add_contestant(self.task).declare(FULL_DECLARATION)
         track_a = self.task.generate_track([SkipGate("D")])

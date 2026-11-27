@@ -28,7 +28,8 @@ from display.flight_order_and_maps.effective_route_rendering import get_effectiv
 from display.models import ANOMALY, INFORMATION
 from display.models.contestant_utility_models import ContestantReceivedPosition
 from display.services.catalogue_gate_quality import CatalogueGateQuality
-from display.utilities.task_types import stored_task_type
+from display.services.task_scoring import relative_term_values
+from display.utilities.task_types import CONTRACT_POINTS_SCORE_TYPE, SPEED_TERM_SCORE_TYPE, stored_task_type
 from display.utilities.coordinate_utilities import (
     bearing_difference,
     calculate_distance_lat_lon,
@@ -89,6 +90,9 @@ class GateCalculator(Calculator):
     Calculator responsible for scoring gate crossings and misses.
     """
 
+    # Class default so a calculator built without __init__ (as some unit tests do) can still be finalised.
+    _speed_term_scored = False
+
     def __init__(
         self,
         contestant,
@@ -132,6 +136,9 @@ class GateCalculator(Calculator):
         self.last_estimation_time = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self._last_speed_keeping_gate: Optional[Gate] = None
         self._last_speed_keeping_time: Optional[datetime.datetime] = None
+        # 2.A4 speed term: when the timed gates were crossed, the speed section runs between the first and the last.
+        self._timed_gate_crossings: dict = {}
+        self._speed_term_scored = False
         # 2.A6/2.B2 sequence bonus: the order actual gate PASSES happened in, compared against
         # the contestant's declared_sequence at finalise() - see
         # _score_turnpoint_hunt_sequence_bonus. Empty and unused for every other subtype.
@@ -776,6 +783,7 @@ class GateCalculator(Calculator):
         self.outstanding_gates = []
         self._watched_hidden_gates = []
         self._missed_timed_hidden_gates = []
+        self._score_speed_term(event.position)
 
     def finalise(self, track: Sequence[ContestantReceivedPosition]):
         # Catch any remaining missed gates at the very end of processing
@@ -785,6 +793,7 @@ class GateCalculator(Calculator):
                 self.on_gate_missed(GateMissedEvent(None, gate, track[-1] if track else None))
         self.outstanding_gates = []
         self._watched_hidden_gates = []
+        self._score_speed_term(track[-1] if track else None)
         # The flight is over: no next gate for the app's countdown any more.
         self.publish_next_timed_gate()
         # After the sweep above, so a gate missed only because it's swept here (rather than
@@ -808,6 +817,9 @@ class GateCalculator(Calculator):
         if event.gate.gate_check:
             wrong_direction = event.gate.name in self._wrong_direction_hidden_gates
             if self.catalogue_quality:
+                self._score_declared_point_not_flown(
+                    event.gate, event.position, event_time, "declared point not flown or not in order (V -1)"
+                )
                 if wrong_direction:
                     # Timed from its only crossing, the one against the route.
                     score = self.catalogue_quality.invalidated_loss(
@@ -865,15 +877,12 @@ class GateCalculator(Calculator):
 
         if self._is_invalid_post_mp_contract_crossing(event.gate, passing_time):
             event.gate.missed = True
-            self.update_gate_score(
-                passing_position,
+            # A point declared after MP and flown before the time of MP is invalid: a declared point not flown (Ep).
+            self._score_declared_point_not_flown(
                 event.gate,
-                0,
-                GATE_SCORE_TYPE,
-                "invalid post-MP point flown before MP time",
-                ANOMALY,
-                event.gate.expected_time,
+                passing_position,
                 passing_time,
+                "invalid post-MP point flown before MP time (declared point not flown, V -1)",
             )
             return
 
@@ -915,12 +924,44 @@ class GateCalculator(Calculator):
                 event.gate.expected_time,
                 passing_time,
             )
+        self._score_declared_point_flown(event.gate, passing_position, passing_time)
         self._track_turnpoint_hunt_actual_order(event.gate)
         self._score_turnpoint_hunt_compulsory_timing(event.gate, passing_position, passing_time)
         self._score_turnpoint_hunt_target_value(event.gate, passing_position, passing_time)
         self._score_limited_fuel_deadline(event.gate, passing_position, passing_time)
         self._score_turnpoint_hunt_maximum_duration(event.gate, passing_position, passing_time)
         self._score_speed_keeping(event.gate, passing_position, passing_time)
+        if event.gate.time_check:
+            self._timed_gate_crossings[event.gate] = passing_time
+
+    def _score_declared_point_flown(self, gate: Gate, position, passing_time: datetime.datetime):
+        """2.A3: a declared turn point flown in order counts in N, so it adds one to V (Qp = 1000 x V / Vmax)."""
+        if self.catalogue_quality and self.catalogue_quality.v_gain(gate):
+            self.update_gate_score(
+                position,
+                gate,
+                self.catalogue_quality.v_gain(gate),
+                CONTRACT_POINTS_SCORE_TYPE,
+                "declared point flown in order (V +1)",
+                INFORMATION,
+                time_override=passing_time,
+                kind=ACHIEVEMENT,
+            )
+
+    def _score_declared_point_not_flown(
+        self, gate: Gate, position, time: Optional[datetime.datetime], message: str
+    ):
+        """2.A3: a declared point not flown, or not in order, counts in Ep: it takes one off V (SP, MP and FP too)."""
+        if self.catalogue_quality and self.catalogue_quality.v_loss(gate):
+            self.update_gate_score(
+                position,
+                gate,
+                self.catalogue_quality.v_loss(gate),
+                CONTRACT_POINTS_SCORE_TYPE,
+                message,
+                ANOMALY,
+                time_override=time,
+            )
 
     def _watch_passed_hidden_gate(self, gate: Gate, passing_time: datetime.datetime):
         """A hidden gate just passed is watched for a second crossing, see _invalidate_repeated_hidden_gate_crossings."""
@@ -1105,12 +1146,49 @@ class GateCalculator(Calculator):
             passing_time,
         )
 
+    def _score_speed_term(self, position):
+        """
+        2.A4 speed term Qv = Vs x S / Smax. S is the ground speed in the speed section, which runs along the route
+        between the first and the last time gate the pilot crossed (the catalogue leaves the section to the briefing).
+        The calculator logs S once the flight is over; task_scoring divides it by the best S of the task and multiplies
+        by Vs, which the scorecard briefs (0: no speed term).
+        """
+        if self._speed_term_scored or not self._task_type.scores_speed_keeping:
+            return
+        if not relative_term_values(self.scorecard, self._task_type).get(SPEED_TERM_SCORE_TYPE):
+            return
+        crossed = sorted(self._timed_gate_crossings.items(), key=lambda item: self.gates.index(item[0]))
+        if len(crossed) < 2:
+            return
+        (first, first_time), (last, last_time) = crossed[0], crossed[-1]
+        seconds = (last_time - first_time).total_seconds()
+        if seconds <= 0:
+            return
+        section = self.gates[self.gates.index(first) : self.gates.index(last) + 1]
+        metres = sum(
+            calculate_distance_lat_lon((a.latitude, a.longitude), (b.latitude, b.longitude))
+            for a, b in zip(section, section[1:])
+        )
+        speed_kt = round(metres / seconds * 3600 / 1852, 2)
+        self._speed_term_scored = True
+        self.update_gate_score(
+            position,
+            last,
+            speed_kt,
+            SPEED_TERM_SCORE_TYPE,
+            f"ground speed {speed_kt:g} kt from {first.name} to {last.name} (S, scored against the best of the task)",
+            INFORMATION,
+            time_override=last_time,
+            kind=ACHIEVEMENT,
+        )
+
     def _score_speed_keeping(self, gate: Gate, position, passing_time: datetime.datetime):
         """2.A4 known circuit: penalise legs flown materially faster/slower than the
-        declared uniform speed. Legs bordering a manually overridden turnpoint time are
+        declared uniform speed, when the scorecard turns the rule on (it is not part of
+        the catalogue). Legs bordering a manually overridden turnpoint time are
         skipped, since the contestant is expected to deviate from the declared speed to
         hit that specific declared time (see KnownCircuitStrategy)."""
-        if not self._task_type.scores_speed_keeping:
+        if not self._task_type.scores_speed_keeping or not self.cima_config.speed_keeping_enabled:
             return
         if not hasattr(self.contestant, "contestanttaskconfiguration"):
             return

@@ -49,8 +49,10 @@ SCORECARD_CONFIG_FIELDS = [
     "duration_residual_fuel_required",
     "circle_radius_min_m",
     "circle_radius_max_m",
+    "speed_keeping_enabled",
     "speed_keeping_tolerance_kt",
     "speed_keeping_penalty_per_kt",
+    "speed_term_value",
     "turnpoint_hunt_sequence_bonus",
     "observation_photo_penalty",
     "observation_photo_value",
@@ -278,8 +280,14 @@ class Scorecard(models.Model):
     duration_residual_fuel_required = ConfigField(False)
     circle_radius_min_m = ConfigField(200)
     circle_radius_max_m = ConfigField(750)
+    # 2.A4: the speed-keeping rule (a penalty for every leg flown off the declared speed) is the application's own and
+    # not part of the catalogue, so it is off unless the organiser turns it on.
+    speed_keeping_enabled = ConfigField(False)
     speed_keeping_tolerance_kt = ConfigField(5)
     speed_keeping_penalty_per_kt = ConfigField(1)
+    # 2.A4: Vs of the speed term Qv = Vs x S / Smax, the value the best speed of the task earns (briefed per task; 0:
+    # the task has no speed term).
+    speed_term_value = ConfigField(0)
     turnpoint_hunt_sequence_bonus = ConfigField(0)
     # Observation photos (see display/services/photo_observations.py). Legacy tasks deduct the penalty for every
     # observation that is missed (not marked, or marked more than 1 mm from the target); CIMA tasks (2.A4/2.A5)

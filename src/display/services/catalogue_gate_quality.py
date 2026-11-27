@@ -10,6 +10,10 @@ sum of everything that can be deducted cannot drift apart.
 2.A2: Qp = Emax x Ng (a hidden gate is worth Emax), Qt = -sum(Ei) (every error deducts, at most Emax, Emax for a gate
       not crossed), so a hidden gate that was not crossed loses its value and Emax. SP is time zero; the hidden gates
       and FP are time gates.
+2.A3: Qt = Emax x 3 - Et over SP, MP and FP (each worth Emax and losing its error, Emax if not flown). Qp = 1000 x V /
+      Vmax is a share of the best contestant of the task, so here a gate only has a count in V: +1 for a declared turn
+      point flown in order, -1 for a declared point (SP, MP and FP included) not flown or not in order. The calculator
+      logs that count and task_scoring turns it into points once Vmax is known.
 A hidden gate crossed twice, or first crossed against the route, is invalidated: it loses its value. Its time comes
 from the first crossing (2.A1: "time will be extracted from the first crossing"), which is charged when it is crossed,
 except for a crossing against the route, which is the first and only one and is timed as it happens.
@@ -101,6 +105,20 @@ class CatalogueGateQuality:
         worst_if_missed = abs(gate_score.missed_penalty) if item.gate_check else 0
         worst_if_crossed_badly = abs(gate_score.maximum_penalty) if item.time_check else 0
         return max(worst_if_missed, worst_if_crossed_badly)
+
+    # -- what it counts in V (2.A3) -------------------------------------------------------------------------------
+
+    def counts_in_v(self, item) -> bool:
+        """Whether the task counts the declared points in V = N - Ep, and `item` is one of them."""
+        return self.model.declared_points_count_in_v and self.covers(item) and bool(item.gate_check)
+
+    def v_gain(self, item) -> int:
+        """What a declared turn point flown in order adds to V: 1. SP, MP and FP are timed, not turn points of N."""
+        return 1 if self.counts_in_v(item) and item.type == TURNPOINT and not item.time_check else 0
+
+    def v_loss(self, item) -> int:
+        """What a declared point not flown, or not in order, takes off V: 1, SP, MP and FP included (Ep)."""
+        return 1 if self.counts_in_v(item) else 0
 
     # -- what losing it costs -------------------------------------------------------------------------------------
 

@@ -1543,8 +1543,10 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     duration_residual_fuel_required = serializers.BooleanField(required=False)
     circle_radius_min_m = serializers.FloatField(required=False)
     circle_radius_max_m = serializers.FloatField(required=False)
+    speed_keeping_enabled = serializers.BooleanField(required=False)
     speed_keeping_tolerance_kt = serializers.FloatField(required=False)
     speed_keeping_penalty_per_kt = serializers.FloatField(required=False)
+    speed_term_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
     turnpoint_hunt_sequence_bonus = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     observation_photo_penalty = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
@@ -1611,8 +1613,10 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "duration_residual_fuel_required",
             "circle_radius_min_m",
             "circle_radius_max_m",
+            "speed_keeping_enabled",
             "speed_keeping_tolerance_kt",
             "speed_keeping_penalty_per_kt",
+            "speed_term_value",
             "turnpoint_hunt_sequence_bonus",
             "observation_photo_penalty",
             "observation_photo_value",

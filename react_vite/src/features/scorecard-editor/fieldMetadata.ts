@@ -74,7 +74,7 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
     },
     {
         title: 'Speed keeping',
-        fields: ['speed_keeping_tolerance_kt', 'speed_keeping_penalty_per_kt'],
+        fields: ['speed_term_value', 'speed_keeping_enabled', 'speed_keeping_tolerance_kt', 'speed_keeping_penalty_per_kt'],
     },
     {
         title: 'Observation photos',
@@ -178,6 +178,20 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
     duration_residual_fuel_required: { label: 'Duration residual fuel required', kind: 'boolean' },
     circle_radius_min_m: { label: 'Circle radius min', kind: 'number', unit: 'm', min: 0 },
     circle_radius_max_m: { label: 'Circle radius max', kind: 'number', unit: 'm', min: 0 },
+    speed_term_value: {
+        label: 'Speed term value (Vs)',
+        kind: 'number',
+        unit: 'points',
+        min: 0,
+        help:
+            'Navigation over a known circuit (2.A4): the points the fastest pilot of the task earns for the speed term ' +
+            '(Qv = Vs x S / Smax, S being the ground speed between the first and the last time gate). 0 leaves the speed term out.',
+    },
+    speed_keeping_enabled: {
+        label: 'Penalise deviation from the declared speed',
+        kind: 'boolean',
+        help: 'Not part of the catalogue: penalises every leg flown faster or slower than the declared speed. Off by default.',
+    },
     speed_keeping_tolerance_kt: { label: 'Speed keeping tolerance', kind: 'number', unit: 'kt', min: 0 },
     speed_keeping_penalty_per_kt: { label: 'Speed keeping penalty per kt', kind: 'number', min: 0 },
     turnpoint_hunt_sequence_bonus: { label: 'Turnpoint hunt sequence bonus', kind: 'number', min: 0 },

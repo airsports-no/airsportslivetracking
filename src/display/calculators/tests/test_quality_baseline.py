@@ -148,13 +148,18 @@ class TestTheoreticalGateQuality(TestCase):
 
     def test_the_deficit_style_task_types_start_at_it_and_it_is_also_their_theoretical_maximum(self):
         for subtype in (
-            CONTRACT_NAVIGATION_TIME_CONTROLS,
             KNOWN_CIRCUIT,
             UNKNOWN_LEGS,
         ):
             with self.subTest(subtype=subtype):
                 contestant = self._contestant(subtype, [self._waypoint(TURNPOINT)])
                 self.assertEqual((200, 200), quality_baseline(contestant))
+
+    def test_contract_navigation_starts_at_emax_per_time_gate_and_can_earn_qp_on_top_of_it(self):
+        # 2.A3: Qt = Emax x (the time gates), here one turn point with a time check (its 150 maximum error); Qp = 1000 x
+        # V / Vmax is added for the best contestant of the task only, so the theoretical maximum has the 1000 as well.
+        contestant = self._contestant(CONTRACT_NAVIGATION_TIME_CONTROLS, [self._waypoint(TURNPOINT)])
+        self.assertEqual((150, 1150), quality_baseline(contestant))
 
     def test_the_fixed_scale_tasks_start_at_the_catalogue_number(self):
         contestant = self._contestant(ANR_CATALOGUE, [self._waypoint(TURNPOINT)])
@@ -212,7 +217,8 @@ class TestQualityBaselineOfRealContestants(MessageTestCase):
             },
         )
         contestant = Contestant.objects.get(pk=contestant.pk)
-        self.assertEqual((200, 200), quality_baseline(contestant))
+        # TP1 is the only point of the declared route (a time gate worth its 150 Emax); TP2 and TP3 do not count
+        self.assertEqual((150, 1150), quality_baseline(contestant))
 
     def _hunt_contestant(self, target_values: dict, sequence_bonus: float = 0, subtype=TURNPOINT_HUNT):
         task = self.make_task(subtype)

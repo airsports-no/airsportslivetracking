@@ -29,7 +29,11 @@ from display.services.task_scoring import (
 from display.utilities.task_types import (
     ANR_CATALOGUE,
     CIRCLE,
+    CONTRACT_NAVIGATION_TIME_CONTROLS,
+    CONTRACT_POINTS_SCORE_TYPE,
+    KNOWN_CIRCUIT,
     PRECISION_NAVIGATION,
+    SPEED_TERM_SCORE_TYPE,
     QMAX_ABSOLUTE,
     QMAX_BEST_IN_TASK,
     QMAX_THEORETICAL,
@@ -320,6 +324,131 @@ class TestRecomputeTaskScores(TaskScoringTestCase):
         self.assertEqual(0, recompute_task_scores(legacy, refresh=[contestant]))
         self.assertEqual(42, self.track(contestant).score)
         self.assertFalse(task_scores_are_provisional(legacy))
+
+
+class TestContractPointsShareOfTheBest(TaskScoringTestCase):
+    """2.A3: Qp = 1000 x V / Vmax. The log holds the count V; the points follow the best V of the task."""
+
+    task_subtype = CONTRACT_NAVIGATION_TIME_CONTROLS
+
+    def points(self, contestant, count, kind=ACHIEVEMENT):
+        """`count` entries of one V each, as the calculator logs them, one per declared point."""
+        return [
+            {"points": 1 if kind == ACHIEVEMENT else -1, "kind": kind, "score_type": CONTRACT_POINTS_SCORE_TYPE,
+             "gate": f"P{index}"}
+            for index in range(count)
+        ]
+
+    def test_the_best_v_earns_a_thousand_and_the_others_their_share(self):
+        a, b, c = self.contestants
+        self.fly(a, 540, *self.points(a, 4))
+        self.fly(b, 540, *self.points(b, 2))
+        self.fly(c, 540)
+        # Q = 540 + 1000 x V / 4: 1540, 1040 and 540; P = 1000 x Q / 1540
+        self.assertEqual([1540, 1040, 540], [self.track(x).raw_quality for x in self.contestants])
+        self.assertEqual([1000, 675, 351], self.scores())
+
+    def test_the_breakdown_shows_the_share_as_points_of_q(self):
+        a, b, _ = self.contestants
+        self.fly(a, 540, *self.points(a, 4))
+        self.fly(b, 540, *self.points(b, 1))
+        self.assertEqual({CONTRACT_POINTS_SCORE_TYPE: 1000.0}, self.track(a).quality_breakdown)
+        self.assertEqual({CONTRACT_POINTS_SCORE_TYPE: 250.0}, self.track(b).quality_breakdown)
+
+    def test_vmax_follows_the_other_contestants_results(self):
+        a, b, _ = self.contestants
+        self.fly(a, 540, *self.points(a, 2))
+        self.assertEqual(1540, self.track(a).raw_quality)
+        self.fly(b, 540, *self.points(b, 4))
+        # b now sets Vmax: a's share halves without a's own log changing
+        self.assertEqual([1040, 1540], [self.track(x).raw_quality for x in (a, b)])
+        self.assertEqual([675, 1000], self.scores()[:2])
+        # a result that is taken away (the contestant is reset) gives the share back
+        ScoreLogEntry.objects.filter(contestant=b).delete()
+        refresh_contestant_quality(b)
+        self.assertEqual(1540, self.track(a).raw_quality)
+        self.assertEqual([1000, 351], self.scores()[:2])
+
+    def test_declared_points_not_flown_take_the_count_down_below_zero(self):
+        a, b, _ = self.contestants
+        self.fly(a, 540, *self.points(a, 4))
+        self.fly(b, 540, *self.points(b, 1), *self.points(b, 3, PENALTY))
+        # V = 1 - 3 = -2 of Vmax 4: -500 points
+        self.assertEqual(40, self.track(b).raw_quality)
+        self.assertEqual(round(1000 * 40 / 1540), self.scores()[1])
+
+    def test_without_a_positive_vmax_the_term_is_nothing(self):
+        a, b, _ = self.contestants
+        self.fly(a, 540)
+        self.fly(b, 540, *self.points(b, 2, PENALTY))
+        self.assertEqual([540, 540], [self.track(x).raw_quality for x in (a, b)])
+
+    def test_a_contestant_who_did_not_fly_does_not_set_vmax(self):
+        a, b, _ = self.contestants
+        self.fly(a, 540, *self.points(a, 2))
+        self.fly(b, 540, *self.points(b, 4), started=False)
+        self.assertEqual(1540, self.track(a).raw_quality)
+
+    def test_recomputing_is_idempotent_and_writes_nothing_the_second_time(self):
+        a, b, _ = self.contestants
+        self.fly(a, 540, *self.points(a, 4))
+        self.fly(b, 540, *self.points(b, 2))
+        before = ([self.track(x).raw_quality for x in (a, b)], self.scores())
+        self.assertEqual(0, recompute_task_scores(self.task))
+        self.assertEqual(0, recompute_task_scores(self.task, refresh=self.contestants))
+        self.assertEqual(before, ([self.track(x).raw_quality for x in (a, b)], self.scores()))
+
+    def test_the_term_is_worth_a_thousand_for_the_best_contestant(self):
+        from display.services.task_scoring import relative_term_values
+        from display.utilities.task_types import get_task_type
+
+        values = relative_term_values(self.task.scorecard, get_task_type(CONTRACT_NAVIGATION_TIME_CONTROLS))
+        self.assertEqual({CONTRACT_POINTS_SCORE_TYPE: 1000.0}, values)
+
+
+class TestSpeedTermShareOfTheBest(TaskScoringTestCase):
+    """2.A4: Qv = Vs x S / Smax. The log holds the speed S in knots; Vs is the scorecard's."""
+
+    task_subtype = KNOWN_CIRCUIT
+
+    def speed(self, kt):
+        return {"points": kt, "kind": ACHIEVEMENT, "score_type": SPEED_TERM_SCORE_TYPE, "gate": "FP"}
+
+    def set_vs(self, value):
+        self.task.scorecard.config["speed_term_value"] = value
+        self.task.scorecard.save(update_fields=["config"])
+
+    def test_the_fastest_pilot_earns_vs_and_the_others_their_share(self):
+        self.set_vs(100)
+        a, b, c = self.contestants
+        self.fly(a, 1000, self.speed(80))
+        self.fly(b, 1000, self.speed(100))
+        self.fly(c, 1000)
+        self.assertEqual([1080, 1100, 1000], [self.track(x).raw_quality for x in self.contestants])
+        self.assertEqual({SPEED_TERM_SCORE_TYPE: 80.0}, self.track(a).quality_breakdown)
+
+    def test_smax_follows_the_other_contestants_results(self):
+        self.set_vs(100)
+        a, b, _ = self.contestants
+        self.fly(a, 1000, self.speed(80))
+        self.assertEqual(1100, self.track(a).raw_quality)
+        self.fly(b, 1000, self.speed(160))
+        self.assertEqual([1050, 1100], [self.track(x).raw_quality for x in (a, b)])
+
+    def test_without_a_briefed_value_the_task_has_no_speed_term(self):
+        a, b, _ = self.contestants
+        self.fly(a, 1000, self.speed(80))
+        self.fly(b, 1000, self.speed(160))
+        self.assertEqual([1000, 1000], [self.track(x).raw_quality for x in (a, b)])
+        self.assertEqual({}, self.track(a).quality_breakdown)
+
+    def test_changing_vs_rescores_the_task(self):
+        a, b, _ = self.contestants
+        self.fly(a, 1000, self.speed(80))
+        self.fly(b, 1000, self.speed(160))
+        self.set_vs(200)
+        recompute_task_scores(self.task, refresh=self.contestants)
+        self.assertEqual([1100, 1200], [self.track(x).raw_quality for x in (a, b)])
 
 
 class TestAbsoluteScores(MessageTestCase):
