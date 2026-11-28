@@ -1,4 +1,13 @@
-import { createInsertedRoutePoint, createObservationMarker, nextObservationName } from './routeEditorMapClickHelpers';
+import {
+  createInsertedRoutePoint,
+  createObservationMarker,
+  findNearestHit,
+  findPlacingModeHit,
+  HIT_RADIUS_PX,
+  hitKindsForMode,
+  nextObservationName,
+  type HitCandidate,
+} from './routeEditorMapClickHelpers';
 
 describe('createInsertedRoutePoint', () => {
   it('defaults isTiming to true for a tp point (the known_time_gate collapse target)', () => {
@@ -35,5 +44,53 @@ describe('createObservationMarker', () => {
     const marker = createObservationMarker({ lat: 60, lng: 11 }, ['Obs 1', 'Obs 3']);
     expect(marker.name).toBe('Obs 2');
     expect([marker.lat, marker.lng]).toEqual([60, 11]);
+  });
+});
+
+describe('which existing thing a click hits', () => {
+  const point = (key: string, x: number, y: number, kind: HitCandidate['kind'] = 'point'): HitCandidate => ({ key, kind, x, y });
+
+  it('has a hit radius of at least 14 pixels', () => {
+    expect(HIT_RADIUS_PX).toBeGreaterThanOrEqual(14);
+  });
+
+  it('hits a candidate within the radius and not one outside it', () => {
+    const candidates = [point('a', 100, 100)];
+    expect(findNearestHit({ x: 100 + HIT_RADIUS_PX, y: 100 }, candidates)?.key).toBe('a');
+    expect(findNearestHit({ x: 100 + HIT_RADIUS_PX + 1, y: 100 }, candidates)).toBeNull();
+    expect(findNearestHit({ x: 0, y: 0 }, [])).toBeNull();
+  });
+
+  it('lets the nearest of overlapping hit areas win', () => {
+    const candidates = [point('far', 100, 100), point('near', 112, 100)];
+    expect(findNearestHit({ x: 108, y: 100 }, candidates)?.key).toBe('near');
+    expect(findNearestHit({ x: 104, y: 100 }, candidates)?.key).toBe('far');
+  });
+
+  it('picks the first on an exact tie', () => {
+    expect(findNearestHit({ x: 106, y: 100 }, [point('a', 100, 100), point('b', 112, 100)])?.key).toBe('a');
+  });
+
+  it('selects an existing point instead of placing one only for the kind the mode places', () => {
+    const candidates = [
+      point('route', 100, 100, 'point'),
+      point('standalone', 200, 100, 'standalone_point'),
+      point('photo', 300, 100, 'observation'),
+      point('gate', 400, 100, 'gate'),
+      point('first', 500, 100, 'temp_polygon_start'),
+    ];
+    expect(findPlacingModeHit({ x: 105, y: 100 }, candidates, 'add_point')?.key).toBe('route');
+    expect(findPlacingModeHit({ x: 205, y: 100 }, candidates, 'add_point')?.key).toBe('standalone');
+    expect(findPlacingModeHit({ x: 105, y: 100 }, candidates, 'add_observation')).toBeNull();
+    expect(findPlacingModeHit({ x: 205, y: 100 }, candidates, 'add_catalogue_turnpoint')?.key).toBe('standalone');
+    expect(findPlacingModeHit({ x: 305, y: 100 }, candidates, 'add_observation')?.key).toBe('photo');
+    expect(findPlacingModeHit({ x: 405, y: 100 }, candidates, 'add_landing')?.key).toBe('gate');
+    expect(findPlacingModeHit({ x: 405, y: 100 }, candidates, 'add_takeoff')?.key).toBe('gate');
+    expect(findPlacingModeHit({ x: 505, y: 100 }, candidates, 'add_polygon')?.key).toBe('first');
+  });
+
+  it('never hits in select mode: the marks do that themselves', () => {
+    expect(hitKindsForMode('view')).toEqual([]);
+    expect(findPlacingModeHit({ x: 100, y: 100 }, [point('a', 100, 100)], 'view')).toBeNull();
   });
 });

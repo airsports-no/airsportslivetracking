@@ -4,7 +4,7 @@ import Sidebar from '../components/Sidebar';
 import Toolbar from '../components/Toolbar';
 import GateWidthModal from '../components/GateWidthModal';
 import MapCanvas from '../components/MapCanvas';
-import WizardActionBanner from '../components/WizardActionBanner';
+import MapModeBanner from '../components/MapModeBanner';
 import TaskChoiceModal from '../components/TaskChoiceModal';
 import {
   fetchRoute,
@@ -29,7 +29,7 @@ import { Map } from 'leaflet';
 import { buildWizardChecklist, type CompatibilityStatus, getRouteEditorFlags } from '../taskRequirements';
 import { getTaskTemplateById, isTaskSubtypeVisible } from '../taskTemplates';
 import { countForTool, getToolAction, getToolWizardStep } from '../guideTools';
-import { autoAdvance, findStep, nextUnmetRequiredStep, resolveStepEnd, shouldOfferTaskChoice, type StepEnd } from '../guideProgress';
+import { autoAdvance, doneButtonLabel, findStep, nextUnmetRequiredStep, resolveStepEnd, shouldOfferTaskChoice, type StepEnd } from '../guideProgress';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
 import {
   deleteItemById,
@@ -53,6 +53,10 @@ import {
   normalizeRoutePointsBeforeAppend,
 } from '../routeEditorMapClickHelpers';
 import { getWizardTransition } from '../routeEditorWizardTransitions';
+import { getModeBanner } from '../modeBanner';
+import { editorKeyAction } from '../routeEditorKeys';
+import { selectionAfterRestore, type RouteSnapshot } from '../routeHistory';
+import useRouteHistory from '../useRouteHistory';
 import { useToast } from '../../competition-map/hooks/useToast';
 import {
   buildDummyBranchWaypoint,
@@ -170,6 +174,30 @@ export default function RouteEditor() {
 
   const markDirty = useCallback(() => setIsDirty(true), []);
 
+  // Undo and redo of the route content (not the selection, mode, map view or settings). Every change of the content is
+  // a step; see useRouteHistory for how a drag, typing and placing are delimited.
+  const content = useMemo<RouteSnapshot>(
+    () => ({ routePoints, standalonePoints, gates, observationMarkers, polygons }),
+    [routePoints, standalonePoints, gates, observationMarkers, polygons],
+  );
+  const restoreContent = useCallback((snapshot: RouteSnapshot) => {
+    setRoutePoints(snapshot.routePoints);
+    setStandalonePoints(snapshot.standalonePoints);
+    setGates(snapshot.gates);
+    setObservationMarkers(snapshot.observationMarkers);
+    setPolygons(snapshot.polygons);
+    // Undoing back to the saved route can leave it marked as changed; that is accepted
+    setIsDirty(true);
+    // A selected item that is not in the restored content is no longer selected
+    const selection = selectionAfterRestore(selectedId, selectionType, snapshot);
+    if (selection.selectedId !== selectedId) {
+      setSelectedId(selection.selectedId);
+      setSelectionType(selection.selectionType);
+    }
+  }, [selectedId, selectionType]);
+  const history = useRouteHistory(content, restoreContent);
+  const { reset: resetHistory } = history;
+
   // 2.A5: the generated map labels every shown point, so the points are numbered in the order the map shows them
   // (dummy legs included) instead of carrying generic names. Also renames an older route when it is opened. Done while
   // rendering, once per change of the points (https://react.dev/learn/you-might-not-need-an-effect), not in an effect.
@@ -214,13 +242,15 @@ export default function RouteEditor() {
       setGates(parsed.gates);
       setObservationMarkers(parsed.observationMarkers);
       setPolygons(parsed.polygons);
+      // A loaded route is where the history starts
+      resetHistory();
       if (parsed.bounds) {
         setPendingBounds(parsed.bounds);
       }
     } catch (err) {
       console.error('Error parsing route data', err);
     }
-  }, [standalonePointTypes]);
+  }, [standalonePointTypes, resetHistory]);
 
   useEffect(() => {
     if (mapInstance && pendingBounds) {
@@ -595,6 +625,7 @@ export default function RouteEditor() {
 
   const updateSelectedPoint = (field: keyof RoutePoint, value: any) => {
     setIsDirty(true);
+    history.noteEdit(`${selectedId}:${field}`);
     setRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
       if (index === -1) return points;
@@ -637,21 +668,25 @@ export default function RouteEditor() {
 
   const updateSelectedStandalonePoint = (field: keyof RoutePoint, value: any) => {
     markDirty();
+    history.noteEdit(`${selectedId}:${field}`);
     setStandalonePoints((points) => updateItemById(points, selectedId, (point) => ({ ...point, [field]: value })));
   };
 
   const updateSelectedGate = (field: keyof Gate, value: any) => {
     markDirty();
+    history.noteEdit(`${selectedId}:${field}`);
     setGates((gatesState) => updateItemById(gatesState, selectedId, (gate) => ({ ...gate, [field]: value })));
   };
 
   const updateSelectedObservation = (field: keyof ObservationMarker, value: any) => {
     markDirty();
+    history.noteEdit(`${selectedId}:${field}`);
     setObservationMarkers((markers) => updateItemById(markers, selectedId, (marker) => ({ ...marker, [field]: value })));
   };
 
   const updateSelectedPolygon = (field: keyof Polygon, value: any) => {
     markDirty();
+    history.noteEdit(`${selectedId}:${field}`);
     setPolygons((polygonsState) => updateItemById(polygonsState, selectedId, (polygon) => ({ ...polygon, [field]: value })));
   };
 
@@ -793,6 +828,14 @@ export default function RouteEditor() {
     setWizardPrompt(null);
     setActiveGuideTool(null);
   }, []);
+
+  // Back to select mode from anywhere: stops the tool and the guide step, clears a half-drawn gate line or zone. The
+  // route is not changed. Esc and the banner's and toolbar's select/stop buttons.
+  const stopPlacing = useCallback(() => {
+    stopWizardAction();
+    setTempGatePoint(null);
+    setTempPolygonPoints([]);
+  }, [stopWizardAction]);
 
   // Starts the tool of a guide step: the toolbar mode or wizard action it stands for (see TOOL_ACTIONS).
   const startWizardStep = useCallback((tool: RouteRequirementTool) => {
@@ -936,6 +979,28 @@ export default function RouteEditor() {
     }
   }
 
+  // Esc, Ctrl/Cmd+Z, Ctrl/Cmd+Shift+Z and Ctrl+Y; not while typing in a field or with a modal open (editorKeyAction).
+  const modalOpen = taskChoiceOpen || gateWidthsOpen;
+  const somethingToStop = mode !== 'view' || !!activeGuideTool || !!currentWizardActionLabel || !!tempGatePoint || tempPolygonPoints.length > 0;
+  const { undo: undoContent, redo: redoContent } = history;
+  useEffect(() => {
+    const onKeyDown = (event: KeyboardEvent) => {
+      const action = editorKeyAction(event, modalOpen);
+      if (!action) return;
+      if (action === 'stop') {
+        if (!somethingToStop) return;
+        event.preventDefault();
+        stopPlacing();
+        return;
+      }
+      event.preventDefault();
+      if (action === 'undo') undoContent();
+      else redoContent();
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [modalOpen, somethingToStop, stopPlacing, undoContent, redoContent]);
+
   const validationErrors = useMemo(() => validateRouteEditorState(
     routePoints,
     isThreePointBackboneTask,
@@ -1031,6 +1096,13 @@ export default function RouteEditor() {
   const bannerText = dummyBranchPhase !== 'idle'
     ? getWizardBannerText(dummyBranchPhase, activeDummyTrigger?.name)
     : null;
+  const modeBanner = getModeBanner({
+    mode,
+    tempGatePoint,
+    activeGuideTool,
+    guidePrompt: bannerText?.instruction || wizardPrompt,
+    legInsertType: wizardRouteInsertType,
+  });
   const awaitingNonTriggerSelection = dummyBranchPhase === 'awaiting_trigger'
     && selectionType === 'point'
     && !!selectedId
@@ -1131,9 +1203,13 @@ export default function RouteEditor() {
         <Toolbar
           mode={mode}
           setMode={setMode}
-          tempGatePoint={tempGatePoint}
           setTempGatePoint={setTempGatePoint}
           setTempPolygonPoints={setTempPolygonPoints}
+          onSelect={stopPlacing}
+          canUndo={history.canUndo}
+          canRedo={history.canRedo}
+          onUndo={undoContent}
+          onRedo={redoContent}
           openWizard={() => { setSelectedId(null); setSelectionType('wizard'); }}
           openGateWidths={() => setGateWidthsOpen(true)}
         />
@@ -1147,13 +1223,18 @@ export default function RouteEditor() {
           onClose={() => setGateWidthsOpen(false)}
         />
 
-        {currentWizardActionLabel && (
-          <WizardActionBanner
-            currentWizardActionLabel={currentWizardActionLabel}
+        {modeBanner && (
+          <MapModeBanner
+            banner={modeBanner}
             title={bannerText?.title}
-            instruction={bannerText?.instruction || wizardPrompt || 'Follow the wizard instructions on the map.'}
-            onDone={finishWizardStep}
-            doneLabel={activeStepState && activeStepState.fixedCount !== null ? 'Stop' : 'Done, next step'}
+            onStop={stopPlacing}
+            guideAction={activeGuideTool
+              ? {
+                label: activeStepState ? doneButtonLabel(activeStepState) : 'Done, next step',
+                onDone: finishWizardStep,
+                description: currentWizardActionLabel ?? undefined,
+              }
+              : null}
             dummyBranchPhase={dummyBranchPhase}
             awaitingNonTriggerSelection={awaitingNonTriggerSelection}
           />
@@ -1177,6 +1258,8 @@ export default function RouteEditor() {
           wizardPolygonType={wizardPolygonType}
           legInsertType={wizardRouteInsertType}
           onEdit={markDirty}
+          onDragGestureStart={history.beginGesture}
+          onDragGestureEnd={history.endGesture}
           activeTriggerId={dummyBranchPhase === 'placing' ? dummyBranchTriggerId : null}
           emphasizeUnknownLegTriggers={dummyBranchPhase === 'awaiting_trigger'}
           setRoutePoints={setRoutePoints}

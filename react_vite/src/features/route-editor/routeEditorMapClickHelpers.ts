@@ -1,5 +1,5 @@
 import { getDistanceFromLine } from '../../utils/geoUtils';
-import { Gate, LatLng, ObservationMarker, RoutePoint } from '../../types';
+import { Gate, LatLng, Mode, ObservationMarker, RoutePoint } from '../../types';
 
 const THREE_POINT_BACKBONE_TEMPLATE: Array<Pick<RoutePoint, 'name' | 'type' | 'featureType'>> = [
   { name: 'SP', type: 'sp', featureType: 'route_waypoint' },
@@ -180,4 +180,64 @@ export function createObservationMarker(latlng: LatLng, takenNames: Iterable<str
     name: nextObservationName(takenNames),
     targetName: '',
   };
+}
+
+// --- Which existing thing a click on the map hits ---
+
+// An existing point, gate end, photo or polygon handle is hit by a click within this many pixels of its centre, not only
+// on the small mark that is drawn. The same radius decides when a click in a placing mode selects an existing point of
+// the kind being placed instead of placing a new one.
+export const HIT_RADIUS_PX = 14;
+
+export type HitKind = 'point' | 'standalone_point' | 'gate' | 'observation' | 'polygon_vertex' | 'temp_polygon_start';
+
+export interface PixelPoint {
+  x: number;
+  y: number;
+}
+
+export interface HitCandidate extends PixelPoint {
+  key: string;
+  kind: HitKind;
+}
+
+// The candidate nearest to the click, when it is within [radius] pixels (the first one on a tie); null when none is.
+export function findNearestHit<T extends PixelPoint>(click: PixelPoint, candidates: readonly T[], radius: number = HIT_RADIUS_PX): T | null {
+  let best: T | null = null;
+  let bestDistance = Infinity;
+  for (const candidate of candidates) {
+    const distance = Math.hypot(candidate.x - click.x, candidate.y - click.y);
+    if (distance <= radius && distance < bestDistance) {
+      best = candidate;
+      bestDistance = distance;
+    }
+  }
+  return best;
+}
+
+// The kinds of existing thing a click selects in a placing mode: what the mode places. Select mode has none (the marks'
+// own hit areas do it there).
+export function hitKindsForMode(mode: Mode): HitKind[] {
+  switch (mode) {
+    case 'add_point':
+      return ['point', 'standalone_point'];
+    case 'add_catalogue_turnpoint':
+      return ['standalone_point'];
+    case 'add_observation':
+      return ['observation'];
+    case 'add_polygon':
+      return ['temp_polygon_start'];
+    case 'add_landing':
+    case 'add_takeoff':
+      return ['gate'];
+    default:
+      return [];
+  }
+}
+
+// The existing thing that a click in [mode] selects instead of placing something, or null when it places.
+export function findPlacingModeHit<T extends HitCandidate>(click: PixelPoint, candidates: readonly T[], mode: Mode, radius: number = HIT_RADIUS_PX): T | null {
+  const kinds = hitKindsForMode(mode);
+  if (kinds.length === 0) return null;
+  return findNearestHit(click, candidates.filter((candidate) => kinds.includes(candidate.kind)), radius);
 }

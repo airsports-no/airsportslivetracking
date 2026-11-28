@@ -22,7 +22,17 @@ interface useDragHandlersProps {
     maxObsDist: number;
     // A drag that changed something: the route has unsaved edits
     onEdit?: () => void;
+    // A drag has ended (whatever it did): the undo step it was part of is complete
+    onGestureEnd?: () => void;
 }
+
+// A corner of a zone is drawn as a mark with a larger invisible hit area over it: both move.
+const moveHandle = (markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, polyId: string, index: number, latlng: L.LatLng) => {
+  for (const key of [`poly-handle-${polyId}-${index}`, `poly-mark-${polyId}-${index}`]) {
+    const layer = markersRef.current[key] as L.CircleMarker | undefined;
+    if (layer) layer.setLatLng(latlng);
+  }
+};
 
 export default function useDragHandlers({
   mapRef,
@@ -36,6 +46,7 @@ export default function useDragHandlers({
   setSelectionType,
   setMode,
   onEdit,
+  onGestureEnd,
 }: useDragHandlersProps) {
   const dragRef = useRef<any>(null);
 
@@ -131,8 +142,7 @@ export default function useDragHandlers({
           routeLineRef.current.setLatLngs(newLatLngs);
         }
       } else if (type === 'poly_vertex') {
-        const handle = markersRef.current[`poly-handle-${polyId}-${vertexIndex}`] as L.CircleMarker;
-        if (handle) handle.setLatLng(e.latlng);
+        moveHandle(markersRef, polyId, vertexIndex, e.latlng);
 
         const polyLayer = markersRef.current[`poly-${polyId}`] as L.Polygon;
         if (polyLayer) {
@@ -162,15 +172,20 @@ export default function useDragHandlers({
           polyLayer.setLatLngs([currentPoints.map(p => [p.lat, p.lng])]);
         }
 
-        currentPoints.forEach((p, idx) => {
-          const handle = markersRef.current[`poly-handle-${polyId}-${idx}`] as L.CircleMarker;
-          if (handle) handle.setLatLng([p.lat, p.lng]);
-        });
+        currentPoints.forEach((p, idx) => moveHandle(markersRef, polyId, idx, L.latLng(p.lat, p.lng)));
       }
     }
   };
 
   const handleDragEnd = (e: L.LeafletMouseEvent) => {
+    try {
+      endDrag(e);
+    } finally {
+      onGestureEnd?.();
+    }
+  };
+
+  const endDrag = (e: L.LeafletMouseEvent) => {
     if (!dragRef.current) return;
     const { id, hasMoved, type, polyId, vertexIndex, initialPoints, startLatLng } = dragRef.current;
     const map = mapRef.current;

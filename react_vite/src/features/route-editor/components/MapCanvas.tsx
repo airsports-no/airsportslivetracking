@@ -13,6 +13,8 @@ import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mo
 import { fetchEditableRouteMapSources, fetchGlobalEditableRouteMapSources, MapSourceFetchError } from '../api';
 import { MapSource } from '../types';
 import { previousOnDummyBranch } from '../unknownLegWizard';
+import { findPlacingModeHit, HIT_RADIUS_PX } from '../routeEditorMapClickHelpers';
+import { isPlacing } from '../modeBanner';
 
 const BUILTIN_BASE_SOURCES: MapSource[] = [
   {
@@ -86,6 +88,10 @@ interface MapCanvasProps {
     onMapClick: (latlng: L.LatLng) => void;
     // An edit made on the map (a drag, a point inserted on a leg): the route has unsaved changes
     onEdit?: () => void;
+    // A drag that is more than one change of the content (a point inserted by the dot of a leg, then moved) starts and
+    // ends: the undo history takes it as one step
+    onDragGestureStart?: () => void;
+    onDragGestureEnd?: () => void;
 }
 
 const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({ 
@@ -118,6 +124,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   setTempPolygonPoints,
   onMapClick,
   onEdit,
+  onDragGestureStart,
+  onDragGestureEnd,
 }, ref) => {
   const mapRef = useMapInit();
   const markersRef = useRef<{[key: string]: L.Layer}>({});
@@ -134,6 +142,18 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   const [openAipEnabled, setOpenAipEnabled] = useState<boolean>(false);
   const [mapSelectorCollapsed, setMapSelectorCollapsed] = useState<boolean>(true);
   const [currentZoomLevel, setCurrentZoomLevel] = useState<number>(12);
+  // The hit areas of the existing things, as drawn last: what a click in a placing mode may select instead of placing.
+  const hitsRef = useRef<Renderers.HitRegistry | null>(null);
+  const placing = isPlacing({ mode, legInsertType });
+
+  // The cursor follows the state through a class on the map container (see frontendapp.css): a crosshair while a click
+  // places something, the arrow in select mode, a pointer over what can be selected.
+  useEffect(() => {
+    const container = mapRef.current?.getContainer();
+    if (!container) return;
+    container.classList.toggle('route-map-placing', placing);
+    container.classList.toggle('route-map-select', !placing);
+  }, [mapRef, placing]);
   
   const { handleDragMove, handleDragEnd, dragRef } = useDragHandlers({
     mapRef,
@@ -148,6 +168,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     setMode,
     maxObsDist,
     onEdit,
+    onGestureEnd: onDragGestureEnd,
   });
 
   // --- Expose Map Instance to Parent ---
@@ -388,14 +409,27 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     const map = mapRef.current;
 
     const handler = (e: L.LeafletMouseEvent) => {
+      // In a placing mode a click within the hit radius of an existing thing of the kind being placed selects it
+      const registry = hitsRef.current;
+      if (registry && mode !== 'view') {
+        const candidates = registry.targets.map((target) => {
+          const point = map.latLngToContainerPoint(target.latlng);
+          return { x: point.x, y: point.y, key: target.key, kind: target.kind, target };
+        });
+        const hit = findPlacingModeHit({ x: e.containerPoint.x, y: e.containerPoint.y }, candidates, mode, HIT_RADIUS_PX);
+        if (hit) {
+          hit.target.select();
+          return;
+        }
+      }
       if (onMapClick) onMapClick(e.latlng);
     };
-    
+
     map.on('click', handler);
     return () => {
         map.off('click', handler);
     }
-  }, [onMapClick]);
+  }, [onMapClick, mode]);
 
   // --- 3. Render Map Elements & Handle Interactions ---
   useEffect(() => {
@@ -404,6 +438,8 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
 
     // --- RENDERER: CLEAR LAYERS ---
     Renderers.clearLayers(markersRef, polylinesRef, routeLineRef, map);
+    const hits = Renderers.createHitRegistry(map);
+    hitsRef.current = hits;
 
     // --- RENDERER: CORRIDOR ---
     if (showCorridor && routePoints.length > 1) {
@@ -555,18 +591,20 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       handleDragMove,
       handleDragEnd,
       legInsertType ?? null,
+      onDragGestureStart,
     );
 
     // --- RENDERER: DRAW POINTS ---
-    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'point', { activeTriggerId, emphasizeUnknownLegTriggers });
+    Renderers.drawPoints(map, routePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'point', { activeTriggerId, emphasizeUnknownLegTriggers, hits });
     Renderers.drawPoints(map, standalonePoints, mode, selectedId, markersRef, dragRef, handleDragMove, handleDragEnd, hideLabels, setSelectedId, setSelectionType, setMode, 'standalone_point', {
       activeTriggerId,
       emphasizeUnknownLegTriggers,
+      hits,
       previousOf: (point) => previousOnDummyBranch(point, routePoints, standalonePoints),
     });
 
     // --- RENDERER: DRAW GATES ---
-    Renderers.drawGates(map, gates, polylinesRef, setSelectedId, setSelectionType, setMode, hideLabels);
+    Renderers.drawGates(map, gates, polylinesRef, setSelectedId, setSelectionType, setMode, hideLabels, hits);
 
     // --- RENDERER: TEMP GATE ---
     if (tempGatePoint) {
@@ -578,25 +616,32 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
 
     // --- RENDERER: OBSERVATION MARKERS ---
     observationMarkers.forEach(m => {
+      // The mark is drawn here; the clicks go to the larger invisible hit area over it
       const marker = L.circleMarker([m.lat, m.lng], {
         radius: 5,
         fillColor: '#eab308',
         color: '#000',
         weight: 1,
         opacity: 1,
-        fillOpacity: 1
+        fillOpacity: 1,
+        interactive: false,
       }).addTo(map);
 
-      marker.bindTooltip(m.name, { permanent: !hideLabels, direction: 'top', offset: [0, -5], className: 'bg-transparent border-0 shadow-none text-yellow-700 font-bold text-xs' });
-
-      marker.on('click', (e) => {
-        L.DomEvent.stopPropagation(e);
-        setSelectedId(m.id);
-        setSelectionType('observation');
-        setMode('view');
+      const area = Renderers.addHitArea(hits, map, {
+        key: `obs-${m.id}`,
+        kind: 'observation',
+        latlng: L.latLng(m.lat, m.lng),
+        select: () => {
+          setSelectedId(m.id);
+          setSelectionType('observation');
+          setMode('view');
+        },
+      }, {
+        tooltip: { text: m.name, options: { permanent: !hideLabels, direction: 'top', offset: [0, -5], className: 'bg-transparent border-0 shadow-none text-yellow-700 font-bold text-xs' } },
       });
 
       markersRef.current[`obs-${m.id}`] = marker;
+      markersRef.current[`obs-hit-${m.id}`] = area;
     });
 
     // --- RENDERER: POLYGONS ---
@@ -614,7 +659,9 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       setSelectionType, 
       setMode, 
       hideLabels,
-      setPolygons
+      setPolygons,
+      hits,
+      onDragGestureStart,
     );
 
     // --- RENDERER: TEMP POLYGON ---
@@ -629,11 +676,10 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
           radius: 5, color: '#ec4899', fillColor: 'white', fillOpacity: 1
         }).addTo(map);
 
-        // Click first point to close polygon
+        // Click first point to close polygon (a click within the hit radius of it does too, see the map click handler)
         if (i === 0) {
           marker.setStyle({ radius: 7, weight: 3 });
-          marker.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
+          const closePolygon = () => {
             if (tempPolygonPoints.length >= 3) {
               setPolygons(prev => [...prev, {
                 id: crypto.randomUUID(),
@@ -644,6 +690,11 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
               setTempPolygonPoints([]);
               setMode('view');
             }
+          };
+          hits.targets.push({ key: 'temp-polygon-start', kind: 'temp_polygon_start', latlng: L.latLng(p.lat, p.lng), select: closePolygon });
+          marker.on('click', (e) => {
+            L.DomEvent.stopPropagation(e);
+            closePolygon();
           });
         }
         polylinesRef.current.push(marker);
@@ -654,7 +705,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     routePoints, standalonePoints, gates, tempGatePoint, showCorridor, observationMarkers, 
     polygons, tempPolygonPoints, selectedId, selectionType, mode,
     setRoutePoints, setStandalonePoints, setGates, setObservationMarkers, setPolygons, 
-    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels, activeTriggerId, emphasizeUnknownLegTriggers, legInsertType, onEdit
+    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels, activeTriggerId, emphasizeUnknownLegTriggers, legInsertType, onEdit, onDragGestureStart
   ]);
 
   return (

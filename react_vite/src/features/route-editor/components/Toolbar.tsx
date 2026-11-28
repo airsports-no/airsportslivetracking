@@ -8,40 +8,40 @@ import {
   Hexagon,
   MoveHorizontal,
   Wand2,
+  Undo2,
+  Redo2,
 } from 'lucide-react';
 import { Mode, LatLng } from '../../../types';
+import { undoShortcutLabels } from '../routeEditorKeys';
 
 interface ToolbarProps {
   mode: Mode;
   setMode: (mode: Mode) => void;
-  tempGatePoint: LatLng | null;
   setTempGatePoint: (point: LatLng | null) => void;
   setTempPolygonPoints: (points: LatLng[]) => void;
+  // Back to select mode: stops the tool and a guide step, clears a half-drawn gate or zone (the same as Esc).
+  onSelect: () => void;
   openWizard: () => void;
   openGateWidths: () => void;
+  canUndo: boolean;
+  canRedo: boolean;
+  onUndo: () => void;
+  onRedo: () => void;
 }
 
-const Toolbar: React.FC<ToolbarProps> = ({ mode, setMode, tempGatePoint, setTempGatePoint, setTempPolygonPoints, openWizard, openGateWidths }) => {
-  const helpText = (() => {
-    if (mode === 'view') return "Select a point to edit or drag map.";
-    if (mode === 'add_point') return "Click map to place next waypoint.";
-    if (mode === 'add_catalogue_turnpoint') return "Click map to place a catalogue turnpoint.";
-    if (mode === 'add_observation') return "Click near route (< 0.5 NM) to add marker.";
-    if (mode.includes('landing')) return !tempGatePoint ? "Click start of landing line." : "Click end of landing line.";
-    if (mode.includes('takeoff')) return !tempGatePoint ? "Click start of take-off line." : "Click end of take-off line.";
-    if (mode === 'add_polygon') return "Click to add points. Click the first point to close loop.";
-    return "";
-  })();
+const Toolbar: React.FC<ToolbarProps> = ({ mode, setMode, setTempGatePoint, setTempPolygonPoints, onSelect, openWizard, openGateWidths, canUndo, canRedo, onUndo, onRedo }) => {
+  const shortcuts = undoShortcutLabels();
 
   return (
     <>
       <div className="absolute top-4 left-1/2 transform -translate-x-1/2 bg-base-100/90 backdrop-blur-md shadow-lg rounded-full z-[1000] flex items-center p-1.5 gap-1 border border-base-300">
         <button
-          onClick={() => { setMode('view'); setTempGatePoint(null); setTempPolygonPoints([]); }}
+          onClick={onSelect}
           className={`btn btn-sm rounded-full gap-2 border-none ${mode === 'view' ? 'btn-info' : 'btn-ghost'}`}
+          title="Select mode: click a point to select it, drag it to move it (Esc)"
         >
           <Navigation size={18} />
-          <span>View</span>
+          <span>Select</span>
         </button>
 
         <div className="w-px h-5 bg-gray-300 mx-1 self-center"></div>
@@ -105,6 +105,28 @@ const Toolbar: React.FC<ToolbarProps> = ({ mode, setMode, tempGatePoint, setTemp
         <div className="w-px h-5 bg-gray-300 mx-1 self-center"></div>
 
         <button
+          onClick={onUndo}
+          disabled={!canUndo}
+          className="btn btn-sm btn-circle border-none btn-ghost"
+          title={`Undo (${shortcuts.undo})`}
+          aria-label="Undo"
+        >
+          <Undo2 size={18} />
+        </button>
+
+        <button
+          onClick={onRedo}
+          disabled={!canRedo}
+          className="btn btn-sm btn-circle border-none btn-ghost"
+          title={`Redo (${shortcuts.redo})`}
+          aria-label="Redo"
+        >
+          <Redo2 size={18} />
+        </button>
+
+        <div className="w-px h-5 bg-gray-300 mx-1 self-center"></div>
+
+        <button
           onClick={openGateWidths}
           className="btn btn-sm rounded-full gap-2 border-none btn-ghost"
           title="Set the width of several gates at once"
@@ -112,12 +134,6 @@ const Toolbar: React.FC<ToolbarProps> = ({ mode, setMode, tempGatePoint, setTemp
           <MoveHorizontal size={18} />
           <span>Gate widths</span>
         </button>
-      </div>
-
-      <div className="absolute top-20 left-1/2 transform -translate-x-1/2 z-[999] pointer-events-none transition-opacity duration-300">
-        <div className="bg-base-100/80 backdrop-blur-sm shadow-sm border border-base-200 rounded-full px-4 py-1 text-xs font-medium text-base-content/70">
-          {helpText}
-        </div>
       </div>
     </>
   );

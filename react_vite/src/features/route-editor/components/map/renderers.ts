@@ -10,6 +10,7 @@ import {
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Gate, LatLng, Polygon, Mode, SelectionType } from '../../../../types';
 import { UNKNOWN_LEG_TRIGGER_TYPE } from '../../unknownLegWizard';
+import { findNearestHit, HIT_RADIUS_PX, type HitKind } from '../../routeEditorMapClickHelpers';
 
 // CIMA 2.A7 (Circle) default inner/outer radius bounds (metres), matching Scorecard's
 // circle_radius_min_m/max_m field defaults - see models/scorecard_and_gate_score.py. The route
@@ -85,6 +86,80 @@ const getPointTooltipLabel = (point: RoutePoint, index: number) => {
 export const greatCircleLatLngs = (from: LatLng, to: LatLng): L.LatLng[] =>
   getGreatCirclePoints(from, to).map((point) => L.latLng(point.lat, point.lng));
 
+// --- Hit areas ---
+// What a click on an existing point, gate end, photo or polygon handle selects. Each of them has an invisible circle of
+// HIT_RADIUS_PX around it that takes the clicks and drags, so a click meant for it does not fall through to the map.
+// Where hit areas overlap the nearest centre to the click wins; the registry holds them all to decide that, and MapCanvas
+// uses it to select the nearest one when a click in a placing mode lands within the same radius.
+
+export interface HitTarget {
+  key: string;
+  kind: HitKind;
+  latlng: L.LatLng;
+  select: () => void;
+  // Starts dragging the thing (a point, a polygon corner); not every kind can be dragged.
+  startDrag?: (e: L.LeafletMouseEvent) => void;
+}
+
+export interface HitRegistry {
+  map: L.Map;
+  targets: HitTarget[];
+}
+
+export const createHitRegistry = (map: L.Map): HitRegistry => ({ map, targets: [] });
+
+// The target a mouse event on [own]'s hit area is for: the nearest of all of them to the pointer.
+export const resolveHitTarget = (registry: HitRegistry, e: L.LeafletMouseEvent, own: HitTarget): HitTarget => {
+  if (!e.containerPoint) return own;
+  const candidates = registry.targets.map((target) => {
+    const point = registry.map.latLngToContainerPoint(target.latlng);
+    return { x: point.x, y: point.y, target };
+  });
+  return findNearestHit({ x: e.containerPoint.x, y: e.containerPoint.y }, candidates)?.target ?? own;
+};
+
+interface HitAreaOptions {
+  tooltip?: { text: string; options: L.TooltipOptions };
+  // Hovering the area keeps the map from panning in select mode, so that a drag of the thing is not a drag of the map.
+  lockMapWhileHovered?: { mode: Mode; dragRef: React.MutableRefObject<any> };
+}
+
+// Adds the invisible hit area for [target] to [parent] and returns it. The visible mark is not interactive itself.
+export const addHitArea = (
+  registry: HitRegistry,
+  parent: L.Map | L.LayerGroup,
+  target: HitTarget,
+  options: HitAreaOptions = {},
+): L.CircleMarker => {
+  registry.targets.push(target);
+  const area = L.circleMarker(target.latlng, {
+    radius: HIT_RADIUS_PX,
+    stroke: false,
+    fill: true,
+    fillOpacity: 0,
+    className: 'route-hit',
+  }).addTo(parent as L.Map);
+
+  if (options.tooltip) area.bindTooltip(options.tooltip.text, options.tooltip.options);
+
+  area.on('click', (e: L.LeafletMouseEvent) => {
+    L.DomEvent.stopPropagation(e.originalEvent || e);
+    resolveHitTarget(registry, e, target).select();
+  });
+  area.on('mousedown', (e: L.LeafletMouseEvent) => {
+    const resolved = resolveHitTarget(registry, e, target);
+    if (!resolved.startDrag) return;
+    L.DomEvent.stopPropagation(e.originalEvent);
+    resolved.startDrag(e);
+  });
+  const lock = options.lockMapWhileHovered;
+  if (lock) {
+    area.on('mouseover', () => { if (lock.mode === 'view') registry.map.dragging.disable(); });
+    area.on('mouseout', () => { if (lock.mode === 'view' && !lock.dragRef.current) registry.map.dragging.enable(); });
+  }
+  return area;
+};
+
 export const clearLayers = (markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, polylinesRef: React.MutableRefObject<L.Layer[]>, routeLineRef: React.MutableRefObject<L.Polyline | null>, map: L.Map) => {
   Object.values(markersRef.current).forEach(layer => map.removeLayer(layer));
   polylinesRef.current.forEach(layer => map.removeLayer(layer));
@@ -111,6 +186,8 @@ export const drawRouteLine = (
   handleDragEnd: (e: L.LeafletMouseEvent) => void,
   // The type of point a click on a leg inserts: a secret gate, unless a wizard step asks for another (a known time gate)
   legInsertType: RoutePoint['type'] | null = null,
+  // Dragging the dot of a leg inserts a point and then moves it: one gesture, one undo step
+  onGestureStart?: () => void,
 ) => {
   if (routePoints.length <= 1) return;
 
@@ -257,6 +334,7 @@ export const drawRouteLine = (
 
       ghost.on('mousedown', (e: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(e.originalEvent);
+        onGestureStart?.();
 
         const newPoint: RoutePoint = {
           id: crypto.randomUUID(),
@@ -367,8 +445,11 @@ export const drawPoints = (
     // Where a point's leg starts (for the curve handle), when that is not the point before it in the list: a
     // dummy-branch waypoint's leg starts at the previous waypoint on its branch
     previousOf?: (point: RoutePoint, index: number) => RoutePoint | undefined;
+    // Where the points' hit areas are registered (see HitRegistry)
+    hits?: HitRegistry;
   } = {},
 ) => {
+  const hits = options.hits ?? createHitRegistry(map);
   const previousOf = options.previousOf ?? ((_point: RoutePoint, index: number) => routePoints[index - 1]);
   routePoints.forEach((p, index) => {
     const style = getRoutePointMarkerStyle(p, {
@@ -424,44 +505,47 @@ export const drawPoints = (
       }).addTo(pointGroup);
     }
 
-    const marker = L.circleMarker([p.lat, p.lng], {
+    // The mark is drawn here; the clicks and drags go to the larger invisible hit area over it.
+    L.circleMarker([p.lat, p.lng], {
       radius: style.radius,
       fillColor: style.color,
       color: '#fff',
       weight: 2,
       opacity: 1,
       fillOpacity: 0.8,
-      className: p.type === 'secret' ? '' : 'cursor-grab',
+      interactive: false,
     }).addTo(pointGroup);
 
-    marker.bindTooltip(getPointTooltipLabel(p, index), { permanent: !hideLabels, direction: 'right', offset: [10, 0] });
-
-    marker.on('click', (e: L.LeafletMouseEvent) => {
-      L.DomEvent.stopPropagation(e.originalEvent || e);
-      if (setSelectedId) setSelectedId(p.id);
-      if (setSelectionType) setSelectionType(pointSelectionType);
-      if (setMode && !(options.emphasizeUnknownLegTriggers && p.type === UNKNOWN_LEG_TRIGGER_TYPE)) setMode('view');
-    });
-    marker.on('mouseover', () => { if (mode === 'view') map.dragging.disable(); });
-    marker.on('mouseout', () => { if (mode === 'view' && !dragRef.current) map.dragging.enable(); });
-
-    marker.on('mousedown', (e: L.LeafletMouseEvent) => {
-      if (mode !== 'view') return;
-      if (p.type === 'secret') return;
-
-      L.DomEvent.stopPropagation(e.originalEvent);
-      map.dragging.disable();
-      dragRef.current = {
-        type: 'point',
-        id: p.id,
-        index,
-        startLatLng: e.latlng,
-        initialPoints: routePoints,
-        hasMoved: false,
-        selectionType: pointSelectionType,
-      };
-      map.on('mousemove', handleDragMove);
-      map.on('mouseup', handleDragEnd);
+    addHitArea(hits, pointGroup, {
+      key: `point-${p.id}`,
+      kind: pointSelectionType === 'standalone_point' ? 'standalone_point' : 'point',
+      latlng: L.latLng(p.lat, p.lng),
+      select: () => {
+        if (setSelectedId) setSelectedId(p.id);
+        if (setSelectionType) setSelectionType(pointSelectionType);
+        if (setMode && !(options.emphasizeUnknownLegTriggers && p.type === UNKNOWN_LEG_TRIGGER_TYPE)) setMode('view');
+      },
+      // A secret gate is not dragged: it sits on its leg
+      startDrag: p.type === 'secret'
+        ? undefined
+        : (e: L.LeafletMouseEvent) => {
+          if (mode !== 'view') return;
+          map.dragging.disable();
+          dragRef.current = {
+            type: 'point',
+            id: p.id,
+            index,
+            startLatLng: e.latlng,
+            initialPoints: routePoints,
+            hasMoved: false,
+            selectionType: pointSelectionType,
+          };
+          map.on('mousemove', handleDragMove);
+          map.on('mouseup', handleDragEnd);
+        },
+    }, {
+      tooltip: { text: getPointTooltipLabel(p, index), options: { permanent: !hideLabels, direction: 'right', offset: [10, 0] } },
+      lockMapWhileHovered: { mode, dragRef },
     });
 
     markersRef.current[`point-${p.id}`] = pointGroup;
@@ -503,7 +587,7 @@ export const drawPoints = (
   });
 };
 
-export const drawGates = (map: L.Map, gates: Gate[], polylinesRef: React.MutableRefObject<L.Layer[]>, setSelectedId: (id: string | null) => void, setSelectionType: (type: SelectionType | null) => void, setMode: (mode: Mode) => void, hideLabels: boolean) => {
+export const drawGates = (map: L.Map, gates: Gate[], polylinesRef: React.MutableRefObject<L.Layer[]>, setSelectedId: (id: string | null) => void, setSelectionType: (type: SelectionType | null) => void, setMode: (mode: Mode) => void, hideLabels: boolean, hits: HitRegistry = createHitRegistry(map)) => {
   gates.forEach(g => {
     const color = g.type === 'landing' ? '#8b5cf6' : '#f59e0b';
     const line = L.polyline([[g.p1.lat, g.p1.lng], [g.p2.lat, g.p2.lng]], {
@@ -522,6 +606,21 @@ export const drawGates = (map: L.Map, gates: Gate[], polylinesRef: React.Mutable
     });
 
     polylinesRef.current.push(line);
+
+    // The end points of the line have a hit area too, so a click near one selects the gate
+    [g.p1, g.p2].forEach((end, endIndex) => {
+      const area = addHitArea(hits, map, {
+        key: `gate-${g.id}-${endIndex}`,
+        kind: 'gate',
+        latlng: L.latLng(end.lat, end.lng),
+        select: () => {
+          setSelectedId(g.id);
+          setSelectionType('gate');
+          setMode('view');
+        },
+      });
+      polylinesRef.current.push(area);
+    });
   });
 };
 
@@ -540,6 +639,8 @@ export const drawPolygons = (
   setMode: (mode: Mode) => void,
   hideLabels: boolean,
   setPolygons: React.Dispatch<React.SetStateAction<Polygon[]>>,
+  hits: HitRegistry = createHitRegistry(map),
+  onGestureStart?: () => void,
 ) => {
   polygons.forEach(poly => {
     let color = '#3b82f6';
@@ -624,7 +725,15 @@ export const drawPolygons = (
     markersRef.current[`poly-${poly.id}`] = polygonLayer;
 
     if (selectedId === poly.id && selectionType === 'polygon') {
-      drawPolygonHandles(map, poly, color, mode, markersRef, dragRef, handleDragMove, handleDragEnd, setPolygons);
+      drawPolygonHandles(map, poly, color, mode, markersRef, dragRef, handleDragMove, handleDragEnd, setPolygons, {
+        hits,
+        onGestureStart,
+        select: () => {
+          setSelectedId(poly.id);
+          setSelectionType('polygon');
+          setMode('view');
+        },
+      });
     }
   });
 };
@@ -643,33 +752,48 @@ export const drawPolygonHandles = (
   handleDragMove: (e: L.LeafletMouseEvent) => void,
   handleDragEnd: (e: L.LeafletMouseEvent) => void,
   setPolygons: React.Dispatch<React.SetStateAction<Polygon[]>>,
+  options: {
+    hits?: HitRegistry;
+    // Dragging a new corner out of an edge dot is one gesture (inserted, then moved)
+    onGestureStart?: () => void;
+    // What a click on a corner does (the zone is selected already; this keeps the click off the map)
+    select?: () => void;
+  } = {},
 ) => {
+  const hits = options.hits ?? createHitRegistry(map);
   poly.points.forEach((pt, idx) => {
-    const handle = L.circleMarker([pt.lat, pt.lng], {
+    // The mark is drawn here; the grab goes to the larger invisible hit area over it (the one in markersRef, which the
+    // drag handlers find by key; the mark follows it under its own key).
+    const mark = L.circleMarker([pt.lat, pt.lng], {
       radius: 6,
       color: 'white',
       fillColor: color,
       fillOpacity: 1,
       weight: 2,
-      className: 'cursor-grab',
+      interactive: false,
     }).addTo(map);
+    markersRef.current[`poly-mark-${poly.id}-${idx}`] = mark;
 
-    markersRef.current[`poly-handle-${poly.id}-${idx}`] = handle;
-
-    handle.on('mousedown', (e: L.LeafletMouseEvent) => {
-      if (mode !== 'view') return;
-      L.DomEvent.stopPropagation(e.originalEvent);
-      map.dragging.disable();
-      dragRef.current = {
-        type: 'poly_vertex',
-        polyId: poly.id,
-        vertexIndex: idx,
-        startLatLng: e.latlng,
-        hasMoved: false,
-      };
-      map.on('mousemove', handleDragMove);
-      map.on('mouseup', handleDragEnd);
+    const area = addHitArea(hits, map, {
+      key: `poly-handle-${poly.id}-${idx}`,
+      kind: 'polygon_vertex',
+      latlng: L.latLng(pt.lat, pt.lng),
+      select: () => options.select?.(),
+      startDrag: (e: L.LeafletMouseEvent) => {
+        if (mode !== 'view') return;
+        map.dragging.disable();
+        dragRef.current = {
+          type: 'poly_vertex',
+          polyId: poly.id,
+          vertexIndex: idx,
+          startLatLng: e.latlng,
+          hasMoved: false,
+        };
+        map.on('mousemove', handleDragMove);
+        map.on('mouseup', handleDragEnd);
+      },
     });
+    markersRef.current[`poly-handle-${poly.id}-${idx}`] = area;
   });
 
   if (mode !== 'view') return;
@@ -689,6 +813,7 @@ export const drawPolygonHandles = (
 
     ghost.on('mousedown', (e: L.LeafletMouseEvent) => {
       L.DomEvent.stopPropagation(e.originalEvent);
+      options.onGestureStart?.();
 
       const nextPoints = [...poly.points];
       nextPoints.splice(idx + 1, 0, { lat: mid.lat, lng: mid.lng });
