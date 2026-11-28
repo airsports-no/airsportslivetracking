@@ -110,8 +110,10 @@ describe('TaskWizardPanel', () => {
       requirement('known_circuit_evidence', 'hidden_gate', { other_tools: ['known_time_gate', 'photo'], help: 'Add one of them.' }),
     ]);
     const evidence = stepElement('hidden_gate');
-    expect(buttonsIn(evidence)).toEqual(['Hidden gate', 'Known time gate', 'Photo']);
-    act(() => (evidence.querySelectorAll('button')[2] as HTMLButtonElement).click());
+    // The circuit's turn points are its known time gates: no free-standing time gate is offered
+    expect(buttonsIn(evidence)).toEqual(['Hidden gate', 'Photo']);
+    expect(evidence.textContent).toContain('turn points of the circuit are its known time gates');
+    act(() => (evidence.querySelectorAll('button')[1] as HTMLButtonElement).click());
     expect(startWizardStep).toHaveBeenCalledWith('photo');
   });
 

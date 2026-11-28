@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { curvePointAt, joinCurves, nearestCurveParameter, splitCurve } from './curveSplit';
+import { curvePointAt, joinCurveRun, joinCurves, nearestCurveParameter, splitCurve } from './curveSplit';
 
 const P0 = { lat: 60, lng: 11 };
 const C = { lat: 60.08, lng: 11.1 };
@@ -67,16 +67,42 @@ describe('joining two curves', () => {
     expect(distance(joined.control, first.secondControl)).toBeLessThan(1e-9);
   });
 
-  it('is one curve through the middle point, by chord lengths, when a half was reshaped', () => {
+  it('follows the reshaped shape when a half was reshaped: through the half-arc point of the composite', () => {
     const { firstControl, middle, secondControl } = splitCurve(P0, C, P2, 0.5);
     const reshaped = { lat: secondControl.lat + 0.03, lng: secondControl.lng + 0.01 };
     const joined = joinCurves(P0, firstControl, middle, reshaped, P2);
     expect(joined.exact).toBe(false);
-    // It passes through the middle point at the parameter the chord lengths give
-    const toMiddle = Math.hypot((middle.lng - P0.lng) * Math.cos(((P0.lat + P2.lat) / 2) * Math.PI / 180), middle.lat - P0.lat);
-    const fromMiddle = Math.hypot((P2.lng - middle.lng) * Math.cos(((P0.lat + P2.lat) / 2) * Math.PI / 180), P2.lat - middle.lat);
-    const t = toMiddle / (toMiddle + fromMiddle);
-    expect(distance(curvePointAt(P0, joined.control, P2, t), middle)).toBeLessThan(1e-12);
+    const q = halfArcPoint(P0, [{ control: firstControl, end: middle }, { control: reshaped, end: P2 }]);
+    expect(distance(curvePointAt(P0, joined.control, P2, 0.5), q)).toBeLessThan(2e-4);
+    // The drag is not lost: the control point is not the original one
+    expect(distance(joined.control, C)).toBeGreaterThan(0.01);
+  });
+
+  it('joins three segments as one run, through the half-arc point, and does not depend on the order', () => {
+    const first = splitCurve(P0, C, P2, 0.3);
+    const rest = splitCurve(first.middle, first.secondControl, P2, 0.5);
+    const reshaped = { lat: rest.firstControl.lat - 0.02, lng: rest.firstControl.lng + 0.02 };
+    const segments = [
+      { control: first.firstControl, end: first.middle },
+      { control: reshaped, end: rest.middle },
+      { control: rest.secondControl, end: P2 },
+    ];
+    const joined = joinCurveRun(P0, segments);
+    expect(joined.exact).toBe(false);
+    expect(distance(curvePointAt(P0, joined.control, P2, 0.5), halfArcPoint(P0, segments))).toBeLessThan(2e-4);
+    expect(distance(joined.control, C)).toBeGreaterThan(0.005);
+  });
+
+  it('keeps the exact result for three segments that are the parts of one curve', () => {
+    const first = splitCurve(P0, C, P2, 0.3);
+    const rest = splitCurve(first.middle, first.secondControl, P2, 0.5);
+    const joined = joinCurveRun(P0, [
+      { control: first.firstControl, end: first.middle },
+      { control: rest.firstControl, end: rest.middle },
+      { control: rest.secondControl, end: P2 },
+    ]);
+    expect(joined.exact).toBe(true);
+    expect(distance(joined.control, C)).toBeLessThan(1e-9);
   });
 
   it('does not fail on a middle point that is not between the controls', () => {
@@ -85,3 +111,23 @@ describe('joining two curves', () => {
     expect(Number.isFinite(joined.control.lat) && Number.isFinite(joined.control.lng)).toBe(true);
   });
 });
+
+// The point at half the arc length of the composite path, found by a much finer sampling than the code under test.
+function halfArcPoint(start: { lat: number; lng: number }, segments: Array<{ control: { lat: number; lng: number }; end: { lat: number; lng: number } }>) {
+  const scale = Math.cos(((start.lat + segments[segments.length - 1].end.lat) / 2) * Math.PI / 180);
+  const path = [start];
+  let from = start;
+  for (const segment of segments) {
+    for (let step = 1; step <= 4000; step += 1) path.push(curvePointAt(from, segment.control, segment.end, step / 4000));
+    from = segment.end;
+  }
+  const step = (a: typeof start, b: typeof start) => Math.hypot((b.lng - a.lng) * scale, b.lat - a.lat);
+  let total = 0;
+  for (let i = 1; i < path.length; i += 1) total += step(path[i - 1], path[i]);
+  let run = 0;
+  for (let i = 1; i < path.length; i += 1) {
+    run += step(path[i - 1], path[i]);
+    if (run >= total / 2) return path[i];
+  }
+  return path[path.length - 1];
+}

@@ -1,5 +1,6 @@
 import {
   updateItemById,
+  convertPointType,
   reorderItemsById,
   deleteItemById,
   normalizeDeletedBackboneRoutePoints,
@@ -10,6 +11,7 @@ import {
   metresToNauticalMiles,
 } from './routeEditorMutations';
 import type { RoutePoint } from '../../types';
+import { planRouteChange } from './routeIntegrity';
 
 function makePoint(overrides: Partial<RoutePoint> & { id: string; type: RoutePoint['type'] }): RoutePoint {
   return {
@@ -201,5 +203,32 @@ describe('gate widths in nautical miles', () => {
     expect(nauticalMilesToMetres(0.01)).toBe(19);
     expect(metresToNauticalMiles(1852)).toBe(1);
     expect(metresToNauticalMiles(926)).toBe(0.5);
+  });
+});
+
+describe('convertPointType', () => {
+  const route = () => [
+    makePoint({ id: 'A', type: 'sp', lat: 60, lng: 11 }),
+    makePoint({ id: 'G1', type: 'secret', lat: 60, lng: 11.05 }),
+    makePoint({ id: 'G2', type: 'secret', lat: 60, lng: 11.1 }),
+    makePoint({ id: 'C', type: 'fp', lat: 60, lng: 11.2 }),
+  ];
+
+  it('changes the type and defaults the feature type', () => {
+    const converted = convertPointType(route(), 'G1', 'ul', undefined);
+    expect(converted[1]).toMatchObject({ id: 'G1', type: 'ul', featureType: 'route_waypoint' });
+  });
+
+  it('removes the hidden gates on the legs a converted hidden gate now ends, through the integrity plan', () => {
+    const before = route();
+    const plan = planRouteChange(before, (points) => convertPointType(points, 'G1', 'ul', undefined), [], 926);
+    expect(plan.removal.hiddenGates.map((gate) => gate.id)).toEqual(['G2']);
+    expect(plan.points.map((point) => point.id)).toEqual(['A', 'G1', 'C']);
+  });
+
+  it('removes nothing when the converted point was the only hidden gate on its leg', () => {
+    const before = route().filter((point) => point.id !== 'G2');
+    const plan = planRouteChange(before, (points) => convertPointType(points, 'G1', 'ul', undefined), [], 926);
+    expect(plan.removal.hiddenGates).toEqual([]);
   });
 });

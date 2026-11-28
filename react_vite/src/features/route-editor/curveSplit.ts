@@ -89,8 +89,14 @@ export const nearestCurveParameter = (start: LatLng, control: LatLng, end: LatLn
 
 export interface CurveJoin {
   control: LatLng;
-  // True when the two curves were the two halves of one quadratic curve, so the joined curve is that curve exactly.
+  // True when the curves were the parts of one quadratic curve, so the joined curve is that curve exactly.
   exact: boolean;
+}
+
+// One curved segment of a run: the control point of the curve that ends at [end].
+export interface CurveSegment {
+  control: LatLng;
+  end: LatLng;
 }
 
 // How far the two ways of working out the original control point may differ, as a fraction of the chord, for the two
@@ -99,55 +105,109 @@ const EXACT_TOLERANCE = 1e-4;
 
 const length = (a: LatLng, b: LatLng): number => Math.hypot(a.lat - b.lat, a.lng - b.lng);
 
-// Joins the curve start-first-middle and the curve middle-second-end into one curve from start to end.
+// The control point of the one curve that the two curves start-first-middle and middle-second-end are the halves of, or
+// null when they are not (one was reshaped afterwards).
 //
 // Two curves that are the halves of one curve (the split at t gives C1 = P0 + t (C - P0), C2 = C + t (P2 - C) and
 // M = C1 + t (C2 - C1)) are recognised by working out t from the position of M on the line from C1 to C2, and then C in
 // the two ways the split gives it, from the first half, C = P0 + (C1 - P0) / t, and from the second,
 // C = (C2 - t P2) / (1 - t). When these agree the joined curve is that curve: the control point is C.
+const exactHalvesControl = (
+  start: LatLng,
+  firstControl: LatLng,
+  middle: LatLng,
+  secondControl: LatLng,
+  end: LatLng,
+): LatLng | null => {
+  const chord = length(start, end);
+  const dLat = secondControl.lat - firstControl.lat;
+  const dLng = secondControl.lng - firstControl.lng;
+  const span = dLat * dLat + dLng * dLng;
+  if (span <= 0) return null;
+  const t = ((middle.lat - firstControl.lat) * dLat + (middle.lng - firstControl.lng) * dLng) / span;
+  if (!(t > 0 && t < 1)) return null;
+  const fromFirst: LatLng = {
+    lat: start.lat + (firstControl.lat - start.lat) / t,
+    lng: start.lng + (firstControl.lng - start.lng) / t,
+  };
+  const fromSecond: LatLng = {
+    lat: (secondControl.lat - t * end.lat) / (1 - t),
+    lng: (secondControl.lng - t * end.lng) / (1 - t),
+  };
+  return length(fromFirst, fromSecond) <= EXACT_TOLERANCE * chord ? lerp(fromFirst, fromSecond, 0.5) : null;
+};
+
+const PATH_SAMPLES_PER_SEGMENT = 64;
+
+// The point at half the arc length of the path made by the curved segments of the run, measured as the curves are drawn
+// (linear in latitude and longitude, with longitude scaled by the cosine of the latitude for the length).
+const arcMidpoint = (start: LatLng, segments: CurveSegment[]): LatLng => {
+  const lngScale = Math.cos(((start.lat + segments[segments.length - 1].end.lat) / 2) * Math.PI / 180);
+  const path: LatLng[] = [start];
+  let from = start;
+  for (const segment of segments) {
+    for (let step = 1; step <= PATH_SAMPLES_PER_SEGMENT; step += 1) {
+      path.push(curvePointAt(from, segment.control, segment.end, step / PATH_SAMPLES_PER_SEGMENT));
+    }
+    from = segment.end;
+  }
+  const lengths: number[] = [0];
+  for (let index = 1; index < path.length; index += 1) {
+    lengths.push(lengths[index - 1] + Math.hypot(
+      (path[index].lng - path[index - 1].lng) * lngScale,
+      path[index].lat - path[index - 1].lat,
+    ));
+  }
+  const half = lengths[lengths.length - 1] / 2;
+  let index = 1;
+  while (index < path.length - 1 && lengths[index] < half) index += 1;
+  const stretch = lengths[index] - lengths[index - 1];
+  return lerp(path[index - 1], path[index], stretch > 0 ? (half - lengths[index - 1]) / stretch : 0);
+};
+
+// Joins the run of curved segments from [start] (each ends at the start of the next) into one curve from start to the
+// end of the last segment.
 //
-// When they do not (one half was reshaped afterwards) the joined curve is one curve that passes through M, at the
-// parameter t estimated from the lengths of the two chords, t = |P0 M| / (|P0 M| + |M P2|), with the control point
-// C = (M - (1 - t)^2 P0 - t^2 P2) / (2 t (1 - t)). It approximates both halves; it is not either of them.
+// When the segments are the parts of one curve (a curve split by hidden gates) the joined curve is that curve exactly,
+// and the control point is the original one. Otherwise (a part was reshaped) the joined curve follows the shape the
+// segments have now: it passes at t = 0.5 through the point Q at half the arc length of their composite path, which
+// gives the control point C = 2 Q - (P0 + P2) / 2. The whole run is joined at once, so the result does not depend on
+// the order of the segments.
+export const joinCurveRun = (start: LatLng, segments: CurveSegment[]): CurveJoin => {
+  if (segments.length === 1) return { control: segments[0].control, exact: true };
+
+  // Parts of one curve fold from the left, each fold being the halves of the curve so far and the next part
+  let folded = segments[0].control;
+  let foldedEnd = segments[0].end;
+  let allExact = true;
+  for (const next of segments.slice(1)) {
+    const control = exactHalvesControl(start, folded, foldedEnd, next.control, next.end);
+    if (!control) {
+      allExact = false;
+      break;
+    }
+    folded = control;
+    foldedEnd = next.end;
+  }
+  if (allExact) return { control: folded, exact: true };
+
+  const end = segments[segments.length - 1].end;
+  const middle = arcMidpoint(start, segments);
+  return {
+    control: {
+      lat: 2 * middle.lat - (start.lat + end.lat) / 2,
+      lng: 2 * middle.lng - (start.lng + end.lng) / 2,
+    },
+    exact: false,
+  };
+};
+
+// Joins the curve start-first-middle and the curve middle-second-end into one curve from start to end (see
+// joinCurveRun).
 export const joinCurves = (
   start: LatLng,
   firstControl: LatLng,
   middle: LatLng,
   secondControl: LatLng,
   end: LatLng,
-): CurveJoin => {
-  const chord = length(start, end);
-  const dLat = secondControl.lat - firstControl.lat;
-  const dLng = secondControl.lng - firstControl.lng;
-  const span = dLat * dLat + dLng * dLng;
-  if (span > 0) {
-    const t = ((middle.lat - firstControl.lat) * dLat + (middle.lng - firstControl.lng) * dLng) / span;
-    if (t > 0 && t < 1) {
-      const fromFirst: LatLng = {
-        lat: start.lat + (firstControl.lat - start.lat) / t,
-        lng: start.lng + (firstControl.lng - start.lng) / t,
-      };
-      const fromSecond: LatLng = {
-        lat: (secondControl.lat - t * end.lat) / (1 - t),
-        lng: (secondControl.lng - t * end.lng) / (1 - t),
-      };
-      if (length(fromFirst, fromSecond) <= EXACT_TOLERANCE * chord) {
-        return { control: lerp(fromFirst, fromSecond, 0.5), exact: true };
-      }
-    }
-  }
-
-  const lngScale = Math.cos(((start.lat + end.lat) / 2) * Math.PI / 180);
-  const toMiddle = Math.hypot((middle.lng - start.lng) * lngScale, middle.lat - start.lat);
-  const fromMiddle = Math.hypot((end.lng - middle.lng) * lngScale, end.lat - middle.lat);
-  const total = toMiddle + fromMiddle;
-  const t = total > 0 ? Math.min(0.99, Math.max(0.01, toMiddle / total)) : 0.5;
-  const weight = 2 * t * (1 - t);
-  return {
-    control: {
-      lat: (middle.lat - (1 - t) * (1 - t) * start.lat - t * t * end.lat) / weight,
-      lng: (middle.lng - (1 - t) * (1 - t) * start.lng - t * t * end.lng) / weight,
-    },
-    exact: false,
-  };
-};
+): CurveJoin => joinCurveRun(start, [{ control: firstControl, end: middle }, { control: secondControl, end }]);

@@ -38,6 +38,20 @@ html, body, #root {
   cursor: pointer;
 }
 
+/* The hidden gate just placed: a ring that grows and fades once */
+.hidden-gate-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hidden-gate-pulse 1s ease-out 1;
+}
+@keyframes hidden-gate-pulse {
+  0% { transform: scale(2.6); stroke: #f59e0b; stroke-width: 4px; }
+  100% { transform: scale(1); stroke-width: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hidden-gate-pulse { animation: none; }
+}
+
 /* Custom variables for React Select to ensure theme inheritance and opacity */
 :root, [data-theme='light'] {
   --rs-bg: #ffffff;

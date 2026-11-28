@@ -46,7 +46,9 @@ All pilots of a task are compared with each other. There are no classes inside a
 
 ### Build the route
 
-Open the route editor and click **Task Wizard** in the toolbar. The **Task Route Guide** panel lists the task types. Pick yours, and the panel becomes a checklist of what the route needs. A step turns green when the route has enough of it. When you create a task later, only the task types your route can be used for are offered.
+Open the route editor and a new route starts with the question **What is this route for?** Pick your task type (or choose **Build without a guide**). The **Task Route Guide** panel then becomes a checklist of what the route needs. Each step has a button that starts the tool that places it, and a step turns green when the route has enough of it. A step with a fixed number of elements ends by itself, and a step without one shows **Done, next step**. You can reopen the guide or change the task with **Task Wizard** in the toolbar. The route is saved as **made for** the task you chose, and the route list also shows the other tasks it suits (**Also suitable for**). When you create a task later, only the task types your route can be used for are offered.
+
+A hidden gate is placed with the **Hidden gate** tool and a click on a leg. It is removed if that leg changes later (a waypoint at either end moves, or the curve is reshaped), and the editor tells you and offers **Undo**. See [Route Creation and Task Configuration](/docs/04_Route_Creation_and_Tasks) for the modes, Esc and undo.
 
 What each task needs of its route:
 
@@ -178,7 +180,7 @@ In every example, the pilot is compared with a best pilot who flew perfectly in 
 
 **What the pilot does.** Before take-off the pilot declares the time at which they expect to cross each visible turn point, counted from the start point. The pilot then flies the drawn course, with its curves, as precisely as possible. Hidden gates along the way check that the course was flown in order and in the right direction.
 
-**What the route needs.** A route path with at least one curved leg. To make a curved leg, hold the curve modifier while placing a point, or select a point and change its leg to curved. Hidden gates are optional. Click a leg of the finished route to insert one.
+**What the route needs.** A route path with at least one curved leg. To make a curved leg, hold the curve modifier while placing a point, or select a point and change its leg to curved. Hidden gates are optional. Choose the **Hidden gate** tool and click a leg of the finished route, straight or curved, to insert one. If you reshape a curve afterwards, the hidden gates on it are removed.
 
 **What is declared (required).** A time for each visible turn point (points on a curved part are not asked for) and for FP. At least one time must be given. A turn point without a declared time is scored against the time calculated from the planned airspeed. If a longest allowed time (Tmax) is set for the task, the declared FP time may not be later than that long after SP. FP itself is not scored as a time gate.
 
@@ -278,7 +280,7 @@ Declaring more points can earn more. Each declared point that you then fail to f
 
 **What the pilot does.** The pilot flies a circuit that is known beforehand. The pilot may declare a time for single turn points. It replaces the time calculated from the flight's airspeed and wind. If you allow it, the pilot marks observation photos in the app while flying. An optional speed term rewards the fastest pilot.
 
-**What the route needs.** A route path with its waypoints, and at least one known time gate, hidden gate or observation photo. Without one there is nothing to score besides the start and finish.
+**What the route needs.** A route path with its waypoints, and at least one known time gate, hidden gate or observation photo. Without one there is nothing to score besides the start and finish. The turn points of the circuit are its known time gates, so the guide's step for this offers the **Hidden gate** and **Photo** tools only.
 
 **What is declared (optional).** A time for any turn point or FP. Points left empty use the calculated time.
 

@@ -112,7 +112,17 @@ describe('buildWizardChecklist', () => {
       requirement('known_circuit_evidence', { tool: 'hidden_gate', other_tools: ['known_time_gate', 'photo'], found: 0 }),
     ], 'pending', (tool) => (tool === 'photo' ? 1 : 0));
     expect(result.steps).toHaveLength(1);
-    expect(result.steps[0]).toMatchObject({ key: 'hidden_gate', tools: ['hidden_gate', 'known_time_gate', 'photo'], count: 1, met: true });
+    // 2.A4 offers no free-standing time gate: the circuit's turn points are its known time gates
+    expect(result.steps[0]).toMatchObject({ key: 'hidden_gate', tools: ['hidden_gate', 'photo'], count: 1, met: true });
+    expect(result.steps[0].help).toContain('turn points of the circuit are its known time gates');
+  });
+
+  it('keeps the free-standing known time gate where it is what scoring uses (not 2.A4)', () => {
+    const result = checklist('cima_a6', [
+      requirement('any', { tool: 'hidden_gate', other_tools: ['known_time_gate', 'photo'], found: 0 }),
+    ]);
+    expect(result.steps[0].tools).toEqual(['hidden_gate', 'known_time_gate', 'photo']);
+    expect(result.steps[0].help).not.toContain('known time gates');
   });
 
   it('guides the curved leg of 2.A1 and the extension waypoints of 2.A5 from the backend', () => {

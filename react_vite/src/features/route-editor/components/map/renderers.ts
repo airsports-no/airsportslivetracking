@@ -9,6 +9,7 @@ import {
 } from '../../../../utils/geoUtils';
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Gate, LatLng, Polygon, Mode, SelectionType } from '../../../../types';
+import { hasDraggedPastThreshold, MID_LEG_DOT_HINT } from '../../midLegDrag';
 import { UNKNOWN_LEG_TRIGGER_TYPE } from '../../unknownLegWizard';
 import { applyLegInsert, findNearestHit, HIT_RADIUS_PX, legClickAction, type HitKind } from '../../routeEditorMapClickHelpers';
 
@@ -18,6 +19,14 @@ import { applyLegInsert, findNearestHit, HIT_RADIUS_PX, legClickAction, type Hit
 // it renders the CIMA default bounds rather than a contest-specific override.
 const CIMA_CIRCLE_DEFAULT_MIN_RADIUS_M = 200;
 const CIMA_CIRCLE_DEFAULT_MAX_RADIUS_M = 750;
+
+// The hidden gate just placed pulses for a second (a CSS class on its mark, see .hidden-gate-pulse). The mark is drawn
+// again after the insert, so the id is remembered here and the class added when that mark is created.
+const HIDDEN_GATE_PULSE_MS = 1200;
+let pulsingGate: { id: string; until: number } | null = null;
+const pulseClassFor = (id: string): string | undefined => (
+  pulsingGate && pulsingGate.id === id && Date.now() < pulsingGate.until ? 'hidden-gate-pulse' : undefined
+);
 
 type PointMarkerStyle = {
   color: string;
@@ -253,6 +262,7 @@ export const drawRouteLine = (
       return;
     }
     // The tool stays active for the next one: the new gate is not selected (that would replace the guide's panel)
+    if (action.point.type === 'secret') pulsingGate = { id: action.point.id, until: Date.now() + HIDDEN_GATE_PULSE_MS };
     setRoutePoints(prev => applyLegInsert(prev, action));
   });
 
@@ -279,37 +289,54 @@ export const drawRouteLine = (
       ghost.bindTooltip('Drag to add a waypoint here', { direction: 'top' });
       ghost.on('mousedown', (e: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(e.originalEvent);
-        onGestureStart?.();
+        const pressed = e.containerPoint;
 
-        const newPoint: RoutePoint = {
-          id: crypto.randomUUID(),
-          lat: mid.lat,
-          lng: mid.lng,
-          name: `Point ${routePoints.length + 1}`,
-          type: 'tp',
-          width: p1.width,
-          isTiming: true,
-          isPassing: true,
-          segmentType: 'straight',
+        // Nothing is inserted until the pointer has moved past the threshold: a press and release does nothing but hint
+        const stopWaiting = () => {
+          map.off('mousemove', onMoveOrRelease);
+          map.off('mouseup', onRelease);
         };
-
-        const nextPoints = [...routePoints];
-        nextPoints.splice(i + 1, 0, newPoint);
-
-        setRoutePoints(nextPoints);
-
-        map.dragging.disable();
-        dragRef.current = {
-          type: 'point',
-          id: newPoint.id,
-          index: i + 1,
-          startLatLng: e.latlng,
-          initialPoints: nextPoints,
-          hasMoved: true,
-          selectionType: 'point',
+        const onRelease = () => {
+          stopWaiting();
+          onNotice?.(MID_LEG_DOT_HINT);
         };
-        map.on('mousemove', handleDragMove);
-        map.on('mouseup', handleDragEnd);
+        const onMoveOrRelease = (move: L.LeafletMouseEvent) => {
+          if (!hasDraggedPastThreshold(pressed, move.containerPoint)) return;
+          stopWaiting();
+          onGestureStart?.();
+
+          const newPoint: RoutePoint = {
+            id: crypto.randomUUID(),
+            lat: mid.lat,
+            lng: mid.lng,
+            name: `Point ${routePoints.length + 1}`,
+            type: 'tp',
+            width: p1.width,
+            isTiming: true,
+            isPassing: true,
+            segmentType: 'straight',
+          };
+
+          const nextPoints = [...routePoints];
+          nextPoints.splice(i + 1, 0, newPoint);
+
+          setRoutePoints(nextPoints);
+
+          map.dragging.disable();
+          dragRef.current = {
+            type: 'point',
+            id: newPoint.id,
+            index: i + 1,
+            startLatLng: e.latlng,
+            initialPoints: nextPoints,
+            hasMoved: true,
+            selectionType: 'point',
+          };
+          map.on('mousemove', handleDragMove);
+          map.on('mouseup', handleDragEnd);
+        };
+        map.on('mousemove', onMoveOrRelease);
+        map.on('mouseup', onRelease);
       });
 
       polylinesRef.current.push(ghost);
@@ -459,6 +486,7 @@ export const drawPoints = (
       opacity: 1,
       fillOpacity: 0.8,
       interactive: false,
+      className: pulseClassFor(p.id),
     }).addTo(pointGroup);
 
     addHitArea(hits, pointGroup, {

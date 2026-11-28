@@ -28,7 +28,7 @@ import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mo
 import { Map } from 'leaflet';
 import { buildWizardChecklist, type CompatibilityStatus, getRouteEditorFlags } from '../taskRequirements';
 import { getTaskTemplateById } from '../taskTemplates';
-import { applyGuideChoice, applyManualTick, emptyIntent, RouteIntent } from '../routeIntent';
+import { applyGuideChoice, applyManualTick, emptyIntent, intentForLoadedRoute, RouteIntent } from '../routeIntent';
 import { countForTool, getToolAction, getToolWizardStep } from '../guideTools';
 import { autoAdvance, doneButtonLabel, findStep, nextUnmetRequiredStep, resolveStepEnd, shouldOfferTaskChoice, type StepEnd } from '../guideProgress';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
@@ -41,6 +41,7 @@ import {
   SECRET_GATE_CHECKS,
   setWidthOfPoints,
   updateItemById,
+  convertPointType,
 } from '../routeEditorMutations';
 import { buildRouteEditorSavePayload, observationPhotoNameProblems, validateRouteEditorState } from '../routeEditorValidation';
 import {
@@ -337,7 +338,10 @@ export default function RouteEditor() {
           }
           if (Array.isArray(data.intended_task_types)) {
             // What the author chose, as the backend reads it (an old pre-filled intent comes back empty).
-            setIntent(emptyIntent(data.intended_task_types));
+            setIntent(intentForLoadedRoute(
+              data.intended_task_types,
+              getTaskTemplateById(data.settings?.selectedTaskTemplateId)?.subtype,
+            ));
           }
 
           if (data.name) setRouteName(data.name);
@@ -442,7 +446,7 @@ export default function RouteEditor() {
 
     // A non-null triggerId is only ever handed in by a caller that already knows it names (or, for
     // the just-converted-to-'ul' case, is about to become) a valid trigger - checking it against
-    // routePointsRef here would race the setRoutePoints() call convertSelectedBackbonePointToType
+    // routePointsRef here would race the change convertSelectedBackbonePointToType
     // just made, since the ref only catches up after that render commits.
     setMode(triggerId ? 'add_point' : 'view');
   }, [wizardChecklist]);
@@ -808,33 +812,37 @@ export default function RouteEditor() {
     changeRoutePoints(reorderItemsById(routePoints, selectedId, direction));
   };
 
-  const convertSelectedBackbonePointToType = useCallback((nextType: RoutePoint['type'], nextFeatureType: RoutePoint['featureType'] | undefined) => {
-    if (!selectedId) return;
+  const convertBackbonePointToType = useCallback((id: string, nextType: RoutePoint['type'], nextFeatureType: RoutePoint['featureType'] | undefined) => {
     markDirty();
-    // Not through changeRoutePoints: this runs while rendering (see below), and the wizard only turns a point into an
-    // unknown-leg point, which no hidden gate depends on
-    setRoutePoints((points) => updateItemById(points, selectedId, (point) => ({
-      ...point,
-      type: nextType,
-      featureType: nextFeatureType || point.featureType || 'route_waypoint',
-    })));
+    // Through changeRoutePoints: a hidden gate turned into an unknown-leg point ends legs, so the hidden gates on the
+    // legs it now ends are removed (with the notice and the undo step). Runs from an effect, not while rendering.
+    changeRoutePoints((points) => convertPointType(points, id, nextType, nextFeatureType));
     setPendingPointTypeSelection(null);
     setPendingPointFeatureTypeSelection(undefined);
     setSelectionType('point');
     if (nextType === 'ul') {
-      beginDummyBranchStep(selectedId);
+      beginDummyBranchStep(id);
       return;
     }
     setCurrentWizardActionLabel(null);
     setWizardPrompt(null);
     setActiveGuideTool(null);
-  }, [beginDummyBranchStep, markDirty, selectedId]);
+  }, [beginDummyBranchStep, changeRoutePoints, markDirty]);
 
-  // A wizard step waiting for a backbone point to convert does so as soon as one is selected. Done while rendering
-  // rather than in an effect; the conversion clears the pending selection, so it runs once.
-  if (pendingPointTypeSelection && selectionType === 'point' && selectedId) {
-    convertSelectedBackbonePointToType(pendingPointTypeSelection, pendingPointFeatureTypeSelection);
-  }
+  // A wizard step waiting for a backbone point to convert does so when the user selects one (a click on a point, or on
+  // one in the list): in the event handler, not while rendering or in an effect. The conversion clears the pending
+  // selection, so it happens once. The selection is made by setting the id and then the type, so the id is remembered.
+  const clickedPointIdRef = useRef<string | null>(null);
+  const selectItemId = useCallback((id: string | null) => {
+    clickedPointIdRef.current = id;
+    setSelectedId(id);
+  }, []);
+  const selectItemType = useCallback((type: SelectionType | null) => {
+    setSelectionType(type);
+    if (type === 'point' && pendingPointTypeSelection && clickedPointIdRef.current) {
+      convertBackbonePointToType(clickedPointIdRef.current, pendingPointTypeSelection, pendingPointFeatureTypeSelection);
+    }
+  }, [pendingPointTypeSelection, pendingPointFeatureTypeSelection, convertBackbonePointToType]);
 
   // Stops the active guide step and the tool it started. The route is not changed.
   const stopWizardAction = useCallback(() => {
@@ -1184,8 +1192,8 @@ export default function RouteEditor() {
           }}
           taskCompatibility={taskCompatibility}
           compatibilityStatus={compatibilityStatus}
-          setSelectedId={setSelectedId}
-          setSelectionType={setSelectionType}
+          setSelectedId={selectItemId}
+          setSelectionType={selectItemType}
           updateSelectedPoint={selectionType === 'standalone_point' ? updateSelectedStandalonePoint : updateSelectedPoint}
           updateSelectedGate={updateSelectedGate}
           updateSelectedObservation={updateSelectedObservation}
@@ -1289,8 +1297,8 @@ export default function RouteEditor() {
           setGates={setGates}
           setObservationMarkers={setObservationMarkers}
           setPolygons={setPolygons}
-          setSelectedId={setSelectedId}
-          setSelectionType={setSelectionType}
+          setSelectedId={selectItemId}
+          setSelectionType={selectItemType}
           setMode={setMode}
           setTempPolygonPoints={setTempPolygonPoints}
           onMapClick={handleMapClick}

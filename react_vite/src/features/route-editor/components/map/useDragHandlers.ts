@@ -50,11 +50,25 @@ export default function useDragHandlers({
   const dragRef = useRef<any>(null);
 
   // Fades the hidden gates and photos that dropping the dragged point as [tentative] would remove
-  const previewRemoval = (tentative: RoutePoint[]) => {
+  // and returns the route as the drop will leave it (hidden gates gone, the curves they split joined)
+  const previewRemoval = (tentative: RoutePoint[]): RoutePoint[] => {
     const drag = dragRef.current;
-    if (!drag) return;
+    if (!drag) return tentative;
     if (!drag.preview) drag.preview = createDragPreview(markersRef, drag.initialPoints, observationMarkers, maxObsDist);
-    (drag.preview as DragPreview).update(tentative);
+    return (drag.preview as DragPreview).update(tentative);
+  };
+
+  const drawRoute = (points: RoutePoint[]) => {
+    const latLngs: L.LatLng[] = [];
+    points.forEach((p, i) => {
+      if (i === 0) latLngs.push(L.latLng(p.lat, p.lng));
+      else if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
+        latLngs.push(...getQuadraticBezierPoints(points[i - 1], p, { lat: p.controlLat, lng: p.controlLng }));
+      } else {
+        latLngs.push(...greatCircleLatLngs(points[i - 1], p));
+      }
+    });
+    routeLineRef.current?.setLatLngs(latLngs);
   };
 
   const handleDragMove = (e: L.LeafletMouseEvent) => {
@@ -104,20 +118,7 @@ export default function useDragHandlers({
             }
           }
 
-          const newLatLngs: L.LatLng[] = [];
-          tempPoints.forEach((p, i) => {
-            if (i === 0) newLatLngs.push(L.latLng(p.lat, p.lng));
-            else {
-              if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
-                const prev = tempPoints[i - 1];
-                newLatLngs.push(...getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng }));
-              } else {
-                newLatLngs.push(...greatCircleLatLngs(tempPoints[i - 1], p));
-              }
-            }
-          });
-          routeLineRef.current.setLatLngs(newLatLngs);
-          previewRemoval(tempPoints);
+          drawRoute(previewRemoval(tempPoints));
         }
       } else if (type === 'curve_control') {
         const handle = markersRef.current[`curve-handle-${id}`] as L.CircleMarker;
@@ -135,20 +136,7 @@ export default function useDragHandlers({
           const tempPoints = [...initialPoints];
           tempPoints[index] = { ...tempPoints[index], controlLat: e.latlng.lat, controlLng: e.latlng.lng };
           
-          const newLatLngs: L.LatLng[] = [];
-          tempPoints.forEach((p, i) => {
-            if (i === 0) newLatLngs.push(L.latLng(p.lat, p.lng));
-            else {
-              if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
-                const prev = tempPoints[i - 1];
-                newLatLngs.push(...getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng }));
-              } else {
-                newLatLngs.push(...greatCircleLatLngs(tempPoints[i - 1], p));
-              }
-            }
-          });
-          routeLineRef.current.setLatLngs(newLatLngs);
-          previewRemoval(tempPoints);
+          drawRoute(previewRemoval(tempPoints));
         }
       } else if (type === 'poly_vertex') {
         moveHandle(markersRef, polyId, vertexIndex, e.latlng);

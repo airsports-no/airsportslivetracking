@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { applyGuideChoice, applyManualTick, emptyIntent } from './routeIntent';
+import { applyGuideChoice, applyManualTick, emptyIntent, intentForLoadedRoute } from './routeIntent';
 
 describe('route intent', () => {
   it('starts empty and gets the guide task added', () => {
@@ -38,5 +38,20 @@ describe('route intent', () => {
     intent = applyManualTick(intent, 'precision', false);
     expect(intent.types).toEqual([]);
     expect(applyGuideChoice(intent, 'anr').types).toEqual(['anr']);
+  });
+});
+
+describe('intent of a loaded route', () => {
+  it('treats the stored template\'s type as the guide-chosen one, so a new task replaces it', () => {
+    const loaded = intentForLoadedRoute(['precision', 'landing'], 'precision');
+    expect(loaded).toEqual({ types: ['precision', 'landing'], guideChosen: 'precision' });
+    expect(applyGuideChoice(loaded, 'anr').types.sort()).toEqual(['anr', 'landing']);
+  });
+
+  it('has no guide choice when there is no stored template or it is not among the types', () => {
+    expect(intentForLoadedRoute(['precision'], null).guideChosen).toBeNull();
+    expect(intentForLoadedRoute(['precision'], undefined).guideChosen).toBeNull();
+    expect(intentForLoadedRoute(['precision'], 'anr').guideChosen).toBeNull();
+    expect(intentForLoadedRoute([], 'anr')).toEqual({ types: [], guideChosen: null });
   });
 });

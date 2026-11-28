@@ -80,6 +80,22 @@ const toolsOf = (requirement: RouteRequirementResult): RouteRequirementTool[] =>
   requirement.tool ? [requirement.tool, ...(requirement.other_tools ?? [])] : []
 );
 
+// 2.A4 (navigation over a known circuit): the circuit's known time gates are the timed turn points of its route, which
+// the scoring flies as gates. A free-standing known time gate (what the registry's known_time_gate tool places) is not
+// part of the route, so it scores nothing there: the guide offers the hidden gate and photo tools only, and says so.
+const KNOWN_CIRCUIT_KEY = 'known_circuit';
+export const KNOWN_CIRCUIT_TIME_GATE_HELP = (
+  'The turn points of the circuit are its known time gates: they are timed and scored without adding anything here.'
+);
+
+const withoutFreeStandingTimeGates = (step: { tools: RouteRequirementTool[]; help: string }) => {
+  if (!step.tools.includes('known_time_gate')) return step;
+  return {
+    tools: step.tools.filter((tool) => tool !== 'known_time_gate'),
+    help: [KNOWN_CIRCUIT_TIME_GATE_HELP, step.help].filter(Boolean).join(' '),
+  };
+};
+
 export const getRequirementsForTemplate = (
   template: TaskTemplate,
   compatibility: TaskCompatibilityResult | null,
@@ -129,7 +145,11 @@ export const buildWizardChecklist = (
     const primary = checked.find((item) => COUNT_REQUIREMENT_KEYS.includes(item.key)) ?? checked[0] ?? null;
     const source = primary ?? own[0];
     const firstUnsatisfied = checked.find((item) => !item.satisfied) ?? null;
-    const tools = [...new Set(own.flatMap(toolsOf))];
+    const allTools = [...new Set(own.flatMap(toolsOf))];
+    const stepHelp = source.help || own.find((item) => item.help)?.help || '';
+    const { tools, help } = template.backendKey === KNOWN_CIRCUIT_KEY
+      ? withoutFreeStandingTimeGates({ tools: allTools, help: stepHelp })
+      : { tools: allTools, help: stepHelp };
     const local = tools.reduce((sum, item) => sum + localCount(item), 0);
     const counted = primary && primary.maximum !== 0 ? primary : null;
     const satisfied = confirmed && checked.length > 0 ? firstUnsatisfied === null : null;
@@ -142,7 +162,7 @@ export const buildWizardChecklist = (
       key: tool,
       tools,
       label: source.label,
-      help: source.help || own.find((item) => item.help)?.help || '',
+      help,
       requirements: checked,
       required: checked.length > 0,
       count: confirmed && counted ? counted.found : local,

@@ -1,6 +1,6 @@
 import type L from 'leaflet';
 import type { ObservationMarker, RoutePoint } from '../../../../types';
-import { createRouteIntegrityCheck } from '../../routeIntegrity';
+import { createRouteIntegrityCheck, joinCurvesOverRemovedGates } from '../../routeIntegrity';
 
 // While a waypoint or a curve handle is dragged: the hidden gates and photos that dropping it where it is would remove
 // are drawn faded. It works on the Leaflet layers directly (no React state on a mouse move) and only works out the legs
@@ -43,7 +43,9 @@ const fade = (layer: Fadable | undefined): Restore[] => {
 
 export interface DragPreview {
   // Fades what the route [after] (the dragged point at its current place) would remove, and shows the rest as it is.
-  update: (after: RoutePoint[]) => void;
+  // Returns the route as the drop will leave it: without the removed hidden gates, and with the curves they split
+  // joined into one (so the leg can be drawn as it will be).
+  update: (after: RoutePoint[]) => RoutePoint[];
   // Everything as it was.
   clear: () => void;
 }
@@ -77,6 +79,10 @@ export const createDragPreview = (
       if (faded.has(key)) return;
       faded.set(key, layerKeys.flatMap((layerKey) => fade(markersRef.current[layerKey] as unknown as Fadable)));
     });
+
+    if (removal.hiddenGates.length === 0) return after;
+    const removedIds = new Set(removal.hiddenGates.map((gate) => gate.id));
+    return joinCurvesOverRemovedGates(after.filter((point) => !removedIds.has(point.id)), after, removedIds);
   };
 
   return { update, clear };

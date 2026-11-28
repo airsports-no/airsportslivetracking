@@ -1,6 +1,6 @@
 import type { SetStateAction } from 'react';
-import type { LatLng, ObservationMarker, RoutePoint } from '../../types';
-import { joinCurves } from './curveSplit';
+import type { ObservationMarker, RoutePoint } from '../../types';
+import { type CurveSegment, joinCurveRun } from './curveSplit';
 import { getMinimumObservationDistance } from './routeEditorMapClickHelpers';
 
 // What a change of the route takes with it. A hidden ("secret") gate lies on one leg and cannot bend the route, and a
@@ -23,7 +23,7 @@ export interface Leg {
   controls: Array<[number, number]>;
   // The control points of the curved segments as they are, not joined (a curve with hidden gates on it has one per part).
   segmentControls: Array<[number, number]>;
-  // Whether every join of curved segments was of the two halves of one curve (see joinCurves). Parts that are not (one
+  // Whether every join of curved segments was of the two halves of one curve (see joinCurveRun). Parts that are not (one
   // was reshaped) are joined into a curve that only approximates them, which is not the leg it was.
   exact: boolean;
 }
@@ -31,18 +31,24 @@ export interface Leg {
 const hasCurve = (point: RoutePoint): boolean => point.segmentType === 'curved' && !!point.controlLat && !!point.controlLng;
 
 // The curves of the run of points [chain] (a leg: its two end points and the hidden gates between them). Consecutive
-// curved segments are joined into one curve (see joinCurves), so a curve with hidden gates on it has the control point
+// curved segments are joined into one curve (see joinCurveRun), so a curve with hidden gates on it has the control point
 // of the curve it was split from, and a leg is the same leg whether or not a hidden gate splits its curve. A straight
 // segment between curved ones keeps them apart.
 const legControls = (chain: RoutePoint[]): Pick<Leg, 'controls' | 'segmentControls' | 'exact'> => {
   const controls: Array<[number, number]> = [];
   const segmentControls: Array<[number, number]> = [];
   let exact = true;
-  const open: { start: RoutePoint | null; control: LatLng | null } = { start: null, control: null };
+  // The run of consecutive curved segments being collected, to be joined at once (the result does not depend on order)
+  let runStart: RoutePoint | null = null;
+  let run: CurveSegment[] = [];
   const flush = () => {
-    if (open.control) controls.push([open.control.lat, open.control.lng]);
-    open.start = null;
-    open.control = null;
+    if (runStart && run.length > 0) {
+      const join = joinCurveRun(runStart, run);
+      controls.push([join.control.lat, join.control.lng]);
+      exact = exact && join.exact;
+    }
+    runStart = null;
+    run = [];
   };
   for (let index = 1; index < chain.length; index += 1) {
     const segmentEnd = chain[index];
@@ -52,14 +58,8 @@ const legControls = (chain: RoutePoint[]): Pick<Leg, 'controls' | 'segmentContro
     }
     const segmentControl = { lat: segmentEnd.controlLat as number, lng: segmentEnd.controlLng as number };
     segmentControls.push([segmentControl.lat, segmentControl.lng]);
-    if (open.start && open.control) {
-      const join = joinCurves(open.start, open.control, chain[index - 1], segmentControl, segmentEnd);
-      open.control = join.control;
-      exact = exact && join.exact;
-    } else {
-      open.start = chain[index - 1];
-      open.control = segmentControl;
-    }
+    if (!runStart) runStart = chain[index - 1];
+    run.push({ control: segmentControl, end: segmentEnd });
   }
   flush();
   return { controls, segmentControls, exact };
@@ -204,7 +204,7 @@ export const withoutRemoval = (
 // Joins the curves back together where hidden gates were taken off them. When a hidden gate between two curved segments
 // is gone (deleted by hand, or removed because its leg changed), the curve that ends at the next point is no longer
 // from the point before the gate: its control point becomes that of the one curve from the point before the gates to
-// that point (see joinCurves). [points] is the route without the gates; [sequence] has them, in order, with the data
+// that point (see joinCurveRun). [points] is the route without the gates; [sequence] has them, in order, with the data
 // they had (the route before the change, or the route with the gates still in it).
 export const joinCurvesOverRemovedGates = (
   points: RoutePoint[],
@@ -227,12 +227,10 @@ export const joinCurvesOverRemovedGates = (
     // The run must start at the point this one now follows, and all of it must be curves to join
     if (gates.length === 0 || before < 0 || sequence[before].id !== points[index - 1].id || !gates.every(hasCurve)) continue;
     const start = points[index - 1];
-    let control: LatLng = { lat: gates[0].controlLat as number, lng: gates[0].controlLng as number };
-    let controlEnd = gates[0];
-    for (const next of [...gates.slice(1), end]) {
-      control = joinCurves(start, control, controlEnd, { lat: next.controlLat as number, lng: next.controlLng as number }, next).control;
-      controlEnd = next;
-    }
+    const control = joinCurveRun(
+      start,
+      [...gates, end].map((part) => ({ control: { lat: part.controlLat as number, lng: part.controlLng as number }, end: part })),
+    ).control;
     joined = joined ?? [...points];
     joined[index] = { ...end, controlLat: control.lat, controlLng: control.lng };
   }

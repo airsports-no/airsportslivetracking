@@ -9,6 +9,14 @@ export interface RouteIntent {
 
 export const emptyIntent = (types: string[] = []): RouteIntent => ({ types, guideChosen: null });
 
+// The intent of a route that was loaded: the stored [types], and the task template the route's settings say was selected
+// (null or unknown: none). A saved route carries no record of which type the guide added, so when the stored template's
+// subtype is among the types it counts as the guide-chosen one, and switching task in the guide replaces it.
+export const intentForLoadedRoute = (types: string[], templateSubtype: string | null | undefined): RouteIntent => ({
+  types,
+  guideChosen: templateSubtype && types.includes(templateSubtype) ? templateSubtype : null,
+});
+
 // The guide's task changed to [subtype] (null: the guide was left). The previously guide-chosen type goes; a type the
 // author ticked by hand stays, and so does one that was already ticked when the guide chose it.
 export const applyGuideChoice = (intent: RouteIntent, subtype: string | null | undefined): RouteIntent => {

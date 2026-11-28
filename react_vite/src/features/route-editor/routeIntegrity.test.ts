@@ -189,6 +189,20 @@ describe('hidden gates on curved legs', () => {
     }
   });
 
+  it('joins into a curve that follows the reshaped half, not back to the original control point', () => {
+    const split = withGates([0.5]);
+    const plan = planRouteChange(
+      split,
+      (points) => points.map((item) => (item.id === 'FP' ? { ...item, controlLat: (item.controlLat as number) + 0.03 } : item)),
+      [],
+      MAX,
+    );
+    const [lat, lng] = controlOf(plan.points, 'FP') as number[];
+    expect(Math.hypot(lat - control.lat, lng - control.lng)).toBeGreaterThan(0.005);
+    // The reshaped half bulges the curve towards +lat, so the one curve is pushed that way too
+    expect(lat).toBeGreaterThan(control.lat);
+  });
+
   it('removes the gates when an end point of the curve is moved', () => {
     const split = withGates([0.5]);
     const plan = planRouteChange(split, (points) => move(points, 'FP', 60.01, 11.21), [], MAX);

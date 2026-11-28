@@ -69,7 +69,7 @@ You do not need a national jury, ground marshals, or specialized logger boxes to
 * **Difficulty:** Intermediate to advanced.
 
 ### 10-Minute Organizer Setup
-1. **Use the Task Wizard:** Open **Route editor**, click **Task Wizard**, and select either a **Precision** route (with SP, TP, FP, hidden secret gates, and optional photo observation markers) or a **CIMA** task type such as **2.A2 Precision navigation**, **2.A1 Curve navigation with time estimation**, or **2.A7 Circle**.
+1. **Use the Task Wizard:** Open **Route editor → Create new route** and choose the task in the **What is this route for?** window (you can change it later with **Task Wizard**). Select either a **Precision** route (with SP, TP, FP, hidden gates, and optional photo observation markers) or a **CIMA** task type such as **2.A2 Precision navigation**, **2.A1 Curve navigation with time estimation**, or **2.A7 Circle**.
 2. **Add Optional Spot Landing:** Add a **Landing** task inside the same contest to combine navigation airmanship with landing accuracy.
 3. **Automatic Flight Orders:** Once pilots register (or are scheduled with the **Flight Scheduler Optimizer**), ASLT automatically emails each crew a printable **Flight Order PDF** containing the route map, turnpoint photos, and observation photos.
 4. **Automated Scoring:** Hidden timing gates, speed-keeping, and track deviations are scored live from the mobile app's GPS telemetry—no manual spreadsheet entry required.
