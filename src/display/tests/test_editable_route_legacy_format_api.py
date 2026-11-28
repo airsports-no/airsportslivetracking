@@ -102,3 +102,65 @@ class TestEditableRouteLegacyFormatApi(TestCase):
         self.assertEqual(201, response.status_code, response.content)
         route = EditableRoute.objects.get(name="GeoJSON route")
         self.assertEqual(route.route["type"], "FeatureCollection")
+
+
+class TestEditableRouteIntendedTaskTypesApi(TestCase):
+    def setUp(self):
+        self.user = get_user_model().objects.create(email="editable-route-intent@example.com")
+        self.user.user_permissions.add(Permission.objects.get(codename="add_editableroute"))
+        self.client = APIClient()
+        self.client.force_authenticate(self.user)
+        self.route_data = {
+            "type": "FeatureCollection",
+            "features": [
+                {
+                    "type": "Feature",
+                    "properties": {"featureType": "route_path"},
+                    "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                },
+                {
+                    "type": "Feature",
+                    "properties": {
+                        "id": "TP-1",
+                        "name": "TP",
+                        "pointType": "tp",
+                        "featureType": "route_waypoint",
+                        "width": 1852,
+                        "isTiming": True,
+                        "isPassing": True,
+                        "sequence": 0,
+                    },
+                    "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                },
+            ],
+        }
+
+    def test_writes_store_what_is_sent_and_reads_return_it(self):
+        response = self.client.post(
+            "/api/v1/editableroutes/",
+            {"name": "Intent route", "settings": {}, "route": self.route_data, "intended_task_types": []},
+            format="json",
+        )
+        self.assertEqual(201, response.status_code, response.content)
+        route = EditableRoute.objects.get(name="Intent route")
+        self.assertEqual([], response.json()["intended_task_types"])
+        compatible = list(route.compatible_task_types)
+        self.assertGreater(len(compatible), 1)
+
+        # An explicit declaration of every compatible type is kept, and read back as declared.
+        route.intended_task_types = compatible
+        route.save()
+        route.refresh_from_db()
+        self.assertEqual(set(compatible), set(route.intended_task_types))
+        detail = self.client.get(f"/api/v1/editableroutes/{route.pk}/")
+        self.assertEqual(200, detail.status_code, detail.content)
+        self.assertEqual(set(compatible), set(detail.json()["intended_task_types"]))
+
+        # A deliberate choice round-trips through a save.
+        patch = self.client.patch(
+            f"/api/v1/editableroutes/{route.pk}/", {"intended_task_types": compatible[:1]}, format="json"
+        )
+        self.assertEqual(200, patch.status_code, patch.content)
+        self.assertEqual(compatible[:1], patch.json()["intended_task_types"])
+        route.refresh_from_db()
+        self.assertEqual(compatible[:1], route.intended_task_types)

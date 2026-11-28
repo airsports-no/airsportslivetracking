@@ -1,12 +1,11 @@
 import { useRef } from 'react';
+import { hasControl } from '../../curveControl';
 import L from 'leaflet';
-import {
-  getDistanceFromLine,
-} from '../../../../utils/geoUtils';
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Polygon, ObservationMarker, SelectionType, Mode } from '../../../../types';
 import { nextOnDummyBranch } from '../../unknownLegWizard';
 import { greatCircleLatLngs } from './renderers';
+import { createDragPreview, type DragPreview } from './dragPreview';
 
 interface useDragHandlersProps {
     mapRef: React.MutableRefObject<L.Map | null>;
@@ -22,7 +21,17 @@ interface useDragHandlersProps {
     maxObsDist: number;
     // A drag that changed something: the route has unsaved edits
     onEdit?: () => void;
+    // A drag has ended (whatever it did): the undo step it was part of is complete
+    onGestureEnd?: () => void;
 }
+
+// A corner of a zone is drawn as a mark with a larger invisible hit area over it: both move.
+const moveHandle = (markersRef: React.MutableRefObject<{ [key: string]: L.Layer }>, polyId: string, index: number, latlng: L.LatLng) => {
+  for (const key of [`poly-handle-${polyId}-${index}`, `poly-mark-${polyId}-${index}`]) {
+    const layer = markersRef.current[key] as L.CircleMarker | undefined;
+    if (layer) layer.setLatLng(latlng);
+  }
+};
 
 export default function useDragHandlers({
   mapRef,
@@ -35,9 +44,33 @@ export default function useDragHandlers({
   setSelectedId,
   setSelectionType,
   setMode,
+  maxObsDist,
   onEdit,
+  onGestureEnd,
 }: useDragHandlersProps) {
   const dragRef = useRef<any>(null);
+
+  // Fades the hidden gates and photos that dropping the dragged point as [tentative] would remove
+  // and returns the route as the drop will leave it (hidden gates gone, the curves they split joined)
+  const previewRemoval = (tentative: RoutePoint[]): RoutePoint[] => {
+    const drag = dragRef.current;
+    if (!drag) return tentative;
+    if (!drag.preview) drag.preview = createDragPreview(markersRef, drag.initialPoints, observationMarkers, maxObsDist);
+    return (drag.preview as DragPreview).update(tentative);
+  };
+
+  const drawRoute = (points: RoutePoint[]) => {
+    const latLngs: L.LatLng[] = [];
+    points.forEach((p, i) => {
+      if (i === 0) latLngs.push(L.latLng(p.lat, p.lng));
+      else if (p.segmentType === 'curved' && hasControl(p)) {
+        latLngs.push(...getQuadraticBezierPoints(points[i - 1], p, { lat: p.controlLat, lng: p.controlLng }));
+      } else {
+        latLngs.push(...greatCircleLatLngs(points[i - 1], p));
+      }
+    });
+    routeLineRef.current?.setLatLngs(latLngs);
+  };
 
   const handleDragMove = (e: L.LeafletMouseEvent) => {
     if (!dragRef.current) return;
@@ -86,19 +119,7 @@ export default function useDragHandlers({
             }
           }
 
-          const newLatLngs: L.LatLng[] = [];
-          tempPoints.forEach((p, i) => {
-            if (i === 0) newLatLngs.push(L.latLng(p.lat, p.lng));
-            else {
-              if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
-                const prev = tempPoints[i - 1];
-                newLatLngs.push(...getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng }));
-              } else {
-                newLatLngs.push(...greatCircleLatLngs(tempPoints[i - 1], p));
-              }
-            }
-          });
-          routeLineRef.current.setLatLngs(newLatLngs);
+          drawRoute(previewRemoval(tempPoints));
         }
       } else if (type === 'curve_control') {
         const handle = markersRef.current[`curve-handle-${id}`] as L.CircleMarker;
@@ -116,23 +137,10 @@ export default function useDragHandlers({
           const tempPoints = [...initialPoints];
           tempPoints[index] = { ...tempPoints[index], controlLat: e.latlng.lat, controlLng: e.latlng.lng };
           
-          const newLatLngs: L.LatLng[] = [];
-          tempPoints.forEach((p, i) => {
-            if (i === 0) newLatLngs.push(L.latLng(p.lat, p.lng));
-            else {
-              if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
-                const prev = tempPoints[i - 1];
-                newLatLngs.push(...getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng }));
-              } else {
-                newLatLngs.push(...greatCircleLatLngs(tempPoints[i - 1], p));
-              }
-            }
-          });
-          routeLineRef.current.setLatLngs(newLatLngs);
+          drawRoute(previewRemoval(tempPoints));
         }
       } else if (type === 'poly_vertex') {
-        const handle = markersRef.current[`poly-handle-${polyId}-${vertexIndex}`] as L.CircleMarker;
-        if (handle) handle.setLatLng(e.latlng);
+        moveHandle(markersRef, polyId, vertexIndex, e.latlng);
 
         const polyLayer = markersRef.current[`poly-${polyId}`] as L.Polygon;
         if (polyLayer) {
@@ -162,18 +170,25 @@ export default function useDragHandlers({
           polyLayer.setLatLngs([currentPoints.map(p => [p.lat, p.lng])]);
         }
 
-        currentPoints.forEach((p, idx) => {
-          const handle = markersRef.current[`poly-handle-${polyId}-${idx}`] as L.CircleMarker;
-          if (handle) handle.setLatLng([p.lat, p.lng]);
-        });
+        currentPoints.forEach((p, idx) => moveHandle(markersRef, polyId, idx, L.latLng(p.lat, p.lng)));
       }
     }
   };
 
   const handleDragEnd = (e: L.LeafletMouseEvent) => {
+    try {
+      endDrag(e);
+    } finally {
+      onGestureEnd?.();
+    }
+  };
+
+  const endDrag = (e: L.LeafletMouseEvent) => {
     if (!dragRef.current) return;
     const { id, hasMoved, type, polyId, vertexIndex, initialPoints, startLatLng } = dragRef.current;
     const map = mapRef.current;
+    // Whatever the drop does is drawn by the redraw; this puts a drag that changed nothing back as it was
+    dragRef.current.preview?.clear();
 
     if (map) {
         map.dragging.enable();
@@ -199,7 +214,7 @@ export default function useDragHandlers({
             const next = moved ? nextOnDummyBranch(moved, prev) : undefined;
             return prev.map((p: RoutePoint) => {
               // The curve handles of the legs into and out of a dummy point move along with it
-              const shifted = (p.id === id || p.id === next?.id) && p.segmentType === 'curved' && p.controlLat && p.controlLng
+              const shifted = (p.id === id || p.id === next?.id) && p.segmentType === 'curved' && hasControl(p)
                 ? { ...p, controlLat: p.controlLat + latDiff, controlLng: p.controlLng + lngDiff }
                 : p;
               return p.id === id ? { ...shifted, lat: newLatLng.lat, lng: newLatLng.lng } : shifted;
@@ -207,47 +222,6 @@ export default function useDragHandlers({
           });
           dragRef.current = null;
           return;
-        }
-
-        const nextPoints = initialPoints.map((p: RoutePoint) => {
-          if (p.id === id) {
-            const updated = { ...p, lat: newLatLng.lat, lng: newLatLng.lng };
-            if (p.segmentType === 'curved') {
-              updated.controlLat! += latDiff;
-              updated.controlLng! += lngDiff;
-            }
-            return updated;
-          }
-          return p;
-        });
-
-        // Validation: Check Observation Markers Distance
-        if (nextPoints.length > 1) {
-          let invalidObs = null;
-          for (const obs of observationMarkers) {
-            let minD = Infinity;
-            for (let i = 0; i < nextPoints.length - 1; i++) {
-              const d = getDistanceFromLine(obs, nextPoints[i], nextPoints[i + 1]);
-              if (d < minD) minD = d;
-            }
-            if (minD > 926) { // 0.5 NM
-              invalidObs = obs;
-              break;
-            }
-          }
-
-          if (invalidObs) {
-            alert(`Cannot move waypoint. Observation "${invalidObs.name}" would be too far (>0.5NM) from the route.`);
-            // Revert visual changes via re-render (state not updated)
-            const originalPoint = initialPoints.find((p: RoutePoint) => p.id === id);
-            if (originalPoint) {
-               const group = markersRef.current[`point-${id}`] as L.FeatureGroup;
-               if(group) group.eachLayer(l => { if(l instanceof L.CircleMarker) l.setLatLng([originalPoint.lat, originalPoint.lng])});
-               if(routeLineRef.current) routeLineRef.current.setLatLngs(initialPoints.map((p: RoutePoint) => [p.lat, p.lng])); // Simplified reset
-            }
-            dragRef.current = null;
-            return;
-          }
         }
 
         setRoutePoints(prev => {
@@ -273,7 +247,7 @@ export default function useDragHandlers({
         setStandalonePoints(prev => {
           const moved = initialPoints.find((p: RoutePoint) => p.id === id);
           const first = moved ? nextOnDummyBranch(moved, prev) : undefined;
-          if (!first || first.segmentType !== 'curved' || !first.controlLat || !first.controlLng) return prev;
+          if (!first || first.segmentType !== 'curved' || !hasControl(first)) return prev;
           return prev.map((p) => (p.id === first.id
             ? { ...p, controlLat: p.controlLat! + latDiff, controlLng: p.controlLng! + lngDiff }
             : p));

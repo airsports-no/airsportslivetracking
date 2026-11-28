@@ -1017,6 +1017,77 @@ def precision_route_geojson(
     return {"type": "FeatureCollection", "features": features}
 
 
+def curve_with_hidden_gates_route_geojson(
+    parameters: Sequence[float] = (0.3, 0.7),
+    hidden_timing: bool = False,
+    hidden_width_m: float = 300.0,
+    curve_offset_m: float = 400.0,
+    **route_options,
+) -> dict:
+    """`precision_route_geojson` with TP1 curved, and hidden gates HG1, HG2, ... on the curve of the first leg.
+
+    The gates are put on the curve the way the route editor does when a hidden gate is placed on a curved leg: each is a
+    secret waypoint ending a curved segment, with the control point of the first half of the curve it splits, and the
+    point after it keeps the second half (a de Casteljau split in latitude and longitude, which draws exactly the old
+    curve). `parameters` are the curve parameters of the gates, in increasing order.
+    """
+    route = precision_route_geojson(
+        curved=["TP1"], curve_offset_m=curve_offset_m, hidden_timing=hidden_timing, **route_options
+    )
+    waypoints = sorted(
+        (item for item in route["features"] if item["properties"].get("featureType") == "route_waypoint"),
+        key=lambda item: item["properties"]["sequence"],
+    )
+    start, end = waypoints[0], waypoints[1]
+    assert end["properties"]["name"] == "TP1"
+
+    def lat_lon(feature):
+        return feature["geometry"]["coordinates"][1], feature["geometry"]["coordinates"][0]
+
+    def lerp(a, b, t):
+        return a[0] + (b[0] - a[0]) * t, a[1] + (b[1] - a[1]) * t
+
+    gates = []
+    segment_start = lat_lon(start)
+    control = (end["properties"]["controlLat"], end["properties"]["controlLng"])
+    end_point = lat_lon(end)
+    done = 0.0
+    for number, parameter in enumerate(parameters, start=1):
+        t = (parameter - done) / (1.0 - done)
+        first_control = lerp(segment_start, control, t)
+        second_control = lerp(control, end_point, t)
+        middle = lerp(first_control, second_control, t)
+        gates.append(
+            _route_waypoint_feature(
+                0,
+                f"HG{number}",
+                "secret",
+                middle,
+                hidden_width_m,
+                hidden_timing,
+                segmentType="curved",
+                controlLat=first_control[0],
+                controlLng=first_control[1],
+            )
+        )
+        segment_start, control, done = middle, second_control, parameter
+    end["properties"]["controlLat"], end["properties"]["controlLng"] = control
+    ordered = [waypoints[0], *gates, *waypoints[1:]]
+    new_ids = {}
+    for sequence, feature in enumerate(ordered):
+        if feature in waypoints:  # the gates have no id of an earlier numbering
+            new_ids[feature["properties"]["id"]] = f"wp-{sequence}"
+        feature["properties"]["sequence"] = sequence
+        feature["properties"]["id"] = f"wp-{sequence}"
+    others = [item for item in route["features"] if item not in waypoints]
+    # The extensions of unknown legs refer to the waypoint they leave from
+    for item in others:
+        trigger = item["properties"].get("triggerPointId")
+        if trigger in new_ids:
+            item["properties"]["triggerPointId"] = new_ids[trigger]
+    return {"type": "FeatureCollection", "features": [*others, *ordered]}
+
+
 def local_point(origin: tuple[float, float], along_m: float, across_m: float = 0.0) -> tuple[float, float]:
     """(lat, lon) `along_m` metres east of `origin` and `across_m` metres south of it (negative: north)."""
     point = project_position_lat_lon(origin, 90.0, along_m)

@@ -429,7 +429,7 @@ class EditableRoute(models.Model):
                 control_lat = props.get("controlLat")
                 control_lng = props.get("controlLng")
 
-                if control_lat:
+                if control_lat is not None and control_lng is not None:
                     prev_item = track_waypoints[index - 1]
                     prev_lon, prev_lat = prev_item["geometry"]["coordinates"]
 

@@ -130,8 +130,10 @@ class TestRouteCompatibilityRuleset(TestCase):
         ):
             self.assertNotIn(subtype, compatible)
 
-    def test_hidden_gate_is_only_required_by_precision_navigation(self):
-        # Hidden gates are optional evidence on the other task types; 2.A2 is scored on them, so it needs one.
+    def test_hidden_gate_is_required_by_precision_navigation_and_counts_as_evidence_for_a_known_circuit(self):
+        # Hidden gates are optional on the other task types; 2.A2 is scored on them, so it needs one. A known circuit
+        # needs a timed turn point (its known time gates), a hidden gate or a photo, so a route with only SP, FP and an
+        # untimed turn point is not one.
         route = EditableRoute.objects.create(
             name="Plain precision route",
             route={
@@ -139,18 +141,38 @@ class TestRouteCompatibilityRuleset(TestCase):
                 "features": [
                     TRACK_FEATURE,
                     {**waypoint_feature("sp", "SP"), "properties": {**waypoint_feature("sp", "SP")["properties"], "sequence": 0}},
-                    {**waypoint_feature("tp", "TP1"), "properties": {**waypoint_feature("tp", "TP1")["properties"], "sequence": 1}},
+                    {
+                        **waypoint_feature("tp", "TP1"),
+                        "properties": {**waypoint_feature("tp", "TP1")["properties"], "sequence": 1, "isTiming": False},
+                    },
                     {**waypoint_feature("fp", "FP"), "properties": {**waypoint_feature("fp", "FP")["properties"], "sequence": 2}},
                 ],
             },
         )
-        self.assertEqual(get_blocking_reasons(extract_route_primitives(route), KNOWN_CIRCUIT), [])
-        self.assertIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route))
+        self.assertEqual(
+            get_blocking_reasons(extract_route_primitives(route), KNOWN_CIRCUIT),
+            [
+                "A known circuit needs at least one timed turn point, hidden gate or photo: without one there is "
+                "nothing to score besides the start and finish."
+            ],
+        )
+        self.assertNotIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route))
         self.assertNotIn(PRECISION_NAVIGATION, get_compatible_task_subtypes(route))
         self.assertEqual(
             ["Precision navigation needs at least one hidden gate: the task is scored on them."],
             get_blocking_reasons(extract_route_primitives(route), PRECISION_NAVIGATION),
         )
+        # A timed turn point is enough for a known circuit, but not for precision navigation.
+        route.route["features"][2]["properties"]["isTiming"] = True
+        self.assertEqual(get_blocking_reasons(extract_route_primitives(route), KNOWN_CIRCUIT), [])
+        self.assertIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route))
+        self.assertNotIn(PRECISION_NAVIGATION, get_compatible_task_subtypes(route))
+        route.route["features"][2]["properties"]["isTiming"] = False
+        hidden_gate = waypoint_feature("secret", "HG1")
+        hidden_gate["properties"]["sequence"] = 3
+        route.route["features"].append(hidden_gate)
+        self.assertEqual(get_blocking_reasons(extract_route_primitives(route), KNOWN_CIRCUIT), [])
+        self.assertIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route))
 
     def test_circle_requires_all_four_markers(self):
         route = EditableRoute.objects.create(
@@ -412,3 +434,79 @@ class TestTaskCompilerPrimitivesContractUnchanged(TestCase):
         self.assertNotIn("route_waypoint", subset)
         self.assertNotIn("takeoff_gate", subset)
         self.assertNotIn("landing_gate", subset)
+
+
+class TestDeclaredTaskTypes(TestCase):
+    """EditableRoute.intended_task_types is what the author chose, as stored."""
+
+    def make_route(self, intended):
+        route = EditableRoute.objects.create(
+            name="Declared route",
+            route={"type": "FeatureCollection", "features": [TRACK_FEATURE, waypoint_feature("tp")]},
+            intended_task_types=intended,
+        )
+        self.assertGreater(len(route.compatible_task_types), 1)
+        return route
+
+    def test_an_explicit_declaration_of_every_compatible_type_survives_a_save_and_read(self):
+        route = self.make_route([])
+        route.intended_task_types = list(reversed(route.compatible_task_types))
+        route.save()
+
+        route = EditableRoute.objects.get(pk=route.pk)
+        self.assertEqual(set(route.compatible_task_types), set(route.intended_task_types))
+        self.assertGreater(len(route.intended_task_types), 1)
+
+    def test_the_migration_clears_a_prefilled_intent_only(self):
+        import importlib
+
+        from django.apps import apps
+
+        clear = importlib.import_module("display.migrations.0220_clear_prefilled_intended_task_types")
+        prefilled = self.make_route([])
+        EditableRoute.objects.filter(pk=prefilled.pk).update(
+            intended_task_types=list(reversed(prefilled.compatible_task_types))
+        )
+        subset = self.make_route([])
+        EditableRoute.objects.filter(pk=subset.pk).update(intended_task_types=subset.compatible_task_types[:2])
+        single = self.make_route([])
+        EditableRoute.objects.filter(pk=single.pk).update(
+            intended_task_types=single.compatible_task_types[:1], compatible_task_types=single.compatible_task_types[:1]
+        )
+
+        clear.clear_prefilled_intent(apps, None)
+
+        self.assertEqual([], EditableRoute.objects.get(pk=prefilled.pk).intended_task_types)
+        self.assertEqual(subset.compatible_task_types[:2], EditableRoute.objects.get(pk=subset.pk).intended_task_types)
+        self.assertEqual(single.compatible_task_types[:1], EditableRoute.objects.get(pk=single.pk).intended_task_types)
+
+    def test_a_real_subset_is_kept(self):
+        route = self.make_route([])
+        subset = route.compatible_task_types[:2]
+        route.intended_task_types = subset
+        route.save()
+
+        self.assertEqual(subset, EditableRoute.objects.get(pk=route.pk).intended_task_types)
+
+    def test_a_single_type_equal_to_the_only_compatible_type_is_kept(self):
+        route = EditableRoute.objects.create(name="Empty route", route={"type": "FeatureCollection", "features": []})
+        only = route.compatible_task_types[:1]
+        route.compatible_task_types = only
+        route.intended_task_types = only
+
+        self.assertEqual(only, route.intended_task_types)
+
+    def test_intent_that_the_route_does_not_meet_yet_is_kept(self):
+        route = self.make_route([PRECISION_NAVIGATION])
+
+        self.assertNotIn(PRECISION_NAVIGATION, route.compatible_task_types)
+        self.assertEqual([PRECISION_NAVIGATION], route.intended_task_types)
+
+    def test_infer_follows_only_a_satisfied_template(self):
+        from display.services.route_compatibility import infer_intended_task_subtypes
+
+        route = self.make_route([])
+
+        self.assertEqual([], infer_intended_task_subtypes(route))
+        self.assertEqual([], infer_intended_task_subtypes(route, PRECISION_NAVIGATION))
+        self.assertEqual([LEGACY_PRECISION], infer_intended_task_subtypes(route, LEGACY_PRECISION))

@@ -1,5 +1,5 @@
-import { getWizardTransition, getWizardStep } from './routeEditorWizardTransitions';
-import type { WizardStep, TaskTemplate } from './taskTemplates';
+import { getWizardTransition } from './routeEditorWizardTransitions';
+import type { WizardStep } from './guideTools';
 
 function makeStep(overrides: Partial<WizardStep> & { key: string; kind: WizardStep['kind'] }): WizardStep {
   return {
@@ -89,21 +89,5 @@ describe('getWizardTransition', () => {
     expect(result.mode).toBe('add_polygon');
     expect(result.wizardPolygonType).toBe('prohibited');
     expect(result.resetTempPolygonPoints).toBe(true);
-  });
-});
-
-describe('getWizardStep', () => {
-  const template = { steps: [makeStep({ key: 'a', kind: 'point' }), makeStep({ key: 'b', kind: 'route' })] } as unknown as TaskTemplate;
-
-  it('finds the step by key', () => {
-    expect(getWizardStep(template, 'b')?.key).toBe('b');
-  });
-
-  it('returns undefined when the key is not found', () => {
-    expect(getWizardStep(template, 'missing')).toBeUndefined();
-  });
-
-  it('returns undefined when no template is given', () => {
-    expect(getWizardStep(undefined, 'a')).toBeUndefined();
   });
 });

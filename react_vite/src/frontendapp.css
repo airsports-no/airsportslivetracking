@@ -21,6 +21,37 @@ html, body, #root {
   cursor: grabbing !important;
 }
 
+/* Route editor: the cursor follows the state, set as a class on the map container (MapCanvas).
+   Placing: a click on the map places something, so a crosshair; select mode: the arrow. Whatever a click selects
+   (the invisible hit area of a point, gate end, photo or zone corner) shows a pointer in both. */
+.route-map-placing.leaflet-container,
+.route-map-placing .leaflet-grab,
+.route-map-placing .leaflet-interactive {
+  cursor: crosshair;
+}
+.route-map-select.leaflet-container:not(.leaflet-dragging),
+.route-map-select:not(.leaflet-dragging) .leaflet-grab {
+  cursor: default;
+}
+.route-map-placing .route-hit,
+.route-map-select .route-hit {
+  cursor: pointer;
+}
+
+/* The hidden gate just placed: a ring that grows and fades once */
+.hidden-gate-pulse {
+  transform-box: fill-box;
+  transform-origin: center;
+  animation: hidden-gate-pulse 1s ease-out 1;
+}
+@keyframes hidden-gate-pulse {
+  0% { transform: scale(2.6); stroke: #f59e0b; stroke-width: 4px; }
+  100% { transform: scale(1); stroke-width: 2px; }
+}
+@media (prefers-reduced-motion: reduce) {
+  .hidden-gate-pulse { animation: none; }
+}
+
 /* Custom variables for React Select to ensure theme inheritance and opacity */
 :root, [data-theme='light'] {
   --rs-bg: #ffffff;

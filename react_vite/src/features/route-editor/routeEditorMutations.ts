@@ -143,3 +143,18 @@ export type SelectionCollectionMap = {
   observationMarkers: ObservationMarker[];
   polygons: Polygon[];
 };
+
+// The route point [id] turned into a point of [nextType] (the guide's conversion of a selected point). Whether this
+// changes the route's legs (a hidden gate turned into an unknown-leg point ends legs) is for planRouteChange to decide.
+export function convertPointType(
+  points: RoutePoint[],
+  id: string,
+  nextType: RoutePoint['type'],
+  nextFeatureType: RoutePoint['featureType'] | undefined,
+): RoutePoint[] {
+  return updateItemById(points, id, (point) => ({
+    ...point,
+    type: nextType,
+    featureType: nextFeatureType || point.featureType || 'route_waypoint',
+  }));
+}

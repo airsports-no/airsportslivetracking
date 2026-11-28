@@ -26,7 +26,7 @@ You land on the contest page. A **setup checklist** at the top tracks what is le
 ## 3. Draw a route (5 minutes)
 
 1. **Route editor → Create new route**, or **Import route** if you already have a file (KML, KMZ, GPX or CSV).
-2. Add the start point, the turning points and the finish. The editor's help button explains each element.
+2. Choose the task the route is for (or **Build without a guide**), then add the start point, the turning points and the finish. The guide shows what is still missing. The editor's help button explains the tools, and Ctrl+Z undoes a slip.
 3. **Save.** A message offers **Create navigation task**. Use it, or skip ahead to step 4.
 
 A route is reusable. You can build tasks in many contests from the same route.

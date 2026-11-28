@@ -156,6 +156,49 @@ export interface RouteRequirementResult {
     found: number;
     satisfied: boolean;
     message: string;
+    // Whether the route must meet it (minimum above 0). A requirement that is not required and has no maximum is an
+    // optional step of the guide: always satisfied.
+    required: boolean;
+    // What the guide tells the user to do; empty when there is nothing to say.
+    help: string;
+    // The tool that satisfies it (one of ROUTE_REQUIREMENT_TOOLS), null when no tool does (an order, a prohibition).
+    tool: RouteRequirementTool | null;
+    // For a requirement met by any of several kinds of feature: the further tools that also count.
+    other_tools: RouteRequirementTool[];
+}
+
+export const ROUTE_REQUIREMENT_TOOLS = [
+    'route_waypoint',
+    'hidden_gate',
+    'known_time_gate',
+    'catalogue_turnpoint',
+    'circle_start',
+    'circle_center',
+    'circle_entry',
+    'circle_exit',
+    'photo',
+    'landing_area',
+    'takeoff_gate',
+    'landing_gate',
+    'unknown_leg_point',
+    'extension_waypoint',
+    'curved_leg',
+] as const;
+
+export type RouteRequirementTool = typeof ROUTE_REQUIREMENT_TOOLS[number];
+
+// The special behaviour of the route editor per task type (display.utilities.task_types.TaskTypeDefinition).
+export interface TaskTypeRouteEditorFlags {
+    // The route is exactly SP, MP and FP.
+    three_point_backbone: boolean;
+    // No backbone: three timed turn points and catalogue turn points on the free map.
+    standalone_timed_turnpoints: boolean;
+    // The route is the circle's start, centre, entry and exit markers.
+    circle_markers: boolean;
+    // At least one leg must be curved.
+    curve_required: boolean;
+    // Unknown-leg points are followed by extension waypoints.
+    extension_waypoints: boolean;
 }
 
 export interface TaskCompatibilitySubtype {
@@ -167,6 +210,8 @@ export interface TaskCompatibilitySubtype {
     missing_reasons: string[];
     // Absent in responses from a backend older than the route requirements; treat as empty.
     requirements?: RouteRequirementResult[];
+    // Absent in responses from a backend older than the flags; treat as all false.
+    flags?: TaskTypeRouteEditorFlags;
 }
 
 export interface TaskCompatibilityResult {

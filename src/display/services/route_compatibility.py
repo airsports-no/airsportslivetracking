@@ -22,7 +22,7 @@ from dataclasses import dataclass
 from django.core.exceptions import ValidationError
 
 from display.utilities import route_requirements as rr
-from display.utilities.gate_definitions import UNKNOWN_LEG
+from display.utilities.gate_definitions import TURNPOINT, UNKNOWN_LEG
 from display.utilities.route_requirements import RouteRequirement
 from display.utilities.task_types import (
     TASK_TYPE_REGISTRY,
@@ -34,7 +34,7 @@ from display.utilities.task_types import (
 # Bump whenever the ruleset (the task types' route requirements, or the primitive extraction itself)
 # changes in a way that could change the outcome for an already-saved route, so callers can tell a
 # stale EditableRoute.compatible_task_types apart from a freshly computed one.
-ROUTE_COMPATIBILITY_RULESET_VERSION = 4
+ROUTE_COMPATIBILITY_RULESET_VERSION = 6
 
 # The keys TaskCompiler._build_compiled_primitives has historically returned, in that order. Kept
 # here so the compiler can subset extract_route_primitives() without changing its persisted
@@ -68,6 +68,12 @@ def extract_route_primitives(editable_route) -> dict[str, list]:
     return {
         "route_path": ["track"] if editable_route.get_track() is not None else [],
         "route_waypoint": [item.get("properties", {}).get("name") for item in editable_route.get_track_waypoints()],
+        "timed_turn_point": [
+            item.get("properties", {}).get("name")
+            for item in editable_route.get_track_waypoints()
+            if item.get("properties", {}).get("pointType") == TURNPOINT
+            and item.get("properties", {}).get("isTiming", True) is not False
+        ],
         "takeoff_gate": [item.get("properties", {}).get("name") for item in editable_route.get_takeoff_gates()],
         "landing_gate": [item.get("properties", {}).get("name") for item in editable_route.get_landing_gates()],
         "catalogue_turnpoint": [item["properties"].get("name") for item in editable_route.get_catalogue_turnpoints()],
@@ -112,6 +118,11 @@ class RequirementResult:
     satisfied: bool
     # What is wrong when the requirement is not met.
     message: str
+    # What the route editor's guide needs to act on the requirement (see RouteRequirement).
+    required: bool = False
+    help: str = ""
+    tool: str | None = None
+    other_tools: tuple[str, ...] = ()
 
     def as_dict(self) -> dict:
         return {
@@ -122,6 +133,10 @@ class RequirementResult:
             "found": self.found,
             "satisfied": self.satisfied,
             "message": self.message,
+            "required": self.required,
+            "help": self.help,
+            "tool": self.tool,
+            "other_tools": list(self.other_tools),
         }
 
 
@@ -131,8 +146,10 @@ def _is_authored(editable_route) -> bool:
     return editable_route is not None and isinstance(editable_route.route, dict) and "features" in editable_route.route
 
 
-def _count_fact(fact: str, primitives: dict[str, list], editable_route) -> int:
-    """The number of [fact] in the route: a primitive's count or a fact derived from the route."""
+def _count_fact(fact: str | tuple[str, ...], primitives: dict[str, list], editable_route) -> int:
+    """The number of [fact] in the route: a primitive's count or a fact derived from the route. A tuple is the sum."""
+    if isinstance(fact, tuple):
+        return sum(_count_fact(item, primitives, editable_route) for item in fact)
     if fact == rr.NAMED_KNOWN_TIME_GATE:
         return len([name for name in primitives.get(rr.KNOWN_TIME_GATE, []) if name])
     if fact == rr.NAMED_CATALOGUE_TURNPOINT:
@@ -203,6 +220,10 @@ def evaluate_route_requirements(
             found=found,
             satisfied=satisfied,
             message=requirement.failure_message(failing_count),
+            required=requirement.is_required,
+            help=requirement.help,
+            tool=requirement.tool,
+            other_tools=requirement.other_tools,
         )
     return list(results.values())
 
@@ -250,17 +271,15 @@ def get_compatible_task_subtypes(editable_route) -> list[str]:
 
 def infer_intended_task_subtypes(editable_route, active_template_subtype: str | None = None) -> list[str]:
     """
-    Suggest an initial value for EditableRoute.intended_task_types, for the user to review.
+    Suggest an initial value for EditableRoute.intended_task_types.
 
-    If the route was authored against a specific task template in the route editor's "Task Route
-    Guide", that subtype is the strongest signal of intent - but only if the route actually
-    satisfies it. Otherwise fall back to the full computed-compatible set, which the user can then
-    narrow down in the UI.
+    The intent is only what the author chose: the task template followed in the route editor's guide, kept while the
+    route satisfies it. A route that follows no template, or does not satisfy it yet, has no suggestion; it is never
+    pre-filled with the compatible set (see EditableRoute.compatible_task_types for that).
     """
-    compatible = get_compatible_task_subtypes(editable_route)
-    if active_template_subtype and active_template_subtype in compatible:
+    if active_template_subtype and active_template_subtype in get_compatible_task_subtypes(editable_route):
         return [active_template_subtype]
-    return compatible
+    return []
 
 
 def effective_subtype_key(task_type: str, task_subtype: str | None) -> str:

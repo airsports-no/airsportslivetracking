@@ -1,47 +1,53 @@
-import type { RouteRequirementResult, TaskCompatibilityResult } from './api';
-import type { TaskTemplate, WizardStep } from './taskTemplates';
+import type { RouteRequirementResult, RouteRequirementTool, TaskCompatibilityResult, TaskCompatibilitySubtype, TaskTypeRouteEditorFlags } from './api';
+import type { TaskTemplate } from './taskTemplates';
 
-// The wizard's guidance (titles, help text, which tool to use, optional steps) lives in
-// taskTemplates.ts. Whether a step is required, its minimum/maximum and whether it is satisfied
-// come from the backend's route requirements (display.utilities.task_types, evaluated by
-// display.services.route_compatibility), so the checklist and the backend verdict cannot differ.
-// This file is the one place that connects the two.
+// The guide's steps (label, help text, which tool satisfies them, whether they are optional) come from the backend's
+// route requirements (display.utilities.task_types, evaluated by display.services.route_compatibility), so the
+// checklist and the backend verdict cannot differ. Until the backend has answered for the route, the subtype
+// catalogue (the same requirements for an empty route) gives the steps and the editor's own counts the numbers.
+// What each tool does in the editor is in guideTools.ts.
 
-// Backend requirement key -> key of the wizard step that guides the organiser through it. Several
-// requirements may share a step (the route step covers the path, the waypoint count and their
-// order). A requirement is only mapped when the selected template actually has that step and the
-// requirement is not a prohibition (maximum 0 on a feature); everything else is shown as a generic
-// checklist row, so a new backend rule can never be invisible in the wizard.
-// Every key a task type can declare is listed in routeRequirementKeys.json, which a Django test
-// keeps in sync with the registry and taskRequirements.test.ts checks against this table.
-export const REQUIREMENT_STEP_KEYS: Record<string, string> = {
-  route_path: 'route_waypoint',
-  route_waypoint: 'route_waypoint',
-  route_waypoints: 'route_waypoint',
-  route_waypoint_order: 'route_waypoint',
-  curved_leg: 'curved_leg',
-  known_time_gate: 'timed_turnpoint',
-  catalogue_turnpoint: 'catalogue_turnpoint',
-  unknown_leg: 'unknown_leg',
-  unknown_leg_extension: 'dummy',
-  circle_start_marker: 'circle_start',
-  circle_center_marker: 'circle_center',
-  circle_entry_marker: 'circle_entry',
-  circle_exit_marker: 'circle_exit',
-  duration_landing_area: 'duration_landing_area',
-  landing_gate: 'landing_gate',
-  hidden_gate: 'hidden_gate',
+// An optional requirement (no minimum, no maximum) is always satisfied: it only describes a step of the guide, so it is
+// not part of the checklist, which shows what the route must meet.
+export const isOptionalRequirement = (requirement: RouteRequirementResult): boolean => (
+  requirement.minimum === 0 && requirement.maximum === null
+);
+
+export const NO_ROUTE_EDITOR_FLAGS: TaskTypeRouteEditorFlags = {
+  three_point_backbone: false,
+  standalone_timed_turnpoints: false,
+  circle_markers: false,
+  curve_required: false,
+  extension_waypoints: false,
 };
+
+// The special behaviour of the task type [subtypeKey] (the selected template's subtype), from the backend's registry.
+// All false for a task type without a subtype (the legacy templates), an unknown one, or before the backend answered.
+export const getRouteEditorFlags = (
+  subtypes: TaskCompatibilitySubtype[] | null | undefined,
+  subtypeKey: string | null | undefined,
+): TaskTypeRouteEditorFlags => (
+  subtypes?.find((subtype) => subtype.key === subtypeKey)?.flags ?? NO_ROUTE_EDITOR_FLAGS
+);
 
 // Which requirement carries the counts shown on a step when several share it.
 const COUNT_REQUIREMENT_KEYS = ['route_waypoints', 'route_waypoint'];
 
+// The order of the route waypoints is part of the route step, not a step of its own.
+const SHARED_STEP_PROHIBITIONS = new Set(['route_waypoint_order']);
+
 export type CompatibilityStatus = 'pending' | 'ready' | 'failed';
 
 export interface WizardStepState {
-  step: WizardStep;
-  // The backend requirements this step stands for; empty for an optional step.
+  // The step's primary tool: its identity. Requirements sharing a tool are one step.
+  key: RouteRequirementTool;
+  // Every tool that satisfies the step: the primary tool, then the others of an "at least one of" requirement.
+  tools: RouteRequirementTool[];
+  label: string;
+  help: string;
+  // The backend requirements the step stands for; empty for an optional step.
   requirements: RouteRequirementResult[];
+  // The step must be met by the route (an optional step is always met).
   required: boolean;
   // What the organiser sees as the count: the backend's found when confirmed, else the local count.
   count: number;
@@ -49,10 +55,15 @@ export interface WizardStepState {
   primary: RouteRequirementResult | null;
   // true: backend confirmed it is met; false: backend says it is not; null: not (yet) known or optional.
   satisfied: boolean | null;
+  // Met as far as is known: the backend's verdict when confirmed, otherwise judged from the local count. An optional
+  // step is always met.
+  met: boolean;
   // The backend message explaining what is wrong, only when the backend said unsatisfied.
   message: string | null;
   // Upper limit from the backend's requirement (when known), to stop placing more markers.
   maximum: number | null;
+  // Minimum equals maximum (and is above 0): the step ends by itself when the last one is placed.
+  fixedCount: number | null;
 }
 
 export interface WizardChecklist {
@@ -61,9 +72,17 @@ export interface WizardChecklist {
   generic: RouteRequirementResult[];
   // True only when the backend answered for the current route content.
   confirmed: boolean;
-  // True when there is no backend answer at all yet, so required-ness is unknown.
+  // True when there are requirements at all (from the backend's answer or the catalogue).
   structureKnown: boolean;
 }
+
+const toolsOf = (requirement: RouteRequirementResult): RouteRequirementTool[] => (
+  requirement.tool ? [requirement.tool, ...(requirement.other_tools ?? [])] : []
+);
+
+// The at-least-one-of requirement of 2.A4 counts the timed turn points of the route, not every waypoint (SP and FP are
+// route waypoints too): the editor's own count of them stands in for the route_waypoint tool's count in that step.
+const TIMED_TURN_POINT_REQUIREMENT_KEY = 'known_circuit_evidence';
 
 export const getRequirementsForTemplate = (
   template: TaskTemplate,
@@ -74,52 +93,79 @@ export const getRequirementsForTemplate = (
   return subtype ? subtype.requirements ?? [] : null;
 };
 
-// route_waypoint_order counts violations (maximum 0) but is part of the route step, like the
-// unknown-leg extension rule is part of the extension step.
-const SHARED_STEP_PROHIBITIONS = new Set(['route_waypoint_order', 'unknown_leg_extension']);
-
+// [localCount] counts what one tool places in the editor's own state (guideTools.countForTool).
 export const buildWizardChecklist = (
   template: TaskTemplate,
   compatibility: TaskCompatibilityResult | null,
+  catalogue: TaskCompatibilitySubtype[] | null,
   status: CompatibilityStatus,
-  localCount: (step: WizardStep) => number,
+  localCount: (tool: RouteRequirementTool) => number,
+  localTimedTurnPoints = 0,
 ): WizardChecklist => {
-  const requirements = getRequirementsForTemplate(template, compatibility);
-  const confirmed = status === 'ready' && requirements !== null;
+  const fromBackend = getRequirementsForTemplate(template, compatibility);
+  const catalogued = catalogue?.find((item) => item.key === template.backendKey)?.requirements ?? null;
+  const requirements = fromBackend ?? catalogued;
+  const confirmed = status === 'ready' && fromBackend !== null;
 
-  const stepKeys = new Set(template.steps.map((step) => step.key));
-  const byStep = new Map<string, RouteRequirementResult[]>();
+  // One step per tool, in the order of the requirements; a requirement without a tool is a generic row.
+  const grouped = new Map<RouteRequirementTool, RouteRequirementResult[]>();
   const generic: RouteRequirementResult[] = [];
+  const withoutTool: RouteRequirementResult[] = [];
   for (const requirement of requirements ?? []) {
-    const stepKey = REQUIREMENT_STEP_KEYS[requirement.key];
-    const belongsToStep = stepKey
-      && stepKeys.has(stepKey)
-      && (requirement.maximum !== 0 || SHARED_STEP_PROHIBITIONS.has(requirement.key));
-    if (belongsToStep) {
-      byStep.set(stepKey, [...(byStep.get(stepKey) ?? []), requirement]);
+    if (requirement.tool) {
+      grouped.set(requirement.tool, [...(grouped.get(requirement.tool) ?? []), requirement]);
     } else {
+      withoutTool.push(requirement);
+    }
+  }
+  const sharedByStep = new Map<RouteRequirementTool, RouteRequirementResult[]>();
+  for (const requirement of withoutTool) {
+    if (requirement.maximum !== null && SHARED_STEP_PROHIBITIONS.has(requirement.key) && grouped.has('route_waypoint')) {
+      sharedByStep.set('route_waypoint', [...(sharedByStep.get('route_waypoint') ?? []), requirement]);
+    } else if (!isOptionalRequirement(requirement)) {
       generic.push(requirement);
     }
   }
 
-  const steps = template.steps.map((step): WizardStepState => {
-    const own = byStep.get(step.key) ?? [];
-    const primary = own.find((item) => COUNT_REQUIREMENT_KEYS.includes(item.key)) ?? own[0] ?? null;
-    const firstUnsatisfied = own.find((item) => !item.satisfied) ?? null;
-    let satisfied: boolean | null = null;
-    if (confirmed && own.length > 0) satisfied = firstUnsatisfied === null;
-    const counted = primary && !(primary.maximum === 0) ? primary : null;
-    return {
-      step,
-      requirements: own,
-      required: own.length > 0,
-      count: confirmed && counted ? counted.found : localCount(step),
+  const steps: WizardStepState[] = [];
+  for (const [tool, own] of grouped) {
+    const required = own.filter((item) => !isOptionalRequirement(item));
+    const checked = [...required, ...(sharedByStep.get(tool) ?? [])];
+    const primary = checked.find((item) => COUNT_REQUIREMENT_KEYS.includes(item.key)) ?? checked[0] ?? null;
+    const source = primary ?? own[0];
+    const firstUnsatisfied = checked.find((item) => !item.satisfied) ?? null;
+    const allTools = [...new Set(own.flatMap(toolsOf))];
+    const stepHelp = source.help || own.find((item) => item.help)?.help || '';
+    const tools = allTools;
+    const help = stepHelp;
+    const local = primary?.key === TIMED_TURN_POINT_REQUIREMENT_KEY
+      ? tools.reduce((sum, item) => sum + (item === 'route_waypoint' ? localTimedTurnPoints : localCount(item)), 0)
+      : tools.reduce((sum, item) => sum + localCount(item), 0);
+    const counted = primary && primary.maximum !== 0 ? primary : null;
+    const satisfied = confirmed && checked.length > 0 ? firstUnsatisfied === null : null;
+    // Judged from the local count while the backend has not answered for this route content. A prohibition counts
+    // the violations, so it is met at zero.
+    const metLocally = primary === null
+      ? true
+      : local >= primary.minimum && (primary.maximum === null || local <= primary.maximum);
+    steps.push({
+      key: tool,
+      tools,
+      label: source.label,
+      help,
+      requirements: checked,
+      required: checked.length > 0,
+      count: confirmed && counted ? counted.found : local,
       primary,
       satisfied,
+      met: satisfied !== null ? satisfied : metLocally,
       message: confirmed && firstUnsatisfied ? firstUnsatisfied.message : null,
       maximum: counted ? counted.maximum : null,
-    };
-  });
+      fixedCount: counted && counted.maximum !== null && counted.maximum > 0 && counted.minimum === counted.maximum
+        ? counted.maximum
+        : null,
+    });
+  }
 
   return { steps, generic, confirmed, structureKnown: requirements !== null };
 };

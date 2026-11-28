@@ -50,8 +50,12 @@ function clickTheLeg(legInsertType: RoutePoint['type'] | null): RoutePoint[] {
 }
 
 describe('a gate placed by clicking a leg', () => {
+  it('is not placed in select mode: a click on a leg inserts nothing', () => {
+    expect(clickTheLeg(null)).toHaveLength(2);
+  });
+
   it('is a secret gate that is checked and timed from the start', () => {
-    const route = clickTheLeg(null);
+    const route = clickTheLeg('secret');
     expect(route).toHaveLength(3);
     expect(route[1]).toMatchObject({ type: 'secret', isTiming: true, isPassing: true });
   });

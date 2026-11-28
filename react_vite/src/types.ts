@@ -67,4 +67,4 @@ export interface Polygon {
 }
 
 export type SelectionType = "point" | "standalone_point" | "gate" | "observation" | "polygon" | "settings" | "help" | "wizard";
-export type Mode = "view" | "add_point" | "add_catalogue_turnpoint" | "add_landing" | "add_takeoff" | "add_observation" | "add_polygon";
+export type Mode = "view" | "add_point" | "add_catalogue_turnpoint" | "add_landing" | "add_takeoff" | "add_observation" | "add_polygon" | "add_hidden_gate";

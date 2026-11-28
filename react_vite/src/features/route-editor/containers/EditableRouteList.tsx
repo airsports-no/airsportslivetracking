@@ -2,9 +2,10 @@ import React, { useEffect, useMemo, useState } from "react";
 import { Link, useNavigate, useSearchParams } from "react-router-dom";
 import { Loading } from "../components/basicComponents";
 import { Route } from "../../../types";
-import { MoreVertical, Plus, Copy, Shield, Trash2 } from "lucide-react";
+import { MoreVertical, Plus, Copy, Shield, Trash2, TriangleAlert } from "lucide-react";
 import { fetchEditableRoutes, fetchTaskSubtypeCatalog, TaskCompatibilitySubtype } from "../api";
-import { COARSE_FAMILY_BADGE_CLASS, COARSE_FAMILY_LABELS, groupTaskTypesByFamily, isTaskSubtypeVisible } from "../taskTemplates";
+import { COARSE_FAMILY_BADGE_CLASS, COARSE_FAMILY_LABELS, COARSE_FAMILY_ORDER, isTaskSubtypeVisible } from "../taskTemplates";
+import { buildRouteTags, filterControlsShown, routeMatchesTaskFilter, RouteTagGroup, TaskFilterMode, taskTypeKeysInUse, unmetRequirementsTooltip } from "../routeTags";
 import { reverse, generatePath } from "../../../urls";
 import routes from "../../../routes.json";
 import NavigationTaskCreationFlow from "../../contest-management/components/NavigationTaskCreationFlow";
@@ -22,15 +23,34 @@ const EditableRouteTile: React.FC<{
     const titleClassName = "card-title text-base sm:text-lg leading-tight line-clamp-2 hover:underline break-words";
     const badgeClassName = "badge badge-sm badge-outline";
 
-    // Prefer the route creator's declared intent; an undeclared route (empty intended_task_types)
-    // falls back to showing everything the route's content actually supports. Never show a CIMA
-    // type the viewer doesn't have access to, even if the route happens to support it.
-    const taskTypeKeys = ((route.intended_task_types?.length ? route.intended_task_types : route.compatible_task_types) ?? [])
-        .filter((key) => visibleSubtypeKeys.has(key));
-    // Collapsed to coarse families (at most 6) instead of individual subtypes (up to 16) so the
-    // card shows a handful of short, distinctly-colored chips instead of a wall of long subtype
-    // names - the specific subtypes remain available via each chip's tooltip.
-    const taskTypeFamilies = groupTaskTypesByFamily(taskTypeKeys, subtypeByKey);
+    // Never show a CIMA type the viewer doesn't have access to, even if the route happens to support it. Collapsed to
+    // coarse families (at most 6) so the card shows a handful of short chips; the specific task types are in each
+    // chip's tooltip.
+    const tags = buildRouteTags(route, subtypeByKey, visibleSubtypeKeys, COARSE_FAMILY_ORDER);
+    const chipLabel = (group: RouteTagGroup) => COARSE_FAMILY_LABELS[group.family] ?? group.family;
+    const renderChip = (group: RouteTagGroup, quiet: boolean) => {
+        const unmet = group.unmetNames.length > 0;
+        const tooltip = unmet
+            ? [group.subtypeNames.join(', '), ...group.unmetNames.map(unmetRequirementsTooltip)].join('. ')
+            : group.subtypeNames.join(', ');
+        return (
+            <div
+                key={`${quiet ? "also" : "made"}-${group.family}`}
+                className={quiet ? "badge badge-xs badge-outline badge-ghost" : `badge badge-sm gap-1 ${COARSE_FAMILY_BADGE_CLASS[group.family] ?? 'badge-ghost'}`}
+                title={tooltip}
+            >
+                {unmet && <TriangleAlert size={12} aria-label="Not yet compatible" />}
+                {chipLabel(group)}
+            </div>
+        );
+    };
+    const renderRow = (label: string, groups: RouteTagGroup[], quiet: boolean) =>
+        groups.length > 0 && (
+            <div className="flex flex-wrap items-center gap-1.5" data-testid={`tags-${label}`}>
+                <span className={quiet ? "text-[10px] text-base-content/60" : "text-xs text-base-content/70"}>{label}</span>
+                {groups.map((group) => renderChip(group, quiet))}
+            </div>
+        );
 
     return (
         <div className={`card shadow-xl border border-base-300 overflow-hidden h-[300px] ${hasThumbnail ? "image-full bg-base-300" : "bg-base-200"}`}>
@@ -99,19 +119,11 @@ const EditableRouteTile: React.FC<{
                         {route.is_editor && <div className={badgeClassName}>Editor</div>}
                     </div>
 
-                    {taskTypeFamilies.length > 0 && (
-                        <div className="flex flex-wrap gap-1.5">
-                            {taskTypeFamilies.map(({ family, subtypeNames }) => (
-                                <div
-                                    key={family}
-                                    className={`badge badge-sm ${COARSE_FAMILY_BADGE_CLASS[family] ?? 'badge-ghost'}`}
-                                    title={subtypeNames.join(', ')}
-                                >
-                                    {COARSE_FAMILY_LABELS[family] ?? family}
-                                </div>
-                            ))}
-                        </div>
-                    )}
+                    <div className="space-y-1">
+                        {renderRow("Made for", tags.madeFor, false)}
+                        {renderRow("Also suitable for", tags.alsoSuitable, true)}
+                        {renderRow("Suitable for", tags.suitable, false)}
+                    </div>
 
                     <div className="flex gap-2">
                         <Link to={`edit/${route.id}`} className="btn btn-primary btn-sm flex-1">
@@ -134,6 +146,7 @@ export const EditableRouteList = () => {
     const [showAll, setShowAll] = useState(false);
     const [subtypeCatalog, setSubtypeCatalog] = useState<TaskCompatibilitySubtype[]>([]);
     const [taskTypeFilter, setTaskTypeFilter] = useState('');
+    const [taskFilterMode, setTaskFilterMode] = useState<TaskFilterMode>('suitable');
     const [searchQuery, setSearchQuery] = useState('');
     const [searchParams, setSearchParams] = useSearchParams();
     // ?createTask=<routeId> (set by the route editor after saving) opens the task flow straight away
@@ -187,22 +200,27 @@ export const EditableRouteList = () => {
     // supports - this is meant to help once there are many routes, not to advertise every task
     // type CIMA defines regardless of relevance to this account's routes.
     const taskTypeFilterOptions = useMemo(() => {
-        const keysInUse = new Set(data.flatMap((route) => route.compatible_task_types ?? []));
+        const keysInUse = taskTypeKeysInUse(data, taskFilterMode);
         return subtypeCatalog
             .filter((subtype) => keysInUse.has(subtype.key) && visibleSubtypeKeys.has(subtype.key))
             .sort((left, right) => (left.group === right.group ? left.display_name.localeCompare(right.display_name) : left.group.localeCompare(right.group)));
-    }, [data, subtypeCatalog, visibleSubtypeKeys]);
+    }, [data, subtypeCatalog, visibleSubtypeKeys, taskFilterMode]);
+
+    // A type that the other mode offered may not be in use in this one.
+    const activeTaskTypeFilter = taskTypeFilterOptions.some((subtype) => subtype.key === taskTypeFilter) ? taskTypeFilter : '';
+
+    const filterControls = filterControlsShown(taskTypeFilterOptions.length, taskFilterMode, activeTaskTypeFilter);
 
     const trimmedSearchQuery = searchQuery.trim().toLowerCase();
 
     const filteredData = useMemo(() => {
         return data
             .filter((item) => showAll || item.is_editor)
-            .filter((item) => !taskTypeFilter || (item.compatible_task_types ?? []).includes(taskTypeFilter))
+            .filter((item) => routeMatchesTaskFilter(item, activeTaskTypeFilter, taskFilterMode))
             .filter((item) => !trimmedSearchQuery || item.name.toLowerCase().includes(trimmedSearchQuery))
             .slice()
             .sort((left, right) => left.name.localeCompare(right.name));
-    }, [data, showAll, taskTypeFilter, trimmedSearchQuery]);
+    }, [data, showAll, activeTaskTypeFilter, taskFilterMode, trimmedSearchQuery]);
 
     return (
         <div className="w-full flex flex-col items-center mt-10 px-4">
@@ -247,24 +265,32 @@ export const EditableRouteList = () => {
                                 </label>
                             </div>
                         )}
-                        {taskTypeFilterOptions.length > 1 && (
+                        {(filterControls.mode || filterControls.taskType) && (
                             <div className="flex items-center gap-2">
-                                <label htmlFor="task-type-filter" className="text-sm font-medium text-base-content">
-                                    Task type
-                                </label>
-                                <select
+                                {filterControls.mode && <select
+                                    id="task-filter-mode"
+                                    aria-label="Match routes by"
+                                    value={taskFilterMode}
+                                    onChange={(e) => setTaskFilterMode(e.target.value as TaskFilterMode)}
+                                    className="select select-bordered select-sm"
+                                >
+                                    <option value="suitable">Suitable for</option>
+                                    <option value="made_for">Made for</option>
+                                </select>}
+                                {filterControls.taskType && <select
                                     id="task-type-filter"
-                                    value={taskTypeFilter}
+                                    aria-label="Task type"
+                                    value={activeTaskTypeFilter}
                                     onChange={(e) => setTaskTypeFilter(e.target.value)}
                                     className="select select-bordered select-sm"
                                 >
-                                    <option value="">All</option>
+                                    <option value="">All task types</option>
                                     {taskTypeFilterOptions.map((subtype) => (
                                         <option key={subtype.key} value={subtype.key}>
                                             {subtype.group === 'CIMA' ? 'CIMA: ' : ''}{subtype.display_name}
                                         </option>
                                     ))}
-                                </select>
+                                </select>}
                             </div>
                         )}
                     </div>
@@ -301,7 +327,7 @@ export const EditableRouteList = () => {
                             <p className="text-base-content/70 max-w-md">
                                 {trimmedSearchQuery
                                     ? `No routes match "${searchQuery.trim()}".`
-                                    : taskTypeFilter
+                                    : activeTaskTypeFilter
                                         ? "No routes match this task type filter."
                                         : showAll
                                             ? "No editable routes are available yet."

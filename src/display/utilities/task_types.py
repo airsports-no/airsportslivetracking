@@ -356,6 +356,50 @@ class TaskTypeDefinition:
     def has_backtracking_detection(self) -> bool:
         return _BACKTRACKING in self.calculator_pipeline
 
+    # The route editor's special behaviour per task type. Derived from the route requirements and the facts above, so
+    # that a task type declares each thing once.
+    @property
+    def three_point_backbone(self) -> bool:
+        """The route is exactly SP, MP and FP (a route waypoint requirement of exactly three)."""
+        return any(
+            requirement.fact == rr.ROUTE_WAYPOINT and requirement.minimum == requirement.maximum == 3
+            for requirement in self.route_requirements
+        )
+
+    @property
+    def standalone_timed_turnpoints(self) -> bool:
+        """No backbone: the route is timed turn points (known time gates) and catalogue turn points on the free map."""
+        return not self.has_backbone and any(
+            requirement.fact == rr.NAMED_KNOWN_TIME_GATE for requirement in self.route_requirements
+        )
+
+    @property
+    def circle_markers(self) -> bool:
+        """The route is the circle's start, centre, entry and exit markers on the free map."""
+        return self.scores_circle
+
+    @property
+    def curve_required(self) -> bool:
+        """The route must have at least one curved leg."""
+        return any(
+            requirement.fact == rr.CURVED_LEG and requirement.is_required for requirement in self.route_requirements
+        )
+
+    @property
+    def extension_waypoints(self) -> bool:
+        """Unknown-leg points are followed by extension waypoints (dummy branch waypoints)."""
+        return self.has_unknown_legs
+
+    @property
+    def route_editor_flags(self) -> dict[str, bool]:
+        return {
+            "three_point_backbone": self.three_point_backbone,
+            "standalone_timed_turnpoints": self.standalone_timed_turnpoints,
+            "circle_markers": self.circle_markers,
+            "curve_required": self.curve_required,
+            "extension_waypoints": self.extension_waypoints,
+        }
+
     @property
     def scores_circle(self) -> bool:
         return _CIRCLE in self.calculator_pipeline
@@ -370,15 +414,46 @@ class TaskTypeDefinition:
 
 _CONTESTANT_STRATEGIES = "display.services.contestant_task_compiler."
 
-_ROUTE_PATH = rr.present(rr.ROUTE_PATH, "Route path")
-_ROUTE_WAYPOINT = rr.present(rr.ROUTE_WAYPOINT, "Route waypoint")
+_ROUTE_PATH = rr.present(
+    rr.ROUTE_PATH,
+    "Route path",
+    tool=rr.TOOL_ROUTE_WAYPOINT,
+    help="The route line is drawn between the route waypoints. Place the waypoints and the line follows.",
+)
+_ROUTE_WAYPOINT_HELP = (
+    "Use the Route waypoint tool. Click the map to place the start point (SP), each turn point and the finish point "
+    "(FP), in the order they are flown."
+)
+_ROUTE_WAYPOINT = rr.present(
+    rr.ROUTE_WAYPOINT, "Route waypoint", tool=rr.TOOL_ROUTE_WAYPOINT, help=_ROUTE_WAYPOINT_HELP
+)
 _BACKBONE = (_ROUTE_PATH, _ROUTE_WAYPOINT)
+_HIDDEN_GATE_HELP = "Use the Hidden gate tool and click a leg of the route where the gate should be."
+_PHOTO_HELP = "Use the Photo tool and click the map where the photo was taken."
+
+
+def _optional_hidden_gates(purpose: str) -> RouteRequirement:
+    return rr.optional(
+        rr.HIDDEN_GATE,
+        "Hidden gates",
+        tool=rr.TOOL_HIDDEN_GATE,
+        help=f"Optional. {_HIDDEN_GATE_HELP} {purpose}",
+    )
+
+
+def _optional_photos(purpose: str) -> RouteRequirement:
+    return rr.optional(
+        rr.OBSERVATION_PHOTO, "Photos", tool=rr.TOOL_PHOTO, help=f"Optional. {_PHOTO_HELP} {purpose}"
+    )
+
+
 _LEGACY_CORRIDOR_FORBIDDEN = (
     rr.forbidden(rr.DUMMY_WAYPOINT, "Dummy waypoints"),
     rr.forbidden(rr.UNKNOWN_LEG, "Unknown-leg points"),
 )
 # The route starts at SP and finishes at FP.
 _STARTS_AT_SP_ENDS_AT_FP = WaypointOrdering(first=WaypointSpec(STARTINGPOINT), last=WaypointSpec(FINISHPOINT))
+_STARTS_AT_SP_ENDS_AT_FP_HELP = "The first waypoint must be SP and the last waypoint must be FP."
 _FREE_TURNPOINTS_REQUIREMENTS = (
     rr.forbidden(
         rr.ROUTE_PATH,
@@ -394,13 +469,23 @@ _FREE_TURNPOINTS_REQUIREMENTS = (
         3,
         key=rr.KNOWN_TIME_GATE,
         message="Turnpoint hunt requires exactly three compulsory (timed) points.",
+        tool=rr.TOOL_KNOWN_TIME_GATE,
+        help=(
+            "Use the Known time gate tool and click the map to place exactly three timed turn points. "
+            "The pilot declares their times later."
+        ),
     ),
     rr.present(
         rr.NAMED_CATALOGUE_TURNPOINT,
         "Free catalogue targets",
         key=rr.CATALOGUE_TURNPOINT,
         message="Turnpoint hunt requires at least one free catalogue target.",
+        tool=rr.TOOL_CATALOGUE_TURNPOINT,
+        help=(
+            "Use the Catalogue turn point tool and click the map to place the turn points the pilot may choose from."
+        ),
     ),
+    _optional_photos("A photo can be linked to a catalogue turn point as evidence."),
 )
 
 _DEFINITIONS = (
@@ -458,7 +543,14 @@ _DEFINITIONS = (
         coarse_family=LANDING,
         calculator_pipeline=PIPELINE_LANDING,
         default_for_family=True,
-        route_requirements=(rr.present(rr.LANDING_GATE, "Landing gate"),),
+        route_requirements=(
+            rr.present(
+                rr.LANDING_GATE,
+                "Landing gate",
+                tool=rr.TOOL_LANDING_GATE,
+                help="Use the Landing gate tool and click the map to place the landing gate.",
+            ),
+        ),
     ),
     TaskTypeDefinition(
         key=CURVE_NAVIGATION_TIME_ESTIMATION,
@@ -469,8 +561,29 @@ _DEFINITIONS = (
         calculator_pipeline=PIPELINE_PRECISION,
         requires_contestant_configuration=True,
         # Hidden gates and known time gates are optional on the route; the defining feature is a curved leg.
-        route_requirements=_BACKBONE
-        + (rr.present(rr.CURVED_LEG, "Curved legs", message="Curve navigation requires at least one curved leg."),),
+        route_requirements=(
+            _ROUTE_PATH,
+            rr.present(
+                rr.ROUTE_WAYPOINT,
+                "Route waypoint",
+                tool=rr.TOOL_ROUTE_WAYPOINT,
+                help=(
+                    "Use the Route waypoint tool. Click the map to place the start point (SP), the turn points and "
+                    "the finish point (FP). The turn points are the known time points of the task."
+                ),
+            ),
+            rr.present(
+                rr.CURVED_LEG,
+                "Curved legs",
+                message="Curve navigation requires at least one curved leg.",
+                tool=rr.TOOL_CURVED_LEG,
+                help=(
+                    "At least one leg must be curved. Hold the curve key while you place a route waypoint, or "
+                    "select a waypoint and set its leg to curved in the point editor."
+                ),
+            ),
+            _optional_hidden_gates("Hidden gates add spatial precision to the score."),
+        ),
         declaration_schema_key=CURVE_NAVIGATION_TIME_ESTIMATION,
         declaration_required=True,
         absolute_time_declaration_key="known_time_gate_predictions",
@@ -501,6 +614,11 @@ _DEFINITIONS = (
                 "Route waypoints (SP, turn points, FP)",
                 minimum=3,
                 message="Precision navigation requires a start, at least one intermediate turn point, and a finish.",
+                tool=rr.TOOL_ROUTE_WAYPOINT,
+                help=(
+                    "Use the Route waypoint tool. Click the map to place SP first, at least one turn point, and FP "
+                    "last. You need at least three waypoints."
+                ),
             ),
             rr.forbidden(
                 rr.ROUTE_WAYPOINT_ORDER_VIOLATIONS,
@@ -509,12 +627,15 @@ _DEFINITIONS = (
                 ordering=_STARTS_AT_SP_ENDS_AT_FP,
                 depends_on=("route_waypoints",),
                 message="Precision navigation route waypoints must start at SP and finish at FP.",
+                help=_STARTS_AT_SP_ENDS_AT_FP_HELP,
             ),
             # The catalogue scores 2.A2 on hidden gates (Qp = Emax x Ng): without one every pilot scores 0.
             rr.present(
                 rr.HIDDEN_GATE,
                 "Hidden gates",
                 message="Precision navigation needs at least one hidden gate: the task is scored on them.",
+                tool=rr.TOOL_HIDDEN_GATE,
+                help=f"{_HIDDEN_GATE_HELP} You need at least one: the task is scored on the hidden gates.",
             ),
         ),
         declaration_schema_key=PRECISION_NAVIGATION,
@@ -549,6 +670,11 @@ _DEFINITIONS = (
                 3,
                 key="route_waypoints",
                 message="Contract navigation requires exactly three route waypoints: SP, MP, and FP.",
+                tool=rr.TOOL_ROUTE_WAYPOINT,
+                help=(
+                    "Use the Route waypoint tool. Click the map to place exactly three waypoints, in this order: "
+                    "SP (start), MP (middle point) and FP (finish)."
+                ),
             ),
             rr.forbidden(
                 rr.ROUTE_WAYPOINT_ORDER_VIOLATIONS,
@@ -563,13 +689,20 @@ _DEFINITIONS = (
                 ),
                 depends_on=("route_waypoints",),
                 message="Contract navigation route waypoints must be authored in order as SP, MP, and FP.",
+                help="Name the waypoints SP, MP and FP, in the order they are flown.",
             ),
             rr.present(
                 rr.FREE_CATALOGUE_TURNPOINT,
                 "Free catalogue waypoints",
                 key=rr.CATALOGUE_TURNPOINT,
                 message="Contract navigation requires at least one free catalogue waypoint.",
+                tool=rr.TOOL_CATALOGUE_TURNPOINT,
+                help=(
+                    "Use the Catalogue turn point tool and click the map to place at least one free catalogue turn "
+                    "point, in addition to SP, MP and FP. The pilot may declare it later."
+                ),
             ),
+            _optional_photos("A photo can be linked to a catalogue turn point."),
         ),
         declaration_schema_key=CONTRACT_NAVIGATION_TIME_CONTROLS,
         # The declared times are relative to take-off, so they follow the schedule.
@@ -604,7 +737,26 @@ _DEFINITIONS = (
         # The contestant may declare times for individual turnpoints, overriding the speed-derived time for that point.
         # Most points are speed-derived and move with the schedule, so only declared overrides lock the schedule.
         requires_contestant_configuration=True,
-        route_requirements=_BACKBONE,
+        route_requirements=_BACKBONE
+        + (
+            rr.at_least_one_of(
+                (rr.TIMED_TURN_POINT, rr.HIDDEN_GATE, rr.OBSERVATION_PHOTO),
+                "Timed turn points, hidden gates and photos",
+                key="known_circuit_evidence",
+                message=(
+                    "A known circuit needs at least one timed turn point, hidden gate or photo: without one there is "
+                    "nothing to score besides the start and finish."
+                ),
+                tool=rr.TOOL_HIDDEN_GATE,
+                other_tools=(rr.TOOL_ROUTE_WAYPOINT, rr.TOOL_PHOTO),
+                help=(
+                    "The timed turn points of the circuit are its known time gates. Add at least one turn point, "
+                    "hidden gate or photo. For a hidden gate, use the Hidden gate tool and click a leg of the route "
+                    "where the gate should be. For a photo, use the Photo tool and click the map where the photo was "
+                    "taken."
+                ),
+            ),
+        ),
         declaration_optional=True,
         absolute_time_declaration_key="turnpoint_time_overrides",
         scoring_model=SCORING_QUALITY,
@@ -637,6 +789,11 @@ _DEFINITIONS = (
                 "Route waypoints (SP, trigger segment, FP)",
                 minimum=3,
                 message="Unknown legs requires at least a start point, one trigger segment, and a finish point.",
+                tool=rr.TOOL_ROUTE_WAYPOINT,
+                help=(
+                    "Use the Route waypoint tool. Click the map to place the true route: SP first, at least one "
+                    "waypoint that will become an unknown-leg point, and FP last. You need at least three waypoints."
+                ),
             ),
             rr.forbidden(
                 rr.ROUTE_WAYPOINT_ORDER_VIOLATIONS,
@@ -645,15 +802,32 @@ _DEFINITIONS = (
                 ordering=_STARTS_AT_SP_ENDS_AT_FP,
                 depends_on=("route_waypoints",),
                 message="Unknown legs route waypoints must start at SP and finish at FP.",
+                help=_STARTS_AT_SP_ENDS_AT_FP_HELP,
             ),
-            rr.present(rr.NAMED_UNKNOWN_LEG, "Unknown-leg points", key=rr.UNKNOWN_LEG),
+            rr.present(
+                rr.NAMED_UNKNOWN_LEG,
+                "Unknown-leg points",
+                key=rr.UNKNOWN_LEG,
+                tool=rr.TOOL_UNKNOWN_LEG_POINT,
+                help=(
+                    "Click a route waypoint between SP and FP on the map to make it an unknown-leg point. You then "
+                    "place its extension waypoints."
+                ),
+            ),
             rr.forbidden(
                 rr.UNKNOWN_LEG_WITHOUT_EXTENSION,
                 "Unknown-leg points without an extension waypoint",
                 key="unknown_leg_extension",
                 depends_on=("route_waypoints",),
                 message="Unknown legs requires at least one extension waypoint after each unknown-leg point.",
+                tool=rr.TOOL_EXTENSION_WAYPOINT,
+                help=(
+                    "Every unknown-leg point needs at least one extension waypoint after it. Click an amber "
+                    "unknown-leg point, then click the map for each extension waypoint."
+                ),
             ),
+            _optional_hidden_gates("Hidden gates are placed on the true route."),
+            _optional_photos("A photo is extra evidence for scoring."),
         ),
         scoring_model=SCORING_QUALITY,
         quality_start=QUALITY_START_GATE_DEFICIT,
@@ -698,10 +872,34 @@ _DEFINITIONS = (
         calculator_pipeline=PIPELINE_CIRCLE,
         has_backbone=False,
         route_requirements=(
-            rr.exactly(rr.CIRCLE_START_MARKER, "Circle start marker (SP)", 1),
-            rr.exactly(rr.CIRCLE_CENTER_MARKER, "Circle centre marker (CM)", 1),
-            rr.exactly(rr.CIRCLE_ENTRY_MARKER, "Circle entry marker (X)", 1),
-            rr.exactly(rr.CIRCLE_EXIT_MARKER, "Circle exit marker (WP)", 1),
+            rr.exactly(
+                rr.CIRCLE_START_MARKER,
+                "Circle start marker (SP)",
+                1,
+                tool=rr.TOOL_CIRCLE_START,
+                help="Use the Circle start tool and click the map to place exactly one start marker (SP).",
+            ),
+            rr.exactly(
+                rr.CIRCLE_CENTER_MARKER,
+                "Circle centre marker (CM)",
+                1,
+                tool=rr.TOOL_CIRCLE_CENTER,
+                help="Use the Circle centre tool and click the map to place exactly one centre marker (CM).",
+            ),
+            rr.exactly(
+                rr.CIRCLE_ENTRY_MARKER,
+                "Circle entry marker (X)",
+                1,
+                tool=rr.TOOL_CIRCLE_ENTRY,
+                help="Use the Circle entry tool and click the map to place exactly one entry marker (X).",
+            ),
+            rr.exactly(
+                rr.CIRCLE_EXIT_MARKER,
+                "Circle exit marker (WP)",
+                1,
+                tool=rr.TOOL_CIRCLE_EXIT,
+                help="Use the Circle exit tool and click the map to place exactly one exit marker (WP).",
+            ),
         ),
         # Pmax = 250, matching CIRCLE_MAXIMUM_SCORE in circle_calculator.py. The formula value is the score.
         scoring_model=SCORING_QUALITY,
@@ -775,7 +973,32 @@ _DEFINITIONS = (
         # pipeline as the fallback source of those events.
         has_backbone=False,
         scoring_model=SCORING_QUALITY,
-        route_requirements=(rr.present(rr.DURATION_LANDING_AREA, "Duration landing area"),),
+        route_requirements=(
+            rr.present(
+                rr.DURATION_LANDING_AREA,
+                "Duration landing area",
+                tool=rr.TOOL_LANDING_AREA,
+                help="Use the Landing area tool and click the map to draw the area where touchdown is allowed.",
+            ),
+            rr.optional(
+                rr.TAKEOFF_GATE,
+                "Take-off gate",
+                tool=rr.TOOL_TAKEOFF_GATE,
+                help=(
+                    "Optional. Use the Take-off gate tool and click the map to mark when the measured duration "
+                    "starts. Without one, take-off is worked out from the tracked speed, which is less precise."
+                ),
+            ),
+            rr.optional(
+                rr.LANDING_GATE,
+                "Landing gate",
+                tool=rr.TOOL_LANDING_GATE,
+                help=(
+                    "Optional. Use the Landing gate tool and click the map to mark when the measured duration "
+                    "ends. Without one, landing is worked out from the tracked speed, which is less precise."
+                ),
+            ),
+        ),
         contestant_compiler_strategy=_CONTESTANT_STRATEGIES + "DurationStrategy",
         gate_types_without_backbone=(TAKEOFF_GATE, LANDING_GATE),
         # Q is the time airborne and P = 1000 x Q / Qmax over the best flight of the task, the default policy.

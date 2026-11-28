@@ -19,7 +19,7 @@ To navigate the Airsports system effectively, you must understand the specific t
 *   **Team:** The foundational roster entity. Consists of a Pilot, an optional Co-Pilot, an Aircraft (registration), and a Club (for WPFC, this represents the Nation).
 *   **Contestant:** A single instance of a Team assigned to fly a specific Navigation Task. (One Team becomes many Contestants over a multi-day championship).
 *   **Contest:** The overarching digital container for the entire event (e.g., "WPFC 2026").
-*   **Route:** The geometric blueprint created in the Route Editor, defining waypoints, gates, corridors, and secret markers.
+*   **Route:** The geometric blueprint created in the Route Editor, defining waypoints, gates, corridors, and hidden gates.
 *   **Navigation Task:** A live-tracked flight event created from a Route. Assigning Teams to a Navigation Task is what generates Contestants.
 *   **Results Service:** An optional integrated system for scoring additional tasks and tests such as planning and observation, and landings.
 *   **Task (Results Service):** A top-level scoring container. Can be automatically generated (like a Navigation Task) or manually created (like a Landing Task).
@@ -32,7 +32,7 @@ To navigate the Airsports system effectively, you must understand the specific t
 *   **GPX / KML / MBTiles:** Standard geographic files. GPX is used for manual track uploads; KML for importing route paths; MBTiles for uploading custom, georeferenced background maps.
 *   **Kubernetes:** Resource management system running the airsports application in google cloud.
 *   **Kubernetes Calculator:** The backend microservice that spins up dynamically for each individual flight to calculate live scores.
-*   **Secret Gate:** A hidden timing/track gate placed on a route to verify pilot track discipline without revealing the exact location on the public map.
+*   **Hidden Gate (called secret gate in older material):** A timing/track gate placed on a route to verify pilot track discipline without revealing the exact location on the public map.
 
 ---
 
@@ -88,8 +88,8 @@ The built-in Route Editor handles complex mathematical structures like scoring g
 *   **Hiding the Background:** Before publishing a task to the public, you can choose to hide the background map in the live viewer. This makes the live track less useful for competing pilots trying to glean geographical hints, while still allowing spectators to watch the flight.
 
 ### Key Route Markers
-*   **Photo Markers:** Adding a Photo Marker marks the coordinates for ground truth observation. 
-*   **Secret Gates:** Placed to ensure pilots maintain track discipline. These are displayed on the live map unless the organizer has explicitly elected to keep secret gates hidden. In this case the penalty appears in the contestant's score log table, but **no annotation is placed on the map**. The exact location remains protected.
+*   **Photo Markers:** Adding a Photo Marker marks the coordinates for ground truth observation. A photo must be within the maximum observation distance of the route.
+*   **Hidden Gates:** Placed to ensure pilots maintain track discipline. Use the **Hidden gate** tool in the route editor and click a leg. If you later move or delete a waypoint at either end of that leg, or reshape its curve, the hidden gates on the leg are removed (and photos left too far from the route); the editor lists them and **Undo** brings them back. Hidden gates are displayed on the live map unless the organizer has explicitly elected to keep them hidden. In this case the penalty appears in the contestant's score log table, but **no annotation is placed on the map**. The exact location remains protected.
 
 ---
 

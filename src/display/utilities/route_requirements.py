@@ -25,6 +25,7 @@ UNKNOWN_LEG = "unknown_leg"
 DUMMY_WAYPOINT = "dummy_waypoint"
 CURVED_LEG = "curved_leg"
 DURATION_LANDING_AREA = "duration_landing_area"
+OBSERVATION_PHOTO = "observation_photo"
 # Derived facts.
 NAMED_KNOWN_TIME_GATE = "named_known_time_gate"
 NAMED_CATALOGUE_TURNPOINT = "named_catalogue_turnpoint"
@@ -33,8 +34,47 @@ NAMED_UNKNOWN_LEG = "named_unknown_leg"
 FREE_CATALOGUE_TURNPOINT = "free_catalogue_turnpoint"
 # Unknown-leg points that have no extension waypoint after them.
 UNKNOWN_LEG_WITHOUT_EXTENSION = "unknown_leg_without_extension"
+# Timed turn points of the route itself (not SP, FP or hidden gates): the known time gates of a known circuit.
+TIMED_TURN_POINT = "timed_turn_point"
 # Route waypoints that are not where the ordering requirement expects them (see WaypointOrdering).
 ROUTE_WAYPOINT_ORDER_VIOLATIONS = "route_waypoint_order_violations"
+
+
+# Tools: the route editor tool that satisfies a requirement (RouteRequirement.tool). The route editor's guide starts the
+# tool of the requirement the user is working on. A requirement that no tool satisfies, such as the order of the
+# waypoints or a forbidden feature, has none.
+TOOL_ROUTE_WAYPOINT = "route_waypoint"
+TOOL_HIDDEN_GATE = "hidden_gate"
+TOOL_KNOWN_TIME_GATE = "known_time_gate"
+TOOL_CATALOGUE_TURNPOINT = "catalogue_turnpoint"
+TOOL_CIRCLE_START = "circle_start"
+TOOL_CIRCLE_CENTER = "circle_center"
+TOOL_CIRCLE_ENTRY = "circle_entry"
+TOOL_CIRCLE_EXIT = "circle_exit"
+TOOL_PHOTO = "photo"
+TOOL_LANDING_AREA = "landing_area"
+TOOL_TAKEOFF_GATE = "takeoff_gate"
+TOOL_LANDING_GATE = "landing_gate"
+TOOL_UNKNOWN_LEG_POINT = "unknown_leg_point"
+TOOL_EXTENSION_WAYPOINT = "extension_waypoint"
+TOOL_CURVED_LEG = "curved_leg"
+TOOLS = (
+    TOOL_ROUTE_WAYPOINT,
+    TOOL_HIDDEN_GATE,
+    TOOL_KNOWN_TIME_GATE,
+    TOOL_CATALOGUE_TURNPOINT,
+    TOOL_CIRCLE_START,
+    TOOL_CIRCLE_CENTER,
+    TOOL_CIRCLE_ENTRY,
+    TOOL_CIRCLE_EXIT,
+    TOOL_PHOTO,
+    TOOL_LANDING_AREA,
+    TOOL_TAKEOFF_GATE,
+    TOOL_LANDING_GATE,
+    TOOL_UNKNOWN_LEG_POINT,
+    TOOL_EXTENSION_WAYPOINT,
+    TOOL_CURVED_LEG,
+)
 
 
 @dataclass(frozen=True)
@@ -81,13 +121,14 @@ class WaypointOrdering:
 class RouteRequirement:
     """
     One thing the route must (not) contain: the number of `fact` must be at least `minimum` and at most `maximum`
-    (None: no limit; 0: the feature is forbidden).
+    (None: no limit; 0: the feature is forbidden). A requirement with no minimum and no maximum is optional: it is
+    always satisfied and only describes a step of the route editor's guide.
     """
 
     # Unique among the requirements of one task type; what the route editor wizard identifies the requirement by.
     key: str
-    # What is counted (one of the fact names above).
-    fact: str
+    # What is counted (one of the fact names above). A tuple counts the sum of several facts: "at least one of".
+    fact: str | tuple[str, ...]
     # Short human-readable name of what is counted, for the route editor.
     label: str
     minimum: int = 0
@@ -99,6 +140,21 @@ class RouteRequirement:
     # The keys of requirements that must be met before this one is checked (an ordering means nothing until the
     # waypoint count is right); until then it counts as met so that the one root cause is reported once.
     depends_on: tuple[str, ...] = field(default=())
+    # What the route editor's guide tells the user to do to satisfy the requirement: plain, short, says what to click.
+    help: str = ""
+    # The tool (one of TOOLS) that satisfies the requirement, None when no tool does. `other_tools` are the further
+    # tools that also count, for a requirement that is met by any of several kinds of feature.
+    tool: str | None = None
+    other_tools: tuple[str, ...] = field(default=())
+
+    @property
+    def is_required(self) -> bool:
+        return self.minimum > 0
+
+    @property
+    def is_optional(self) -> bool:
+        """Always satisfied: the requirement only describes an optional step of the guide."""
+        return self.minimum == 0 and self.maximum is None
 
     def is_met_by(self, found: int) -> bool:
         return found >= self.minimum and (self.maximum is None or found <= self.maximum)
@@ -106,6 +162,8 @@ class RouteRequirement:
     def failure_message(self, found: int) -> str:
         if self.message:
             return self.message
+        if self.is_optional:
+            return f"{self.label} are optional."
         if self.maximum == 0:
             return f"Route feature not allowed for this task type: {self.key}"
         if found < self.minimum and self.minimum == 1:
@@ -128,3 +186,13 @@ def forbidden(fact: str, label: str, key: str | None = None, **kwargs) -> RouteR
 def exactly(fact: str, label: str, count: int, key: str | None = None, **kwargs) -> RouteRequirement:
     """Exactly [count] of [fact]."""
     return RouteRequirement(key or fact, fact, label, minimum=count, maximum=count, **kwargs)
+
+
+def optional(fact: str, label: str, key: str | None = None, **kwargs) -> RouteRequirement:
+    """[fact] may be there but need not be: an optional step of the guide, always satisfied."""
+    return RouteRequirement(key or fact, fact, label, **kwargs)
+
+
+def at_least_one_of(facts: tuple[str, ...], label: str, key: str, **kwargs) -> RouteRequirement:
+    """At least one feature of any of [facts]."""
+    return RouteRequirement(key, tuple(facts), label, minimum=1, **kwargs)
