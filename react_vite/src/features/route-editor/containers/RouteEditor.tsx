@@ -27,7 +27,8 @@ import { getQuadraticBezierPoints } from '../../../utils/bezierPoints';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
 import { buildWizardChecklist, type CompatibilityStatus, getRouteEditorFlags } from '../taskRequirements';
-import { getTaskTemplateById, isTaskSubtypeVisible } from '../taskTemplates';
+import { getTaskTemplateById } from '../taskTemplates';
+import { applyGuideChoice, applyManualTick, emptyIntent, RouteIntent } from '../routeIntent';
 import { countForTool, getToolAction, getToolWizardStep } from '../guideTools';
 import { autoAdvance, doneButtonLabel, findStep, nextUnmetRequiredStep, resolveStepEnd, shouldOfferTaskChoice, type StepEnd } from '../guideProgress';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
@@ -98,7 +99,9 @@ export default function RouteEditor() {
   const [maxObsDist, setMaxObsDist] = useState(926);
   const [hideLabels, setHideLabels] = useState(false);
   const [selectedTaskTemplateId, setSelectedTaskTemplateId] = useState<string | null>(null);
-  const [intendedTaskTypes, setIntendedTaskTypes] = useState<string[]>([]);
+  // The author's intent: the task chosen in the guide plus what they tick in the route settings (see routeIntent.ts).
+  const [intent, setIntent] = useState<RouteIntent>(() => emptyIntent());
+  const intendedTaskTypes = intent.types;
   const [taskCompatibility, setTaskCompatibility] = useState<TaskCompatibilityResult | null>(null);
   // Which route content the latest answer (or failure) was for; see compatibilityStatus.
   const [compatibilityAnswer, setCompatibilityAnswer] = useState<{ route: unknown; failed: boolean } | null>(null);
@@ -322,14 +325,6 @@ export default function RouteEditor() {
     }
   }, [mapInstance, paramRouteId]);
 
-  // While false, intendedTaskTypes auto-follows the live suggestion (the active wizard
-  // template's subtype once the route becomes compatible with it, otherwise the full compatible
-  // set) as the user builds the route - so e.g. placing the last circle marker auto-checks
-  // Circle. Flips to true, permanently, the moment the user manually toggles a checkbox in the
-  // "Task types" panel, or a previously-saved route already had a declared value - from then on
-  // intendedTaskTypes is taken as-is, including an explicit empty selection.
-  const intendedTaskTypesLockedRef = useRef(false);
-
   useEffect(() => {
     if (paramRouteId) {
       fetchRoute(parseInt(paramRouteId))
@@ -341,10 +336,8 @@ export default function RouteEditor() {
             if (typeof data.settings.selectedTaskTemplateId !== 'undefined') setSelectedTaskTemplateId(data.settings.selectedTaskTemplateId);
           }
           if (Array.isArray(data.intended_task_types)) {
-            setIntendedTaskTypes(data.intended_task_types);
-            // Already has a real (possibly empty-on-purpose) declared value - never overwrite it
-            // with a suggestion.
-            if (data.intended_task_types.length > 0) intendedTaskTypesLockedRef.current = true;
+            // What the author chose, as the backend reads it (an old pre-filled intent comes back empty).
+            setIntent(emptyIntent(data.intended_task_types));
           }
 
           if (data.name) setRouteName(data.name);
@@ -393,28 +386,6 @@ export default function RouteEditor() {
           if (superseded) return;
           setTaskCompatibility(result);
           setCompatibilityAnswer({ route, failed: false });
-          if (!intendedTaskTypesLockedRef.current) {
-            // Keep following the live suggestion as the route is built - e.g. placing the last
-            // circle marker should auto-check Circle - until the user takes explicit control (see
-            // intendedTaskTypesLockedRef). The task template currently being followed in the
-            // route guide wins once it's actually compatible; otherwise fall back to everything
-            // the route's content currently supports.
-            // Never suggest a CIMA type the current user isn't entitled to see.
-            const visibleCompatible = result.subtypes
-              .filter((subtype) => subtype.compatible && isTaskSubtypeVisible(subtype.group, subtype.key, visibleTaskTypeGroups))
-              .map((subtype) => subtype.key);
-            const activeTemplateSubtype = getTaskTemplateById(selectedTaskTemplateId || '')?.subtype;
-            const suggested = activeTemplateSubtype && visibleCompatible.includes(activeTemplateSubtype)
-              ? [activeTemplateSubtype]
-              : visibleCompatible;
-            // Keep the previous array when nothing changed: intendedTaskTypes is a dependency of this
-            // effect, so a new but equal array would trigger another request, forever.
-            setIntendedTaskTypes((previous) => (
-              previous.length === suggested.length && previous.every((key, index) => key === suggested[index])
-                ? previous
-                : suggested
-            ));
-          }
         })
         .catch((err) => {
           console.error('Failed to check task type compatibility', err);
@@ -425,7 +396,7 @@ export default function RouteEditor() {
       superseded = true;
       clearTimeout(timer);
     };
-  }, [compatibilityRoute, selectedTaskTemplateId, visibleTaskTypeGroups]);
+  }, [compatibilityRoute]);
 
   // The answer only counts for the route content it was computed for; any later edit makes it
   // 'pending' again until the debounced request returns.
@@ -975,6 +946,8 @@ export default function RouteEditor() {
   const chooseTask = useCallback((id: string) => {
     stopWizardAction();
     setSelectedTaskTemplateId(id);
+    // The chosen task is part of the route's intent, even while the route does not meet it yet.
+    setIntent((previous) => applyGuideChoice(previous, getTaskTemplateById(id)?.subtype));
     setIsDirty(true);
     setTaskChoiceOpen(false);
     setSelectedId(null);
@@ -985,6 +958,7 @@ export default function RouteEditor() {
   const leaveTask = useCallback(() => {
     stopWizardAction();
     setSelectedTaskTemplateId(null);
+    setIntent((previous) => applyGuideChoice(previous, null));
     setIsDirty(true);
     setStartFirstStep(false);
   }, [stopWizardAction]);
@@ -1204,11 +1178,8 @@ export default function RouteEditor() {
             setIsDirty(true);
           }}
           intendedTaskTypes={intendedTaskTypes}
-          setIntendedTaskTypes={(val) => {
-            // A manual edit takes explicit control away from the auto-suggestion, permanently for
-            // the rest of this editing session (see intendedTaskTypesLockedRef).
-            intendedTaskTypesLockedRef.current = true;
-            setIntendedTaskTypes(val);
+          setIntendedTaskType={(key: string, checked: boolean) => {
+            setIntent((previous) => applyManualTick(previous, key, checked));
             setIsDirty(true);
           }}
           taskCompatibility={taskCompatibility}

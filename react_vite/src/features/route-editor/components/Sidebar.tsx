@@ -34,7 +34,7 @@ interface SidebarProps {
   hideLabels: boolean;
   setHideLabels: (hide: boolean) => void;
   intendedTaskTypes: string[];
-  setIntendedTaskTypes: (types: string[]) => void;
+  setIntendedTaskType: (key: string, checked: boolean) => void;
   taskCompatibility: TaskCompatibilityResult | null;
   compatibilityStatus: CompatibilityStatus;
   setSelectedId: (id: string | null) => void;
@@ -80,7 +80,7 @@ const Sidebar: React.FC<SidebarProps> = ({
   hideLabels,
   setHideLabels,
   intendedTaskTypes,
-  setIntendedTaskTypes,
+  setIntendedTaskType,
   taskCompatibility,
   compatibilityStatus,
   setSelectedId,
@@ -217,56 +217,57 @@ const Sidebar: React.FC<SidebarProps> = ({
             </p>
           </div>
           {taskCompatibility && (() => {
-            // The initial suggestion is seeded once into real state by RouteEditor as soon as
-            // compatibility is first known (see hasSeededIntendedTaskTypesRef there) - from then
-            // on intendedTaskTypes is the single source of truth here, including when the user
-            // has unchecked everything down to an empty list.
-            const toggle = (key: string, isChecked: boolean) => {
-              const next = isChecked
-                ? [...intendedTaskTypes, key]
-                : intendedTaskTypes.filter((existing) => existing !== key);
-              setIntendedTaskTypes(next);
-            };
+            const visibleSubtypes = taskCompatibility.subtypes.filter((subtype) =>
+              isTaskSubtypeVisible(subtype.group, subtype.key, visibleTaskTypeGroups),
+            );
+            // Made for is the author's choice and may come before the route is finished; suitable for is worked out.
+            const alsoSuitable = visibleSubtypes.filter((subtype) => subtype.compatible && !intendedTaskTypes.includes(subtype.key));
             return (
               <div className="space-y-2 border-t pt-3">
-                <label className="block text-sm font-medium text-gray-700">Task types</label>
+                <label className="block text-sm font-medium text-gray-700">This route is made for</label>
                 <p className="text-xs text-gray-500">
-                  Which task types is this route designed for? Types this route's content doesn't
-                  support yet are disabled - hover for why.
+                  Made for is your choice and is shown on the route. Suitable for is worked out from what the route
+                  contains and decides which tasks can be created from it.
                 </p>
                 {(['Legacy', 'CIMA'] as const).map((group) => {
-                  const groupSubtypes = taskCompatibility.subtypes.filter(
-                    (subtype) => subtype.group === group && isTaskSubtypeVisible(subtype.group, subtype.key, visibleTaskTypeGroups),
-                  );
+                  const groupSubtypes = visibleSubtypes.filter((subtype) => subtype.group === group);
                   if (groupSubtypes.length === 0) return null;
                   return (
                     <div key={group} className="space-y-1">
                       <div className="text-xs font-semibold text-gray-500 uppercase">{group}</div>
-                      {groupSubtypes.map((subtype) => (
-                        <div
-                          key={subtype.key}
-                          className="flex items-center gap-2"
-                          title={subtype.compatible ? undefined : subtype.missing_reasons.join('; ')}
-                        >
-                          <input
-                            type="checkbox"
-                            id={`task-type-${subtype.key}`}
-                            checked={intendedTaskTypes.includes(subtype.key)}
-                            disabled={!subtype.compatible}
-                            onChange={(e) => toggle(subtype.key, e.target.checked)}
-                            className="checkbox checkbox-xs checkbox-primary"
-                          />
-                          <label
-                            htmlFor={`task-type-${subtype.key}`}
-                            className={`text-sm ${subtype.compatible ? 'text-gray-700' : 'text-gray-400'}`}
-                          >
-                            {subtype.display_name}
-                          </label>
-                        </div>
-                      ))}
+                      {groupSubtypes.map((subtype) => {
+                        const checked = intendedTaskTypes.includes(subtype.key);
+                        return (
+                          <div key={subtype.key}>
+                            <div className="flex items-center gap-2">
+                              <input
+                                type="checkbox"
+                                id={`task-type-${subtype.key}`}
+                                checked={checked}
+                                onChange={(e) => setIntendedTaskType(subtype.key, e.target.checked)}
+                                className="checkbox checkbox-xs checkbox-primary"
+                              />
+                              <label htmlFor={`task-type-${subtype.key}`} className="text-sm text-gray-700">
+                                {subtype.display_name}
+                              </label>
+                            </div>
+                            {checked && !subtype.compatible && subtype.missing_reasons.length > 0 && (
+                              <ul className="ml-6 text-xs text-amber-700 list-disc list-inside" data-testid={`unmet-${subtype.key}`}>
+                                {subtype.missing_reasons.map((reason) => (
+                                  <li key={reason}>{reason}</li>
+                                ))}
+                              </ul>
+                            )}
+                          </div>
+                        );
+                      })}
                     </div>
                   );
                 })}
+                <p className="text-xs text-gray-600" data-testid="also-suitable">
+                  <span className="font-medium">Also suitable for:</span>{' '}
+                  {alsoSuitable.length > 0 ? alsoSuitable.map((subtype) => subtype.display_name).join(', ') : 'nothing else yet'}
+                </p>
               </div>
             );
           })()}

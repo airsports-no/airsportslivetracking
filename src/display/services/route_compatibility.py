@@ -265,17 +265,15 @@ def get_compatible_task_subtypes(editable_route) -> list[str]:
 
 def infer_intended_task_subtypes(editable_route, active_template_subtype: str | None = None) -> list[str]:
     """
-    Suggest an initial value for EditableRoute.intended_task_types, for the user to review.
+    Suggest an initial value for EditableRoute.intended_task_types.
 
-    If the route was authored against a specific task template in the route editor's "Task Route
-    Guide", that subtype is the strongest signal of intent - but only if the route actually
-    satisfies it. Otherwise fall back to the full computed-compatible set, which the user can then
-    narrow down in the UI.
+    The intent is only what the author chose: the task template followed in the route editor's guide, kept while the
+    route satisfies it. A route that follows no template, or does not satisfy it yet, has no suggestion; it is never
+    pre-filled with the compatible set (see EditableRoute.compatible_task_types for that).
     """
-    compatible = get_compatible_task_subtypes(editable_route)
-    if active_template_subtype and active_template_subtype in compatible:
+    if active_template_subtype and active_template_subtype in get_compatible_task_subtypes(editable_route):
         return [active_template_subtype]
-    return compatible
+    return []
 
 
 def effective_subtype_key(task_type: str, task_subtype: str | None) -> str:

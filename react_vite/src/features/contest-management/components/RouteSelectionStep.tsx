@@ -3,6 +3,7 @@ import Select from 'react-select';
 import { selectStyles } from '../../../utils/selectStyles';
 import { fetchEditableRoutes } from '../../route-editor/api';
 import { Route } from '../../../types';
+import { routesMadeForFirst } from '../../route-editor/routeTags';
 import appRoutes from '../../../routes.json';
 
 interface RouteSelectionStepProps {
@@ -33,7 +34,11 @@ const RouteSelectionStep: React.FC<RouteSelectionStepProps> = ({ subtypeKey, val
     if (loading) return <span className="loading loading-spinner"></span>;
     if (error) return <div className="alert alert-error">{error}</div>;
 
-    const compatibleRoutes = routes.filter(route => route.compatible_task_types.includes(subtypeKey));
+    // Compatibility gates; routes made for this task come first.
+    const compatibleRoutes = routesMadeForFirst(
+        routes.filter(route => route.compatible_task_types.includes(subtypeKey)),
+        subtypeKey,
+    );
 
     return (
         <div>

@@ -424,3 +424,57 @@ class TestTaskCompilerPrimitivesContractUnchanged(TestCase):
         self.assertNotIn("route_waypoint", subset)
         self.assertNotIn("takeoff_gate", subset)
         self.assertNotIn("landing_gate", subset)
+
+
+class TestDeclaredTaskTypes(TestCase):
+    """EditableRoute.declared_task_types: what the API shows as intended_task_types."""
+
+    def make_route(self, intended):
+        route = EditableRoute.objects.create(
+            name="Declared route",
+            route={"type": "FeatureCollection", "features": [TRACK_FEATURE, waypoint_feature("tp")]},
+            intended_task_types=intended,
+        )
+        self.assertGreater(len(route.compatible_task_types), 1)
+        return route
+
+    def test_intent_equal_to_the_compatible_set_with_several_entries_reads_as_not_chosen(self):
+        route = self.make_route([])
+        route.intended_task_types = list(reversed(route.compatible_task_types))
+        route.save()
+
+        self.assertEqual([], route.declared_task_types)
+        # The stored value is left alone.
+        route.refresh_from_db()
+        self.assertEqual(set(route.compatible_task_types), set(route.intended_task_types))
+
+    def test_a_real_subset_is_kept(self):
+        route = self.make_route([])
+        subset = route.compatible_task_types[:2]
+        route.intended_task_types = subset
+        route.save()
+
+        self.assertEqual(subset, route.declared_task_types)
+
+    def test_a_single_type_equal_to_the_only_compatible_type_is_kept(self):
+        route = EditableRoute.objects.create(name="Empty route", route={"type": "FeatureCollection", "features": []})
+        only = route.compatible_task_types[:1]
+        route.compatible_task_types = only
+        route.intended_task_types = only
+
+        self.assertEqual(only, route.declared_task_types)
+
+    def test_intent_that_the_route_does_not_meet_yet_is_kept(self):
+        route = self.make_route([PRECISION_NAVIGATION])
+
+        self.assertNotIn(PRECISION_NAVIGATION, route.compatible_task_types)
+        self.assertEqual([PRECISION_NAVIGATION], route.declared_task_types)
+
+    def test_infer_follows_only_a_satisfied_template(self):
+        from display.services.route_compatibility import infer_intended_task_subtypes
+
+        route = self.make_route([])
+
+        self.assertEqual([], infer_intended_task_subtypes(route))
+        self.assertEqual([], infer_intended_task_subtypes(route, PRECISION_NAVIGATION))
+        self.assertEqual([LEGACY_PRECISION], infer_intended_task_subtypes(route, LEGACY_PRECISION))
