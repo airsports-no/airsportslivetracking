@@ -1,4 +1,5 @@
 import { getDestinationPoint, getBearing, getDistance, getDistanceFromLine } from '../../utils/geoUtils';
+import { curvePointAt, MIN_CURVE_END_FRACTION, nearestCurveParameter, splitCurve, TOO_CLOSE_TO_LEG_END_NOTICE } from './curveSplit';
 import { Gate, LatLng, Mode, ObservationMarker, RoutePoint } from '../../types';
 
 const THREE_POINT_BACKBONE_TEMPLATE: Array<Pick<RoutePoint, 'name' | 'type' | 'featureType'>> = [
@@ -242,28 +243,67 @@ export function findPlacingModeHit<T extends HitCandidate>(click: PixelPoint, ca
   return findNearestHit(click, candidates.filter((candidate) => kinds.includes(candidate.kind)), radius);
 }
 
-export const CURVED_LEG_HIDDEN_GATE_NOTICE = 'Hidden gates on curved legs are not supported yet';
-
 // The curve of a leg as 20 straight pieces, as it is drawn (the same formula as getQuadraticBezierPoints, which needs Leaflet).
 const curvePoints = (from: LatLng, to: LatLng, control: LatLng, pieces = 20): LatLng[] => (
-  Array.from({ length: pieces + 1 }, (_, index) => {
-    const t = index / pieces;
-    return {
-      lat: (1 - t) * (1 - t) * from.lat + 2 * (1 - t) * t * control.lat + t * t * to.lat,
-      lng: (1 - t) * (1 - t) * from.lng + 2 * (1 - t) * t * control.lng + t * t * to.lng,
-    };
-  })
+  Array.from({ length: pieces + 1 }, (_, index) => curvePointAt(from, control, to, index / pieces))
 );
+
+// The new control point of the point that ends a curve that was split: it keeps the point but gets the second half.
+export interface ControlPatch {
+  id: string;
+  controlLat: number;
+  controlLng: number;
+}
 
 export type LegClickAction =
   | { kind: 'none' }
-  // The click is on a curved leg and cannot place the point there (yet)
-  | { kind: 'unsupported'; message: string }
-  | { kind: 'insert'; index: number; point: RoutePoint };
+  // The click cannot place the point where it is: the editor says why
+  | { kind: 'notice'; message: string }
+  // A point inserted at [index]; [endControl] is the new control point of the point after it, when the point splits a curve
+  | { kind: 'insert'; index: number; point: RoutePoint; endControl?: ControlPatch };
 
-// A click on a curved leg with the hidden gate tool. The one place to fill in when a hidden gate can split a curve.
-export function insertOnCurvedLeg(): LegClickAction {
-  return { kind: 'unsupported', message: CURVED_LEG_HIDDEN_GATE_NOTICE };
+const isCurvedLeg = (end: RoutePoint): boolean => end.segmentType === 'curved' && !!end.controlLat && !!end.controlLng;
+
+// The route with the point of [action] inserted, and the curve it splits cut in two.
+export function applyLegInsert(routePoints: RoutePoint[], action: Extract<LegClickAction, { kind: 'insert' }>): RoutePoint[] {
+  const next = [...routePoints];
+  next.splice(action.index, 0, action.point);
+  const patch = action.endControl;
+  if (!patch) return next;
+  return next.map((point) => (point.id === patch.id ? { ...point, controlLat: patch.controlLat, controlLng: patch.controlLng } : point));
+}
+
+/**
+ * A click on a curved leg: a point at the nearest point of the curve, and the curve cut in two there. Together the two
+ * curves are exactly the old one (see splitCurve): the first ends at the new point with the first control point, the
+ * second keeps the old end point with the second control point.
+ */
+function insertOnCurvedLeg(
+  routePoints: RoutePoint[],
+  legIndex: number,
+  click: LatLng,
+  createPoint: (location: LatLng) => RoutePoint,
+): LegClickAction {
+  const start = routePoints[legIndex];
+  const end = routePoints[legIndex + 1];
+  const control = { lat: end.controlLat as number, lng: end.controlLng as number };
+  const t = nearestCurveParameter(start, control, end, click);
+  if (t < MIN_CURVE_END_FRACTION || t > 1 - MIN_CURVE_END_FRACTION) {
+    return { kind: 'notice', message: TOO_CLOSE_TO_LEG_END_NOTICE };
+  }
+  const { firstControl, middle, secondControl } = splitCurve(start, control, end, t);
+  const point: RoutePoint = {
+    ...createPoint(middle),
+    segmentType: 'curved',
+    controlLat: firstControl.lat,
+    controlLng: firstControl.lng,
+  };
+  return {
+    kind: 'insert',
+    index: legIndex + 1,
+    point,
+    endControl: { id: end.id, controlLat: secondControl.lat, controlLng: secondControl.lng },
+  };
 }
 
 /**
@@ -279,8 +319,8 @@ export function legClickAction(routePoints: RoutePoint[], click: LatLng, legInse
     const p1 = routePoints[i];
     const p2 = routePoints[i + 1];
     let dist = Infinity;
-    if (p2.segmentType === 'curved' && p2.controlLat && p2.controlLng) {
-      const curve = curvePoints(p1, p2, { lat: p2.controlLat, lng: p2.controlLng });
+    if (isCurvedLeg(p2)) {
+      const curve = curvePoints(p1, p2, { lat: p2.controlLat as number, lng: p2.controlLng as number });
       for (let j = 0; j < curve.length - 1; j++) {
         const d = getDistanceFromLine(click, curve[j], curve[j + 1]);
         if (d < dist) dist = d;
@@ -297,15 +337,11 @@ export function legClickAction(routePoints: RoutePoint[], click: LatLng, legInse
 
   const p1 = routePoints[bestIndex];
   const p2 = routePoints[bestIndex + 1];
-  if (p2.segmentType === 'curved') return insertOnCurvedLeg();
-
-  // On the leg's line: the point of the line at the click's distance from the leg's start
-  const newLoc = getDestinationPoint(p1, getDistance(p1, click), getBearing(p1, p2));
   const isSecret = legInsertType === 'secret';
-  const point: RoutePoint = {
+  const createPoint = (location: LatLng): RoutePoint => ({
     id: crypto.randomUUID(),
-    lat: newLoc.lat,
-    lng: newLoc.lng,
+    lat: location.lat,
+    lng: location.lng,
     name: isSecret
       ? `Secret ${routePoints.length}`
       : `${legInsertType.toUpperCase()} ${routePoints.filter((existing) => existing.type === legInsertType).length + 1}`,
@@ -316,8 +352,12 @@ export function legClickAction(routePoints: RoutePoint[], click: LatLng, legInse
     isTiming: true,
     isPassing: true,
     segmentType: 'straight',
-  };
-  return { kind: 'insert', index: bestIndex + 1, point };
+  });
+  if (isCurvedLeg(p2)) return insertOnCurvedLeg(routePoints, bestIndex, click, createPoint);
+
+  // On the leg's line: the point of the line at the click's distance from the leg's start
+  const newLoc = getDestinationPoint(p1, getDistance(p1, click), getBearing(p1, p2));
+  return { kind: 'insert', index: bestIndex + 1, point: createPoint(newLoc) };
 }
 
 /** The type of point a click on a leg places: the hidden gate tool's, or the one a guide step asks for; null in select mode. */

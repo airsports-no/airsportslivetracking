@@ -10,7 +10,7 @@ import {
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Gate, LatLng, Polygon, Mode, SelectionType } from '../../../../types';
 import { UNKNOWN_LEG_TRIGGER_TYPE } from '../../unknownLegWizard';
-import { findNearestHit, HIT_RADIUS_PX, legClickAction, type HitKind } from '../../routeEditorMapClickHelpers';
+import { applyLegInsert, findNearestHit, HIT_RADIUS_PX, legClickAction, type HitKind } from '../../routeEditorMapClickHelpers';
 
 // CIMA 2.A7 (Circle) default inner/outer radius bounds (metres), matching Scorecard's
 // circle_radius_min_m/max_m field defaults - see models/scorecard_and_gate_score.py. The route
@@ -248,16 +248,12 @@ export const drawRouteLine = (
     const action = legClickAction(routePoints, { lat: e.latlng.lat, lng: e.latlng.lng }, legInsertType);
     if (action.kind === 'none') return;
     L.DomEvent.stopPropagation(e.originalEvent);
-    if (action.kind === 'unsupported') {
+    if (action.kind === 'notice') {
       onNotice?.(action.message);
       return;
     }
     // The tool stays active for the next one: the new gate is not selected (that would replace the guide's panel)
-    setRoutePoints(prev => {
-      const next = [...prev];
-      next.splice(action.index, 0, action.point);
-      return next;
-    });
+    setRoutePoints(prev => applyLegInsert(prev, action));
   });
 
   // The dots are for dragging a new waypoint out of a leg; not while a click on a leg places a hidden gate

@@ -1,4 +1,5 @@
 import type { RoutePoint } from '../../types';
+import { curvePointAt, nearestCurveParameter, TOO_CLOSE_TO_LEG_END_NOTICE } from './curveSplit';
 import {
   createInsertedRoutePoint,
   createObservationMarker,
@@ -6,10 +7,9 @@ import {
   findPlacingModeHit,
   HIT_RADIUS_PX,
   hitKindsForMode,
-  insertOnCurvedLeg,
+  applyLegInsert,
   legClickAction,
   legInsertTypeFor,
-  CURVED_LEG_HIDDEN_GATE_NOTICE,
   nextObservationName,
   type HitCandidate,
 } from './routeEditorMapClickHelpers';
@@ -123,10 +123,61 @@ describe('a click on a leg', () => {
     }
   });
 
-  it('tells a curved leg is not supported yet instead of inserting', () => {
-    const action = legClickAction(route(true), { lat: 60.025, lng: 11.1 }, 'secret');
-    expect(action).toEqual(insertOnCurvedLeg());
-    expect(action).toEqual({ kind: 'unsupported', message: CURVED_LEG_HIDDEN_GATE_NOTICE });
-    expect(CURVED_LEG_HIDDEN_GATE_NOTICE).toBe('Hidden gates on curved legs are not supported yet');
+  it('splits a curved leg at the nearest point of the curve into two curves that are the old one', () => {
+    const points = route(true);
+    const control = { lat: 60.05, lng: 11.1 };
+    const on = curvePointAt(points[0], control, points[1], 0.3);
+    const action = legClickAction(points, { lat: on.lat + 0.00005, lng: on.lng }, 'secret');
+    expect(action.kind).toBe('insert');
+    if (action.kind !== 'insert') return;
+    expect(action.index).toBe(1);
+    expect(action.point.type).toBe('secret');
+    expect(action.point.segmentType).toBe('curved');
+    expect(action.endControl?.id).toBe('b');
+
+    const next = applyLegInsert(points, action);
+    expect(next.map((item) => item.id)).toEqual(['a', action.point.id, 'b']);
+    const [start, gate, end] = next;
+    expect(end.segmentType).toBe('curved');
+    // The gate is on the old curve, and the two halves are the old curve
+    expect(Math.hypot(gate.lat - on.lat, gate.lng - on.lng)).toBeLessThan(1e-3);
+    for (let step = 0; step <= 10; step += 1) {
+      const s = step / 10;
+      const firstHalf = curvePointAt(start, { lat: gate.controlLat as number, lng: gate.controlLng as number }, gate, s);
+      const t = nearestCurveParameter(start, control, points[1], firstHalf);
+      const original = curvePointAt(start, control, points[1], t);
+      expect(Math.hypot(firstHalf.lat - original.lat, firstHalf.lng - original.lng)).toBeLessThan(1e-9);
+      const secondHalf = curvePointAt(gate, { lat: end.controlLat as number, lng: end.controlLng as number }, end, s);
+      const t2 = nearestCurveParameter(start, control, points[1], secondHalf);
+      const original2 = curvePointAt(start, control, points[1], t2);
+      expect(Math.hypot(secondHalf.lat - original2.lat, secondHalf.lng - original2.lng)).toBeLessThan(1e-9);
+    }
+  });
+
+  it('splits the half a second click lands on', () => {
+    const points = route(true);
+    const control = { lat: 60.05, lng: 11.1 };
+    const first = legClickAction(points, curvePointAt(points[0], control, points[1], 0.5), 'secret');
+    if (first.kind !== 'insert') throw new Error('expected an insert');
+    const split = applyLegInsert(points, first);
+    const second = legClickAction(split, curvePointAt(points[0], control, points[1], 0.8), 'secret');
+    if (second.kind !== 'insert') throw new Error('expected an insert');
+    expect(second.index).toBe(2);
+    expect(second.endControl?.id).toBe('b');
+    const three = applyLegInsert(split, second);
+    expect(three).toHaveLength(4);
+    expect(Math.hypot(three[2].lat - curvePointAt(points[0], control, points[1], 0.8).lat, three[2].lng - curvePointAt(points[0], control, points[1], 0.8).lng)).toBeLessThan(1e-3);
+  });
+
+  it('refuses a click too close to an end of a curved leg', () => {
+    const points = route(true);
+    const control = { lat: 60.05, lng: 11.1 };
+    for (const t of [0.005, 0.995]) {
+      expect(legClickAction(points, curvePointAt(points[0], control, points[1], t), 'secret')).toEqual({
+        kind: 'notice',
+        message: TOO_CLOSE_TO_LEG_END_NOTICE,
+      });
+    }
+    expect(TOO_CLOSE_TO_LEG_END_NOTICE).toBe('Too close to the end of the leg');
   });
 });

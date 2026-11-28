@@ -1,5 +1,6 @@
 import type { Gate, ObservationMarker, Polygon, RoutePoint } from '../../types';
 import type { RouteRequirementTool } from './api';
+import { routeLegs } from './routeIntegrity';
 
 // How the guide acts on a requirement. The registry (display.utilities.task_types) says which tool satisfies a
 // requirement; this file maps each tool name to what the route editor does when the user starts it. The mapping is
@@ -189,7 +190,8 @@ export const countForTool = (tool: RouteRequirementTool, content: RouteContent):
         && !standalonePoints.some((other) => other.featureType === 'dummy_branch_waypoint' && other.triggerPointId === point.id)
       )).length;
     case 'curved_leg':
-      return routePoints.filter((point) => point.segmentType === 'curved').length;
+      // Legs, not segments: a hidden gate splits a curve into two curved segments, which is still one curved leg
+      return routeLegs(routePoints).filter((leg) => leg.controls.length > 0).length;
     default:
       return 0;
   }

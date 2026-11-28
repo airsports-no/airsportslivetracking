@@ -96,7 +96,7 @@ describe('countForTool', () => {
     ...EMPTY,
     routePoints: [
       point('sp', 'sp'),
-      point('ul1', 'ul', { segmentType: 'curved' }),
+      point('ul1', 'ul', { segmentType: 'curved', controlLat: 60.1, controlLng: 11.1 }),
       point('ul2', 'ul'),
       point('hg', 'secret'),
       point('fp', 'fp'),
@@ -125,6 +125,18 @@ describe('countForTool', () => {
     expect(countForTool('landing_gate', content)).toBe(0);
     expect(countForTool('unknown_leg_point', content)).toBe(2);
     expect(countForTool('curved_leg', content)).toBe(1);
+  });
+
+  it('counts a curve split by a hidden gate as one curved leg', () => {
+    const curved = (id: string, type: RoutePoint['type'], lat: number): RoutePoint => (
+      point(id, type, { lat, lng: 11, segmentType: 'curved', controlLat: lat + 0.01, controlLng: 11.05 })
+    );
+    const split: RouteContent = {
+      ...EMPTY,
+      routePoints: [point('sp', 'sp'), curved('hg', 'secret', 60.1), curved('fp', 'fp', 60.2)],
+    };
+    expect(countForTool('curved_leg', split)).toBe(1);
+    expect(countForTool('hidden_gate', split)).toBe(1);
   });
 
   it('counts the unknown-leg points that still lack an extension waypoint for the extension step', () => {

@@ -2,7 +2,9 @@ import { describe, expect, it } from 'vitest';
 import type { ObservationMarker, RoutePoint } from '../../types';
 import { getMinimumObservationDistance } from './routeEditorMapClickHelpers';
 import { reverseRoutePoints } from './routeEditorMutations';
-import { removalNotice, removedByRouteChange, routeLegs, type RouteRemoval } from './routeIntegrity';
+import { applyLegInsert, legClickAction } from './routeEditorMapClickHelpers';
+import { curvePointAt } from './curveSplit';
+import { planRouteChange, removalNotice, removedByRouteChange, routeLegs, type RouteRemoval } from './routeIntegrity';
 
 const point = (id: string, lat: number, lng: number, type: RoutePoint['type'] = 'tp', extra: Partial<RoutePoint> = {}): RoutePoint => ({
   id, name: id, lat, lng, type, width: 1852, isTiming: true, isPassing: true, segmentType: 'straight', ...extra,
@@ -111,6 +113,92 @@ describe('what a change of the route removes: hidden gates', () => {
   it('never touches standalone-type points that happen to be in the list', () => {
     const before = [...route(), point('TG', 60.5, 11.5, 'timed_turnpoint')];
     expect(removedIds(before, move(before, 'B', 60.01, 11.1)).gates).toEqual(['S1', 'S2']);
+  });
+});
+
+describe('hidden gates on curved legs', () => {
+  const control = { lat: 60.06, lng: 11.1 };
+  const curve = (): RoutePoint[] => [
+    point('SP', 60, 11, 'sp'),
+    point('FP', 60, 11.2, 'fp', { segmentType: 'curved', controlLat: control.lat, controlLng: control.lng }),
+  ];
+  const withGates = (ts: number[]): RoutePoint[] => {
+    let points = curve();
+    for (const t of ts) {
+      const action = legClickAction(points, curvePointAt(points[0], control, points[points.length - 1], t), 'secret');
+      if (action.kind !== 'insert') throw new Error('expected an insert');
+      points = applyLegInsert(points, action);
+    }
+    return points;
+  };
+  const controlOf = (points: RoutePoint[], id: string) => {
+    const found = points.find((item) => item.id === id) as RoutePoint;
+    return [found.controlLat, found.controlLng];
+  };
+
+  it('is one leg, with the control point of the curve it was split from', () => {
+    const legs = routeLegs(withGates([0.3, 0.7]));
+    expect(legs).toHaveLength(1);
+    expect(legs[0].hiddenGates).toHaveLength(2);
+    expect(legs[0].controls).toHaveLength(1);
+    expect(legs[0].controls[0][0]).toBeCloseTo(control.lat, 9);
+    expect(legs[0].controls[0][1]).toBeCloseTo(control.lng, 9);
+  });
+
+  it('does not remove a hidden gate just placed on a curve', () => {
+    const before = curve();
+    const plan = planRouteChange(before, withGates([0.4]), [], MAX);
+    expect(plan.removal.hiddenGates).toEqual([]);
+    expect(plan.points).toHaveLength(3);
+  });
+
+  it('joins the curve again, exactly, when a hidden gate is deleted by hand', () => {
+    const split = withGates([0.3, 0.7]);
+    const gateIds = split.filter((item) => item.type === 'secret').map((item) => item.id);
+    for (const id of gateIds) {
+      const plan = planRouteChange(split, (points) => points.filter((item) => item.id !== id), [], MAX);
+      expect(plan.removal.hiddenGates).toEqual([]);
+      expect(plan.points).toHaveLength(split.length - 1);
+      expect(routeLegs(plan.points)[0].controls[0][0]).toBeCloseTo(control.lat, 9);
+    }
+    // Both gates in turn: the original curve, to its control point
+    const first = planRouteChange(split, (points) => points.filter((item) => item.id !== gateIds[0]), [], MAX).points;
+    const none = planRouteChange(first, (points) => points.filter((item) => item.id !== gateIds[1]), [], MAX).points;
+    expect(none.map((item) => item.id)).toEqual(['SP', 'FP']);
+    expect(controlOf(none, 'FP')[0]).toBeCloseTo(control.lat, 9);
+    expect(controlOf(none, 'FP')[1]).toBeCloseTo(control.lng, 9);
+  });
+
+  it('removes the gates of a leg whose curve was reshaped by dragging either half, and leaves one curve', () => {
+    const split = withGates([0.5]);
+    const [gate] = split.filter((item) => item.type === 'secret');
+    for (const id of [gate.id, 'FP']) {
+      const plan = planRouteChange(
+        split,
+        (points) => points.map((item) => (item.id === id ? { ...item, controlLat: (item.controlLat as number) + 0.02 } : item)),
+        [],
+        MAX,
+      );
+      expect(plan.removal.hiddenGates.map((item) => item.id)).toEqual([gate.id]);
+      expect(plan.points.map((item) => item.id)).toEqual(['SP', 'FP']);
+      expect(plan.points[1].segmentType).toBe('curved');
+      // One curve that passes through where the gate was (at the parameter the chord lengths give, near the middle)
+      const joined = { lat: controlOf(plan.points, 'FP')[0] as number, lng: controlOf(plan.points, 'FP')[1] as number };
+      const through = curvePointAt(plan.points[0], joined, plan.points[1], 0.5);
+      expect(Math.hypot(through.lat - gate.lat, through.lng - gate.lng)).toBeLessThan(0.01);
+    }
+  });
+
+  it('removes the gates when an end point of the curve is moved', () => {
+    const split = withGates([0.5]);
+    const plan = planRouteChange(split, (points) => move(points, 'FP', 60.01, 11.21), [], MAX);
+    expect(plan.removal.hiddenGates).toHaveLength(1);
+    expect(plan.points.map((item) => item.id)).toEqual(['SP', 'FP']);
+  });
+
+  it('keeps everything when the route is reversed', () => {
+    const split = withGates([0.3, 0.7]);
+    expect(removedIds(split, reverseRoutePoints(split, false)).gates).toEqual([]);
   });
 });
 
