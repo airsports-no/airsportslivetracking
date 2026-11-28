@@ -38,9 +38,10 @@ const checklist = (
   requirements: RouteRequirementResult[],
   status: 'pending' | 'ready' | 'failed' = 'ready',
   local: (tool: RouteRequirementTool) => number = () => 0,
+  timedTurnPoints = 0,
 ) => {
   const template = getTaskTemplateById(templateId)!;
-  return buildWizardChecklist(template, compatibilityFor(template.backendKey, requirements), null, status, local);
+  return buildWizardChecklist(template, compatibilityFor(template.backendKey, requirements), null, status, local, timedTurnPoints);
 };
 
 const stepOf = (result: ReturnType<typeof checklist>, key: string) => result.steps.find((state) => state.key === key)!;
@@ -109,20 +110,21 @@ describe('buildWizardChecklist', () => {
 
   it('makes one step of the at-least-one-of requirement with a tool each, counted together', () => {
     const result = checklist('cima_a4', [
-      requirement('known_circuit_evidence', { tool: 'hidden_gate', other_tools: ['known_time_gate', 'photo'], found: 0 }),
+      requirement('known_circuit_evidence', { tool: 'hidden_gate', other_tools: ['route_waypoint', 'photo'], found: 0, help: 'Registry help.' }),
     ], 'pending', (tool) => (tool === 'photo' ? 1 : 0));
     expect(result.steps).toHaveLength(1);
-    // 2.A4 offers no free-standing time gate: the circuit's turn points are its known time gates
-    expect(result.steps[0]).toMatchObject({ key: 'hidden_gate', tools: ['hidden_gate', 'photo'], count: 1, met: true });
-    expect(result.steps[0].help).toContain('turn points of the circuit are its known time gates');
+    expect(result.steps[0]).toMatchObject({ key: 'hidden_gate', tools: ['hidden_gate', 'route_waypoint', 'photo'], count: 1, met: true, help: 'Registry help.' });
   });
 
-  it('keeps the free-standing known time gate where it is what scoring uses (not 2.A4)', () => {
-    const result = checklist('cima_a6', [
-      requirement('any', { tool: 'hidden_gate', other_tools: ['known_time_gate', 'photo'], found: 0 }),
-    ]);
-    expect(result.steps[0].tools).toEqual(['hidden_gate', 'known_time_gate', 'photo']);
-    expect(result.steps[0].help).not.toContain('known time gates');
+  it('counts the timed turn points, not every waypoint, for the at-least-one-of step of 2.A4 until the backend answers', () => {
+    const requirements = [
+      requirement('known_circuit_evidence', { tool: 'hidden_gate', other_tools: ['route_waypoint', 'photo'], found: 0 }),
+    ];
+    // SP and FP are route waypoints: three of them, but no timed turn point
+    const onlyEnds = checklist('cima_a4', requirements, 'pending', (tool) => (tool === 'route_waypoint' ? 2 : 0), 0);
+    expect(onlyEnds.steps[0]).toMatchObject({ count: 0, met: false });
+    const withTurnPoint = checklist('cima_a4', requirements, 'pending', (tool) => (tool === 'route_waypoint' ? 3 : 0), 1);
+    expect(withTurnPoint.steps[0]).toMatchObject({ count: 1, met: true });
   });
 
   it('guides the curved leg of 2.A1 and the extension waypoints of 2.A5 from the backend', () => {

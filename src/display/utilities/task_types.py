@@ -740,19 +740,20 @@ _DEFINITIONS = (
         route_requirements=_BACKBONE
         + (
             rr.at_least_one_of(
-                (rr.KNOWN_TIME_GATE, rr.HIDDEN_GATE, rr.OBSERVATION_PHOTO),
-                "Known time gates, hidden gates and photos",
+                (rr.TIMED_TURN_POINT, rr.HIDDEN_GATE, rr.OBSERVATION_PHOTO),
+                "Timed turn points, hidden gates and photos",
                 key="known_circuit_evidence",
                 message=(
-                    "A known circuit needs at least one known time gate, hidden gate or photo: without one there is "
+                    "A known circuit needs at least one timed turn point, hidden gate or photo: without one there is "
                     "nothing to score besides the start and finish."
                 ),
                 tool=rr.TOOL_HIDDEN_GATE,
-                other_tools=(rr.TOOL_KNOWN_TIME_GATE, rr.TOOL_PHOTO),
+                other_tools=(rr.TOOL_ROUTE_WAYPOINT, rr.TOOL_PHOTO),
                 help=(
-                    "Add at least one known time gate, hidden gate or photo. For a hidden gate, use the Hidden gate "
-                    "tool and click a leg of the route where the gate should be. For a photo, use the Photo tool "
-                    "and click the map where the photo was taken."
+                    "The timed turn points of the circuit are its known time gates. Add at least one turn point, "
+                    "hidden gate or photo. For a hidden gate, use the Hidden gate tool and click a leg of the route "
+                    "where the gate should be. For a photo, use the Photo tool and click the map where the photo was "
+                    "taken."
                 ),
             ),
         ),

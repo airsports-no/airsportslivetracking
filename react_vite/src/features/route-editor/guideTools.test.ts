@@ -1,5 +1,5 @@
 import { ROUTE_REQUIREMENT_TOOLS, type RouteRequirementTool } from './api';
-import { countForTool, getToolAction, getToolWizardStep, TOOL_ACTIONS, type RouteContent } from './guideTools';
+import { countForTool, countTimedTurnPoints, getToolAction, getToolWizardStep, TOOL_ACTIONS, type RouteContent } from './guideTools';
 import { getWizardTransition } from './routeEditorWizardTransitions';
 import type { RoutePoint } from '../../types';
 
@@ -111,6 +111,12 @@ describe('countForTool', () => {
     observationMarkers: [{ id: 'o' } as never],
     polygons: [{ id: 'p', name: 'p', type: 'duration_landing_area', points: [] }],
   };
+
+  it('counts only timed turn points as the known time gates of a known circuit', () => {
+    expect(countTimedTurnPoints({ ...EMPTY, routePoints: [
+      point('sp', 'sp'), point('t1', 'tp', { isTiming: true }), point('t2', 'tp', { isTiming: false }), point('hg', 'secret'), point('fp', 'fp'),
+    ] })).toBe(1);
+  });
 
   it('counts what each tool places', () => {
     expect(countForTool('route_waypoint', content)).toBe(5);

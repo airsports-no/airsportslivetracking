@@ -34,6 +34,8 @@ NAMED_UNKNOWN_LEG = "named_unknown_leg"
 FREE_CATALOGUE_TURNPOINT = "free_catalogue_turnpoint"
 # Unknown-leg points that have no extension waypoint after them.
 UNKNOWN_LEG_WITHOUT_EXTENSION = "unknown_leg_without_extension"
+# Timed turn points of the route itself (not SP, FP or hidden gates): the known time gates of a known circuit.
+TIMED_TURN_POINT = "timed_turn_point"
 # Route waypoints that are not where the ordering requirement expects them (see WaypointOrdering).
 ROUTE_WAYPOINT_ORDER_VIOLATIONS = "route_waypoint_order_violations"
 

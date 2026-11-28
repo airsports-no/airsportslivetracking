@@ -80,21 +80,9 @@ const toolsOf = (requirement: RouteRequirementResult): RouteRequirementTool[] =>
   requirement.tool ? [requirement.tool, ...(requirement.other_tools ?? [])] : []
 );
 
-// 2.A4 (navigation over a known circuit): the circuit's known time gates are the timed turn points of its route, which
-// the scoring flies as gates. A free-standing known time gate (what the registry's known_time_gate tool places) is not
-// part of the route, so it scores nothing there: the guide offers the hidden gate and photo tools only, and says so.
-const KNOWN_CIRCUIT_KEY = 'known_circuit';
-export const KNOWN_CIRCUIT_TIME_GATE_HELP = (
-  'The turn points of the circuit are its known time gates: they are timed and scored without adding anything here.'
-);
-
-const withoutFreeStandingTimeGates = (step: { tools: RouteRequirementTool[]; help: string }) => {
-  if (!step.tools.includes('known_time_gate')) return step;
-  return {
-    tools: step.tools.filter((tool) => tool !== 'known_time_gate'),
-    help: [KNOWN_CIRCUIT_TIME_GATE_HELP, step.help].filter(Boolean).join(' '),
-  };
-};
+// The at-least-one-of requirement of 2.A4 counts the timed turn points of the route, not every waypoint (SP and FP are
+// route waypoints too): the editor's own count of them stands in for the route_waypoint tool's count in that step.
+const TIMED_TURN_POINT_REQUIREMENT_KEY = 'known_circuit_evidence';
 
 export const getRequirementsForTemplate = (
   template: TaskTemplate,
@@ -112,6 +100,7 @@ export const buildWizardChecklist = (
   catalogue: TaskCompatibilitySubtype[] | null,
   status: CompatibilityStatus,
   localCount: (tool: RouteRequirementTool) => number,
+  localTimedTurnPoints = 0,
 ): WizardChecklist => {
   const fromBackend = getRequirementsForTemplate(template, compatibility);
   const catalogued = catalogue?.find((item) => item.key === template.backendKey)?.requirements ?? null;
@@ -147,10 +136,11 @@ export const buildWizardChecklist = (
     const firstUnsatisfied = checked.find((item) => !item.satisfied) ?? null;
     const allTools = [...new Set(own.flatMap(toolsOf))];
     const stepHelp = source.help || own.find((item) => item.help)?.help || '';
-    const { tools, help } = template.backendKey === KNOWN_CIRCUIT_KEY
-      ? withoutFreeStandingTimeGates({ tools: allTools, help: stepHelp })
-      : { tools: allTools, help: stepHelp };
-    const local = tools.reduce((sum, item) => sum + localCount(item), 0);
+    const tools = allTools;
+    const help = stepHelp;
+    const local = primary?.key === TIMED_TURN_POINT_REQUIREMENT_KEY
+      ? tools.reduce((sum, item) => sum + (item === 'route_waypoint' ? localTimedTurnPoints : localCount(item)), 0)
+      : tools.reduce((sum, item) => sum + localCount(item), 0);
     const counted = primary && primary.maximum !== 0 ? primary : null;
     const satisfied = confirmed && checked.length > 0 ? firstUnsatisfied === null : null;
     // Judged from the local count while the backend has not answered for this route content. A prohibition counts

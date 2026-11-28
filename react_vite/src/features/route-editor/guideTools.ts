@@ -157,6 +157,11 @@ export interface RouteContent {
 // How many of what the tool places the route holds now, counted from the editor's own state: what the guide shows
 // until the backend has answered for the current route content. For the extension waypoints it is the number of
 // unknown-leg points that still have none, as in the registry (a prohibition).
+// The timed turn points of the route (pointType tp, isTiming not false): the known time gates of a known circuit.
+export const countTimedTurnPoints = (content: RouteContent): number => (
+  content.routePoints.filter((point) => point.featureType !== 'dummy_branch_waypoint' && point.type === 'tp' && point.isTiming !== false).length
+);
+
 export const countForTool = (tool: RouteRequirementTool, content: RouteContent): number => {
   const { routePoints, standalonePoints } = content;
   switch (tool) {

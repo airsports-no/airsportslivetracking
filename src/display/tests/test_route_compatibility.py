@@ -132,7 +132,8 @@ class TestRouteCompatibilityRuleset(TestCase):
 
     def test_hidden_gate_is_required_by_precision_navigation_and_counts_as_evidence_for_a_known_circuit(self):
         # Hidden gates are optional on the other task types; 2.A2 is scored on them, so it needs one. A known circuit
-        # needs a known time gate, a hidden gate or a photo, so a plain route is not one.
+        # needs a timed turn point (its known time gates), a hidden gate or a photo, so a route with only SP, FP and an
+        # untimed turn point is not one.
         route = EditableRoute.objects.create(
             name="Plain precision route",
             route={
@@ -140,7 +141,10 @@ class TestRouteCompatibilityRuleset(TestCase):
                 "features": [
                     TRACK_FEATURE,
                     {**waypoint_feature("sp", "SP"), "properties": {**waypoint_feature("sp", "SP")["properties"], "sequence": 0}},
-                    {**waypoint_feature("tp", "TP1"), "properties": {**waypoint_feature("tp", "TP1")["properties"], "sequence": 1}},
+                    {
+                        **waypoint_feature("tp", "TP1"),
+                        "properties": {**waypoint_feature("tp", "TP1")["properties"], "sequence": 1, "isTiming": False},
+                    },
                     {**waypoint_feature("fp", "FP"), "properties": {**waypoint_feature("fp", "FP")["properties"], "sequence": 2}},
                 ],
             },
@@ -148,7 +152,7 @@ class TestRouteCompatibilityRuleset(TestCase):
         self.assertEqual(
             get_blocking_reasons(extract_route_primitives(route), KNOWN_CIRCUIT),
             [
-                "A known circuit needs at least one known time gate, hidden gate or photo: without one there is "
+                "A known circuit needs at least one timed turn point, hidden gate or photo: without one there is "
                 "nothing to score besides the start and finish."
             ],
         )
@@ -158,6 +162,12 @@ class TestRouteCompatibilityRuleset(TestCase):
             ["Precision navigation needs at least one hidden gate: the task is scored on them."],
             get_blocking_reasons(extract_route_primitives(route), PRECISION_NAVIGATION),
         )
+        # A timed turn point is enough for a known circuit, but not for precision navigation.
+        route.route["features"][2]["properties"]["isTiming"] = True
+        self.assertEqual(get_blocking_reasons(extract_route_primitives(route), KNOWN_CIRCUIT), [])
+        self.assertIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route))
+        self.assertNotIn(PRECISION_NAVIGATION, get_compatible_task_subtypes(route))
+        route.route["features"][2]["properties"]["isTiming"] = False
         hidden_gate = waypoint_feature("secret", "HG1")
         hidden_gate["properties"]["sequence"] = 3
         route.route["features"].append(hidden_gate)

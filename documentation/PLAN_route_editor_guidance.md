@@ -1,6 +1,9 @@
 # Plan: route editor guidance, modes and route integrity
 
-Written 2026-11-28. Not started. Follows `PLAN_task_scoring_reliability.md` and builds on its task-type registry.
+Written 2026-11-28. Status 2026-11-28: R1 to R7 are done on the branch `route-editor-guidance` (backend suite 3187 passed, 2 expected
+failures, before the last 2.A4 correction; frontend 870+ tests). Nothing has been tried in a browser. One change from the
+plan: 2.A4 needs at least one timed turn point, hidden gate or photo, because the timed turn points of a known circuit
+are its known time gates. Follows `PLAN_task_scoring_reliability.md` and builds on its task-type registry.
 
 ## Goal
 

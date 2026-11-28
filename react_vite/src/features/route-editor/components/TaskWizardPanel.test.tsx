@@ -107,13 +107,12 @@ describe('TaskWizardPanel', () => {
   it('gives the any-of requirement one button per tool', () => {
     render('cima_a4', [
       requirement('route_waypoint', 'route_waypoint', { found: 3, satisfied: true }),
-      requirement('known_circuit_evidence', 'hidden_gate', { other_tools: ['known_time_gate', 'photo'], help: 'Add one of them.' }),
+      requirement('known_circuit_evidence', 'hidden_gate', { other_tools: ['route_waypoint', 'photo'], help: 'Add one of them.' }),
     ]);
     const evidence = stepElement('hidden_gate');
-    // The circuit's turn points are its known time gates: no free-standing time gate is offered
-    expect(buttonsIn(evidence)).toEqual(['Hidden gate', 'Photo']);
-    expect(evidence.textContent).toContain('turn points of the circuit are its known time gates');
-    act(() => (evidence.querySelectorAll('button')[1] as HTMLButtonElement).click());
+    expect(buttonsIn(evidence)).toEqual(['Hidden gate', 'Route waypoint', 'Photo']);
+    expect(evidence.textContent).toContain('Add one of them.');
+    act(() => (evidence.querySelectorAll('button')[2] as HTMLButtonElement).click());
     expect(startWizardStep).toHaveBeenCalledWith('photo');
   });
 

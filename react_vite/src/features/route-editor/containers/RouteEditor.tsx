@@ -29,7 +29,7 @@ import { Map } from 'leaflet';
 import { buildWizardChecklist, type CompatibilityStatus, getRouteEditorFlags } from '../taskRequirements';
 import { getTaskTemplateById } from '../taskTemplates';
 import { applyGuideChoice, applyManualTick, emptyIntent, intentForLoadedRoute, RouteIntent } from '../routeIntent';
-import { countForTool, getToolAction, getToolWizardStep } from '../guideTools';
+import { countForTool, countTimedTurnPoints, getToolAction, getToolWizardStep } from '../guideTools';
 import { autoAdvance, doneButtonLabel, findStep, nextUnmetRequiredStep, resolveStepEnd, shouldOfferTaskChoice, type StepEnd } from '../guideProgress';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
 import {
@@ -419,6 +419,7 @@ export default function RouteEditor() {
         subtypeCatalog,
         compatibilityStatus,
         (tool) => countForTool(tool, { routePoints, standalonePoints, gates, observationMarkers, polygons }),
+        countTimedTurnPoints({ routePoints, standalonePoints, gates, observationMarkers, polygons }),
       )
       : null
   ), [selectedTemplate, taskCompatibility, subtypeCatalog, compatibilityStatus, routePoints, standalonePoints, gates, observationMarkers, polygons]);

@@ -123,6 +123,14 @@ def waypoint_copy(geojson: dict, name: str, new_name: str, sequence: int, **prop
 
 PRECISION_ROUTE = precision_route_geojson()
 HIDDEN_GATE_ROUTE = precision_route_geojson(hidden_gates={1: [0.5]})
+# Only SP and FP: no timed turn point, hidden gate or photo.
+BARE_ROUTE = precision_route_geojson(legs=((90.0, 6000.0),))
+# Turn points that are not time gates.
+UNTIMED_TURN_POINTS_ROUTE = precision_route_geojson(untimed=("TP1", "TP2"))
+# Hidden gate and nothing else besides SP and FP.
+BARE_HIDDEN_GATE_ROUTE = precision_route_geojson(legs=((90.0, 6000.0),), hidden_gates={0: [0.5]})
+# SP, one turn point that is not timed, FP: the turn point counts once it is timed.
+BARE_ROUTE_WITH_TP = precision_route_geojson(legs=((90.0, 6000.0), (160.0, 5000.0)), untimed=("TP1",))
 CURVED_ROUTE = precision_route_geojson(curved=["TP1"])
 CONTRACT_ROUTE = contract_route_geojson(catalogue={"A": (5000.0, 1000.0)})
 UNKNOWN_LEGS_ROUTE = precision_route_geojson(unknown_legs=EXTENSION)
@@ -232,7 +240,7 @@ CASES = {
         {
             "route_path": [without(HIDDEN_GATE_ROUTE, feature_type="route_path")],
             "route_waypoint": [without(HIDDEN_GATE_ROUTE, feature_type="route_waypoint")],
-            "known_circuit_evidence": [PRECISION_ROUTE, without(HIDDEN_GATE_ROUTE, name="HG1")],
+            "known_circuit_evidence": [BARE_ROUTE, UNTIMED_TURN_POINTS_ROUTE],
         },
     ),
     UNKNOWN_LEGS: (
@@ -390,8 +398,9 @@ class TestTheGapsThisSliceCloses(TestCase):
         compatible = get_compatible_task_subtypes(straight)
         for key in (LEGACY_PRECISION, ANR_CATALOGUE):
             self.assertIn(key, compatible)
-        # A known circuit needs a known time gate, a hidden gate or a photo as well.
-        self.assertNotIn(KNOWN_CIRCUIT, compatible)
+        # A known circuit needs a timed turn point, a hidden gate or a photo: the precision route has timed turn points.
+        self.assertIn(KNOWN_CIRCUIT, compatible)
+        self.assertNotIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route_of(BARE_ROUTE)))
         self.assertIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route_of(HIDDEN_GATE_ROUTE)))
         self.assertNotIn(PRECISION_NAVIGATION, compatible)
         self.assertIn(PRECISION_NAVIGATION, get_compatible_task_subtypes(route_of(HIDDEN_GATE_ROUTE)))
@@ -611,14 +620,15 @@ class TestTaskCompatibilityApiRequirements(TestCase):
         )
 
     def test_the_known_circuit_lists_the_tools_that_satisfy_its_evidence_requirement(self):
-        subtypes = self.post(PRECISION_ROUTE)
+        subtypes = self.post(BARE_ROUTE)
         evidence = {requirement["key"]: requirement for requirement in subtypes[KNOWN_CIRCUIT]["requirements"]}[
             "known_circuit_evidence"
         ]
         self.assertEqual((evidence["required"], evidence["satisfied"], evidence["found"]), (True, False, 0))
-        self.assertEqual((evidence["tool"], evidence["other_tools"]), ("hidden_gate", ["known_time_gate", "photo"]))
+        self.assertEqual((evidence["tool"], evidence["other_tools"]), ("hidden_gate", ["route_waypoint", "photo"]))
         self.assertFalse(subtypes[KNOWN_CIRCUIT]["compatible"])
-        self.assertTrue(self.post(HIDDEN_GATE_ROUTE)[KNOWN_CIRCUIT]["compatible"])
+        self.assertTrue(self.post(BARE_HIDDEN_GATE_ROUTE)[KNOWN_CIRCUIT]["compatible"])
+        self.assertTrue(self.post(PRECISION_ROUTE)[KNOWN_CIRCUIT]["compatible"])
 
     def test_unsaved_route_without_features_is_not_compatible_with_duration(self):
         subtypes = self.post({"type": "FeatureCollection", "features": []})
@@ -759,7 +769,7 @@ class TestGuideFieldsOfTheRegistry(TestCase):
 
     def test_any_of_counts_the_sum_of_its_facts(self):
         requirement = TASK_TYPE_REGISTRY[KNOWN_CIRCUIT].route_requirements[-1]
-        self.assertEqual(requirement.fact, (rr.KNOWN_TIME_GATE, rr.HIDDEN_GATE, rr.OBSERVATION_PHOTO))
+        self.assertEqual(requirement.fact, (rr.TIMED_TURN_POINT, rr.HIDDEN_GATE, rr.OBSERVATION_PHOTO))
         photo = {
             "type": "Feature",
             "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
@@ -767,25 +777,31 @@ class TestGuideFieldsOfTheRegistry(TestCase):
         }
         time_gate = hunt_route_geojson(compulsory={"CP1": (2000.0, 0.0)})["features"][0]
         for geojson, expected in (
-            (PRECISION_ROUTE, False),
-            (HIDDEN_GATE_ROUTE, True),
-            (with_features(PRECISION_ROUTE, photo), True),
-            (with_features(PRECISION_ROUTE, time_gate), True),
+            (BARE_ROUTE, False),
+            # A standalone known time gate is not part of the scored route.
+            (with_features(BARE_ROUTE, time_gate), False),
+            # A turn point that is not a time gate does not count.
+            (UNTIMED_TURN_POINTS_ROUTE, False),
+            (PRECISION_ROUTE, True),
+            (BARE_ROUTE_WITH_TP, False),
+            (with_properties(BARE_ROUTE_WITH_TP, "TP1", isTiming=True), True),
+            (BARE_HIDDEN_GATE_ROUTE, True),
+            (with_features(BARE_ROUTE, photo), True),
         ):
             route = route_of(geojson)
             self.assertEqual(KNOWN_CIRCUIT in get_compatible_task_subtypes(route), expected)
-        reasons = get_blocking_reasons(extract_route_primitives(route_of(PRECISION_ROUTE)), KNOWN_CIRCUIT)
+        reasons = get_blocking_reasons(extract_route_primitives(route_of(BARE_ROUTE)), KNOWN_CIRCUIT)
         self.assertEqual(
             reasons,
             [
-                "A known circuit needs at least one known time gate, hidden gate or photo: without one there is "
+                "A known circuit needs at least one timed turn point, hidden gate or photo: without one there is "
                 "nothing to score besides the start and finish."
             ],
         )
 
     def test_the_task_creation_check_gives_the_same_message(self):
-        route = route_of(PRECISION_ROUTE)
-        with self.assertRaisesMessage(ValidationError, "A known circuit needs at least one known time gate"):
+        route = route_of(BARE_ROUTE)
+        with self.assertRaisesMessage(ValidationError, "A known circuit needs at least one timed turn point"):
             assert_route_compatible_with_task_type(route, PRECISION, KNOWN_CIRCUIT)
 
     def test_the_no_route_message_still_reads_right_with_optional_requirements(self):
