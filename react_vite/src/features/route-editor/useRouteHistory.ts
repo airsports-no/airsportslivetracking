@@ -142,12 +142,20 @@ export default function useRouteHistory(content: RouteSnapshot, restore: (snapsh
   }, []);
 
   const runUndoableStep = useCallback((change: () => void): UndoableStep => {
-    counterRef.current += 1;
-    const key = `step-${counterRef.current}`;
-    const gesture = { key, closing: false };
-    gestureRef.current = gesture;
-    change();
-    endGesture();
+    // Inside a gesture that is still going (the end of a drag) the change is part of that gesture's step, which its
+    // owner closes; the handle undoes the whole gesture.
+    const open = gestureRef.current && !gestureRef.current.closing ? gestureRef.current : null;
+    let key: string;
+    if (open) {
+      key = open.key;
+      change();
+    } else {
+      counterRef.current += 1;
+      key = `step-${counterRef.current}`;
+      gestureRef.current = { key, closing: false };
+      change();
+      endGesture();
+    }
     return {
       undo: () => {
         const next = undoStep(historyRef.current, key);

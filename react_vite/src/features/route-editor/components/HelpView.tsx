@@ -55,13 +55,16 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
 
         <div className="card bg-info/10 shadow-sm compact rounded-box">
           <div className="card-body p-3">
-            <h3 className="card-title text-sm text-info-content border-b border-info/20 pb-1 mb-1">Secret Points</h3>
+            <h3 className="card-title text-sm text-info-content border-b border-info/20 pb-1 mb-1">Hidden Gates</h3>
             <p className="text-xs mb-2">
-              Click leg line in "Select" mode. If you want a regular turning point, change the point type to "Waypoint" in the sidebar after selecting the point.
+              Choose "Hidden gate" in the toolbar, then click a straight leg of the route to place one. The tool stays on for more gates; press Esc to stop. In select mode a click on a leg does nothing.
+            </p>
+            <p className="text-xs mb-2">
+              The dot in the middle of a leg is for a regular waypoint: drag it to add one there.
             </p>
             <div className="bg-base-100 p-2 rounded border border-info/20 text-xs w-full">
               <strong className="text-error">Constraint: </strong>
-              Must lie on straight line between waypoints (unless curved).
+              A hidden gate cannot bend the route. When a leg changes (a waypoint at either end is moved, deleted or added, or the curve is changed), the hidden gates on it are removed, and so are photos that end up out of range. The editor tells you what it removed, and Undo brings it back.
             </div>
           </div>
         </div>

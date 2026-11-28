@@ -72,8 +72,10 @@ interface MapCanvasProps {
     maxObsDist: number;
     hideLabels: boolean;
     wizardPolygonType?: Polygon['type'] | null;
-    // A wizard step placing points on the route: the type a click on a leg inserts (a secret gate when unset)
+    // What a click on a leg inserts (legInsertTypeFor): a hidden gate with the tool or a guide step; nothing in select mode
     legInsertType?: RoutePoint['type'] | null;
+    // A short message for the user (a click that could not place what it was meant for)
+    onNotice?: (message: string) => void;
     activeTriggerId?: string | null;
     emphasizeUnknownLegTriggers?: boolean;
     setRoutePoints: React.Dispatch<React.SetStateAction<RoutePoint[]>>;
@@ -111,6 +113,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
   hideLabels,
   wizardPolygonType,
   legInsertType,
+  onNotice,
   activeTriggerId,
   emphasizeUnknownLegTriggers,
   setRoutePoints,
@@ -592,6 +595,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
       handleDragEnd,
       legInsertType ?? null,
       onDragGestureStart,
+      onNotice,
     );
 
     // --- RENDERER: DRAW POINTS ---
@@ -705,7 +709,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
     routePoints, standalonePoints, gates, tempGatePoint, showCorridor, observationMarkers, 
     polygons, tempPolygonPoints, selectedId, selectionType, mode,
     setRoutePoints, setStandalonePoints, setGates, setObservationMarkers, setPolygons, 
-    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels, activeTriggerId, emphasizeUnknownLegTriggers, legInsertType, onEdit, onDragGestureStart
+    setSelectedId, setSelectionType, setMode, setTempPolygonPoints, hideLabels, activeTriggerId, emphasizeUnknownLegTriggers, legInsertType, onEdit, onDragGestureStart, onNotice
   ]);
 
   return (

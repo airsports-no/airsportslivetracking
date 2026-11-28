@@ -10,7 +10,7 @@ import {
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Gate, LatLng, Polygon, Mode, SelectionType } from '../../../../types';
 import { UNKNOWN_LEG_TRIGGER_TYPE } from '../../unknownLegWizard';
-import { findNearestHit, HIT_RADIUS_PX, type HitKind } from '../../routeEditorMapClickHelpers';
+import { findNearestHit, HIT_RADIUS_PX, legClickAction, type HitKind } from '../../routeEditorMapClickHelpers';
 
 // CIMA 2.A7 (Circle) default inner/outer radius bounds (metres), matching Scorecard's
 // circle_radius_min_m/max_m field defaults - see models/scorecard_and_gate_score.py. The route
@@ -188,6 +188,8 @@ export const drawRouteLine = (
   legInsertType: RoutePoint['type'] | null = null,
   // Dragging the dot of a leg inserts a point and then moves it: one gesture, one undo step
   onGestureStart?: () => void,
+  // A click that cannot place the point it was meant for: the editor says why
+  onNotice?: (message: string) => void,
 ) => {
   if (routePoints.length <= 1) return;
 
@@ -238,82 +240,28 @@ export const drawRouteLine = (
   const polyline = L.polyline(latlngs, {
     color: '#3b82f6',
     weight: 4,
-    className: mode === 'view' ? 'cursor-crosshair' : '',
   }).addTo(map);
 
   polyline.on('click', (e: L.LeafletMouseEvent) => {
-    if (mode !== 'view') return;
+    // A click on a leg places a point only when the hidden gate tool (or a guide step) says so; otherwise it is a click
+    // on the map
+    const action = legClickAction(routePoints, { lat: e.latlng.lat, lng: e.latlng.lng }, legInsertType);
+    if (action.kind === 'none') return;
     L.DomEvent.stopPropagation(e.originalEvent);
-
-    const clickPt = { lat: e.latlng.lat, lng: e.latlng.lng };
-    let bestIndex = -1;
-    let minDistance = Infinity;
-
-    for (let i = 0; i < routePoints.length - 1; i++) {
-      const p1 = routePoints[i];
-      const p2 = routePoints[i + 1];
-      let dist = Infinity;
-
-      if (p2.segmentType === 'curved' && p2.controlLat && p2.controlLng) {
-        const curvePoints = getQuadraticBezierPoints(p1, p2, { lat: p2.controlLat, lng: p2.controlLng });
-        for (let j = 0; j < curvePoints.length - 1; j++) {
-          const d = getDistanceFromLine(clickPt, curvePoints[j], curvePoints[j + 1]);
-          if (d < dist) dist = d;
-        }
-      } else {
-        dist = getDistanceFromLine(clickPt, p1, p2);
-      }
-
-      if (dist < minDistance) {
-        minDistance = dist;
-        bestIndex = i;
-      }
+    if (action.kind === 'unsupported') {
+      onNotice?.(action.message);
+      return;
     }
-
-    if (bestIndex !== -1) {
-      const p1 = routePoints[bestIndex];
-      const p2 = routePoints[bestIndex + 1];
-
-      if (p2.segmentType === 'curved') {
-        setSelectedId(p2.id);
-        setSelectionType('point');
-        return;
-      }
-
-      const bearing = getBearing(p1, p2);
-      const dist = getDistance(p1, clickPt);
-      const newLoc = getDestinationPoint(p1, dist, bearing);
-
-      const insertType = legInsertType ?? 'secret';
-      const isSecret = insertType === 'secret';
-      const newPoint: RoutePoint = {
-        id: crypto.randomUUID(),
-        lat: newLoc.lat,
-        lng: newLoc.lng,
-        name: isSecret
-          ? `Secret ${routePoints.length}`
-          : `${insertType.toUpperCase()} ${routePoints.filter((point) => point.type === insertType).length + 1}`,
-        type: insertType,
-        featureType: 'route_waypoint',
-        width: isSecret ? 1000 : 1852,
-        // Checked and timed from the start, a secret gate too (see SECRET_GATE_CHECKS)
-        isTiming: true,
-        isPassing: true,
-        segmentType: 'straight',
-      };
-
-      setRoutePoints(prev => {
-        const next = [...prev];
-        next.splice(bestIndex + 1, 0, newPoint);
-        return next;
-      });
-
-      setSelectedId(newPoint.id);
-      setSelectionType('point');
-    }
+    // The tool stays active for the next one: the new gate is not selected (that would replace the guide's panel)
+    setRoutePoints(prev => {
+      const next = [...prev];
+      next.splice(action.index, 0, action.point);
+      return next;
+    });
   });
 
-  if (mode === 'view') {
+  // The dots are for dragging a new waypoint out of a leg; not while a click on a leg places a hidden gate
+  if (mode === 'view' && !legInsertType) {
     for (let i = 0; i < routePoints.length - 1; i++) {
       const p1 = routePoints[i];
       const p2 = routePoints[i + 1];
@@ -332,6 +280,7 @@ export const drawRouteLine = (
         className: 'cursor-copy',
       }).addTo(map);
 
+      ghost.bindTooltip('Drag to add a waypoint here', { direction: 'top' });
       ghost.on('mousedown', (e: L.LeafletMouseEvent) => {
         L.DomEvent.stopPropagation(e.originalEvent);
         onGestureStart?.();

@@ -41,6 +41,7 @@ export interface ModeText {
 export const MODE_TEXTS: Record<PlacingMode, ModeText | { first: ModeText; second: ModeText }> = {
   add_point: { kind: 'waypoints', title: 'Adding waypoints', instruction: 'click the map to place the next one.' },
   add_catalogue_turnpoint: { kind: 'catalogue', title: 'Adding catalogue turn points', instruction: 'click the map to place one.' },
+  add_hidden_gate: { kind: 'leg', title: 'Hidden gate', instruction: 'click a leg of the route to place one.' },
   add_observation: { kind: 'photos', title: 'Adding photos', instruction: 'click the map close to the route to place one.' },
   add_polygon: { kind: 'zone', title: 'Drawing a zone', instruction: 'click the map to add corners, click the first corner to close it.' },
   add_landing: {

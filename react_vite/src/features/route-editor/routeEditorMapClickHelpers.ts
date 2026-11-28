@@ -1,4 +1,4 @@
-import { getDistanceFromLine } from '../../utils/geoUtils';
+import { getDestinationPoint, getBearing, getDistance, getDistanceFromLine } from '../../utils/geoUtils';
 import { Gate, LatLng, Mode, ObservationMarker, RoutePoint } from '../../types';
 
 const THREE_POINT_BACKBONE_TEMPLATE: Array<Pick<RoutePoint, 'name' | 'type' | 'featureType'>> = [
@@ -240,4 +240,87 @@ export function findPlacingModeHit<T extends HitCandidate>(click: PixelPoint, ca
   const kinds = hitKindsForMode(mode);
   if (kinds.length === 0) return null;
   return findNearestHit(click, candidates.filter((candidate) => kinds.includes(candidate.kind)), radius);
+}
+
+export const CURVED_LEG_HIDDEN_GATE_NOTICE = 'Hidden gates on curved legs are not supported yet';
+
+// The curve of a leg as 20 straight pieces, as it is drawn (the same formula as getQuadraticBezierPoints, which needs Leaflet).
+const curvePoints = (from: LatLng, to: LatLng, control: LatLng, pieces = 20): LatLng[] => (
+  Array.from({ length: pieces + 1 }, (_, index) => {
+    const t = index / pieces;
+    return {
+      lat: (1 - t) * (1 - t) * from.lat + 2 * (1 - t) * t * control.lat + t * t * to.lat,
+      lng: (1 - t) * (1 - t) * from.lng + 2 * (1 - t) * t * control.lng + t * t * to.lng,
+    };
+  })
+);
+
+export type LegClickAction =
+  | { kind: 'none' }
+  // The click is on a curved leg and cannot place the point there (yet)
+  | { kind: 'unsupported'; message: string }
+  | { kind: 'insert'; index: number; point: RoutePoint };
+
+// A click on a curved leg with the hidden gate tool. The one place to fill in when a hidden gate can split a curve.
+export function insertOnCurvedLeg(): LegClickAction {
+  return { kind: 'unsupported', message: CURVED_LEG_HIDDEN_GATE_NOTICE };
+}
+
+/**
+ * What a click on a leg of the route does. A point is only placed when [legInsertType] says a click places one (the
+ * hidden gate tool, or a guide step): in select mode a click on a leg does nothing.
+ */
+export function legClickAction(routePoints: RoutePoint[], click: LatLng, legInsertType: RoutePoint['type'] | null): LegClickAction {
+  if (!legInsertType) return { kind: 'none' };
+
+  let bestIndex = -1;
+  let minDistance = Infinity;
+  for (let i = 0; i < routePoints.length - 1; i++) {
+    const p1 = routePoints[i];
+    const p2 = routePoints[i + 1];
+    let dist = Infinity;
+    if (p2.segmentType === 'curved' && p2.controlLat && p2.controlLng) {
+      const curve = curvePoints(p1, p2, { lat: p2.controlLat, lng: p2.controlLng });
+      for (let j = 0; j < curve.length - 1; j++) {
+        const d = getDistanceFromLine(click, curve[j], curve[j + 1]);
+        if (d < dist) dist = d;
+      }
+    } else {
+      dist = getDistanceFromLine(click, p1, p2);
+    }
+    if (dist < minDistance) {
+      minDistance = dist;
+      bestIndex = i;
+    }
+  }
+  if (bestIndex === -1) return { kind: 'none' };
+
+  const p1 = routePoints[bestIndex];
+  const p2 = routePoints[bestIndex + 1];
+  if (p2.segmentType === 'curved') return insertOnCurvedLeg();
+
+  // On the leg's line: the point of the line at the click's distance from the leg's start
+  const newLoc = getDestinationPoint(p1, getDistance(p1, click), getBearing(p1, p2));
+  const isSecret = legInsertType === 'secret';
+  const point: RoutePoint = {
+    id: crypto.randomUUID(),
+    lat: newLoc.lat,
+    lng: newLoc.lng,
+    name: isSecret
+      ? `Secret ${routePoints.length}`
+      : `${legInsertType.toUpperCase()} ${routePoints.filter((existing) => existing.type === legInsertType).length + 1}`,
+    type: legInsertType,
+    featureType: 'route_waypoint',
+    width: isSecret ? 1000 : 1852,
+    // Checked and timed from the start, a secret gate too (see SECRET_GATE_CHECKS)
+    isTiming: true,
+    isPassing: true,
+    segmentType: 'straight',
+  };
+  return { kind: 'insert', index: bestIndex + 1, point };
+}
+
+/** The type of point a click on a leg places: the hidden gate tool's, or the one a guide step asks for; null in select mode. */
+export function legInsertTypeFor(mode: Mode, wizardRouteInsertType: RoutePoint['type'] | null): RoutePoint['type'] | null {
+  return mode === 'add_hidden_gate' ? 'secret' : wizardRouteInsertType;
 }

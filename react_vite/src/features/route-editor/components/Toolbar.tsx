@@ -5,6 +5,7 @@ import {
   Anchor,
   Activity,
   Camera,
+  EyeOff,
   Hexagon,
   MoveHorizontal,
   Wand2,
@@ -68,6 +69,15 @@ const Toolbar: React.FC<ToolbarProps> = ({ mode, setMode, setTempGatePoint, setT
         >
           <PlusCircle size={18} />
           <span>Catalogue</span>
+        </button>
+
+        <button
+          onClick={() => { setMode('add_hidden_gate'); setTempGatePoint(null); setTempPolygonPoints([]); }}
+          className={`btn btn-sm rounded-full gap-2 border-none ${mode === 'add_hidden_gate' ? 'btn-info' : 'btn-ghost'}`}
+          title="Hidden gate: click a leg of the route to place one"
+        >
+          <EyeOff size={18} />
+          <span>Hidden gate</span>
         </button>
 
         <button

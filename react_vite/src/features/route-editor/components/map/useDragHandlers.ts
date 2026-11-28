@@ -1,12 +1,10 @@
 import { useRef } from 'react';
 import L from 'leaflet';
-import {
-  getDistanceFromLine,
-} from '../../../../utils/geoUtils';
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Polygon, ObservationMarker, SelectionType, Mode } from '../../../../types';
 import { nextOnDummyBranch } from '../../unknownLegWizard';
 import { greatCircleLatLngs } from './renderers';
+import { createDragPreview, type DragPreview } from './dragPreview';
 
 interface useDragHandlersProps {
     mapRef: React.MutableRefObject<L.Map | null>;
@@ -45,10 +43,19 @@ export default function useDragHandlers({
   setSelectedId,
   setSelectionType,
   setMode,
+  maxObsDist,
   onEdit,
   onGestureEnd,
 }: useDragHandlersProps) {
   const dragRef = useRef<any>(null);
+
+  // Fades the hidden gates and photos that dropping the dragged point as [tentative] would remove
+  const previewRemoval = (tentative: RoutePoint[]) => {
+    const drag = dragRef.current;
+    if (!drag) return;
+    if (!drag.preview) drag.preview = createDragPreview(markersRef, drag.initialPoints, observationMarkers, maxObsDist);
+    (drag.preview as DragPreview).update(tentative);
+  };
 
   const handleDragMove = (e: L.LeafletMouseEvent) => {
     if (!dragRef.current) return;
@@ -110,6 +117,7 @@ export default function useDragHandlers({
             }
           });
           routeLineRef.current.setLatLngs(newLatLngs);
+          previewRemoval(tempPoints);
         }
       } else if (type === 'curve_control') {
         const handle = markersRef.current[`curve-handle-${id}`] as L.CircleMarker;
@@ -140,6 +148,7 @@ export default function useDragHandlers({
             }
           });
           routeLineRef.current.setLatLngs(newLatLngs);
+          previewRemoval(tempPoints);
         }
       } else if (type === 'poly_vertex') {
         moveHandle(markersRef, polyId, vertexIndex, e.latlng);
@@ -189,6 +198,8 @@ export default function useDragHandlers({
     if (!dragRef.current) return;
     const { id, hasMoved, type, polyId, vertexIndex, initialPoints, startLatLng } = dragRef.current;
     const map = mapRef.current;
+    // Whatever the drop does is drawn by the redraw; this puts a drag that changed nothing back as it was
+    dragRef.current.preview?.clear();
 
     if (map) {
         map.dragging.enable();
@@ -222,47 +233,6 @@ export default function useDragHandlers({
           });
           dragRef.current = null;
           return;
-        }
-
-        const nextPoints = initialPoints.map((p: RoutePoint) => {
-          if (p.id === id) {
-            const updated = { ...p, lat: newLatLng.lat, lng: newLatLng.lng };
-            if (p.segmentType === 'curved') {
-              updated.controlLat! += latDiff;
-              updated.controlLng! += lngDiff;
-            }
-            return updated;
-          }
-          return p;
-        });
-
-        // Validation: Check Observation Markers Distance
-        if (nextPoints.length > 1) {
-          let invalidObs = null;
-          for (const obs of observationMarkers) {
-            let minD = Infinity;
-            for (let i = 0; i < nextPoints.length - 1; i++) {
-              const d = getDistanceFromLine(obs, nextPoints[i], nextPoints[i + 1]);
-              if (d < minD) minD = d;
-            }
-            if (minD > 926) { // 0.5 NM
-              invalidObs = obs;
-              break;
-            }
-          }
-
-          if (invalidObs) {
-            alert(`Cannot move waypoint. Observation "${invalidObs.name}" would be too far (>0.5NM) from the route.`);
-            // Revert visual changes via re-render (state not updated)
-            const originalPoint = initialPoints.find((p: RoutePoint) => p.id === id);
-            if (originalPoint) {
-               const group = markersRef.current[`point-${id}`] as L.FeatureGroup;
-               if(group) group.eachLayer(l => { if(l instanceof L.CircleMarker) l.setLatLng([originalPoint.lat, originalPoint.lng])});
-               if(routeLineRef.current) routeLineRef.current.setLatLngs(initialPoints.map((p: RoutePoint) => [p.lat, p.lng])); // Simplified reset
-            }
-            dragRef.current = null;
-            return;
-          }
         }
 
         setRoutePoints(prev => {

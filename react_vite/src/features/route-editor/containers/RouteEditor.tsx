@@ -50,12 +50,15 @@ import {
   createStandaloneWizardPoint,
   createTakeoffLandingGate,
   getMinimumObservationDistance,
+  legInsertTypeFor,
   normalizeRoutePointsBeforeAppend,
 } from '../routeEditorMapClickHelpers';
 import { getWizardTransition } from '../routeEditorWizardTransitions';
 import { getModeBanner } from '../modeBanner';
 import { editorKeyAction } from '../routeEditorKeys';
 import { selectionAfterRestore, type RouteSnapshot } from '../routeHistory';
+import { hasRemoval, planRouteChange, removalNotice } from '../routeIntegrity';
+import RouteChangeNotice, { type RouteNotice } from '../components/RouteChangeNotice';
 import useRouteHistory from '../useRouteHistory';
 import { useToast } from '../../competition-map/hooks/useToast';
 import {
@@ -196,7 +199,51 @@ export default function RouteEditor() {
     }
   }, [selectedId, selectionType]);
   const history = useRouteHistory(content, restoreContent);
-  const { reset: resetHistory } = history;
+  const { reset: resetHistory, runUndoableStep } = history;
+
+  // Every change the user makes to the route points goes through here (the loading and restoring of a route do not).
+  // It removes what the change makes illegal (hidden gates on a leg that changed, photos now out of range, see
+  // routeIntegrity.ts) in the same undoable step as the change, and tells the user, with a way to undo it.
+  const livePointsRef = useRef(routePoints);
+  const liveObservationsRef = useRef(observationMarkers);
+  const maxObsDistRef = useRef(maxObsDist);
+  const selectedIdRef = useRef(selectedId);
+  useEffect(() => {
+    livePointsRef.current = routePoints;
+    liveObservationsRef.current = observationMarkers;
+    maxObsDistRef.current = maxObsDist;
+    selectedIdRef.current = selectedId;
+  }, [routePoints, observationMarkers, maxObsDist, selectedId]);
+  const showLegNotice = useCallback((message: string) => showToast(message, 'info', 5000), [showToast]);
+  const [routeNotice, setRouteNotice] = useState<RouteNotice | null>(null);
+  const noticeCounterRef = useRef(0);
+  const dismissRouteNotice = useCallback(() => setRouteNotice(null), []);
+  const changeRoutePoints = useCallback((update: React.SetStateAction<RoutePoint[]>) => {
+    const plan = planRouteChange(livePointsRef.current, update, liveObservationsRef.current, maxObsDistRef.current);
+    if (plan.points === livePointsRef.current) return;
+    livePointsRef.current = plan.points;
+    if (!hasRemoval(plan.removal)) {
+      setRoutePoints(plan.points);
+      return;
+    }
+    liveObservationsRef.current = plan.observationMarkers;
+    const step = runUndoableStep(() => {
+      setRoutePoints(plan.points);
+      setObservationMarkers(plan.observationMarkers);
+    });
+    setIsDirty(true);
+    const removedIds = new Set([...plan.removal.hiddenGates, ...plan.removal.photos].map((item) => item.id));
+    if (selectedIdRef.current && removedIds.has(selectedIdRef.current)) {
+      setSelectedId(null);
+      setSelectionType(null);
+    }
+    noticeCounterRef.current += 1;
+    setRouteNotice({
+      id: noticeCounterRef.current,
+      text: removalNotice(plan.removal, maxObsDistRef.current) ?? '',
+      step,
+    });
+  }, [runUndoableStep]);
 
   // 2.A5: the generated map labels every shown point, so the points are numbered in the order the map shows them
   // (dummy legs included) instead of carrying generic names. Also renames an older route when it is opened. Done while
@@ -521,7 +568,7 @@ export default function RouteEditor() {
       }
       if (wizardRouteInsertType && routePoints.length >= 2) {
         const count = routePoints.filter((point) => point.type === wizardRouteInsertType).length + 1;
-        setRoutePoints(prev => {
+        changeRoutePoints(prev => {
           const newPoints = [...prev];
           const lastRoutePointIndex = newPoints.length - 1;
           const insertIndex = lastRoutePointIndex == null ? newPoints.length : lastRoutePointIndex;
@@ -547,7 +594,7 @@ export default function RouteEditor() {
         return;
       }
 
-      setRoutePoints(prev => {
+      changeRoutePoints(prev => {
         if (isThreePointBackboneTask && prev.length >= 3) {
           alert('This task template uses exactly three route backbone points: SP, MP, and FP. Add extra targets as standalone points instead.');
           return prev;
@@ -621,12 +668,13 @@ export default function RouteEditor() {
     selectionType,
     dummyBranchTriggerId,
     standalonePointTypes,
+    changeRoutePoints,
   ]);
 
   const updateSelectedPoint = (field: keyof RoutePoint, value: any) => {
     setIsDirty(true);
     history.noteEdit(`${selectedId}:${field}`);
-    setRoutePoints(points => {
+    changeRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
       if (index === -1) return points;
 
@@ -718,7 +766,7 @@ export default function RouteEditor() {
       return;
     }
     setIsDirty(true);
-    setRoutePoints(points => {
+    changeRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
       if (index <= 0) return points;
 
@@ -744,7 +792,7 @@ export default function RouteEditor() {
       return;
     }
     setIsDirty(true);
-    setRoutePoints(points => {
+    changeRoutePoints(points => {
       const index = points.findIndex(p => p.id === selectedId);
       if (index <= 0) return points;
 
@@ -764,7 +812,7 @@ export default function RouteEditor() {
   const deleteSelected = () => {
     markDirty();
     if (selectionType === 'point') {
-      setRoutePoints(normalizeDeletedBackboneRoutePoints(deleteItemById(routePoints, selectedId)));
+      changeRoutePoints(normalizeDeletedBackboneRoutePoints(deleteItemById(routePoints, selectedId)));
     } else if (selectionType === 'standalone_point') {
       setStandalonePoints(deleteItemById(standalonePoints, selectedId));
     } else if (selectionType === 'gate') {
@@ -786,12 +834,14 @@ export default function RouteEditor() {
     }
 
     if (selectionType !== 'point') return;
-    setRoutePoints(reorderItemsById(routePoints, selectedId, direction));
+    changeRoutePoints(reorderItemsById(routePoints, selectedId, direction));
   };
 
   const convertSelectedBackbonePointToType = useCallback((nextType: RoutePoint['type'], nextFeatureType: RoutePoint['featureType'] | undefined) => {
     if (!selectedId) return;
     markDirty();
+    // Not through changeRoutePoints: this runs while rendering (see below), and the wizard only turns a point into an
+    // unknown-leg point, which no hidden gate depends on
     setRoutePoints((points) => updateItemById(points, selectedId, (point) => ({
       ...point,
       type: nextType,
@@ -1076,13 +1126,13 @@ export default function RouteEditor() {
     // Reverse/renumber keeps backbone semantics stable for 3-point tasks:
     // after reversal the authored backbone is still normalized back to SP/MP/FP
     // before persistence, rather than preserving literal pre-reverse labels.
-    setRoutePoints((prevPoints) => reverseRoutePoints(prevPoints, isThreePointBackboneTask));
-  }, [isThreePointBackboneTask, markDirty]);
+    changeRoutePoints((prevPoints) => reverseRoutePoints(prevPoints, isThreePointBackboneTask));
+  }, [isThreePointBackboneTask, markDirty, changeRoutePoints]);
 
   const handleRenumberWaypoints = useCallback(() => {
     markDirty();
-    setRoutePoints((prev) => renumberRoutePoints(prev, isThreePointBackboneTask));
-  }, [isThreePointBackboneTask, markDirty]);
+    changeRoutePoints((prev) => renumberRoutePoints(prev, isThreePointBackboneTask));
+  }, [isThreePointBackboneTask, markDirty, changeRoutePoints]);
 
   const activeStepState = findStep(wizardChecklist?.steps ?? [], activeGuideTool);
   const dummyBranchPhase = getDummyBranchPhase(
@@ -1218,7 +1268,7 @@ export default function RouteEditor() {
           points={routePoints}
           onApply={(ids, widthMetres) => {
             setIsDirty(true);
-            setRoutePoints((points) => setWidthOfPoints(points, ids, widthMetres));
+            changeRoutePoints((points) => setWidthOfPoints(points, ids, widthMetres));
           }}
           onClose={() => setGateWidthsOpen(false)}
         />
@@ -1256,13 +1306,14 @@ export default function RouteEditor() {
           showCorridor={showCorridor}
           hideLabels={hideLabels}
           wizardPolygonType={wizardPolygonType}
-          legInsertType={wizardRouteInsertType}
+          legInsertType={legInsertTypeFor(mode, wizardRouteInsertType)}
+          onNotice={showLegNotice}
           onEdit={markDirty}
           onDragGestureStart={history.beginGesture}
           onDragGestureEnd={history.endGesture}
           activeTriggerId={dummyBranchPhase === 'placing' ? dummyBranchTriggerId : null}
           emphasizeUnknownLegTriggers={dummyBranchPhase === 'awaiting_trigger'}
-          setRoutePoints={setRoutePoints}
+          setRoutePoints={changeRoutePoints}
           setStandalonePoints={setStandalonePoints}
           setGates={setGates}
           setObservationMarkers={setObservationMarkers}
@@ -1274,6 +1325,14 @@ export default function RouteEditor() {
           onMapClick={handleMapClick}
           maxObsDist={maxObsDist}
         />
+
+        {routeNotice && (
+          <RouteChangeNotice
+            key={routeNotice.id}
+            notice={routeNotice}
+            onDismiss={dismissRouteNotice}
+          />
+        )}
 
         <div className="absolute bottom-4 left-4 z-[1000] flex flex-col gap-2">
           {mode === 'add_point' && (

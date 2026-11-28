@@ -81,3 +81,39 @@ describe('toolbar undo and redo', () => {
     expect(onSelect).toHaveBeenCalledTimes(1);
   });
 });
+
+describe('toolbar hidden gate tool', () => {
+  it('has a Hidden gate button that starts the tool and shows when it is on', () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const root = createRoot(container);
+    const setMode = vi.fn();
+    const render = (mode: 'view' | 'add_hidden_gate') => act(() => {
+      root.render(
+        <Toolbar
+          mode={mode}
+          setMode={setMode}
+          setTempGatePoint={() => {}}
+          setTempPolygonPoints={() => {}}
+          onSelect={() => {}}
+          openWizard={() => {}}
+          openGateWidths={() => {}}
+          canUndo={false}
+          canRedo={false}
+          onUndo={() => {}}
+          onRedo={() => {}}
+        />,
+      );
+    });
+    const button = () => Array.from(container.querySelectorAll('button')).find((item) => item.textContent === 'Hidden gate') as HTMLButtonElement;
+    render('view');
+    expect(button().className).not.toContain('btn-info');
+    act(() => button().click());
+    expect(setMode).toHaveBeenCalledWith('add_hidden_gate');
+    render('add_hidden_gate');
+    expect(button().className).toContain('btn-info');
+    act(() => root.unmount());
+    container.remove();
+  });
+});
+

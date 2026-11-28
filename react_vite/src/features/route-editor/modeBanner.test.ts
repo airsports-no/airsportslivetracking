@@ -8,7 +8,7 @@ const state = (overrides = {}) => ({ mode: 'view' as const, tempGatePoint: null,
 
 describe('mode banner', () => {
   it('has a text, an icon and a colour for every placing mode', () => {
-    expect(PLACING_MODES.sort()).toEqual(['add_catalogue_turnpoint', 'add_landing', 'add_observation', 'add_point', 'add_polygon', 'add_takeoff']);
+    expect(PLACING_MODES.sort()).toEqual(['add_catalogue_turnpoint', 'add_hidden_gate', 'add_landing', 'add_observation', 'add_point', 'add_polygon', 'add_takeoff']);
     for (const mode of PLACING_MODES) {
       for (const tempGatePoint of [null, { lat: 1, lng: 2 }]) {
         const banner = getModeBanner(state({ mode, tempGatePoint }));
@@ -20,6 +20,11 @@ describe('mode banner', () => {
         expect(banner!.fromGuide).toBe(false);
       }
     }
+  });
+
+  it('says what the hidden gate tool does', () => {
+    expect(bannerSentence(getModeBanner(state({ mode: 'add_hidden_gate' }))!)).toBe('Hidden gate: click a leg of the route to place one.');
+    expect(isPlacing({ mode: 'add_hidden_gate', legInsertType: null })).toBe(true);
   });
 
   it('says what a click does now', () => {
