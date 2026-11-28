@@ -16,7 +16,8 @@ import HelpView from './HelpView';
 import TaskWizardPanel from './TaskWizardPanel';
 import { RoutePoint, Gate, ObservationMarker, Polygon, SelectionType } from '../../../types';
 import { TaskCompatibilityResult } from '../api';
-import type { CompatibilityStatus } from '../taskRequirements';
+import type { CompatibilityStatus, WizardChecklist } from '../taskRequirements';
+import type { RouteRequirementTool } from '../api';
 import { isTaskSubtypeVisible } from '../taskTemplates';
 
 interface SidebarProps {
@@ -55,10 +56,13 @@ interface SidebarProps {
   isDirty: boolean;
   totalLength: number;
   selectedTaskTemplateId: string | null;
-  setSelectedTaskTemplateId: (id: string | null) => void;
-  startWizardStep: (stepKey: string) => void;
-  stopWizardAction: () => void;
-  currentWizardActionLabel: string | null;
+  chooseTask: (id: string) => void;
+  leaveTask: () => void;
+  wizardChecklist: WizardChecklist | null;
+  activeGuideTool: RouteRequirementTool | null;
+  startWizardStep: (tool: RouteRequirementTool) => void;
+  finishWizardStep: () => void;
+  closeWizard: () => void;
   visibleTaskTypeGroups?: string[];
 }
 
@@ -98,10 +102,13 @@ const Sidebar: React.FC<SidebarProps> = ({
   isDirty,
   totalLength,
   selectedTaskTemplateId,
-  setSelectedTaskTemplateId,
+  chooseTask,
+  leaveTask,
+  wizardChecklist,
+  activeGuideTool,
   startWizardStep,
-  stopWizardAction,
-  currentWizardActionLabel,
+  finishWizardStep,
+  closeWizard,
   visibleTaskTypeGroups,
 }) => {
   const renderContent = () => {
@@ -150,19 +157,15 @@ const Sidebar: React.FC<SidebarProps> = ({
     if (selectionType === 'wizard') {
       return <TaskWizardPanel
         selectedTaskTemplateId={selectedTaskTemplateId}
-        setSelectedTaskTemplateId={setSelectedTaskTemplateId}
+        onChooseTask={chooseTask}
+        onBackToTaskList={leaveTask}
         visibleTaskTypeGroups={visibleTaskTypeGroups}
-        routePoints={routePoints}
-        standalonePoints={standalonePoints}
-        gates={gates}
-        observationMarkers={observationMarkers}
-        polygons={polygons}
-        taskCompatibility={taskCompatibility}
+        checklist={wizardChecklist}
         compatibilityStatus={compatibilityStatus}
+        activeTool={activeGuideTool}
         startWizardStep={startWizardStep}
-        stopWizardAction={stopWizardAction}
-        currentWizardActionLabel={currentWizardActionLabel}
-        onClose={() => { setSelectedId(null); setSelectionType(null); }}
+        onDone={finishWizardStep}
+        onClose={closeWizard}
       />;
     }
 

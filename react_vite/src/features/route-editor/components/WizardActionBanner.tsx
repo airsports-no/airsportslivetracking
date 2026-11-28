@@ -8,7 +8,9 @@ interface WizardActionBannerProps {
   // A short title worth showing (which trigger the extension waypoints belong to), or nothing
   title?: string | null;
   instruction: string;
-  stopWizardAction: () => void;
+  // Ends the step: stops the tool and starts the next unmet required step.
+  onDone: () => void;
+  doneLabel?: string;
   dummyBranchPhase?: DummyBranchPhase;
   awaitingNonTriggerSelection?: boolean;
 }
@@ -18,7 +20,8 @@ const WizardActionBanner: React.FC<WizardActionBannerProps> = ({
   currentWizardActionLabel,
   title,
   instruction,
-  stopWizardAction,
+  onDone,
+  doneLabel = 'Done, next step',
   dummyBranchPhase = 'idle',
   awaitingNonTriggerSelection = false,
 }) => {
@@ -33,8 +36,8 @@ const WizardActionBanner: React.FC<WizardActionBannerProps> = ({
           {title && <span className="font-semibold">{title}: </span>}
           {instruction}
         </p>
-        <button type="button" onClick={stopWizardAction} className="btn btn-xs btn-warning shrink-0 rounded-full" title="Stop active step">
-          Done
+        <button type="button" onClick={onDone} className="btn btn-xs btn-warning shrink-0 rounded-full" title={doneLabel}>
+          {doneLabel}
         </button>
       </div>
       {dummyBranchPhase === 'awaiting_trigger' && awaitingNonTriggerSelection && (

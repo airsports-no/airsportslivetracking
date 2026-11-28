@@ -5,11 +5,13 @@ import Toolbar from '../components/Toolbar';
 import GateWidthModal from '../components/GateWidthModal';
 import MapCanvas from '../components/MapCanvas';
 import WizardActionBanner from '../components/WizardActionBanner';
+import TaskChoiceModal from '../components/TaskChoiceModal';
 import {
   fetchRoute,
   fetchTaskCompatibility,
   fetchTaskSubtypeCatalog,
   saveRoute,
+  RouteRequirementTool,
   TaskCompatibilityResult,
   TaskCompatibilitySubtype,
 } from '../api';
@@ -25,7 +27,9 @@ import { getQuadraticBezierPoints } from '../../../utils/bezierPoints';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
 import { buildWizardChecklist, type CompatibilityStatus, getRouteEditorFlags } from '../taskRequirements';
-import { getTaskTemplateById, getWizardRouteInsertLabel, isTaskSubtypeVisible } from '../taskTemplates';
+import { getTaskTemplateById, isTaskSubtypeVisible } from '../taskTemplates';
+import { countForTool, getToolAction, getToolWizardStep } from '../guideTools';
+import { autoAdvance, findStep, nextUnmetRequiredStep, resolveStepEnd, shouldOfferTaskChoice, type StepEnd } from '../guideProgress';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
 import {
   deleteItemById,
@@ -48,7 +52,7 @@ import {
   getMinimumObservationDistance,
   normalizeRoutePointsBeforeAppend,
 } from '../routeEditorMapClickHelpers';
-import { getWizardStep, getWizardTransition } from '../routeEditorWizardTransitions';
+import { getWizardTransition } from '../routeEditorWizardTransitions';
 import { useToast } from '../../competition-map/hooks/useToast';
 import {
   buildDummyBranchWaypoint,
@@ -58,26 +62,6 @@ import {
   nameUnknownLegsRoutePoints,
   previousOnDummyBranch,
 } from '../unknownLegWizard';
-
-// The most markers a free-map step may place, taken from the backend's requirement for the step
-// (null while the backend has not answered: the backend still decides compatibility).
-const getFreeMapStepMaxCount = (
-  selectedTaskTemplateId: string | null,
-  wizardRouteInsertType: RoutePoint['type'] | null,
-  wizardRouteInsertFeatureType: RoutePoint['featureType'] | undefined,
-  taskCompatibility: TaskCompatibilityResult | null,
-) => {
-  if (!selectedTaskTemplateId || !wizardRouteInsertType) return null;
-  const template = getTaskTemplateById(selectedTaskTemplateId);
-  const step = template?.steps.find((item) => (
-    item.pointType === wizardRouteInsertType
-    && item.featureType === wizardRouteInsertFeatureType
-    && item.placement === 'free_map'
-  ));
-  if (!template || !step) return null;
-  const checklist = buildWizardChecklist(template, taskCompatibility, 'ready', () => 0);
-  return checklist.steps.find((state) => state.step.key === step.key)?.maximum ?? null;
-};
 
 export default function RouteEditor() {
   const [routePoints, setRoutePoints] = useState<RoutePoint[]>([]);
@@ -119,6 +103,13 @@ export default function RouteEditor() {
   const [pendingPointFeatureTypeSelection, setPendingPointFeatureTypeSelection] = useState<RoutePoint['featureType'] | undefined>(undefined);
   const [dummyBranchTriggerId, setDummyBranchTriggerId] = useState<string | null>(null);
   const [wizardPrompt, setWizardPrompt] = useState<string | null>(null);
+  // The guide step that is active: the tool it started. Cleared when the step stops (stopWizardAction).
+  const [activeGuideTool, setActiveGuideTool] = useState<RouteRequirementTool | null>(null);
+  // A new route opens with the choice of task over the map. Answered or closed once, it does not come back; a saved
+  // route has an id in the URL and never shows it.
+  const [taskChoiceOpen, setTaskChoiceOpen] = useState(() => shouldOfferTaskChoice(paramRouteId));
+  // A task was chosen: its first unmet required step starts as soon as the steps are known.
+  const [startFirstStep, setStartFirstStep] = useState(false);
   const visibleTaskTypeGroups = useMemo(() => {
     const groups = document.configuration.visibleTaskTypeGroups;
     if (Array.isArray(groups) && groups.length > 0) {
@@ -365,12 +356,32 @@ export default function RouteEditor() {
     ? (compatibilityAnswer.failed ? 'failed' : 'ready')
     : 'pending';
 
+  // The steps of the selected task: the backend's requirements with its verdict once it has answered for this route,
+  // before that the catalogue's requirements with the editor's own counts.
+  const selectedTemplate = getTaskTemplateById(selectedTaskTemplateId);
+  const wizardChecklist = useMemo(() => (
+    selectedTemplate
+      ? buildWizardChecklist(
+        selectedTemplate,
+        taskCompatibility,
+        subtypeCatalog,
+        compatibilityStatus,
+        (tool) => countForTool(tool, { routePoints, standalonePoints, gates, observationMarkers, polygons }),
+      )
+      : null
+  ), [selectedTemplate, taskCompatibility, subtypeCatalog, compatibilityStatus, routePoints, standalonePoints, gates, observationMarkers, polygons]);
+
+  // The most markers the active free-map step may place, from the backend's requirement for the step (null while the
+  // requirements are not known: the backend still decides compatibility).
+  const activeStepMaximum = findStep(wizardChecklist?.steps ?? [], activeGuideTool)?.maximum ?? null;
+
   const beginDummyBranchStep = useCallback((triggerId: string | null) => {
-    const template = getTaskTemplateById(selectedTaskTemplateId);
-    const step = getWizardStep(template, 'dummy');
+    const extension = findStep(wizardChecklist?.steps ?? [], 'extension_waypoint');
+    const step = getToolWizardStep('extension_waypoint', extension?.label ?? 'Extension waypoints', extension?.help ?? getToolAction('extension_waypoint').prompt);
     if (!step) return;
 
-    const transition = getWizardTransition(step, getWizardRouteInsertLabel);
+    setActiveGuideTool('extension_waypoint');
+    const transition = getWizardTransition(step, (item) => getToolAction(item.key as RouteRequirementTool).prompt);
     setPendingPointTypeSelection(null);
     setPendingPointFeatureTypeSelection(undefined);
     setCurrentWizardActionLabel(transition.currentWizardActionLabel);
@@ -386,7 +397,7 @@ export default function RouteEditor() {
     // routePointsRef here would race the setRoutePoints() call convertSelectedBackbonePointToType
     // just made, since the ref only catches up after that render commits.
     setMode(triggerId ? 'add_point' : 'view');
-  }, [selectedTaskTemplateId]);
+  }, [wizardChecklist]);
 
   const handleMapClick = useCallback((latlng: LatLng) => {
     if (mode === 'view') {
@@ -411,7 +422,7 @@ export default function RouteEditor() {
 
     if (isCircleStandaloneTask && mode === 'add_point' && wizardRouteInsertType && standalonePointTypes.has(wizardRouteInsertType)) {
       const circleMarkerCount = standalonePoints.filter((point) => point.type === wizardRouteInsertType).length;
-      const maxCircleMarkerCount = getFreeMapStepMaxCount(selectedTaskTemplateId, wizardRouteInsertType, wizardRouteInsertFeatureType, taskCompatibility);
+      const maxCircleMarkerCount = activeStepMaximum;
       if (maxCircleMarkerCount != null && circleMarkerCount >= maxCircleMarkerCount) {
         alert(`This circle task allows no more than ${maxCircleMarkerCount} ${wizardRouteInsertType.replace('circle_', '').replaceAll('_', ' ')} marker${maxCircleMarkerCount === 1 ? '' : 's'}.`);
         return;
@@ -441,9 +452,10 @@ export default function RouteEditor() {
     }
 
     // 2.A6 / 2.B2: exactly three standalone timed turnpoints, no backbone.
-    if (isTimedTurnpointStandaloneTask && mode === 'add_point' && wizardRouteInsertType === 'timed_turnpoint') {
+    // Known time gates are free-map points whatever the task: the guide's tool places them so.
+    if (mode === 'add_point' && wizardRouteInsertType === 'timed_turnpoint') {
       const timedTurnpointCount = standalonePoints.filter((point) => point.type === 'timed_turnpoint').length;
-      const maxTimedTurnpointCount = getFreeMapStepMaxCount(selectedTaskTemplateId, wizardRouteInsertType, wizardRouteInsertFeatureType, taskCompatibility);
+      const maxTimedTurnpointCount = activeStepMaximum;
       if (maxTimedTurnpointCount != null && timedTurnpointCount >= maxTimedTurnpointCount) {
         alert(`This task allows no more than ${maxTimedTurnpointCount} timed turnpoints.`);
         return;
@@ -501,6 +513,7 @@ export default function RouteEditor() {
         setWizardRouteInsertFeatureType(undefined);
         setCurrentWizardActionLabel(null);
         setWizardPrompt(null);
+        setActiveGuideTool(null);
         return;
       }
 
@@ -529,8 +542,11 @@ export default function RouteEditor() {
         setTempGatePoint(null);
         setMode('view');
         setIsDirty(true);
-        setCurrentWizardActionLabel(null);
-        setWizardPrompt(null);
+        // An active guide step ends itself now that the mode is back to select (see the effect on autoAdvance).
+        if (!activeGuideTool) {
+          setCurrentWizardActionLabel(null);
+          setWizardPrompt(null);
+        }
       }
       return;
     }
@@ -550,8 +566,6 @@ export default function RouteEditor() {
 
       setObservationMarkers(prev => [...prev, createObservationMarker(latlng, prev.map(marker => marker.name))]);
       setIsDirty(true);
-      setCurrentWizardActionLabel(null);
-      setWizardPrompt(null);
       return;
     }
 
@@ -572,9 +586,8 @@ export default function RouteEditor() {
     currentWizardActionLabel,
     isThreePointBackboneTask,
     isCircleStandaloneTask,
-    isTimedTurnpointStandaloneTask,
-    taskCompatibility,
-    selectedTaskTemplateId,
+    activeStepMaximum,
+    activeGuideTool,
     selectionType,
     dummyBranchTriggerId,
     standalonePointTypes,
@@ -758,6 +771,7 @@ export default function RouteEditor() {
     }
     setCurrentWizardActionLabel(null);
     setWizardPrompt(null);
+    setActiveGuideTool(null);
   }, [beginDummyBranchStep, markDirty, selectedId]);
 
   // A wizard step waiting for a backbone point to convert does so as soon as one is selected. Done while rendering
@@ -766,18 +780,44 @@ export default function RouteEditor() {
     convertSelectedBackbonePointToType(pendingPointTypeSelection, pendingPointFeatureTypeSelection);
   }
 
-  const startWizardStep = useCallback((stepKey: string) => {
-    if (stepKey === 'dummy') {
-      const selectedPoint = routePointsRef.current.find((point) => point.id === selectedId) ?? null;
+  // Stops the active guide step and the tool it started. The route is not changed.
+  const stopWizardAction = useCallback(() => {
+    setMode('view');
+    setWizardRouteInsertType(null);
+    setWizardRouteInsertFeatureType(undefined);
+    setWizardPolygonType(null);
+    setCurrentWizardActionLabel(null);
+    setPendingPointTypeSelection(null);
+    setPendingPointFeatureTypeSelection(undefined);
+    setDummyBranchTriggerId(null);
+    setWizardPrompt(null);
+    setActiveGuideTool(null);
+  }, []);
+
+  // Starts the tool of a guide step: the toolbar mode or wizard action it stands for (see TOOL_ACTIONS).
+  const startWizardStep = useCallback((tool: RouteRequirementTool) => {
+    const state = findStep(wizardChecklist?.steps ?? [], tool);
+    const action = getToolAction(tool);
+    const label = state?.label ?? action.shortLabel;
+    const help = state?.help || action.prompt;
+
+    if (tool === 'extension_waypoint') {
+      const selectedPoint = routePoints.find((point) => point.id === selectedId) ?? null;
       beginDummyBranchStep(selectedPoint && isUnknownLegTrigger(selectedPoint) ? selectedPoint.id : null);
       return;
     }
 
-    const template = getTaskTemplateById(selectedTaskTemplateId);
-    const step = getWizardStep(template, stepKey);
-    if (!step) return;
+    const step = getToolWizardStep(tool, label, help);
+    if (!step) {
+      // No placing tool (curved_leg): nothing is selected and no mode starts; the banner shows how it is done.
+      stopWizardAction();
+      setActiveGuideTool(tool);
+      setCurrentWizardActionLabel(help);
+      setWizardPrompt(action.prompt);
+      return;
+    }
 
-    const transition = getWizardTransition(step, getWizardRouteInsertLabel);
+    const transition = getWizardTransition(step, () => action.prompt);
     if (!transition.preserveSelectedPoint) {
       setSelectedId(null);
     }
@@ -785,11 +825,12 @@ export default function RouteEditor() {
     setPendingPointFeatureTypeSelection(undefined);
     setDummyBranchTriggerId(null);
 
+    setActiveGuideTool(tool);
     setCurrentWizardActionLabel(transition.currentWizardActionLabel);
     setWizardRouteInsertType(transition.wizardRouteInsertType as RoutePoint['type'] | null);
     setWizardRouteInsertFeatureType(transition.wizardRouteInsertFeatureType as RoutePoint['featureType'] | undefined);
     setWizardPolygonType(transition.wizardPolygonType as Polygon['type'] | null);
-    setWizardPrompt(transition.routeInsertPrompt);
+    setWizardPrompt(transition.routeInsertPrompt ?? action.prompt);
     if (transition.selectExistingRouteType) {
       setPendingPointTypeSelection(transition.selectExistingRouteType);
       setPendingPointFeatureTypeSelection(transition.selectExistingRouteFeatureType as RoutePoint['featureType'] | undefined);
@@ -806,7 +847,68 @@ export default function RouteEditor() {
     if (transition.mode) {
       setMode(transition.mode);
     }
-  }, [beginDummyBranchStep, selectedId, selectedTaskTemplateId]);
+  }, [beginDummyBranchStep, routePoints, selectedId, stopWizardAction, wizardChecklist]);
+
+  // The step ended (by the user or by itself): start the next unmet required step, or stop. All required steps met is
+  // said in the panel and, for a guide that is closed, in a toast.
+  const applyStepEnd = useCallback((end: StepEnd, announce: boolean) => {
+    if (end.kind === 'start') {
+      startWizardStep(end.tool);
+      return;
+    }
+    stopWizardAction();
+    if (end.kind === 'all_done' && announce) showToast('All required steps are done.', 'success');
+  }, [showToast, startWizardStep, stopWizardAction]);
+
+  // "Done, next step" in the panel and the banner.
+  const finishWizardStep = useCallback(() => {
+    if (!wizardChecklist) {
+      stopWizardAction();
+      return;
+    }
+    applyStepEnd(resolveStepEnd(wizardChecklist, activeGuideTool), true);
+  }, [activeGuideTool, applyStepEnd, stopWizardAction, wizardChecklist]);
+
+  // A step with a fixed count ends when its last one is placed; a single-shot tool (a polygon, a gate) when the mode
+  // is back to select.
+  // Done while rendering rather than in an effect; ending the step makes the condition false, so it runs once.
+  const stepEnd = wizardChecklist ? autoAdvance(wizardChecklist, activeGuideTool, mode) : null;
+  if (stepEnd) {
+    applyStepEnd(stepEnd, false);
+  }
+
+  // A task was chosen (in the task choice or the guide's own list): the guide opens on it with its first unmet
+  // required step active, as soon as the steps are known (the catalogue or the compatibility answer).
+  const chooseTask = useCallback((id: string) => {
+    stopWizardAction();
+    setSelectedTaskTemplateId(id);
+    setIsDirty(true);
+    setTaskChoiceOpen(false);
+    setSelectedId(null);
+    setSelectionType('wizard');
+    setStartFirstStep(true);
+  }, [stopWizardAction]);
+
+  const leaveTask = useCallback(() => {
+    stopWizardAction();
+    setSelectedTaskTemplateId(null);
+    setIsDirty(true);
+    setStartFirstStep(false);
+  }, [stopWizardAction]);
+
+  // Closing the guide never changes the route; it only stops the active step.
+  const closeWizard = useCallback(() => {
+    stopWizardAction();
+    setSelectedId(null);
+    setSelectionType(null);
+  }, [stopWizardAction]);
+
+  // Also while rendering; starting clears the flag.
+  if (startFirstStep && wizardChecklist && wizardChecklist.steps.length > 0) {
+    setStartFirstStep(false);
+    const first = nextUnmetRequiredStep(wizardChecklist.steps);
+    if (first) startWizardStep(first.key);
+  }
 
   useEffect(() => {
     if (wizardRouteInsertFeatureType !== 'dummy_branch_waypoint') {
@@ -853,18 +955,6 @@ export default function RouteEditor() {
           ))
       : []
   ), [routePoints, standalonePoints, observationMarkers, isThreePointBackboneTask, isCircleStandaloneTask, isTimedTurnpointStandaloneTask, isCurveRequiredTask, hasExtensionWaypoints]);
-
-  const stopWizardAction = useCallback(() => {
-    setMode('view');
-    setWizardRouteInsertType(null);
-    setWizardRouteInsertFeatureType(undefined);
-    setWizardPolygonType(null);
-    setCurrentWizardActionLabel(null);
-    setPendingPointTypeSelection(null);
-    setPendingPointFeatureTypeSelection(undefined);
-    setDummyBranchTriggerId(null);
-    setWizardPrompt(null);
-  }, []);
 
   const handleSave = async () => {
     if (!routeName || !routeName.trim()) {
@@ -929,6 +1019,7 @@ export default function RouteEditor() {
     setRoutePoints((prev) => renumberRoutePoints(prev, isThreePointBackboneTask));
   }, [isThreePointBackboneTask, markDirty]);
 
+  const activeStepState = findStep(wizardChecklist?.steps ?? [], activeGuideTool);
   const dummyBranchPhase = getDummyBranchPhase(
     wizardRouteInsertFeatureType === 'dummy_branch_waypoint',
     dummyBranchTriggerId,
@@ -948,6 +1039,13 @@ export default function RouteEditor() {
   return (
     <>
       <ToastContainer toasts={toasts} removeToast={removeToast} />
+      {taskChoiceOpen && (
+        <TaskChoiceModal
+          visibleTaskTypeGroups={visibleTaskTypeGroups}
+          onChoose={chooseTask}
+          onClose={() => setTaskChoiceOpen(false)}
+        />
+      )}
       {createTaskPromptRouteId !== null && (
         <div className="toast toast-bottom toast-center z-[9998]">
           <div className="alert alert-info shadow-lg">
@@ -1018,13 +1116,13 @@ export default function RouteEditor() {
           isDirty={isDirty}
           totalLength={totalLength}
           selectedTaskTemplateId={selectedTaskTemplateId}
-          setSelectedTaskTemplateId={(id) => {
-            setSelectedTaskTemplateId(id);
-            setIsDirty(true);
-          }}
+          chooseTask={chooseTask}
+          leaveTask={leaveTask}
+          wizardChecklist={wizardChecklist}
+          activeGuideTool={activeGuideTool}
           startWizardStep={startWizardStep}
-          stopWizardAction={stopWizardAction}
-          currentWizardActionLabel={currentWizardActionLabel}
+          finishWizardStep={finishWizardStep}
+          closeWizard={closeWizard}
           visibleTaskTypeGroups={visibleTaskTypeGroups}
         />
       </div>
@@ -1054,7 +1152,8 @@ export default function RouteEditor() {
             currentWizardActionLabel={currentWizardActionLabel}
             title={bannerText?.title}
             instruction={bannerText?.instruction || wizardPrompt || 'Follow the wizard instructions on the map.'}
-            stopWizardAction={stopWizardAction}
+            onDone={finishWizardStep}
+            doneLabel={activeStepState && activeStepState.fixedCount !== null ? 'Stop' : 'Done, next step'}
             dummyBranchPhase={dummyBranchPhase}
             awaitingNonTriggerSelection={awaitingNonTriggerSelection}
           />

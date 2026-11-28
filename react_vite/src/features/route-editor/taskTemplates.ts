@@ -1,5 +1,3 @@
-import { Gate, ObservationMarker, Polygon, RoutePoint } from '../../types';
-
 export type TaskTemplateGroup = 'Legacy' | 'CIMA';
 
 export type TaskTemplateId =
@@ -17,25 +15,9 @@ export type TaskTemplateId =
   | 'cima_b2'
   | 'cima_b3';
 
-// 'guide' steps only instruct the organiser (there is no tool to start); their state comes from the
-// backend requirement they are mapped to in taskRequirements.ts.
-export type WizardStepKind = 'route' | 'point' | 'observation' | 'takeoff_gate' | 'landing_gate' | 'polygon' | 'guide';
-export type WizardStepCountMode = 'strict' | 'route_waypoints';
-
-export interface WizardStep {
-  key: string;
-  label: string;
-  help: string;
-  kind: WizardStepKind;
-  // Presentation only. Whether a step is required, and its minimum/maximum, come from the backend's
-  // route requirements for the task type (see taskRequirements.ts); a step without one is optional.
-  pointType?: RoutePoint['type'];
-  featureType?: NonNullable<RoutePoint['featureType']>;
-  polygonType?: Polygon['type'];
-  placement?: 'route_insert' | 'free_map';
-  countMode?: WizardStepCountMode;
-}
-
+// The route editor's task choice. What a task needs of the route (its steps, their help texts and tools, the flags)
+// is the backend's task type registry, returned by the compatibility API; this file only says which task types are
+// offered as templates, in which group and order, and how they are named and described.
 export interface TaskTemplate {
   id: TaskTemplateId;
   label: string;
@@ -47,258 +29,24 @@ export interface TaskTemplate {
   // Task type registry key whose route requirements drive this template's checklist. Equal to
   // `subtype` for CIMA templates; the legacy templates have no `subtype` but do have a backend key.
   backendKey: string;
+  // One line.
   description: string;
-  steps: WizardStep[];
-  guideOnly?: boolean;
-  guideSummary?: string;
 }
 
-const routeStep = (help: string): WizardStep => ({
-  key: 'route_waypoint',
-  label: 'Route path',
-  help,
-  kind: 'route',
-  pointType: 'tp',
-  featureType: 'route_waypoint',
-  countMode: 'strict',
-});
-
-const pointStep = (
-  key: string,
-  label: string,
-  help: string,
-  pointType: RoutePoint['type'],
-  featureType: NonNullable<RoutePoint['featureType']>,
-  placement: 'route_insert' | 'free_map',
-  countMode: WizardStepCountMode = 'strict',
-): WizardStep => ({
-  key,
-  label,
-  help,
-  kind: 'point',
-  pointType,
-  featureType,
-  placement,
-  countMode,
-});
-
-const guideStep = (key: string, label: string, help: string): WizardStep => ({
-  key,
-  label,
-  help,
-  kind: 'guide',
-});
-
-const observationStep = (help: string): WizardStep => ({
-  key: 'observation_photo',
-  label: 'Observation photos',
-  help,
-  kind: 'observation',
-  countMode: 'strict',
-});
-
-const takeoffGateStep = (help: string): WizardStep => ({
-  key: 'takeoff_gate',
-  label: 'Take-off gate',
-  help,
-  kind: 'takeoff_gate',
-  countMode: 'strict',
-});
-
-const landingGateStep = (help: string): WizardStep => ({
-  key: 'landing_gate',
-  label: 'Landing gate',
-  help,
-  kind: 'landing_gate',
-  countMode: 'strict',
-});
-
-const polygonStep = (
-  key: string,
-  label: string,
-  help: string,
-  polygonType: Polygon['type'],
-): WizardStep => ({
-  key,
-  label,
-  help,
-  kind: 'polygon',
-  polygonType,
-  countMode: 'strict',
-});
-
 export const TASK_TEMPLATES: TaskTemplate[] = [
-  {
-    id: 'precision',
-    backendKey: 'legacy_precision',
-    label: 'Precision',
-    group: 'Legacy',
-    description: 'Build a regular precision route with start, visible turn points, finish, and optional secret points.',
-    guideOnly: true,
-    guideSummary: 'Build a normal precision route with the usual point tools. Use the point editor to convert intermediate points to secret points where needed.',
-    steps: [
-      routeStep('Build a normal precision route. Use curved legs if needed. Add secret points by clicking the route line in View mode.'),
-    ],
-  },
-  {
-    id: 'anr',
-    backendKey: 'legacy_anr_corridor',
-    label: 'ANR',
-    group: 'Legacy',
-    description: 'Build the ANR base route first. Auxiliary ANR paths are still outside this first guided flow.',
-    guideOnly: true,
-    guideSummary: 'Build the main ANR route first with the normal point tools. Auxiliary ANR paths still need separate authoring later.',
-    steps: [routeStep('Build the ANR route path with start, route waypoints, and finish.')],
-  },
-  {
-    id: 'airsports_challenge',
-    backendKey: 'legacy_airsport_challenge',
-    label: 'Air Sports Challenge',
-    group: 'Legacy',
-    description: 'Build the challenge base route first.',
-    guideOnly: true,
-    guideSummary: 'Build the challenge route with the normal route tools, then refine any task-specific details afterwards.',
-    steps: [routeStep('Build the challenge route path with start, route waypoints, and finish.')],
-  },
-  {
-    id: 'cima_a1',
-    backendKey: 'curve_navigation_time_estimation',
-    label: '2.A1 Curve navigation with time estimation',
-    group: 'CIMA',
-    subtype: 'curve_navigation_time_estimation',
-    description: 'This is still a precision route, but it must include at least one curved leg. Route waypoints are the visible time/turn points; curved legs use the normal curved-leg feature. Hidden gates are optional but recommended.',
-    guideOnly: true,
-    guideSummary: 'Build a normal precision route first. The ordinary visible route points are the known points, curved legs use the existing curved-leg feature. Hidden gates are not required, but consider adding a few along the route for spatial-precision scoring.',
-    steps: [
-      routeStep('Build the precision route first, with a start (SP), the visible turn points and a finish (FP).'),
-      guideStep('curved_leg', 'Curved leg', 'At least one leg of the route must be curved, otherwise the route is not suitable for this task. Hold the curve modifier while placing a point, or select a route point and change its leg to curved in the point editor.'),
-      pointStep('known_time_gate', 'Visible known time points', 'Your visible route points are the known time points for this task. Use route geometry first; add explicit known-time markers only if you need extra authored markers beyond the normal route points.', 'tp', 'route_waypoint', 'route_insert', 'route_waypoints'),
-      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates along the route to add spatial-precision scoring. Click a leg of the finished route to insert one there.', 'secret', 'route_waypoint', 'route_insert'),
-    ],
-  },
-  {
-    id: 'cima_a2',
-    backendKey: 'precision_navigation',
-    label: '2.A2 Precision navigation',
-    group: 'CIMA',
-    subtype: 'precision_navigation',
-    description: 'This is a standard precision route with visible turn points. At least one hidden gate along the corridor is required: the task is scored on the hidden gates.',
-    guideOnly: true,
-    guideSummary: 'Build the visible precision route first, then insert at least one hidden gate along the route corridor: without one every pilot scores zero.',
-    steps: [
-      routeStep('Build the visible route: the start point (SP) must be the first waypoint, then at least one visible turn point, and the finish point (FP) must be the last waypoint (at least three waypoints in total).'),
-      pointStep('hidden_gate', 'Hidden gates', 'Insert at least one hidden gate along the route corridor: the task is scored on the hidden gates. Click a leg of the finished route to insert one there.', 'secret', 'route_waypoint', 'route_insert'),
-    ],
-  },
-  {
-    id: 'cima_a3',
-    backendKey: 'contract_navigation_time_controls',
-    label: '2.A3 Contract navigation with time controls',
-    group: 'CIMA',
-    subtype: 'contract_navigation_time_controls',
-    description: 'Base route plus catalogue turnpoints; declaration ordering happens later in contestant configuration.',
-    steps: [
-      routeStep('Build exactly three route waypoints, in this order and with these names: SP (start), MP (middle point) and FP (finish).'),
-      pointStep('catalogue_turnpoint', 'Catalogue turnpoints', 'Place at least one free catalogue turnpoint, in addition to SP, MP and FP, that the pilot may later declare in sequence.', 'catalogue_turnpoint', 'catalogue_turnpoint', 'free_map'),
-      observationStep('Optionally add photo markers and associate them with specific catalogue turnpoints.'),
-    ],
-  },
-  {
-    id: 'cima_a4',
-    backendKey: 'known_circuit',
-    label: '2.A4 Navigation over a known circuit',
-    group: 'CIMA',
-    subtype: 'known_circuit',
-    description: 'Known circuit route. It needs at least one known time gate, hidden gate or observation photo as evidence: without one there is nothing to score besides the start and finish.',
-    guideOnly: true,
-    guideSummary: 'Build the known circuit first. Then add at least one known time gate, hidden gate or photo as evidence for scoring.',
-    steps: [
-      routeStep('Build the known circuit route first.'),
-      pointStep('hidden_gate', 'Hidden gates', 'You need at least one known time gate, hidden gate or photo. For a hidden gate, use the Hidden gate tool and click a leg of the route where the gate should be.', 'secret', 'route_waypoint', 'route_insert'),
-      observationStep('You need at least one known time gate, hidden gate or photo. For a photo, use the Photo tool and click the map where the photo was taken.'),
-    ],
-  },
-  {
-    id: 'cima_a5',
-    backendKey: 'unknown_legs',
-    label: '2.A5 Navigation with unknown legs',
-    group: 'CIMA',
-    subtype: 'unknown_legs',
-    description: 'True backbone route plus unknown-leg points and separate extensions. Hidden route-backbone gates and observation/photo evidence are both optional but recommended.',
-    guideSummary: 'Build the true backbone first. Click a backbone waypoint to make it an unknown-leg point, then the wizard goes straight into placing extension waypoints from that point.',
-    steps: [
-      routeStep('Build the true route backbone first. This is the route the contestant flies: SP first, FP last, and at least one waypoint between them to become an unknown-leg point (at least three waypoints in total).'),
-      pointStep('unknown_leg', 'Unknown-leg points', 'Mark at least one backbone waypoint as an unknown-leg point: click it on the map; the wizard then goes straight to placing its extension waypoints.', 'ul', 'route_waypoint', 'route_insert'),
-      pointStep('dummy', 'Extension waypoints', 'Every unknown-leg point needs at least one extension waypoint after it. Click an amber unknown-leg point on the map — placement starts automatically — then click the map for each extension waypoint.', 'dummy', 'dummy_branch_waypoint', 'free_map'),
-      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates directly on the true route backbone as evidence for scoring.', 'secret', 'route_waypoint', 'route_insert'),
-      observationStep('Not required, but consider adding a few observation/photo markers as evidence for scoring.'),
-    ],
-  },
-  {
-    id: 'cima_a6',
-    backendKey: 'turnpoint_hunt',
-    label: '2.A6 Turnpoint hunt',
-    group: 'CIMA',
-    subtype: 'turnpoint_hunt',
-    description: 'No route backbone. Exactly three standalone timed turnpoints, plus any number of untimed catalogue turnpoints. The contestant declares the order.',
-    steps: [
-      pointStep('timed_turnpoint', 'Timed turnpoints', 'Place exactly three standalone timed turnpoints (CP1/CP2/CP3). Their crossing times and order are declared per contestant, not fixed here.', 'timed_turnpoint', 'known_time_gate', 'free_map'),
-      pointStep('catalogue_turnpoint', 'Catalogue turnpoints', 'Place the untimed turnpoint catalogue the pilot may choose from.', 'catalogue_turnpoint', 'catalogue_turnpoint', 'free_map'),
-      observationStep('Optionally add photo markers and associate them with catalogue turnpoints as evidence targets.'),
-    ],
-  },
-  {
-    id: 'cima_a7',
-    backendKey: 'circle',
-    label: '2.A7 Circle',
-    group: 'CIMA',
-    subtype: 'circle',
-    description: 'Explicit circle markers: start, center, entry, and exit.',
-    steps: [
-      pointStep('circle_start', 'Circle start', 'Place exactly one circle start marker (SP).', 'circle_start', 'circle_start_marker', 'free_map'),
-      pointStep('circle_center', 'Circle center', 'Place exactly one circle center marker (CM).', 'circle_center', 'circle_center_marker', 'free_map'),
-      pointStep('circle_entry', 'Circle entry', 'Place exactly one circle entry marker (X).', 'circle_entry', 'circle_entry_marker', 'free_map'),
-      pointStep('circle_exit', 'Circle exit', 'Place exactly one circle exit marker (WP).', 'circle_exit', 'circle_exit_marker', 'free_map'),
-    ],
-  },
-  {
-    id: 'cima_a8',
-    backendKey: 'anr_catalogue',
-    label: '2.A8 Precision navigation ANR',
-    group: 'CIMA',
-    subtype: 'anr_catalogue',
-    description: 'ANR-based route. Build the route path first; auxiliary ANR paths may still need separate handling.',
-    guideOnly: true,
-    guideSummary: 'Build the ANR route first. Route-to-SP and route-from-FP auxiliary paths still need separate handling.',
-    steps: [routeStep('Build the ANR route path with start and finish.')],
-  },
-  {
-    id: 'cima_b2',
-    backendKey: 'limited_fuel_turnpoint_hunt',
-    label: '2.B2 Limited fuel turnpoint hunt',
-    group: 'CIMA',
-    subtype: 'limited_fuel_turnpoint_hunt',
-    description: 'No route backbone. Exactly three standalone timed turnpoints, plus any number of untimed catalogue turnpoints, and a fuel-endurance declaration later. Not a precision task: all gate crossings score.',
-    steps: [
-      pointStep('timed_turnpoint', 'Timed turnpoints', 'Place exactly three standalone timed turnpoints (CP1/CP2/CP3). Only their crossing times are declared per contestant; there is no required order.', 'timed_turnpoint', 'known_time_gate', 'free_map'),
-      pointStep('catalogue_turnpoint', 'Catalogue turnpoints', 'Place the untimed turnpoint catalogue.', 'catalogue_turnpoint', 'catalogue_turnpoint', 'free_map'),
-      observationStep('Optionally add photo markers and associate them with catalogue turnpoints as evidence targets.'),
-    ],
-  },
-  {
-    id: 'cima_b3',
-    backendKey: 'duration',
-    label: '2.B3 Duration',
-    group: 'CIMA',
-    subtype: 'duration',
-    description: 'Not required, but placing take-off and landing gates gives the most precise measured duration. Without them, take-off/landing is inferred from the tracked speed profile instead. The landing area polygon defines the allowed touchdown area.',
-    guideSummary: 'Use the steps below to place the take-off and landing gates that mark the start and end of the measured duration, and to draw the landing area.',
-    steps: [
-      takeoffGateStep('Place a take-off gate to mark exactly when the measured duration starts. Not required - if left unplaced, take-off is instead inferred from a sustained near-zero-speed hold followed by a rise in tracked speed, which is less precise.'),
-      landingGateStep('Place a landing gate to mark exactly when the measured duration ends. Not required - if left unplaced, landing is instead inferred from a sustained drop to near-zero tracked speed, which is less precise.'),
-      polygonStep('duration_landing_area', 'Duration landing area', 'Required: draw the landing area polygon for the task. The route is not suitable for this task until there is one.', 'duration_landing_area'),
-    ],
-  },
+  { id: 'precision', backendKey: 'legacy_precision', label: 'Precision', group: 'Legacy', description: 'Start, turn points and finish, with optional hidden gates.' },
+  { id: 'anr', backendKey: 'legacy_anr_corridor', label: 'ANR', group: 'Legacy', description: 'An air navigation race route flown in a corridor.' },
+  { id: 'airsports_challenge', backendKey: 'legacy_airsport_challenge', label: 'Air Sports Challenge', group: 'Legacy', description: 'A challenge route with start, waypoints and finish.' },
+  { id: 'cima_a1', backendKey: 'curve_navigation_time_estimation', label: '2.A1 Curve navigation with time estimation', group: 'CIMA', subtype: 'curve_navigation_time_estimation', description: 'A precision route with at least one curved leg.' },
+  { id: 'cima_a2', backendKey: 'precision_navigation', label: '2.A2 Precision navigation', group: 'CIMA', subtype: 'precision_navigation', description: 'A precision route scored on its hidden gates.' },
+  { id: 'cima_a3', backendKey: 'contract_navigation_time_controls', label: '2.A3 Contract navigation with time controls', group: 'CIMA', subtype: 'contract_navigation_time_controls', description: 'SP, MP and FP, with free catalogue turn points.' },
+  { id: 'cima_a4', backendKey: 'known_circuit', label: '2.A4 Navigation over a known circuit', group: 'CIMA', subtype: 'known_circuit', description: 'A known circuit with time gates, hidden gates or photos.' },
+  { id: 'cima_a5', backendKey: 'unknown_legs', label: '2.A5 Navigation with unknown legs', group: 'CIMA', subtype: 'unknown_legs', description: 'A true route with unknown-leg points and extension waypoints.' },
+  { id: 'cima_a6', backendKey: 'turnpoint_hunt', label: '2.A6 Turnpoint hunt', group: 'CIMA', subtype: 'turnpoint_hunt', description: 'No route: three timed turn points and free catalogue turn points.' },
+  { id: 'cima_a7', backendKey: 'circle', label: '2.A7 Circle', group: 'CIMA', subtype: 'circle', description: 'Circle start, centre, entry and exit markers.' },
+  { id: 'cima_a8', backendKey: 'anr_catalogue', label: '2.A8 Precision navigation ANR', group: 'CIMA', subtype: 'anr_catalogue', description: 'Precision navigation on an air navigation race route.' },
+  { id: 'cima_b2', backendKey: 'limited_fuel_turnpoint_hunt', label: '2.B2 Limited fuel turnpoint hunt', group: 'CIMA', subtype: 'limited_fuel_turnpoint_hunt', description: 'No route: three timed turn points and catalogue turn points, on limited fuel.' },
+  { id: 'cima_b3', backendKey: 'duration', label: '2.B3 Duration', group: 'CIMA', subtype: 'duration', description: 'A landing area, with optional take-off and landing gates.' },
 ];
 
 // Filters templates against the raw visible-task-type-group strings the
@@ -326,6 +74,17 @@ export const isTaskSubtypeVisible = (
 
 export const getVisibleTaskTemplates = (visibleTaskTypeGroups: string[] | undefined): TaskTemplate[] =>
   TASK_TEMPLATES.filter((template) => isTaskSubtypeVisible(template.group, template.subtype, visibleTaskTypeGroups));
+
+// The templates the user may see, grouped as the task choice and the guide show them (Legacy first, then CIMA).
+export const groupTemplates = (templates: TaskTemplate[]): Array<[TaskTemplateGroup, TaskTemplate[]]> => {
+  const groups: Array<[TaskTemplateGroup, TaskTemplate[]]> = [];
+  for (const template of templates) {
+    const existing = groups.find(([group]) => group === template.group);
+    if (existing) existing[1].push(template);
+    else groups.push([template.group, [template]]);
+  }
+  return groups;
+};
 
 export const getTaskTemplateById = (id: string | null | undefined): TaskTemplate | undefined =>
   TASK_TEMPLATES.find((template) => template.id === id);
@@ -386,63 +145,4 @@ export const groupTaskTypesByFamily = (
     ...[...namesByFamily.keys()].filter((family) => !COARSE_FAMILY_ORDER.includes(family)),
   ];
   return orderedFamilies.map((family) => ({ family, subtypeNames: namesByFamily.get(family)! }));
-};
-
-export const countWizardStepMatches = (
-  step: WizardStep,
-  routePoints: RoutePoint[],
-  standalonePoints: RoutePoint[],
-  gates: Gate[],
-  observationMarkers: ObservationMarker[],
-  polygons: Polygon[],
-): number => {
-  const routeInsertBackboneTypes = new Set<RoutePoint['type']>([
-    'sp',
-    'tp',
-    'fp',
-    'secret',
-    'anrtp',
-    'ul',
-    'unknown_leg',
-    'dummy',
-  ]);
-
-  if (step.kind === 'route') {
-    return routePoints.filter((point) => point.featureType !== 'dummy_branch_waypoint' && routeInsertBackboneTypes.has(point.type)).length;
-  }
-  if (step.kind === 'point') {
-    if (step.countMode === 'route_waypoints') {
-      return routePoints.filter((point) => point.type === 'sp' || point.type === 'tp' || point.type === 'fp').length;
-    }
-    const pointPool = step.placement === 'free_map' ? standalonePoints : routePoints;
-    if (step.featureType === 'dummy_branch_waypoint') {
-      return pointPool.filter((point) => point.featureType === 'dummy_branch_waypoint' && point.type === step.pointType).length;
-    }
-    return pointPool.filter((point) => point.type === step.pointType).length;
-  }
-  if (step.kind === 'observation') {
-    return observationMarkers.length;
-  }
-  if (step.kind === 'takeoff_gate') {
-    return gates.filter((gate) => gate.type === 'takeoff').length;
-  }
-  if (step.kind === 'landing_gate') {
-    return gates.filter((gate) => gate.type === 'landing').length;
-  }
-  if (step.kind === 'polygon') {
-    return polygons.filter((polygon) => polygon.type === step.polygonType).length;
-  }
-  if (step.kind === 'guide') {
-    // Only the curved-leg guide has something to count locally; the backend's count replaces it.
-    return step.key === 'curved_leg' ? routePoints.filter((point) => point.segmentType === 'curved').length : 0;
-  }
-  return 0;
-};
-
-export const getWizardRouteInsertLabel = (step: WizardStep): string => {
-  if (step.key === 'hidden_gate') return 'Click a leg of the route where a hidden gate should be: it is inserted there. Click more legs for more gates.';
-  if (step.key === 'known_time_gate') return 'Click a leg of the route where a known time gate should be: it is inserted there.';
-  if (step.pointType === 'ul') return 'Click the backbone waypoint you want as an unknown-leg point; the wizard then goes straight to placing its extension waypoints.';
-  if (step.featureType === 'dummy_branch_waypoint') return 'Click an amber unknown-leg point on the map — placement starts automatically — then click the map for each extension waypoint.';
-  return 'Click the existing route line to insert the required point.';
 };

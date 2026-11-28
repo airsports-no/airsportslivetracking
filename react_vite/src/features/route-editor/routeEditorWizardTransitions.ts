@@ -1,5 +1,5 @@
 import { Mode, RoutePoint } from '../../types';
-import { TaskTemplate, WizardStep } from './taskTemplates';
+import type { WizardStep } from './guideTools';
 
 export type WizardTransition = {
   mode: Mode | null;
@@ -132,8 +132,4 @@ export function getWizardTransition(step: WizardStep | undefined, routeInsertLab
   }
 
   return DEFAULT_TRANSITION;
-}
-
-export function getWizardStep(template: TaskTemplate | undefined, stepKey: string): WizardStep | undefined {
-  return template?.steps.find((item) => item.key === stepKey);
 }
