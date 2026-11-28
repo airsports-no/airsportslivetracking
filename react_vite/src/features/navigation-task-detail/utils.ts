@@ -16,3 +16,18 @@ export const formatDateHeadingInZone = (iso: string, timeZone: string): string =
 export const formatWindDirection = (degrees: number): string => String(Math.round(degrees)).padStart(3, '0');
 
 export const formatWholeNumber = (value: number): string => String(Math.round(value));
+
+/** Tmax (2.A1, the longest time allowed from SP to FP) is stored in seconds in task_config; the form takes minutes and seconds. */
+export const CURVE_NAVIGATION_SUBTYPE = 'curve_navigation_time_estimation';
+
+export const splitTmax = (seconds: unknown): { minutes: string; seconds: string } => {
+  const total = Number(seconds);
+  if (!Number.isFinite(total) || total <= 0) return { minutes: '', seconds: '' };
+  return { minutes: String(Math.floor(total / 60)), seconds: String(Math.round(total % 60)) };
+};
+
+/** The Tmax in seconds from the two form fields, null (no limit) when both are empty or zero. */
+export const joinTmax = (minutes: string, seconds: string): number | null => {
+  const total = (Number(minutes) || 0) * 60 + (Number(seconds) || 0);
+  return total > 0 ? Math.round(total) : null;
+};

@@ -45,13 +45,20 @@ if TYPE_CHECKING:
 @dataclass(frozen=True)
 class CimaScoringConfig:
     compulsory_timing_tolerance_seconds: int = 10
+    compulsory_timing_penalty_per_second: float = 10
+    turnpoint_hunt_time_gate_value: float = 200
     maximum_task_duration_minutes: Optional[int] = None
-    maximum_task_duration_penalty: float = 100
+    maximum_task_duration_penalty: float = 10
     fuel_deadline_penalty: float = 100
     duration_normalization_policy: str = ""
     duration_residual_fuel_required: bool = False
+    duration_landing_area_penalty_percent: float = 50
     circle_radius_min_m: float = 200
     circle_radius_max_m: float = 750
+    circle_altitude_band_ft: float = 200
+    circle_altitude_penalty_percent: float = 20
+    circle_centre_outside_penalty_percent: float = 100
+    speed_keeping_enabled: bool = False
     speed_keeping_tolerance_kt: float = 5
     speed_keeping_penalty_per_kt: float = 1
     anr_route_to_sp_penalty: float = 200
@@ -62,13 +69,20 @@ class CimaScoringConfig:
     def from_scorecard(cls, scorecard: "Scorecard") -> "CimaScoringConfig":
         return cls(
             compulsory_timing_tolerance_seconds=scorecard.compulsory_timing_tolerance_seconds,
+            compulsory_timing_penalty_per_second=scorecard.compulsory_timing_penalty_per_second,
+            turnpoint_hunt_time_gate_value=scorecard.turnpoint_hunt_time_gate_value,
             maximum_task_duration_minutes=scorecard.maximum_task_duration_minutes,
             maximum_task_duration_penalty=scorecard.maximum_task_duration_penalty,
             fuel_deadline_penalty=scorecard.fuel_deadline_penalty,
             duration_normalization_policy=scorecard.duration_normalization_policy,
             duration_residual_fuel_required=scorecard.duration_residual_fuel_required,
+            duration_landing_area_penalty_percent=scorecard.duration_landing_area_penalty_percent,
             circle_radius_min_m=scorecard.circle_radius_min_m,
             circle_radius_max_m=scorecard.circle_radius_max_m,
+            circle_altitude_band_ft=scorecard.circle_altitude_band_ft,
+            circle_altitude_penalty_percent=scorecard.circle_altitude_penalty_percent,
+            circle_centre_outside_penalty_percent=scorecard.circle_centre_outside_penalty_percent,
+            speed_keeping_enabled=scorecard.speed_keeping_enabled,
             speed_keeping_tolerance_kt=scorecard.speed_keeping_tolerance_kt,
             speed_keeping_penalty_per_kt=scorecard.speed_keeping_penalty_per_kt,
             anr_route_to_sp_penalty=scorecard.anr_route_to_sp_penalty,

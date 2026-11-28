@@ -11,7 +11,7 @@ from django.utils import timezone
 
 from display.models import NavigationTask
 from display.services.contest_visibility import visible_navigation_tasks_q
-from display.utilities.cima_task_type_definitions import describe_task_subtype
+from display.utilities.task_types import describe_task_subtype
 
 
 def _day_bounds(now: datetime.datetime, timezone_name: Optional[str]):

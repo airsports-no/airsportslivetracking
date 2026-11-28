@@ -11,6 +11,7 @@
   "MISSION_DASHBOARD_PHOTOS": "mission-dashboard/:contestId/:navigationTaskId/photos",
   "NAVIGATION_TASK_DETAIL": "mission-dashboard/:contestId/task/:navigationTaskId",
   "CONTESTANT_DECLARATION": "contestant-declaration/:contestId/:navigationTaskId/:contestantId",
+  "PILOT_DECLARATION": "declaration/:contestantId",
 
   "COMPETITION_MAP": "competition-map",
   "COMPETITION_MAP_DETAIL": "competition-map/:contestId/:navigationTaskId",

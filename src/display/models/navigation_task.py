@@ -17,18 +17,17 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_available_map_source_definitions_for_navigation_task,
 )
 from display.templatetags.frontend_urls import fe_url
-from display.utilities.cima_task_type_definitions import (
-    NO_BACKBONE_TASK_SUBTYPES,
-    get_cima_scoring_baseline,
-    get_default_task_subtype_for_family,
-)
-from display.utilities.navigation_task_type_definitions import (
-    AIRSPORT_CHALLENGE,
+from display.utilities.task_types import (
     AIRSPORTS,
+    AIRSPORT_CHALLENGE,
     ANR_CORRIDOR,
     LANDING,
     POKER,
     PRECISION,
+    default_task_type_key_for_family,
+    get_task_type,
+    SCORING_QUALITY,
+    stored_task_type,
 )
 from display.utilities.simulator_policy import SIMULATOR_NOT_ALLOWED, SIMULATOR_POLICY_CHOICES
 from display.utilities.task_information import build_navigation_task_information
@@ -73,6 +72,11 @@ class NavigationTask(models.Model):
     @property
     def score_sorting_direction(self) -> str:
         if self.scorecard:
+            from display.services.task_scoring import is_quality_task
+
+            # The best flight of a quality task has the highest task score, whatever the scorecard's direction says
+            if is_quality_task(self):
+                return "desc"
             return self.scorecard.score_sorting_direction
         return "asc"
 
@@ -88,16 +92,14 @@ class NavigationTask(models.Model):
         subtype = self.task_subtype
         if subtype:
             return str(subtype)
-        return get_default_task_subtype_for_family(self.coarse_task_family)
+        return default_task_type_key_for_family(self.coarse_task_family)
 
     @property
     def subtype_definition(self):
-        from display.utilities.cima_task_type_definitions import get_task_subtype_definition
-
         subtype = self.effective_task_subtype
         if not subtype:
             return None
-        return get_task_subtype_definition(str(subtype))
+        return get_task_type(str(subtype))
 
     def requires_contestant_task_configuration(self) -> bool:
         definition = self.subtype_definition
@@ -426,13 +428,19 @@ class NavigationTask(models.Model):
             # actually persisted (relevant on `force=True`, i.e. resetting an in-progress task's
             # scorecard back to standard - a brand new task has no contestants yet either way).
             self.save(update_fields=("scorecard",))
-            baseline = get_cima_scoring_baseline(self.task_subtype)
-            if baseline is not None:
-                # Only the fresh per-task copy is touched, never original_scorecard itself -
-                # the same "FAI Precision"/"FAI ANR" originals are shared with legacy tasks,
-                # which must keep their ascending-from-zero defaults untouched.
-                self.scorecard.score_sorting_direction, self.scorecard.initial_score = baseline
-                self.scorecard.save(update_fields=("score_sorting_direction", "initial_score"))
+            from display.services.task_scoring import default_scorecard_values
+
+            definition = stored_task_type(self)
+            if definition.scoring_model == SCORING_QUALITY:
+                # Only the fresh per-task copy is touched, never original_scorecard itself - the same "FAI
+                # Precision"/"FAI ANR" originals are shared with legacy tasks, which must keep their
+                # ascending-from-zero defaults untouched. A quality task sorts descending and nobody has scored
+                # anything until they fly.
+                self.scorecard.score_sorting_direction = "desc"
+                self.scorecard.initial_score = 0
+                for name, value in default_scorecard_values(definition).items():
+                    self.scorecard.config[name] = value
+                self.scorecard.save(update_fields=("score_sorting_direction", "initial_score", "config"))
             if hasattr(self, "tasktest"):
                 self.tasktest.sorting = self.score_sorting_direction
                 self.tasktest.save(update_fields=["sorting"])
@@ -458,8 +466,8 @@ class NavigationTask(models.Model):
             raise ValidationError(" ".join(problems))
         route = None
         if self.scorecard.calculator in (PRECISION, POKER):
-            if self.task_subtype in NO_BACKBONE_TASK_SUBTYPES:
-                # Mirrors EditableRoute.create_route's NO_BACKBONE_TASK_SUBTYPES branch: these
+            if not stored_task_type(self).has_backbone:
+                # Mirrors EditableRoute.create_route's branch for task types without a backbone: these
                 # subtypes have no authored route backbone, so there is no track for
                 # create_precision_route to turn into Route.waypoints (it would just return
                 # None). Rebuild the same empty-placeholder route it creates at task-creation
@@ -477,7 +485,7 @@ class NavigationTask(models.Model):
                 route = self.editable_route.create_precision_route(self.route.use_procedure_turns, self.scorecard)
         elif self.scorecard.calculator == ANR_CORRIDOR:
             route = self.editable_route.create_anr_route(
-                self.route.rounded_corners, self.route.corridor_width, self.scorecard
+                self.route.rounded_corners, self.route.corridor_width, self.scorecard, self.task_subtype
             )
         elif self.scorecard.calculator in (AIRSPORTS, AIRSPORT_CHALLENGE):
             route = self.editable_route.create_airsports_route(self.route.rounded_corners, self.scorecard)

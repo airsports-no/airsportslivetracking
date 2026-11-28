@@ -111,6 +111,14 @@ class TestContestantPenaltyAndGateTimesRestActions(APITestCase):
         self.assertEqual(entry.message, "fuel-check breach")
         self.assertEqual(entry.points, 100.0)
 
+    def test_apply_quarantine_penalty_rejects_a_percentage_for_a_task_without_a_task_score(self, *args):
+        response = self.client.post(
+            self._url("apply-quarantine-penalty"), {"percentage": 50, "category": "quarantine"}, format="json"
+        )
+        self.assertEqual(response.status_code, 400, response.content)
+        self.assertIn("percentage", response.json())
+        self.assertFalse(ScoreLogEntry.objects.filter(contestant=self.contestant).exists())
+
     def test_apply_quarantine_penalty_rejects_unknown_category(self, *args):
         response = self.client.post(self._url("apply-quarantine-penalty"), {"category": "bogus"}, format="json")
         self.assertEqual(response.status_code, 400)

@@ -6,7 +6,7 @@ task showed cards (ANR route, Duration, Circle, Speed keeping) that no calculato
 pipeline ever reads a value from.
 
 Each expected mapping below is verified against the real calculator pipeline
-(utilities/task_type_registry.py) and each calculator's own subtype gating - see the extensive
+(TaskTypeDefinition.calculator_pipeline) and each calculator's own subtype gating - see the extensive
 comment above get_applicable_scalar_groups (services/scorecard_gate_applicability.py) for the
 exact code references, not just asserted here.
 """
@@ -20,7 +20,7 @@ from display.default_scorecards.default_scorecard_fai_precision_2020 import (
 )
 from display.models import Contest, NavigationTask, Route, Scorecard
 from display.services.scorecard_gate_applicability import get_applicable_scalar_groups
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     ANR_CATALOGUE,
     CIRCLE,
     DURATION,
@@ -28,14 +28,7 @@ from display.utilities.cima_task_type_definitions import (
     LIMITED_FUEL_TURNPOINT_HUNT,
     TURNPOINT_HUNT,
 )
-from display.utilities.navigation_task_type_definitions import (
-    AIRSPORT_CHALLENGE,
-    AIRSPORTS,
-    ANR_CORRIDOR,
-    LANDING,
-    POKER,
-    PRECISION,
-)
+from display.utilities.task_types import AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, LANDING, POKER, PRECISION
 
 
 class TestScorecardScalarGroupApplicability(TestCase):
@@ -69,6 +62,12 @@ class TestScorecardScalarGroupApplicability(TestCase):
             {"General", "Backtracking", "Zones", "Observation photos"},
             get_applicable_scalar_groups(navigation_task),
         )
+
+    def test_known_circuit_shows_what_a_hidden_gate_is_worth_and_the_other_tasks_do_not(self):
+        navigation_task = self._make_navigation_task(PRECISION, task_subtype=KNOWN_CIRCUIT)
+        self.assertIn("Hidden gates", get_applicable_scalar_groups(navigation_task))
+        navigation_task = self._make_navigation_task(PRECISION)
+        self.assertNotIn("Hidden gates", get_applicable_scalar_groups(navigation_task))
 
     def test_circle_subtype_removes_backtracking_and_adds_circle(self):
         navigation_task = self._make_navigation_task(PRECISION, task_subtype=CIRCLE)

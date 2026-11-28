@@ -18,6 +18,7 @@ from django.utils import timezone
 from display.models import ClientNotification, Contestant, MobileAppActivity, MobileDevice, Person, PushNotificationLog
 from display.models.mobile_device import PLATFORM_MSFS
 from display.services.received_positions import last_received_position_time
+from display.services.task_scoring import scoring_parameters
 from display.utilities.tracking_definitions import (
     TRACKING_COPILOT,
     TRACKING_PILOT,
@@ -341,12 +342,21 @@ def notify_flight_scored(now: datetime.datetime = None) -> int:
             if not can_view_task_map(user, task):
                 continue
             points = contestant.contestanttrack.score
+            scoring = scoring_parameters(task)
+            if scoring.is_quality:
+                # A whole task score out of the task value, which later flights can still change
+                text = (
+                    f"{task.name}: {points:.0f} of {scoring.task_value:g} points. The score is scaled to the best "
+                    "flight and can change until all flights are finished."
+                )
+            else:
+                text = f"{task.name}: {points:g} points. The organizers can still adjust the result."
             if _notify_once(
                 PushNotificationLog.KIND_FLIGHT_SCORED,
                 contestant,
                 person,
                 "Live scoring has finished",
-                f"{task.name}: {points:g} points. The organizers can still adjust the result.",
+                text,
                 now=now,
             ):
                 sent += 1

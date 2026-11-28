@@ -12,6 +12,8 @@ interface FieldRowProps {
     onChange: (value: number | boolean | string) => void;
     onResetToStandard: () => void;
     disabled?: boolean;
+    /** What the field means (or why it cannot be edited now), in words, under the field. */
+    help?: string;
 }
 
 // Numeric inputs keep their own local echo of the raw typed text, re-seeded whenever the
@@ -29,6 +31,7 @@ export const FieldRow: React.FC<FieldRowProps> = ({
     onChange,
     onResetToStandard,
     disabled,
+    help,
 }) => {
     const [text, setText] = useState(value === null || value === undefined ? '' : String(value));
 
@@ -58,6 +61,12 @@ export const FieldRow: React.FC<FieldRowProps> = ({
         </button>
     ) : null;
 
+    const helpText = help ? (
+        <p className="text-xs text-gray-500 mt-1" id={`${fieldName}-help`}>
+            {help}
+        </p>
+    ) : null;
+
     if (meta.kind === 'boolean') {
         return (
             <div className="flex items-center justify-between gap-2 py-1">
@@ -76,6 +85,7 @@ export const FieldRow: React.FC<FieldRowProps> = ({
                     />
                     {resetButton}
                 </div>
+                {helpText}
             </div>
         );
     }
@@ -100,6 +110,7 @@ export const FieldRow: React.FC<FieldRowProps> = ({
                         </option>
                     ))}
                 </select>
+                {helpText}
             </div>
         );
     }
@@ -116,6 +127,7 @@ export const FieldRow: React.FC<FieldRowProps> = ({
                 className="input input-bordered input-sm w-full"
                 value={text}
                 min={meta.min}
+                max={meta.max}
                 step={meta.step ?? (meta.kind === 'integer' ? 1 : 'any')}
                 onChange={(e) => {
                     const raw = e.target.value;
@@ -130,7 +142,9 @@ export const FieldRow: React.FC<FieldRowProps> = ({
                     }
                 }}
                 disabled={disabled}
+                aria-describedby={help ? `${fieldName}-help` : undefined}
             />
+            {helpText}
         </div>
     );
 };

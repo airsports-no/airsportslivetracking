@@ -2,6 +2,7 @@ import { useEffect, useRef, useState, useMemo } from 'react';
 import L from 'leaflet';
 import { planeIcon, getAnnotationIcon } from '../components/icons';
 import { TrackPosition, NavigationTask, Contestant } from '../types';
+import { isPenaltyEntry, isQualityTask, logPointsText, TaskScoring } from '../../../utils/taskScore';
 import { hslColor, lastMinutesPositions, splitSegments } from './mapLayersHelpers';
 
 interface ContestantLayers {
@@ -38,15 +39,21 @@ function escapeHtml(text: string): string {
 /** An annotation's label on the map, in the panel's style (hud-tooltip in components/hud/hud.css). */
 function annotationLabel(
     ann: { gate: string; message: string; time: string },
-    scoreLog: { points: number } | null | undefined,
+    scoreLog: { points: number; score_kind?: string | null; score_type?: string | null } | null | undefined,
     timeZone: string | undefined,
     pointsArePenalties: boolean,
+    scoring?: TaskScoring | null,
 ): string {
     const points = scoreLog?.points ?? 0;
-    const colour = points === 0 ? 'var(--hud-muted)' : (pointsArePenalties ? points > 0 : points < 0) ? 'var(--hud-red)' : 'var(--hud-ok)';
+    // A quality task's entry is raw quality points ("-12 raw") or a percentage of the task score; a penalty task's is unchanged
+    const quality = isQualityTask(scoring);
+    const shown = scoreLog && quality ? logPointsText(scoreLog, scoring, pointsArePenalties) : null;
+    const colour = points === 0 ? 'var(--hud-muted)'
+        : (shown ? shown.penalty : (pointsArePenalties ? points > 0 : points < 0)) ? 'var(--hud-red)' : 'var(--hud-ok)';
+    const pointsText = shown ? shown.text : `${points > 0 ? '+' : ''}${Math.round(points)}`;
     const time = new Date(ann.time).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', second: '2-digit', hour12: false, timeZone });
     return `<div class="hud-tip-head"><span class="hud-tip-gate">${escapeHtml(ann.gate)}</span>`
-        + (scoreLog ? `<span class="hud-tip-points" style="color:${colour}">${points > 0 ? '+' : ''}${Math.round(points)}</span>` : '')
+        + (scoreLog ? `<span class="hud-tip-points" style="color:${colour}" title="${escapeHtml(shown?.title ?? '')}">${escapeHtml(pointsText)}</span>` : '')
         + `</div><div class="hud-tip-message">${escapeHtml(ann.message).replace(/\n/g, '<br/>')}</div>`
         + `<div class="hud-tip-time">${time}</div>`;
 }
@@ -271,13 +278,14 @@ export function useMapLayers({
                 const scoreLog = ann.score_log_entry ? allLogs.find(l => l.id === ann.score_log_entry) : null;
                 
                 // Filter out non-penalties if showPenaltiesOnly is enabled
-                if (showPenaltiesOnly && (!scoreLog || scoreLog.points <= 0)) {
+                // (a quality task's penalties are negative raw points; the other tasks' are positive)
+                if (showPenaltiesOnly && (!scoreLog || (isQualityTask(navTask) ? !isPenaltyEntry(scoreLog, navTask, false) : scoreLog.points <= 0))) {
                     return;
                 }
 
                 visibleAnnotationIds.add(ann.id);
                 
-                const content = annotationLabel(ann, scoreLog, navTask.time_zone, navTask.score_sorting_direction === 'asc');
+                const content = annotationLabel(ann, scoreLog, navTask.time_zone, navTask.score_sorting_direction === 'asc', navTask);
 
                 const shouldExpand = permanentAnnotations || (clickedAnnotationId === ann.id);
 

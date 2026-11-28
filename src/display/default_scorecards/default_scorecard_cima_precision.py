@@ -12,7 +12,7 @@ from display.utilities.gate_definitions import (
     SECRETPOINT,
     FINISHPOINT,
 )
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION
 
 # The CIMA task catalogue (documentation/cima/cima_task_catalog.md, 2.A1-2.A5): one point per second of error at a
 # time gate, at most Emax ("typically 180"), and Emax for a gate not flown. No grace period, and no procedure turns:
@@ -91,6 +91,9 @@ def get_default_scorecard():
             "score_sorting_direction": "desc",
             "initial_score": 1000,
             "backtracking_penalty": 200,
+            # Annex 4: "a 50% penalty will be imposed for backtracking" (2.A1-2.A5); the flat points above are for the
+            # task types that have no percentage (the turnpoint hunts).
+            "backtracking_penalty_percentage": 50,
             "backtracking_grace_time_seconds": 5,
             "use_procedure_turns": False,
             "task_type": [PRECISION],
@@ -101,6 +104,7 @@ def get_default_scorecard():
                 [
                     "Backtracking",
                     "backtracking_penalty",
+                    "backtracking_penalty_percentage",
                     "backtracking_grace_time_seconds",
                 ],
                 [

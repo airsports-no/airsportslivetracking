@@ -1,4 +1,5 @@
 // Types for Navigation Task live competition map
+import type { TaskScoring } from "../../utils/taskScore";
 
 export interface Aeroplane {
   id: number;
@@ -55,6 +56,12 @@ export interface ContestantTrackSummary {
   contestant: number;
   progress?: number;
   last_position_received_at?: number;
+  /** A quality task (see utils/taskScore.ts): `score` is the task score P, and these are what it is made from. */
+  raw_quality?: number | null;
+  quality_start?: number | null;
+  quality_theoretical_maximum?: number | null;
+  percentage_penalty?: number | null;
+  quality_breakdown?: Record<string, number>;
 }
 
 export interface TrackerDisplay {
@@ -196,6 +203,10 @@ export interface Contestant {
   progress?: number;
   last_position_received_at?: number;
   latest_emaillink?: { url: string; created_at: string };
+  /** Own flights (the lists of my flights): what is to declare and where the flight order stands, see features/pilot-declaration */
+  declaration_status?: import('../pilot-declaration/types').DeclarationStatus;
+  flight_order_status?: import('../pilot-declaration/types').FlightOrderStatus | null;
+  flight_order_path?: string | null;
   overlap_warnings?: string[];
   overlapping_tasks?: {
     task_id: number;
@@ -221,7 +232,7 @@ export interface NavigationTaskCatalogueTarget {
   curve_start?: [number, number];
 }
 
-export interface NavigationTask {
+export interface NavigationTask extends TaskScoring {
   id: number;
   route: RouteData;
   task_catalogue_targets?: NavigationTaskCatalogueTarget[];
@@ -329,6 +340,9 @@ export interface ScoreLogEntry {
   offset_string?: string | null;
   type: "anomaly" | "information" | string;
   contestant: number;
+  /** "penalty", "achievement" or "percentage_penalty"; blank for entries from before the kinds existed. */
+  score_kind?: string | null;
+  score_type?: string | null;
 }
 
 /** One gate of a contestant's route and how it went (display/services/gate_results.py). */

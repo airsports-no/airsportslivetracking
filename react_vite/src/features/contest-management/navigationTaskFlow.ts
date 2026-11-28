@@ -1,4 +1,4 @@
-// Mirrors display.utilities.navigation_task_type_definitions.NAVIGATION_TASK_TYPES's family keys.
+// Mirrors display.utilities.task_types.FAMILY_CHOICES's family keys.
 export const PRECISION = 'precision';
 export const ANR_CORRIDOR = 'anr_corridor';
 export const AIRSPORTS = 'airsports';

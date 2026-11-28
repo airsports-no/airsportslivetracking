@@ -6,7 +6,7 @@ from django.test import TestCase
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Contest, EditableRoute, NavigationTask, Route, Scorecard
 from display.services.task_compiler import TaskCompiler
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     ANR_CATALOGUE,
     CIRCLE,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
@@ -216,6 +216,10 @@ class TestCompiledNavigationTask(TestCase):
                             "isTiming": True,
                             "isPassing": True,
                             "sequence": 1,
+                            # 2.A1 needs a curved leg.
+                            "segmentType": "curved",
+                            "controlLat": 60.06,
+                            "controlLng": 11.04,
                         },
                         "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
                     },
@@ -277,8 +281,8 @@ class TestCompiledNavigationTask(TestCase):
         joined_errors = " ".join(compiled.compiled_payload["validation_errors"])
         self.assertIn("at least one intermediate turn point", joined_errors)
 
-    def test_precision_navigation_allows_route_without_hidden_gate(self):
-        # Hidden gates are optional on every task type, not a structural prerequisite.
+    def test_precision_navigation_needs_a_hidden_gate(self):
+        # 2.A2 is scored on its hidden gates, so a route without one is invalid (other task types do not need one).
         self.navigation_task.task_subtype = PRECISION_NAVIGATION
         self.navigation_task.editable_route = EditableRoute.objects.create(
             name="Precision navigation without hidden gate",
@@ -337,6 +341,28 @@ class TestCompiledNavigationTask(TestCase):
         )
         self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
 
+        compiled = TaskCompiler(self.navigation_task).compile(force=True)
+        self.assertFalse(compiled.compiled_payload["is_valid"])
+        self.assertIn("at least one hidden gate", " ".join(compiled.compiled_payload["validation_errors"]))
+
+        route = self.navigation_task.editable_route
+        route.route["features"].append(
+            {
+                "type": "Feature",
+                "properties": {
+                    "id": "wp-4",
+                    "name": "HG1",
+                    "pointType": "secret",
+                    "featureType": "route_waypoint",
+                    "width": 300,
+                    "isTiming": False,
+                    "isPassing": True,
+                    "sequence": 1,
+                },
+                "geometry": {"type": "Point", "coordinates": [11.05, 60.05]},
+            }
+        )
+        route.save()
         compiled = TaskCompiler(self.navigation_task).compile(force=True)
         self.assertTrue(compiled.compiled_payload["is_valid"], compiled.compiled_payload["validation_errors"])
 

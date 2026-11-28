@@ -6,13 +6,13 @@ from django.test import TestCase
 from display.calculators.calculator import LandingPassedEvent, TakeoffPassedEvent
 from display.calculators.calculator_factory import calculator_factory
 from display.calculators.duration_calculator import DurationCalculator
-from display.calculators.update_score_message import UpdateScoreMessage
+from display.calculators.update_score_message import ACHIEVEMENT, PERCENTAGE_PENALTY, UpdateScoreMessage
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Aeroplane, Contest, Contestant, Crew, EditableRoute, NavigationTask, Person, Scorecard, Team
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import DURATION
+from display.utilities.task_types import DURATION
 from display.utilities.coordinate_utilities import Projector
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION
 from utilities.mock_utilities import TraccarMock
 
 
@@ -23,6 +23,8 @@ class TestDurationCalculator(TestCase):
         self.contestant = MagicMock()
         self.contestant.navigation_task.task_subtype = DURATION
         self.contestant.navigation_task.editable_route = None
+        # A scorecard that stores no scoring model: the task type's own (quality) model applies
+        self.contestant.navigation_task.scorecard.config = {}
         # No compiled ContestantTaskConfiguration / Route-level Prohibited zone
         # in this mock-driven suite - explicit None/empty so
         # DurationCalculator's snapshot/route fallbacks correctly cascade down
@@ -30,8 +32,7 @@ class TestDurationCalculator(TestCase):
         # unspecced MagicMock attribute as real (truthy) landing-area data.
         self.contestant.contestanttaskconfiguration = None
         self.scorecard = MagicMock()
-        self.scorecard.prohibited_zone_penalty = 200
-        self.scorecard.duration_normalization_policy = ""
+        self.scorecard.duration_landing_area_penalty_percent = 50
         self.route = MagicMock()
         self.route.landing_gates = []
         self.route.prohibited_set.filter.return_value.first.return_value = None
@@ -75,8 +76,7 @@ class TestDurationCalculator(TestCase):
         self.calculator.on_takeoff_passed(TakeoffPassedEvent(takeoff_gate, takeoff_position, takeoff_time))
         self.calculator.on_landing_passed(LandingPassedEvent(landing_gate, landing_position, landing_time))
 
-        self.queue.put_nowait.assert_called_once()
-        message = self.queue.put_nowait.call_args[0][0]
+        message = self.queue.put_nowait.call_args_list[0][0][0]
         self.assertIsInstance(message, UpdateScoreMessage)
         self.assertEqual(message.score_type, "duration_airborne_time")
         self.assertEqual(message.message, "airborne duration recorded")
@@ -93,8 +93,10 @@ class TestDurationCalculator(TestCase):
 
         self.queue.put_nowait.assert_not_called()
 
-    def test_duration_calculator_emits_raw_minutes_score_when_policy_configured(self):
-        self.scorecard.duration_normalization_policy = "raw_minutes"
+    def test_duration_calculator_scores_the_minutes_airborne_as_an_achievement(self):
+        """The duration is Q, one point per minute, whatever the scorecard's legacy normalisation policy says: the task
+        scales it against the best flight (display.services.task_scoring)."""
+        self.scorecard.duration_normalization_policy = ""
         takeoff_time = datetime.datetime(2026, 8, 1, 10, 0, tzinfo=datetime.timezone.utc)
         landing_time = datetime.datetime(2026, 8, 1, 11, 7, 30, tzinfo=datetime.timezone.utc)
         takeoff_gate = self._make_gate("T/O")
@@ -109,8 +111,9 @@ class TestDurationCalculator(TestCase):
         recorded_message = self.queue.put_nowait.call_args_list[0][0][0]
         normalized_message = self.queue.put_nowait.call_args_list[1][0][0]
         self.assertEqual(recorded_message.score_type, "duration_airborne_time")
-        self.assertEqual(normalized_message.score_type, "duration_normalized_score")
-        self.assertEqual(normalized_message.message, "duration normalized using raw minutes")
+        self.assertEqual(normalized_message.score_type, "duration_score")
+        self.assertEqual(normalized_message.kind, ACHIEVEMENT)
+        self.assertIn("67.5 minutes", normalized_message.message)
         self.assertEqual(normalized_message.score, 67.5)
 
     def test_duration_calculator_emits_landing_area_penalty_when_outside_specified_area(self):
@@ -135,11 +138,33 @@ class TestDurationCalculator(TestCase):
         self.calculator.on_takeoff_passed(TakeoffPassedEvent(takeoff_gate, takeoff_position, takeoff_time))
         self.calculator.on_landing_passed(LandingPassedEvent(landing_gate, landing_position, landing_time))
 
-        self.assertEqual(self.queue.put_nowait.call_count, 2)
-        penalty_message = self.queue.put_nowait.call_args_list[1][0][0]
+        self.assertEqual(self.queue.put_nowait.call_count, 3)  # the duration, its score and the penalty
+        penalty_message = self.queue.put_nowait.call_args_list[2][0][0]
         self.assertEqual(penalty_message.score_type, "duration_landing_area_outside")
-        self.assertEqual(penalty_message.message, "landing outside specified area")
-        self.assertEqual(penalty_message.score, 200)
+        self.assertEqual(penalty_message.message, "landed outside the specified landing area")
+        self.assertEqual(penalty_message.kind, PERCENTAGE_PENALTY)
+        self.assertEqual(penalty_message.score, 50)
+
+    def test_the_landing_area_penalty_is_the_scorecards_own_percentage(self):
+        """It no longer reuses prohibited_zone_penalty."""
+        self.scorecard.duration_landing_area_penalty_percent = 25
+        self.scorecard.prohibited_zone_penalty = 999
+        editable_route = MagicMock()
+        editable_route.get_duration_landing_area_polygons.return_value = [
+            {"geometry": {"coordinates": [self._make_polygon(west=11.2, south=60.2, east=11.4, north=60.4)]}}
+        ]
+        self.contestant.navigation_task.editable_route = editable_route
+        self.calculator = self._build_calculator()
+        takeoff_time = datetime.datetime(2026, 8, 1, 10, 0, tzinfo=datetime.timezone.utc)
+        landing_time = datetime.datetime(2026, 8, 1, 11, 0, tzinfo=datetime.timezone.utc)
+        self.calculator.on_takeoff_passed(
+            TakeoffPassedEvent(self._make_gate("T/O"), self._make_position(takeoff_time), takeoff_time)
+        )
+        self.calculator.on_landing_passed(
+            LandingPassedEvent(self._make_gate("LDG"), self._make_position(landing_time), landing_time)
+        )
+        penalty = [c[0][0] for c in self.queue.put_nowait.call_args_list if c[0][0].score_type == "duration_landing_area_outside"]
+        self.assertEqual([m.score for m in penalty], [25])
 
     def test_duration_calculator_uses_polygon_geometry_not_bounding_box(self):
         editable_route = MagicMock()
@@ -172,8 +197,8 @@ class TestDurationCalculator(TestCase):
         self.calculator.on_takeoff_passed(TakeoffPassedEvent(takeoff_gate, takeoff_position, takeoff_time))
         self.calculator.on_landing_passed(LandingPassedEvent(landing_gate, landing_position, landing_time))
 
-        self.assertEqual(self.queue.put_nowait.call_count, 2)
-        penalty_message = self.queue.put_nowait.call_args_list[1][0][0]
+        self.assertEqual(self.queue.put_nowait.call_count, 3)  # the duration, its score and the penalty
+        penalty_message = self.queue.put_nowait.call_args_list[2][0][0]
         self.assertEqual(penalty_message.score_type, "duration_landing_area_outside")
 
     @patch("display.calculators.calculator_factory.Orchestrator")

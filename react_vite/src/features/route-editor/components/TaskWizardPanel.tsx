@@ -2,6 +2,8 @@ import React from 'react';
 import { CheckCircle2, Circle, Wand2, X } from 'lucide-react';
 import { Gate, ObservationMarker, Polygon, RoutePoint } from '../../../types';
 import { countWizardStepMatches, getVisibleTaskTemplates, TaskTemplate, TASK_TEMPLATES } from '../taskTemplates';
+import { TaskCompatibilityResult, RouteRequirementResult } from '../api';
+import { buildWizardChecklist, CompatibilityStatus } from '../taskRequirements';
 
 interface TaskWizardPanelProps {
   selectedTaskTemplateId: string | null;
@@ -12,11 +14,23 @@ interface TaskWizardPanelProps {
   gates: Gate[];
   observationMarkers: ObservationMarker[];
   polygons: Polygon[];
+  // The backend's verdict on the current route content; it decides which steps are required and
+  // whether they are satisfied. While it is pending or failed the panel shows local counts only.
+  taskCompatibility: TaskCompatibilityResult | null;
+  compatibilityStatus: CompatibilityStatus;
   startWizardStep: (stepKey: string) => void;
   stopWizardAction: () => void;
   currentWizardActionLabel: string | null;
   onClose: () => void;
 }
+
+const describeLimits = (requirement: RouteRequirementResult): string => {
+  if (requirement.maximum === 0) return `${requirement.found} found, none allowed`;
+  if (requirement.maximum != null && requirement.maximum === requirement.minimum) {
+    return `${requirement.found} / exactly ${requirement.minimum}`;
+  }
+  return `${requirement.found} / ${requirement.minimum} required${requirement.maximum != null ? ` · max ${requirement.maximum}` : ''}`;
+};
 
 const TaskWizardPanel: React.FC<TaskWizardPanelProps> = ({
   selectedTaskTemplateId,
@@ -27,6 +41,8 @@ const TaskWizardPanel: React.FC<TaskWizardPanelProps> = ({
   gates,
   observationMarkers,
   polygons,
+  taskCompatibility,
+  compatibilityStatus,
   startWizardStep,
   stopWizardAction,
   currentWizardActionLabel,
@@ -101,44 +117,92 @@ const TaskWizardPanel: React.FC<TaskWizardPanelProps> = ({
               )}
             </div>
 
-            <div className="space-y-2">
-              {selectedTemplate.steps.map((step, index) => {
-                const count = countWizardStepMatches(step, routePoints, standalonePoints, gates, observationMarkers, polygons);
-                const complete = count >= step.minCount;
-                const maxCountReached = step.maxCount != null && count >= step.maxCount;
-                const actionLabel = step.kind === 'route' ? 'Start' : maxCountReached ? 'Done' : 'Add';
-                return (
-                  <div key={step.key} className="p-3 rounded-lg border border-base-300 bg-base-50">
-                    <div className="flex items-start justify-between gap-3">
-                      <div className="min-w-0">
-                        <div className="flex items-center gap-2">
-                          {complete ? (
-                            <CheckCircle2 size={16} className="text-success" />
-                          ) : (
-                            <Circle size={16} className="text-gray-400" />
-                          )}
-                          <span className="font-medium text-sm">{index + 1}. {step.label}</span>
+            {(() => {
+              const checklist = buildWizardChecklist(
+                selectedTemplate,
+                taskCompatibility,
+                compatibilityStatus,
+                (step) => countWizardStepMatches(step, routePoints, standalonePoints, gates, observationMarkers, polygons),
+              );
+              const unconfirmedNote = compatibilityStatus === 'failed'
+                ? 'Could not check this route against the task requirements; showing local counts only.'
+                : 'Checking the route against the task requirements...';
+              return (
+                <>
+                  {!checklist.confirmed && (
+                    <p className="text-[11px] text-gray-400">{unconfirmedNote}</p>
+                  )}
+                  <div className="space-y-2">
+                    {checklist.steps.map((state, index) => {
+                      const { step } = state;
+                      const maxCountReached = state.maximum != null && state.count >= state.maximum;
+                      const actionLabel = step.kind === 'route' ? 'Start' : maxCountReached ? 'Done' : 'Add';
+                      const complete = state.satisfied === true;
+                      return (
+                        <div key={step.key} className="p-3 rounded-lg border border-base-300 bg-base-50">
+                          <div className="flex items-start justify-between gap-3">
+                            <div className="min-w-0">
+                              <div className="flex items-center gap-2">
+                                {complete ? (
+                                  <CheckCircle2 size={16} className="text-success" />
+                                ) : (
+                                  <Circle size={16} className="text-gray-400" />
+                                )}
+                                <span className="font-medium text-sm">{index + 1}. {step.label}</span>
+                                {checklist.structureKnown && !state.required && (
+                                  <span className="badge badge-ghost badge-xs">Optional</span>
+                                )}
+                              </div>
+                              <p className="text-xs text-gray-500 mt-1 ml-6">{step.help}</p>
+                              <p className="text-[11px] text-gray-400 mt-1 ml-6">
+                                {checklist.confirmed && state.primary
+                                  ? describeLimits(state.primary)
+                                  : `${state.count} placed`}
+                              </p>
+                              {state.message && (
+                                <p className="text-[11px] text-warning mt-1 ml-6">{state.message}</p>
+                              )}
+                            </div>
+                            {!selectedTemplate.guideOnly && step.kind !== 'guide' && (
+                              <button
+                                onClick={() => startWizardStep(step.key)}
+                                className="btn btn-primary btn-xs"
+                                disabled={maxCountReached}
+                                title={maxCountReached ? 'The maximum number is already placed.' : undefined}
+                              >
+                                {actionLabel}
+                              </button>
+                            )}
+                          </div>
                         </div>
-                        <p className="text-xs text-gray-500 mt-1 ml-6">{step.help}</p>
-                        <p className="text-[11px] text-gray-400 mt-1 ml-6">
-                          {count} / {step.minCount} required{step.maxCount != null ? ` · max ${step.maxCount}` : ''}
-                        </p>
-                      </div>
-                      {!selectedTemplate.guideOnly && (
-                        <button
-                          onClick={() => startWizardStep(step.key)}
-                          className="btn btn-primary btn-xs"
-                          disabled={maxCountReached}
-                          title={maxCountReached ? 'Required marker already placed.' : undefined}
-                        >
-                          {actionLabel}
-                        </button>
-                      )}
-                    </div>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+                  {checklist.generic.length > 0 && (
+                    <div className="space-y-2">
+                      <h4 className="text-xs font-bold uppercase text-gray-500">Other requirements</h4>
+                      {checklist.generic.map((requirement) => {
+                        const ok = checklist.confirmed && requirement.satisfied;
+                        return (
+                          <div key={requirement.key} className="p-3 rounded-lg border border-base-300 bg-base-50">
+                            <div className="flex items-center gap-2">
+                              {ok ? <CheckCircle2 size={16} className="text-success" /> : <Circle size={16} className="text-gray-400" />}
+                              <span className="font-medium text-sm">{requirement.label}</span>
+                            </div>
+                            {checklist.confirmed && (
+                              <p className="text-[11px] text-gray-400 mt-1 ml-6">{describeLimits(requirement)}</p>
+                            )}
+                            {checklist.confirmed && !requirement.satisfied && (
+                              <p className="text-[11px] text-warning mt-1 ml-6">{requirement.message}</p>
+                            )}
+                          </div>
+                        );
+                      })}
+                    </div>
+                  )}
+                </>
+              );
+            })()}
           </div>
         )}
       </div>

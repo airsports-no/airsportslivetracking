@@ -1,7 +1,9 @@
 from display.default_scorecards import (
     default_scorecard_airsport_challenge,
     default_scorecard_airsports,
+    default_scorecard_airsports_2025,
     default_scorecard_cima_anr,
+    default_scorecard_cima_duration,
     default_scorecard_cima_precision,
     default_scorecard_fai_air_rally_2020,
     default_scorecard_fai_anr_2017,
@@ -29,7 +31,7 @@ def _seed_cima_runtime_defaults():
     for card in Scorecard.objects.filter(shortcut_name="FAI Precision"):
         card.compulsory_timing_tolerance_seconds = 10
         card.maximum_task_duration_minutes = None
-        card.maximum_task_duration_penalty = 100
+        card.maximum_task_duration_penalty = 10
         card.fuel_deadline_penalty = 100
         card.anr_route_to_sp_penalty = 200
         card.anr_route_from_fp_penalty = 200
@@ -50,8 +52,11 @@ def create_scorecards():
     default_scorecard_poker_run.get_default_scorecard()
     default_scorecard_landing.get_default_scorecard()
     default_scorecard_airsports.get_default_scorecard()
+    default_scorecard_airsports_2025.get_default_scorecard()
+    default_scorecard_airsports_2025.get_airsport_challenge_scorecard()
     default_scorecard_airsport_challenge.get_default_scorecard()
     default_scorecard_nordic_asr.get_default_scorecard()
     default_scorecard_cima_precision.get_default_scorecard()
     default_scorecard_cima_anr.get_default_scorecard()
+    default_scorecard_cima_duration.get_default_scorecard()
     _seed_cima_runtime_defaults()

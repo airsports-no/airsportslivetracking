@@ -119,6 +119,13 @@ class ContestSummary(models.Model):
 
     def update_sum(self):
         if self.contest.autosum_scores:
+            if self.contest.overall_result_method == self.contest.STANDINGS_POINTS:
+                # The place in a task depends on the results of the other teams, so every team is recomputed
+                from display.services.contest_standings_points import recompute_contest_summaries
+
+                recompute_contest_summaries(self.contest)
+                self.points = ContestSummary.objects.filter(pk=self.pk).values_list("points", flat=True).first() or 0
+                return
             tasks = TaskSummary.objects.filter(team=self.team, task__contest=self.contest)
             if tasks.exists():
                 total = sum([task.points * task.task.weight for task in tasks])

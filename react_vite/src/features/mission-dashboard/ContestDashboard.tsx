@@ -11,6 +11,8 @@ import Leaderboard from './components/Leaderboard';
 import { OngoingNavigation } from './types';
 import ContestRegistrationForm from './components/ContestRegistrationForm';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
+import { afterBookedInDialog } from '../pilot-declaration/bookingFlow';
+import { needsDeclarationStep } from '../pilot-declaration/declarationForm';
 import TaskScoreDisplay from './components/TaskScoreDisplay';
 import UpcomingFlights from './components/UpcomingFlights';
 import PublicityIcon from './components/PublicityIcon';
@@ -86,6 +88,34 @@ const ContestDashboard = () => {
 
     const [showRegistrationForm, setShowRegistrationForm] = useState(false);
     const [showScheduleForm, setShowScheduleForm] = useState<NavigationTask | null>(null);
+    const closeScheduleForm = async (warnings?: string[]) => {
+        if (warnings && warnings.length > 0) {
+            setToastMessage(warnings);
+        }
+        setShowScheduleForm(null);
+        await fetchMyContestTeams(true);
+        await fetchMyFutureFlights(true);
+        await fetchContest(contest!.id, true);
+    };
+
+    // The same step after booking as the booking page (bookingFlow.ts): a task with a declaration goes on to the
+    // declaration, which ends the booking itself (the app is signalled there, the website returns to this dashboard).
+    // Without one, the app gets its signal at once and the website stays here as it always did.
+    const finishScheduling = (warnings: string[] | undefined, booked: Contestant | undefined, navigationTaskId: number) => {
+        const ids = {
+            contestId: contest!.id,
+            navigationTaskId,
+            returnTo: generatePath('MISSION_DASHBOARD_DETAIL', { contestId: contest!.id }),
+        };
+        const refreshLists = () => Promise.all([fetchMyContestTeams(true), fetchMyFutureFlights(true), fetchContest(ids.contestId, true)]);
+        afterBookedInDialog(booked, ids, navigate, () => void closeScheduleForm(warnings));
+        // On the way to the declaration the lists are refreshed in the background, so that they are right when the pilot returns
+        if (needsDeclarationStep(booked?.declaration_status?.need)) {
+            setShowScheduleForm(null);
+            void refreshLists().catch(() => undefined);
+        }
+    };
+
     const [viewingScoresForTask, setViewingScoresForTask] = useState<NavigationTask | null>(null);
     const [loadingTaskScores, setLoadingTaskScores] = useState(false);
 
@@ -475,15 +505,10 @@ const ContestDashboard = () => {
                             contest={contest}
                             navigationTaskId={showScheduleForm.pk}
                             myContestTeams={myContestTeams}
-                            onClose={async (warnings?: string[]) => {
-                                if (warnings && warnings.length > 0) {
-                                    setToastMessage(warnings);
-                                }
-                                setShowScheduleForm(null);
-                                await fetchMyContestTeams(true);
-                                await fetchMyFutureFlights(true);
-                                await fetchContest(contest.id, true);
-                            }}
+                            onClose={closeScheduleForm}
+                            onRegistered={(warnings?: string[], booked?: Contestant) =>
+                                finishScheduling(warnings, booked, showScheduleForm.pk)
+                            }
                         />
                     </div>
                 </ModalErrorBoundary>,

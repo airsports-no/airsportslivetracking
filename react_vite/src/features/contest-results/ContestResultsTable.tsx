@@ -14,6 +14,10 @@ import { generatePath, reverse } from '../../urls';
 import { Test } from '../../store/contestResultsStore';
 import { fetchContest } from '../mission-dashboard/api';
 import { Contest } from '../mission-dashboard/types';
+import { ResultCell, ScoreColumnNote } from './ResultsScoreNote';
+import { provisionalScorings, scoringOf, taskColumnScoring } from './resultsScoring';
+import StandingsTaskCell from './StandingsTaskCell';
+import { cellOf, standingsPointsExplanation, standingsPointsOf } from './standingsPoints';
 import './print.css';
 
 // TaskViewSet.destroy (viewsets.py) rejects deleting a task once it has a test linked to a
@@ -105,6 +109,8 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
 
   useContestResultsWebSocket(contestId); // Listen for real-time updates
   const { updateContestSummary, updateTaskSummary, updateTestResult } = useScoreUpdates(); // Use the new hook
+
+  const standings = useMemo(() => standingsPointsOf(results), [results]);
 
   const initialSorting = useMemo(() => {
     if (!results) return [];
@@ -319,6 +325,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                   <span className="px-2 py-1 text-sm bg-base-200 text-base-content font-normal rounded-md">
                     {test.heading} (w {test.weight ?? 1})
                   </span>
+                  <ScoreColumnNote scoring={scoringOf(test)} />
                   {results.permission_change_contest && (
                     <div className="flex items-center gap-1">
                       <button
@@ -371,7 +378,10 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
               id: `test-${test.id}`,
               enableSorting: true,
               sortDescFirst: test.sorting?.toUpperCase() === 'DESC',
-              cell: results.permission_change_contest && test.navigation_task === null ? EditableCell : (info) => info.getValue(),
+              cell:
+                results.permission_change_contest && test.navigation_task === null
+                  ? EditableCell
+                  : (info) => <ResultCell value={info.getValue()} scoring={scoringOf(test)} teamId={info.row.original.id} />,
               meta: {
                 columnType: 'test',
                 testId: test.id,
@@ -402,6 +412,11 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
                   {task.heading} (w {task.weight ?? 1}) {expandedTasks[task.id] ? '(Σ)' : ''}
                 </span>
               </div>
+              {taskColumnScoring(task) ? (
+                <ScoreColumnNote scoring={taskColumnScoring(task)} />
+              ) : (
+                provisionalScorings(task).length > 0 && <ScoreColumnNote scoring={provisionalScorings(task)[0]} showScale={false} />
+              )}
               {results.permission_change_contest && (
                 <div className="flex items-center gap-1">
                   <button
@@ -466,7 +481,19 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
           id: `task-${task.id}`,
           enableSorting: true,
           sortDescFirst: task.summary_score_sorting_direction?.toUpperCase() === 'DESC',
-          cell: results.permission_change_contest && !task.autosum_scores ? EditableCell : (info) => info.getValue(),
+          cell:
+            results.permission_change_contest && !task.autosum_scores
+              ? EditableCell
+              : standings
+                ? (info) => (
+                    <StandingsTaskCell
+                      value={info.getValue()}
+                      scoring={taskColumnScoring(task)}
+                      teamId={info.row.original.id}
+                      cell={cellOf(standings, task.id, info.row.original.id)}
+                    />
+                  )
+                : (info) => <ResultCell value={info.getValue()} scoring={taskColumnScoring(task)} teamId={info.row.original.id} />,
           meta: {
             columnType: 'task',
             taskId: task.id,
@@ -478,7 +505,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
     });
 
     return baseColumns;
-  }, [results, contestId, expandedTasks]);
+  }, [results, contestId, expandedTasks, standings]);
 
   const data = useMemo(() => {
     if (!results) return [];
@@ -494,7 +521,8 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
     });
     sortedSummaries.forEach((summary, index) => {
       if (summary.team?.id) {
-        ranks.set(summary.team.id, index + 1);
+        // With standings points the server has separated equal totals by countback
+        ranks.set(summary.team.id, standings?.ranks?.[String(summary.team.id)] ?? index + 1);
       }
     });
 
@@ -554,7 +582,7 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
     });
 
     return transformedData;
-  }, [results]);
+  }, [results, standings]);
 
   if (loading) return <div>Loading Contest Results...</div>;
   if (error) return <div>Error: {error}</div>;
@@ -609,6 +637,11 @@ export const ContestResultsTable: React.FC<ContestResultsTableProps> = () => {
           </div>
         </div>
       </div>
+      {standings && (
+        <p className="mb-2 text-sm" data-testid="standings-points-explanation">
+          {standingsPointsExplanation(standings.points_table)}
+        </p>
+      )}
       <DataTable
         columns={columns}
         data={data}

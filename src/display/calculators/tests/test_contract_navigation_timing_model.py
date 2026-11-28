@@ -18,7 +18,7 @@ from display.models import (
     Team,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.task_types import CONTRACT_NAVIGATION_TIME_CONTROLS
 from utilities.mock_utilities import TraccarMock
 
 
@@ -191,4 +191,8 @@ class TestContractNavigationTimingModel(TestCase):
 
         self.assertTrue(c_gate.missed)
         score_msg = calculator.score_processing_queue.get_nowait()
-        self.assertEqual(score_msg.message, "invalid post-MP point flown before MP time")
+        # The point is a declared point not flown (Ep); the log shows the entry as "V -1" (see measure_text)
+        self.assertEqual(
+            score_msg.message, "invalid post-MP point flown before MP time (declared point not flown)"
+        )
+        self.assertEqual((score_msg.score_type, score_msg.score, score_msg.kind), ("contract_points", 1, "penalty"))

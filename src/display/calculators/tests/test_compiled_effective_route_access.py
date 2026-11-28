@@ -18,7 +18,7 @@ from display.models import (
     Team,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.task_types import CONTRACT_NAVIGATION_TIME_CONTROLS
 from utilities.mock_utilities import TraccarMock
 
 

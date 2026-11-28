@@ -8,6 +8,7 @@ import { NavigationTaskDetail } from './types';
 import ContestantList from './components/ContestantList';
 import QuickAddContestantModal, { QuickAddContestantModalHandle } from './components/QuickAddContestantModal';
 import TaskManagementMenu from './components/TaskManagementMenu';
+import ScoringExplanationCard from '../../components/common/ScoringExplanationCard';
 import { generatePath } from '../../urls';
 import { formatDateInterval } from '../../utils';
 
@@ -212,6 +213,22 @@ const NavigationTaskDetailPage: React.FC = () => {
             )}
           </div>
         </div>
+      )}
+
+      {task.scoring_explanation && (
+        <ScoringExplanationCard
+          className="mb-6"
+          explanation={task.scoring_explanation}
+          footer={
+            <Link
+              to={generatePath('SCORECARD_EDITOR', { contestId: contestId!, navigationTaskId: navigationTaskId! })}
+              className="link link-primary inline-flex items-center gap-1"
+            >
+              <ClipboardList size={14} />
+              {canManage ? 'Open the scorecard to change how the task is scored' : 'See the scorecard'}
+            </Link>
+          }
+        />
       )}
 
       <div className="divider" />

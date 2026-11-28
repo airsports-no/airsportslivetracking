@@ -194,6 +194,21 @@ class Calculator(ABC):
         # self.scorecard's current state rather than a snapshot from construction.
         return CimaScoringConfig.from_scorecard(self.scorecard)
 
+    def percentage_penalty_fields(self, percentage: float) -> Tuple[str, float]:
+        """
+        The (kind, points) of a message that costs `percentage` percent of the task score. In the quality model it is a
+        percentage penalty, taken from the final task score. A task of the penalties model has no task score to take a
+        percentage from, so the penalty is the same share of what the task is worth (its task value, 250 for the circle)
+        as flat points.
+        """
+        from display.calculators.update_score_message import PENALTY, PERCENTAGE_PENALTY
+        from display.services.task_scoring import scoring_parameters
+
+        parameters = scoring_parameters(self.contestant.navigation_task)
+        if parameters.is_quality:
+            return PERCENTAGE_PENALTY, percentage
+        return PENALTY, percentage / 100.0 * (parameters.score_scale or parameters.task_value)
+
     def update_score(self, update_score_message: UpdateScoreMessage) -> None:
         self.score_processing_queue.put_nowait(update_score_message)
 

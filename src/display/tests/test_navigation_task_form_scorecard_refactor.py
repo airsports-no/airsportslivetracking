@@ -7,7 +7,7 @@ from display.default_scorecards.create_scorecards import create_scorecards
 from display.forms import NavigationTaskForm, ScorecardForm
 from display.models import Contest, EditableRoute, NavigationTask, Scorecard
 from display.models.scorecard_and_gate_score import SCORECARD_CONFIG_FIELDS
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE, CIRCLE, DURATION, LIMITED_FUEL_TURNPOINT_HUNT
+from display.utilities.task_types import ANR_CATALOGUE, CIRCLE, DURATION, LIMITED_FUEL_TURNPOINT_HUNT
 from display.views import _extract_values_from_form
 
 

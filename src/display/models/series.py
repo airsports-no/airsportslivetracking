@@ -2,6 +2,8 @@ from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
+from display.models.contest import validate_points_table
+
 
 def default_points_table() -> list[int]:
     """Points for a first, second, third… place when a series scores with a points table."""
@@ -63,8 +65,7 @@ class Series(models.Model):
 
     def clean(self):
         table = self.points_table
-        if not isinstance(table, list) or not all(isinstance(item, (int, float)) and item >= 0 for item in table):
-            raise ValidationError("The points table is a list of numbers that are not negative.")
+        validate_points_table(table)
         if self.scoring_method == self.POINTS_TABLE and not table:
             raise ValidationError("A series scored with a points table needs a points table.")
 

@@ -110,5 +110,7 @@ between the two projections is converted to millimetres with `FlightOrderConfigu
 * More than 20 mm from the track is `out_of_track` and scores zero.
 * Photos that are never marked are misses when the flight ends.
 * Scoring needs the task option above to be on. Other task types record observations but do not score them.
-* For CIMA the deficit `Vh * (1 - score_fraction)` is applied on the same scale as the gate score,
-  `initial_score * deficit / Qmax`, where Qmax includes `Vh * N` for the photos (`get_cima_gate_qmax`).
+* For CIMA the deficit `Vh * (1 - score_fraction)` is a penalty on the contestant's raw quality score Q, which
+  starts at the theoretical maximum including `Vh * N` for the photos (`theoretical_gate_quality`); the task score P
+  of every contestant is then derived from all the Q of the task (`display/services/task_scoring.py`). The `points`
+  of a registration is the raw change of Q (negative).

@@ -1,3 +1,5 @@
+import type { ScoringExplanation } from '../../utils/taskScore';
+
 // The competition-map and mission-dashboard features each keep their own (incomplete, mutually
 // inconsistent) Contestant/NavigationTask types - see the "Deferred lint & verification backlog"
 // project memory. Rather than fight that pre-existing duplication, this feature declares the
@@ -58,6 +60,7 @@ export interface NavigationTaskDetail {
   tracking_link: string;
   time_zone: string;
   task_subtype?: string | null;
+  task_config?: Record<string, unknown> | null;
   task_subtype_definition?: {
     key: string;
     display_name: string;
@@ -84,6 +87,8 @@ export interface NavigationTaskDetail {
   calculation_delay_minutes: number;
   guest_capacity_status: GuestCapacityStatus;
   is_poker_run: boolean;
+  /** How the task is scored, in plain language (written by the backend); absent from older servers. */
+  scoring_explanation?: ScoringExplanation | null;
 }
 
 // known_circuit's editor (KnownCircuitForm, ContestantDeclarationPage.tsx) already existed

@@ -42,23 +42,24 @@ from display.models import (
     Club,
 )
 
+from display.models.contest import default_standings_points_table
 from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES, SCORECARD_CONFIG_FIELDS
 from display.models.user_uploaded_map import validate_file_size
 from display.models.my_user import MyUser
 from display.utilities.country_code_utilities import get_country_code_from_location, CountryNotFoundException
-from display.utilities.cima_task_type_definitions import (
-    ANR_CATALOGUE,
-    CONTRACT_NAVIGATION_TIME_CONTROLS,
-    CURVE_NAVIGATION_TIME_ESTIMATION,
-    DURATION,
-    LIMITED_FUEL_TURNPOINT_HUNT,
-    PRECISION_NAVIGATION,
-    TURNPOINT_HUNT,
-    CIRCLE,
-    get_task_subtypes_for_family,
-)
 from display.services.task_type_visibility import can_user_see_task_subtype
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, NAVIGATION_TASK_TYPES, PRECISION
+from display.services.task_scoring import validate_task_value
+from display.utilities.task_types import (
+    ANR_CORRIDOR,
+    FAMILY_CHOICES,
+    PRECISION,
+    QMAX_POLICIES,
+    SCORING_MODELS,
+    SCORING_PENALTIES,
+    SCORING_QUALITY,
+    stored_task_type,
+    task_types_in_family,
+)
 
 FILE_TYPE_CSV = "csv"
 FILE_TYPE_FLIGHTCONTEST_GPX = "fcgpx"
@@ -328,12 +329,12 @@ class NavigationTaskForm(forms.ModelForm):
             self.fields["original_scorecard"].disabled = True
 
         subtype_choices = [("", "---------")]
-        family_labels = dict(NAVIGATION_TASK_TYPES)
+        family_labels = dict(FAMILY_CHOICES)
         subtype_families = [task_family] if task_family else [PRECISION, ANR_CORRIDOR]
         for family in subtype_families:
             family_subtypes = [
                 (item.key, item.display_name)
-                for item in get_task_subtypes_for_family(family)
+                for item in task_types_in_family(family)
                 if can_user_see_task_subtype(user, task_type=family, task_subtype=item.key)
             ]
             if family_subtypes:
@@ -408,6 +409,19 @@ class ContestForm(forms.ModelForm):
         model = Contest
         exclude = ("contest_teams", "is_featured", "is_public", "latitude", "longitude", "country")
 
+    def clean_overall_result_method(self):
+        # A post that leaves it out keeps what an existing contest has; only a new contest gets the default
+        method = self.cleaned_data.get("overall_result_method")
+        if method:
+            return method
+        return self.instance.overall_result_method if self.instance.pk else Contest.SUM_OF_SCORES
+
+    def clean_standings_points_table(self):
+        table = self.cleaned_data.get("standings_points_table")
+        if table is not None:
+            return table
+        return self.instance.standings_points_table if self.instance.pk else default_standings_points_table()
+
     def __init__(self, *args, **kwargs):
         token_grant_queryset = kwargs.pop("token_grant_queryset", UserTokenGrant.objects.none())
         managed_club_queryset = kwargs.pop("managed_club_queryset", Club.objects.none())
@@ -421,6 +435,9 @@ class ContestForm(forms.ModelForm):
         ].help_text = "Assign a token immediately when creating the contest. Spent tokens are never restored."
         self.fields["organizing_club"].queryset = managed_club_queryset
         self.fields["organizing_club"].required = False
+        # A post that does not mention the overall result (older pages, API clients of the form) keeps the defaults
+        self.fields["overall_result_method"].required = False
+        self.fields["standings_points_table"].required = False
         datetime_widget = forms.DateTimeInput(attrs={"type": "datetime-local", "step": "60"}, format="%Y-%m-%dT%H:%M")
         self.fields["start_time"].widget = datetime_widget
         self.fields["finish_time"].widget = datetime_widget
@@ -446,6 +463,8 @@ class ContestForm(forms.ModelForm):
                 "initial_token_grant",
                 "summary_score_sorting_direction",
                 "autosum_scores",
+                "overall_result_method",
+                "standings_points_table",
             ),
             ButtonHolder(Submit("submit", "Submit")),
         )
@@ -744,6 +763,8 @@ class ScorecardForm(forms.ModelForm):
     backtracking_bearing_difference = forms.FloatField()
     backtracking_grace_time_seconds = forms.FloatField()
     backtracking_maximum_penalty = forms.FloatField()
+    # Blank means the percentage of the task type (see display.services.task_scoring).
+    backtracking_penalty_percentage = forms.FloatField(required=False, min_value=0, max_value=100)
     prohibited_zone_penalty = forms.FloatField()
     prohibited_zone_grace_time = forms.FloatField()
     prohibited_zone_maximum = forms.FloatField()
@@ -757,21 +778,44 @@ class ScorecardForm(forms.ModelForm):
     anr_route_to_sp_penalty = forms.FloatField()
     anr_route_from_fp_penalty = forms.FloatField()
     compulsory_timing_tolerance_seconds = forms.IntegerField()
+    compulsory_timing_penalty_per_second = forms.FloatField(min_value=0)
+    turnpoint_hunt_time_gate_value = forms.FloatField(min_value=0)
     maximum_task_duration_minutes = forms.IntegerField(required=False)
     maximum_task_duration_penalty = forms.FloatField()
     fuel_deadline_penalty = forms.FloatField()
     duration_normalization_policy = forms.ChoiceField(choices=DURATION_NORMALIZATION_POLICIES, required=False)
     duration_residual_fuel_required = forms.BooleanField(required=False)
+    duration_landing_area_penalty_percent = forms.FloatField(min_value=0, max_value=100)
     circle_radius_min_m = forms.FloatField()
     circle_radius_max_m = forms.FloatField()
+    circle_altitude_band_ft = forms.FloatField(min_value=0)
+    circle_altitude_penalty_percent = forms.FloatField(min_value=0, max_value=100)
+    circle_centre_outside_penalty_percent = forms.FloatField(min_value=0, max_value=100)
+    speed_keeping_enabled = forms.BooleanField(required=False)
     speed_keeping_tolerance_kt = forms.FloatField()
     speed_keeping_penalty_per_kt = forms.FloatField()
+    speed_term_value = forms.FloatField(min_value=0)
     # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
     turnpoint_hunt_sequence_bonus = forms.FloatField(min_value=0)
+    observation_hidden_gate_value = forms.FloatField(min_value=0)
     observation_photo_penalty = forms.FloatField(min_value=0)
     observation_photo_value = forms.FloatField(min_value=0)
     observation_photo_full_tolerance_mm = forms.FloatField(required=False, min_value=0)
     observation_photo_half_tolerance_mm = forms.FloatField(required=False, min_value=0)
+    # Blank means the default of the task type (see display.services.task_scoring.scoring_parameters_for).
+    scoring_model = forms.ChoiceField(choices=[("", "Task type default")] + list(SCORING_MODELS), required=False)
+    qmax_policy = forms.ChoiceField(choices=[("", "Task type default")] + list(QMAX_POLICIES), required=False)
+    task_value = forms.FloatField(required=False)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        navigation_task = getattr(self.instance, "navigation_task_override", None)
+        default_model = stored_task_type(navigation_task).scoring_model if navigation_task else SCORING_PENALTIES
+        if (cleaned_data.get("scoring_model") or default_model) == SCORING_QUALITY and cleaned_data.get("task_value"):
+            problem = validate_task_value(cleaned_data["task_value"])
+            if problem:
+                self.add_error("task_value", problem)
+        return cleaned_data
 
     class Meta:
         model = Scorecard
@@ -840,17 +884,19 @@ class ScorecardForm(forms.ModelForm):
                 existing_block_titles.add(block[0])
 
         navigation_task = getattr(self.instance, "navigation_task_override", None)
-        if navigation_task and navigation_task.task_subtype in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
+        if navigation_task and stored_task_type(navigation_task).scores_turnpoint_hunt_targets:
             _append_block_once(
                 [
                     "Turnpoint hunt configuration",
                     "compulsory_timing_tolerance_seconds",
+                    "compulsory_timing_penalty_per_second",
+                    "turnpoint_hunt_time_gate_value",
                     "maximum_task_duration_minutes",
                     "maximum_task_duration_penalty",
                     "fuel_deadline_penalty",
                 ]
             )
-        if navigation_task and navigation_task.task_subtype == ANR_CATALOGUE:
+        if navigation_task and stored_task_type(navigation_task).has_auxiliary_route_checks:
             _append_block_once(
                 [
                     "ANR catalogue configuration",
@@ -858,22 +904,39 @@ class ScorecardForm(forms.ModelForm):
                     "anr_route_from_fp_penalty",
                 ]
             )
-        if navigation_task and navigation_task.task_subtype == DURATION:
+        if navigation_task and stored_task_type(navigation_task).scores_duration:
             _append_block_once(
                 [
                     "Duration configuration",
-                    "duration_normalization_policy",
+                    "duration_landing_area_penalty_percent",
                     "duration_residual_fuel_required",
                 ]
             )
-        if navigation_task and navigation_task.task_subtype == CIRCLE:
+        if navigation_task and stored_task_type(navigation_task).scores_circle:
             _append_block_once(
                 [
                     "Circle configuration",
                     "circle_radius_min_m",
                     "circle_radius_max_m",
+                    "circle_altitude_band_ft",
+                    "circle_altitude_penalty_percent",
+                    "circle_centre_outside_penalty_percent",
                 ]
             )
+        if navigation_task and stored_task_type(navigation_task).hidden_gate_value_field:
+            _append_block_once(["Hidden gates", "observation_hidden_gate_value"])
+        if navigation_task and stored_task_type(navigation_task).scores_speed_keeping:
+            _append_block_once(
+                [
+                    "Speed configuration",
+                    "speed_term_value",
+                    "speed_keeping_enabled",
+                    "speed_keeping_tolerance_kt",
+                    "speed_keeping_penalty_per_kt",
+                ]
+            )
+        if navigation_task and stored_task_type(navigation_task).scoring_model == SCORING_QUALITY:
+            _append_block_once(["Task score", "scoring_model", "qmax_policy", "task_value"])
 
         self.helper = FormHelper()
         self.helper.form_class = "form mt-4"

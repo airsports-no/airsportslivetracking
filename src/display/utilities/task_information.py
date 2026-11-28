@@ -2,15 +2,15 @@ from __future__ import annotations
 
 from typing import Any
 
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     ANR_CATALOGUE,
     CIRCLE,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     CURVE_NAVIGATION_TIME_ESTIMATION,
     DURATION,
     KNOWN_CIRCUIT,
-    LEGACY_AIRSPORT_CHALLENGE,
     LEGACY_AIRSPORTS,
+    LEGACY_AIRSPORT_CHALLENGE,
     LEGACY_ANR_CORRIDOR,
     LEGACY_LANDING,
     LEGACY_POKER,
@@ -20,14 +20,9 @@ from display.utilities.cima_task_type_definitions import (
     TURNPOINT_HUNT,
     UNKNOWN_LEGS,
 )
-from display.utilities.navigation_task_type_definitions import (
-    AIRSPORTS,
-    AIRSPORT_CHALLENGE,
-    ANR_CORRIDOR,
-    LANDING,
-    POKER,
-    PRECISION,
-)
+from display.utilities.cima_scoring_config import CimaScoringConfig
+from display.utilities.task_types import AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, LANDING, POKER, PRECISION
+from display.utilities.task_types import stored_task_type
 
 
 FAMILY_DISPLAY_NAMES = {
@@ -49,6 +44,85 @@ def _format_float(value: Any, decimals: int = 0) -> str:
         return f"{float(value):.{decimals}f}"
     except (TypeError, ValueError):
         return str(value)
+
+
+def _number(value: Any) -> str:
+    """A setting as it reads in a sentence: 20 not 20.0, 2.5 as 2.5."""
+    try:
+        return f"{float(value):g}"
+    except (TypeError, ValueError):
+        return str(value)
+
+
+def _backtracking_line(navigation_task) -> str:
+    """The backtracking penalty of a catalogue task that has a percentage, from the scorecard (50% by default)."""
+    # Imported here: display.services.task_scoring needs the models, which import this module
+    from display.services.task_scoring import backtracking_penalty_percentage_for
+
+    percentage = backtracking_penalty_percentage_for(navigation_task.scorecard, stored_task_type(navigation_task))
+    if not percentage:
+        return f"Backtracking costs {_number(navigation_task.scorecard.backtracking_penalty)} points."
+    return f"Backtracking is a {_number(percentage)}% penalty."
+
+
+def _hunt_timing_line(navigation_task) -> str:
+    config = CimaScoringConfig.from_scorecard(navigation_task.scorecard)
+    return (
+        f"Compulsory timing gates currently use a tolerance of {_number(config.compulsory_timing_tolerance_seconds)} "
+        f"seconds, beyond which each second costs {_number(config.compulsory_timing_penalty_per_second)} points of the "
+        f"{_number(config.turnpoint_hunt_time_gate_value)} each gate is worth."
+    )
+
+
+def _maximum_duration_override(navigation_task) -> list[str]:
+    """The maximum task duration of a hunt and what each second over it costs, from the scorecard."""
+    config = CimaScoringConfig.from_scorecard(navigation_task.scorecard)
+    if config.maximum_task_duration_minutes is None:
+        return []
+    return [
+        f"Configured maximum task duration is {_number(config.maximum_task_duration_minutes)} minutes with "
+        f"{_number(config.maximum_task_duration_penalty)} points/second overtime penalty."
+    ]
+
+
+def _catalogue_anr_scoring_lines(navigation_task) -> list[str]:
+    """2.A8 in words, with the numbers of the task's scorecard and of the task type (initial Q, scale, gate width)."""
+    from display.services.task_scoring import scoring_parameters
+
+    scorecard = navigation_task.scorecard
+    definition = stored_task_type(navigation_task)
+    task_value = scoring_parameters(navigation_task).task_value
+    reference = definition.absolute_reference or definition.fixed_quality or task_value
+    gate_width = _number(definition.start_finish_gate_width_nm or 0.6)
+    lines = [
+        f"Competitors start with {_number(definition.fixed_quality or reference)} points on the catalogue's own scale; "
+        "penalties are subtracted for corridor deviations, timing errors, start/take-off issues, route-to-SP / route-from-FP violations, and backtracking/circling.",
+        f"SP and FP each use a {gate_width} NM gate unless specifically briefed otherwise.",
+    ]
+    try:
+        lines.append(
+            f"Timing penalties at SP and FP apply after ±{_number(scorecard.get_graceperiod_after_for_gate_type('sp'))} "
+            f"second(s) with {_number(scorecard.get_penalty_per_second_for_gate_type('sp'))} points per full second up to "
+            f"{_number(scorecard.get_maximum_timing_penalty_for_gate_type('sp'))} points per gate."
+        )
+        lines.append(
+            f"SP and FP must be crossed within their {gate_width} NM gate; a crossing beside it counts as not crossed and "
+            f"costs {_number(scorecard.get_missed_penalty_for_gate_type('sp'))} points."
+        )
+        lines.append(
+            "Taking off before the given time or more than 60 seconds after it costs "
+            f"{_number(scorecard.get_maximum_timing_penalty_for_gate_type('to'))} points."
+        )
+    except Exception:
+        pass
+    lines.append(
+        "Route compliance outside the corridor is accumulated according to the configured corridor grace time and penalty rate."
+    )
+    lines.append(
+        f"The catalogue then scales that 0-{_number(reference)} total onto the task value (0-{_number(task_value)}) for "
+        "the officially displayed score, so it stays comparable with every other task type."
+    )
+    return lines
 
 
 def _precision_family_overrides(navigation_task) -> list[str]:
@@ -242,7 +316,7 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
             "Time precision scores the sum of absolute errors at the known time gates.",
             "Total score is the combined hidden-gate and time-precision result, normalized to the task maximum.",
         ])
-        info["penalties"] = ["Backtracking is a 50% penalty."]
+        info["penalties"] = [_backtracking_line(navigation_task)]
         if task_config.get("curve_navigation_tmax_seconds"):
             info["overrides"].append(
                 f"Configured Tmax is {int(task_config['curve_navigation_tmax_seconds'])} seconds from SP to FP."
@@ -260,7 +334,7 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
             "Each second of timing error reduces the timing component, up to the configured maximum per gate.",
             "Total score combines route precision and timing precision and is normalized to the task maximum.",
         ])
-        info["penalties"] = ["Backtracking is a 50% penalty."]
+        info["penalties"] = [_backtracking_line(navigation_task)]
         info["overrides"].extend(_precision_family_overrides(navigation_task))
     elif subtype == CONTRACT_NAVIGATION_TIME_CONTROLS:
         info["objective"] = "Fly a declared ordered sequence of turn points, hit MP at T seconds after SP and FP at 2T seconds after SP, and keep the declared order valid."
@@ -274,7 +348,7 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
             "Time score uses the absolute timing error at SP, MP, and FP, each capped by the configured maximum error.",
             "Total score combines ordered-point validity and mandatory time-point precision.",
         ])
-        info["penalties"] = ["Backtracking is a 50% penalty."]
+        info["penalties"] = [_backtracking_line(navigation_task)]
         if task_config.get("contract_time_seconds"):
             info["overrides"].append(f"Configured contract time T is {int(task_config['contract_time_seconds'])} seconds.")
         info["overrides"].extend(_precision_family_overrides(navigation_task))
@@ -293,7 +367,7 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
         info["penalties"] = _clean_lines([
             "Breach of quarantine is a 100% penalty.",
             "Crossing a hidden gate twice invalidates that gate.",
-            "Backtracking is a 50% penalty.",
+            _backtracking_line(navigation_task),
         ])
         info["overrides"].extend(_precision_family_overrides(navigation_task))
     elif subtype == UNKNOWN_LEGS:
@@ -312,11 +386,10 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
             "Breach of quarantine is a 100% penalty.",
             "Crossing a hidden gate twice invalidates that gate.",
             "A broken envelope seal penalty may apply when that task option is used.",
-            "Backtracking is a 50% penalty.",
+            _backtracking_line(navigation_task),
         ])
         info["overrides"].extend(_precision_family_overrides(navigation_task))
     elif subtype == TURNPOINT_HUNT:
-        tolerance = int(task_config.get("compulsory_timing_tolerance_seconds") or 10)
         info["objective"] = "Visit as many scored targets as possible within the task time, while keeping the declared sequence valid and hitting the three compulsory timing gates accurately."
         info["summary"] = _clean_lines([
             "All target locations and scores are published before take-off.",
@@ -325,28 +398,20 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
         ])
         info["scoring"] = _clean_lines([
             "Turnpoint and gate values are accumulated according to the declared sequence and successfully collected targets.",
-            f"Compulsory timing gates currently use a tolerance of {tolerance} seconds before timing penalties apply.",
+            _hunt_timing_line(navigation_task),
             "Sequence correctness and collected target values both contribute to the task result.",
         ])
         info["penalties"] = _clean_lines([
             "Breach of quarantine is a 100% penalty.",
             "Wrongly identified photo/map evidence is a 50% penalty of that target score.",
-            "Time over maximum task duration is penalized according to the configured task override when enabled.",
+            "Time over the maximum task duration is penalized per second, according to the scorecard, when a maximum is set.",
         ])
-        if task_config.get("maximum_task_duration_minutes") is not None:
-            info["overrides"].append(
-                "Configured maximum task duration is "
-                f"{int(task_config['maximum_task_duration_minutes'])} minutes"
-                + (
-                    f" with {_format_float(task_config.get('maximum_task_duration_penalty'))} points/second overtime penalty."
-                    if task_config.get("maximum_task_duration_penalty") is not None
-                    else "."
-                )
-            )
+        info["overrides"].extend(_maximum_duration_override(navigation_task))
         info["overrides"].extend(_precision_family_overrides(navigation_task))
     elif subtype == CIRCLE:
-        min_radius = task_config.get("circle_radius_min_m", getattr(scorecard, "circle_radius_min_m", 200))
-        max_radius = task_config.get("circle_radius_max_m", getattr(scorecard, "circle_radius_max_m", 750))
+        circle = CimaScoringConfig.from_scorecard(scorecard)
+        min_radius = task_config.get("circle_radius_min_m", circle.circle_radius_min_m)
+        max_radius = task_config.get("circle_radius_max_m", circle.circle_radius_max_m)
         info["objective"] = "Fly a precise left-hand circle around the center marker, within the allowed radius band, after entering straight over SP and CM."
         info["summary"] = _clean_lines([
             "The pilot must overfly SP and CM in a straight initial line before banking left into the circle.",
@@ -356,11 +421,12 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
         info["scoring"] = _clean_lines([
             "Circle score is based on P = (Rmin / Rmax - 0.5) * 500, capped at 250 points.",
             "The maximum score is achieved by flying a truly circular path within the allowed radius band.",
-            "A 20% penalty applies if altitude spread exceeds 200 ft / 61 m between lowest and highest height during the scored circle.",
+            f"A {_number(circle.circle_altitude_penalty_percent)}% penalty applies if altitude spread exceeds "
+            f"{_number(circle.circle_altitude_band_ft)} ft / {round(circle.circle_altitude_band_ft * 0.3048)} m between lowest and highest height during the scored circle.",
         ])
         info["penalties"] = _clean_lines([
             "A 100% penalty applies if the circle is flown clockwise.",
-            "A 100% penalty applies if CM is outside the flown circle.",
+            f"A {_number(circle.circle_centre_outside_penalty_percent)}% penalty applies if CM is outside the flown circle.",
             "A 100% penalty applies if entry is not flown over the briefed SP/CM line limits.",
             "A 100% penalty applies if the aircraft leaves the permitted radius band.",
             "A 100% penalty applies if Rmin / Rmax is 0.5 or smaller.",
@@ -375,20 +441,14 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
             "SP and FP each use a 0.6 NM gate unless specifically briefed otherwise.",
             "Real-time scoring may be used when the approved live-tracking system is active.",
         ])
-        info["scoring"] = _clean_lines([
-            "Competitors start with 2000 points on the catalogue's own scale; penalties are subtracted for corridor deviations, timing errors, start/take-off issues, route-to-SP / route-from-FP violations, and backtracking/circling.",
-            "Timing penalties at SP and FP apply after ±1 second with 3 points per full second up to 200 points per gate.",
-            "Route compliance outside the corridor is accumulated according to the configured corridor grace time and penalty rate.",
-            "The catalogue then normalizes that 0-2000 total onto the platform's standard 0-1000 scale (halving it) for the officially displayed score, so it stays comparable with every other task type.",
-        ])
+        info["scoring"] = _clean_lines(_catalogue_anr_scoring_lines(navigation_task))
         info["penalties"] = _clean_lines([
             "Breach of quarantine is a 100% penalty.",
             "Intentional failure to follow task instructions is a 100% penalty.",
-            "Backtracking or circling more than 90° while leaving or re-entering the corridor gives 200 points each.",
+            f"Backtracking or circling more than {_number(scorecard.backtracking_bearing_difference)}° while leaving or re-entering the corridor gives {_number(scorecard.backtracking_penalty)} points each.",
         ])
         info["overrides"].extend(_anr_family_overrides(navigation_task))
     elif subtype == LIMITED_FUEL_TURNPOINT_HUNT:
-        tolerance = int(task_config.get("compulsory_timing_tolerance_seconds") or 10)
         info["objective"] = "Visit as many scored targets as possible within the task time on limited fuel, while meeting the compulsory timing gates and any configured fuel-compliance conditions."
         info["summary"] = _clean_lines([
             "All target locations and scores are published before take-off together with the specified fuel quantity.",
@@ -396,40 +456,30 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
             "Three compulsory timing gates must be crossed within the configured tolerance; one may require a precision touchdown depending on the briefing.",
         ])
         info["scoring"] = _clean_lines([
-            "Turnpoint and gate values are accumulated according to the declared sequence and successfully collected targets.",
-            f"Compulsory timing gates currently use a tolerance of {tolerance} seconds before timing penalties apply.",
+            "Every target collected scores its value and every compulsory timing gate crossed scores 200 less its timing error, in whatever order the targets are flown.",
+            _hunt_timing_line(navigation_task),
             "Fuel-compliance effects are applied in addition to the normal turnpoint-hunt sequence and timing scoring.",
         ])
         info["penalties"] = _clean_lines([
             "Breach of quarantine is a 100% penalty.",
             "Wrongly identified photo/map evidence is a 50% penalty of that target score.",
-            "Time over maximum task duration is penalized according to the configured task override when enabled.",
+            "Time over the maximum task duration is penalized per second, according to the scorecard, when a maximum is set.",
         ])
-        if task_config.get("maximum_task_duration_minutes") is not None:
-            info["overrides"].append(
-                "Configured maximum task duration is "
-                f"{int(task_config['maximum_task_duration_minutes'])} minutes"
-                + (
-                    f" with {_format_float(task_config.get('maximum_task_duration_penalty'))} points/second overtime penalty."
-                    if task_config.get("maximum_task_duration_penalty") is not None
-                    else "."
-                )
-            )
-        if task_config.get("fuel_deadline_penalty") is not None:
-            info["overrides"].append(
-                f"Configured fuel deadline penalty is {_format_float(task_config['fuel_deadline_penalty'])} points."
-            )
+        info["overrides"].extend(_maximum_duration_override(navigation_task))
+        info["overrides"].append(
+            f"Configured fuel deadline penalty is {_number(scorecard.fuel_deadline_penalty)} points."
+        )
         info["overrides"].extend(_precision_family_overrides(navigation_task))
     elif subtype == DURATION:
         info["objective"] = "Fly for as long as possible on the specified fuel, land in the permitted area, and satisfy any residual-fuel requirement if one is configured."
         info["summary"] = _clean_lines([
             "The task is fuel-limited and normally ends with landing in a designated landing area briefed by the organizer.",
             "If a residual-fuel requirement is configured, quarantine fuel checking applies after landing.",
-            "Duration scoring currently follows the configured normalization policy in the task configuration.",
+            "The longest flight scores the task value and every other flight in proportion to its time airborne.",
         ])
         info["scoring"] = _clean_lines([
-            "The duration result is based on airborne duration measured from take-off to landing.",
-            "Any configured normalization policy is applied on top of the raw airborne duration.",
+            "The duration result is the airborne duration measured from take-off to landing.",
+            "The task score is the task value times the flight's duration divided by the longest duration of the task, so it can change until every flight is finished.",
             "Landing-area and residual-fuel requirements are enforced through the configured task rules.",
         ])
         info["penalties"] = _clean_lines([
@@ -437,9 +487,10 @@ def build_navigation_task_information(navigation_task) -> dict[str, Any]:
             "Flight in a prohibited area is a 100% penalty.",
             "Landing outside the specified area but inside the airfield boundary is scored as briefed.",
         ])
-        if task_config.get("duration_normalization_policy"):
+        landing_penalty = getattr(navigation_task.scorecard, "duration_landing_area_penalty_percent", None)
+        if landing_penalty is not None:
             info["overrides"].append(
-                f"Configured duration normalization policy is '{task_config['duration_normalization_policy']}'."
+                f"Landing outside the specified area costs {_format_float(landing_penalty)}% of the task score."
             )
         if task_config.get("duration_residual_fuel_required"):
             info["overrides"].append("Residual fuel is required at landing for this task.")

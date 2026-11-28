@@ -23,12 +23,7 @@ from display.default_scorecards.default_scorecard_landing import get_default_sco
 from display.default_scorecards.default_scorecard_poker_run import get_default_scorecard as get_poker_scorecard
 from display.models import Contest, NavigationTask, Route
 from display.services.scorecard_gate_applicability import get_applicable_gate_types
-from display.utilities.cima_task_type_definitions import (
-    CIRCLE,
-    DURATION,
-    LIMITED_FUEL_TURNPOINT_HUNT,
-    TURNPOINT_HUNT,
-)
+from display.utilities.task_types import CIRCLE, DURATION, LIMITED_FUEL_TURNPOINT_HUNT, TURNPOINT_HUNT
 from display.utilities.gate_definitions import (
     ANR_TP,
     CIRCLE_ENTRY,

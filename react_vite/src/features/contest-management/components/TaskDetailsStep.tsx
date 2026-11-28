@@ -4,6 +4,7 @@ import { zodResolver } from '@hookform/resolvers/zod';
 import Select from 'react-select';
 import { selectStyles } from '../../../utils/selectStyles';
 import { fetchScorecardChoices } from '../api';
+import ScoringChoiceNote from './ScoringChoiceNote';
 import HelpIcon from '../../../components/common/HelpIcon';
 import SimulatorPolicyChoice from '../../../components/common/SimulatorPolicyChoice';
 import { SimulatorPolicy } from '../../../utils/simulatorPolicy';
@@ -44,6 +45,7 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, taskSubtype
     // The simulator policy is chosen with radio buttons that set the value directly: register it so it is always part of the submission
     useEffect(() => {
         register('simulator_policy');
+        register('qmax_policy');
     }, [register]);
 
     useEffect(() => {
@@ -120,6 +122,16 @@ const TaskDetailsStep: React.FC<TaskDetailsStepProps> = ({ taskType, taskSubtype
                 )}
                 {errors.original_scorecard && <span className="text-error text-sm">{errors.original_scorecard.message}</span>}
             </label>
+
+            {taskSubtype && originalScorecard && (
+                <ScoringChoiceNote
+                    key={taskSubtype}
+                    taskSubtype={taskSubtype}
+                    scorecard={originalScorecard}
+                    value={watch('qmax_policy') ?? ''}
+                    onChange={policy => setValue('qmax_policy', policy, { shouldDirty: true })}
+                />
+            )}
 
             <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
                 <label className="form-control w-full">

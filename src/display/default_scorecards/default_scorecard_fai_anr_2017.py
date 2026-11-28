@@ -12,7 +12,7 @@ from display.utilities.gate_definitions import (
     DUMMY,
     UNKNOWN_LEG,
 )
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
+from display.utilities.task_types import ANR_CORRIDOR
 
 
 def get_default_scorecard():

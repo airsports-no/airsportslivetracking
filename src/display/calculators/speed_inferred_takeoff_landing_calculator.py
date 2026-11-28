@@ -51,6 +51,8 @@ class SpeedInferredTakeoffLandingCalculator(Calculator):
         self.scored_takeoff = False
         self.scored_landing = False
         self.consecutive_low_speed = 0
+        # The first position of the current stretch of low speed: where and when the aircraft came to rest.
+        self.low_speed_start: Optional[ContestantReceivedPosition] = None
 
     def on_takeoff_passed(self, event: TakeoffPassedEvent):
         # Track airborne state even when takeoff itself was detected by a real
@@ -109,9 +111,12 @@ class SpeedInferredTakeoffLandingCalculator(Calculator):
         was_sustained_low = self.consecutive_low_speed >= SUSTAINED_SAMPLE_COUNT
 
         if speed < NEAR_ZERO_SPEED_THRESHOLD_KT:
+            if self.consecutive_low_speed == 0:
+                self.low_speed_start = position
             self.consecutive_low_speed += 1
         else:
             self.consecutive_low_speed = 0
+            self.low_speed_start = None
 
         previous_position: Optional[ContestantReceivedPosition] = track[-2] if len(track) >= 2 else None
 
@@ -134,9 +139,12 @@ class SpeedInferredTakeoffLandingCalculator(Calculator):
             and self.consecutive_low_speed == SUSTAINED_SAMPLE_COUNT
         ):
             self.scored_landing = True
-            gate = self._build_synthetic_gate(position, previous_position, "ldg", "Inferred landing")
-            logger.info(f"{self.contestant}: Inferring landing from speed profile at {position.time}")
-            events.append(LandingPassedEvent(gate, position, position.time))
+            # The window of low speed is only the proof: the aircraft landed where it came to rest, a minute before the
+            # window was complete, and the duration of 2.B3 runs to that moment (as the take-off is the first fast sample).
+            touchdown = self.low_speed_start or position
+            gate = self._build_synthetic_gate(touchdown, previous_position, "ldg", "Inferred landing")
+            logger.info(f"{self.contestant}: Inferring landing from speed profile at {touchdown.time}")
+            events.append(LandingPassedEvent(gate, touchdown, touchdown.time))
 
         return events
 

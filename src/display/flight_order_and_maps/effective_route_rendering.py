@@ -12,6 +12,7 @@ from typing import Any
 
 from display.utilities.coordinate_utilities import calculate_bearing, calculate_distance_lat_lon
 from display.utilities.route_building_utilities import build_waypoint
+from display.utilities.task_types import stored_task_type
 
 
 def _serialised_waypoint_to_runtime_waypoint(item: dict):
@@ -247,15 +248,16 @@ def get_task_catalogue_targets(navigation_task, contestant=None) -> list[dict[st
         config = getattr(contestant, "contestanttaskconfiguration", None)
         if config is not None and config.is_valid:
             candidate = config.compiled_effective_route_payload or {}
-            if navigation_task.task_subtype == "unknown_legs":
+            if stored_task_type(navigation_task).has_unknown_legs:
                 payload = candidate
 
-    if payload and navigation_task.task_subtype == "unknown_legs":
+    has_unknown_legs = stored_task_type(navigation_task).has_unknown_legs
+    if payload and has_unknown_legs:
         return _attach_curve_controls(_build_unknown_legs_targets_from_payload(payload), editable_route)
 
     compiled_task = getattr(navigation_task, "compilednavigationtask", None)
     compiled_payload = getattr(compiled_task, "compiled_payload", None) if compiled_task is not None else None
-    if compiled_payload and navigation_task.task_subtype == "unknown_legs":
+    if compiled_payload and has_unknown_legs:
         return _attach_curve_controls(_build_unknown_legs_targets_from_payload(compiled_payload), editable_route)
 
     targets = []

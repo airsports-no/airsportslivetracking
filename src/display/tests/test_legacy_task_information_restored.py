@@ -41,7 +41,7 @@ from display.utilities.gate_definitions import (
     TAKEOFF_GATE,
     TURNPOINT,
 )
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
+from display.utilities.task_types import ANR_CORRIDOR
 from display.utilities.task_information import build_navigation_task_information
 from display.waypoint import Waypoint
 

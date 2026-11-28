@@ -10,7 +10,7 @@ from django.db.models import QuerySet
 from display.fields.my_pickled_object_field import MyPickledObjectField
 from display.utilities.clone_object import simple_clone
 from display.utilities.gate_definitions import GATE_TYPES
-from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES, PRECISION
+from display.utilities.task_types import DEFAULT_TASK_VALUE, FAMILY_CHOICES, PRECISION
 
 DURATION_NORMALIZATION_POLICIES = (("", "---------"), ("raw_minutes", "Raw minutes"))
 
@@ -28,6 +28,7 @@ SCORECARD_CONFIG_FIELDS = [
     "backtracking_bearing_difference",
     "backtracking_grace_time_seconds",
     "backtracking_maximum_penalty",
+    "backtracking_penalty_percentage",
     "prohibited_zone_penalty",
     "prohibited_zone_grace_time",
     "prohibited_zone_maximum",
@@ -41,20 +42,32 @@ SCORECARD_CONFIG_FIELDS = [
     "anr_route_to_sp_penalty",
     "anr_route_from_fp_penalty",
     "compulsory_timing_tolerance_seconds",
+    "compulsory_timing_penalty_per_second",
+    "turnpoint_hunt_time_gate_value",
     "maximum_task_duration_minutes",
     "maximum_task_duration_penalty",
     "fuel_deadline_penalty",
     "duration_normalization_policy",
     "duration_residual_fuel_required",
+    "duration_landing_area_penalty_percent",
     "circle_radius_min_m",
     "circle_radius_max_m",
+    "circle_altitude_band_ft",
+    "circle_altitude_penalty_percent",
+    "circle_centre_outside_penalty_percent",
+    "speed_keeping_enabled",
     "speed_keeping_tolerance_kt",
     "speed_keeping_penalty_per_kt",
+    "speed_term_value",
     "turnpoint_hunt_sequence_bonus",
+    "observation_hidden_gate_value",
     "observation_photo_penalty",
     "observation_photo_value",
     "observation_photo_full_tolerance_mm",
     "observation_photo_half_tolerance_mm",
+    "scoring_model",
+    "qmax_policy",
+    "task_value",
 ]
 
 
@@ -212,7 +225,7 @@ class Scorecard(models.Model):
         help_text="Free text (with HTML) that is included at the bottom of the scorecard box", default=""
     )
     calculator = models.CharField(
-        choices=NAVIGATION_TASK_TYPES,
+        choices=FAMILY_CHOICES,
         default=PRECISION,
         max_length=20,
         help_text="Supported calculator types",
@@ -247,6 +260,10 @@ class Scorecard(models.Model):
     backtracking_bearing_difference = ConfigField(90)
     backtracking_grace_time_seconds = ConfigField(5)
     backtracking_maximum_penalty = ConfigField(-1)
+    # The percentage of the task score one backtrack costs (2.A1-2.A5: 50). None: the task type's own (see
+    # task_scoring.backtracking_penalty_percentage_for); 0: the flat backtracking_penalty. Only task types of the CIMA
+    # rule set that have a percentage use it.
+    backtracking_penalty_percentage = ConfigField(None)
     prohibited_zone_penalty = ConfigField(200)
     prohibited_zone_grace_time = ConfigField(3)
     prohibited_zone_maximum = ConfigField(0)
@@ -262,26 +279,57 @@ class Scorecard(models.Model):
     anr_route_to_sp_penalty = ConfigField(200)
     anr_route_from_fp_penalty = ConfigField(200)
 
+    # 2.A6, 2.B2 (Annex 4): a compulsory timing gate within the tolerance costs nothing, beyond it every second costs
+    # compulsory_timing_penalty_per_second; a time gate crossed is worth turnpoint_hunt_time_gate_value less that; every
+    # second the last gate is crossed after the maximum task duration costs maximum_task_duration_penalty.
     compulsory_timing_tolerance_seconds = ConfigField(10)
+    compulsory_timing_penalty_per_second = ConfigField(10)
+    turnpoint_hunt_time_gate_value = ConfigField(200)
     maximum_task_duration_minutes = ConfigField(None)
-    maximum_task_duration_penalty = ConfigField(100)
+    maximum_task_duration_penalty = ConfigField(10)
     fuel_deadline_penalty = ConfigField(100)
     duration_normalization_policy = ConfigField("")
     duration_residual_fuel_required = ConfigField(False)
+    # 2.B3: landing outside the specified area costs this percentage of the task score; the catalogue leaves the penalty
+    # "to be briefed" and its other penalties (quarantine, prohibited area) are percentages, so this one is as well.
+    duration_landing_area_penalty_percent = ConfigField(50)
     circle_radius_min_m = ConfigField(200)
     circle_radius_max_m = ConfigField(750)
+    # 2.A7: the circle may span at most circle_altitude_band_ft between its lowest and highest point (200 ft / 61 m),
+    # otherwise circle_altitude_penalty_percent of the task score is lost (20%).
+    circle_altitude_band_ft = ConfigField(200)
+    circle_altitude_penalty_percent = ConfigField(20)
+    # 2.A7: if the centre mark CM is outside the circle the pilot flew, circle_centre_outside_penalty_percent of the task
+    # score is lost (100%).
+    circle_centre_outside_penalty_percent = ConfigField(100)
+    # 2.A4: the speed-keeping rule (a penalty for every leg flown off the declared speed) is the application's own and
+    # not part of the catalogue, so it is off unless the organiser turns it on.
+    speed_keeping_enabled = ConfigField(False)
     speed_keeping_tolerance_kt = ConfigField(5)
     speed_keeping_penalty_per_kt = ConfigField(1)
+    # 2.A4: Vs of the speed term Qv = Vs x S / Smax, the value the best speed of the task earns (briefed per task; 0:
+    # the task has no speed term).
+    speed_term_value = ConfigField(0)
     turnpoint_hunt_sequence_bonus = ConfigField(0)
     # Observation photos (see display/services/photo_observations.py). Legacy tasks deduct the penalty for every
     # observation that is missed (not marked, or marked more than 1 mm from the target); CIMA tasks (2.A4/2.A5)
     # award the value per observation (Vh in the catalogue), full within 2 mm, half within 5 mm.
     observation_photo_penalty = ConfigField(100)
+    # 2.A4, 2.A5: Vh, what a hidden gate crossed once, in order and in the right direction is worth ("typically 100",
+    # like an observation photo). The hidden gate's own gate score still sets what a time error costs where it is timed.
+    observation_hidden_gate_value = ConfigField(100)
     observation_photo_value = ConfigField(100)
     # Distance along the track, in millimetres on the printed map, within which an observation scores in full /
     # half. None uses the rule of the task type: 1 mm (no half band) for legacy tasks, 2 mm / 5 mm for CIMA.
     observation_photo_full_tolerance_mm = ConfigField(None)
     observation_photo_half_tolerance_mm = ConfigField(None)
+
+    # How the task score is made (see display.utilities.task_types.SCORING_MODELS and display.services.task_scoring).
+    # None means the default of the task's type: a task created before these values existed behaves as its task type
+    # does by default, so no stored data had to change. task_value is the maximum task score of the quality model.
+    scoring_model = ConfigField(None)
+    qmax_policy = ConfigField(None)
+    task_value = ConfigField(DEFAULT_TASK_VALUE)
 
     def __str__(self):
         return self.name

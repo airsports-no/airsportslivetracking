@@ -12,7 +12,7 @@ from display.utilities.gate_definitions import (
     DUMMY,
     UNKNOWN_LEG,
 )
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION
 
 
 # No procedure turn

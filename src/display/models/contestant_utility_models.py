@@ -26,6 +26,9 @@ class ContestantReceivedPosition(models.Model):
     longitude = models.FloatField()
     projected_x = models.FloatField(null=True, blank=True)
     projected_y = models.FloatField(null=True, blank=True)
+    # Units of a stored position, whatever the source (Traccar, Flymaster, GPX playback, simulator): altitude in metres
+    # above mean sea level, speed in knots, course in degrees true. Each source converts on the way in; feet are a
+    # display conversion (websocket feed, flight analysis, the circle task's altitude band).
     altitude = models.FloatField(default=0)
     speed = models.FloatField(default=0)
     course = models.FloatField(default=0)

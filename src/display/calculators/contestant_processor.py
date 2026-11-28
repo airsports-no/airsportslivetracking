@@ -11,15 +11,16 @@ from django.db import transaction
 from django.db.utils import IntegrityError
 
 from display.calculators.calculator_factory import calculator_factory
-from display.calculators.cima_score_normalization import get_cima_achievement_qmax, get_cima_gate_qmax
-from display.calculators.gate_calculator import (
-    GATE_SCORE_TYPE,
-    TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE,
-    TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE,
-)
-from display.calculators.update_score_message import UpdateScoreMessage
-from display.utilities.cima_task_type_definitions import get_cima_fixed_scale_factor
+from display.calculators.update_score_message import PERCENTAGE_PENALTY, UpdateScoreMessage
 from display.models.contestant_track import ContestantTrack
+from display.services.task_scoring import (
+    initial_track_score,
+    measure_text,
+    refresh_contestant_quality,
+    scoring_parameters,
+    signed_contribution,
+)
+from display.utilities.task_types import stored_task_type
 from display.utilities.calculator_running_utilities import calculator_is_alive, calculator_is_terminated
 from display.utilities.calculator_termination_utilities import is_termination_requested
 from display.utilities.tracking_definitions import TrackingService
@@ -50,15 +51,6 @@ INITIAL_POSITION_LOAD_HEARTBEAT_POLL_SECONDS = 15
 # unreliable, so we leave the heading at 0 rather than emitting noise.
 MIN_DISTANCE_FOR_BEARING_M = 5.0
 logger = logging.getLogger(__name__)
-
-# 2.A6/2.B2 (turnpoint hunt) are the only CIMA subtypes using an ADDITIVE-from-zero scoring
-# model rather than "start at a ceiling, subtract" - see cima_task_type_definitions.
-# CIMA_SCORING_BASELINE's docstring for the full rationale. Every other desc score_type in the
-# codebase is a penalty magnitude and must still be sign-flipped-and-subtracted; these two
-# achievement score_types (gate_calculator.py's _score_turnpoint_hunt_target_value and
-# _score_turnpoint_hunt_sequence_bonus) must be added as-is instead, even though their
-# scorecard's score_sorting_direction is also "desc".
-ACHIEVEMENT_SCORE_TYPES = frozenset({TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE, TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE})
 
 
 class ScoreAccumulator:
@@ -154,7 +146,7 @@ class ContestantProcessor:
         # We always start local scoring from the initial score because we replay the full track 
         # from the beginning (tracker_start_time). During catch-up (latest_recorded_time > min), 
         # suppress_side_effects ensures we don't double-count in the database.
-        self.score = self.contestant.navigation_task.scorecard.initial_score
+        self.score = initial_track_score(self.contestant.navigation_task)
 
         self.last_contestant_refresh = datetime.datetime.min.replace(tzinfo=datetime.timezone.utc)
         self.score_processing_queue = Queue()
@@ -165,6 +157,10 @@ class ContestantProcessor:
         self.contestant_track.set_calculator_started()
         self.scorecard = self.contestant.navigation_task.scorecard
         self.scorecard.refresh_from_db()
+        # A quality task scores the contestant from the moment their calculator runs: their raw values (also after a
+        # restart, rebuilt from the score log) take part in the task's normalisation.
+        if scoring_parameters(self.contestant.navigation_task).is_quality:
+            refresh_contestant_quality(self.contestant)
         self.time_zone = self.contestant.navigation_task.contest.time_zone
         self.gate_scores = {}  # Cache for GateCumulativeScore objects
         self.position_update_lock = threading.Lock()
@@ -790,162 +786,34 @@ class ContestantProcessor:
                         break
                     time.sleep(0.5)
 
-    def _get_cima_gate_qmax(self) -> Optional[float]:
-        # Lazily computed and cached on first use rather than in __init__: some tests
-        # (test_cima_descending_scoring.py) construct a bare ContestantProcessor via
-        # object.__new__ specifically to exercise this scoring logic without __init__'s
-        # Redis/Traccar/thread setup - see that module's docstring. Qmax only depends on the
-        # task's route + scorecard, neither of which changes mid-flight, so computing it once
-        # and reusing it is safe regardless of when in the processor's lifecycle this first runs.
-        if not hasattr(self, "_cima_gate_qmax_cache"):
-            self._cima_gate_qmax_cache = get_cima_gate_qmax(self.contestant)
-            self._cima_gate_component = self.contestant.navigation_task.scorecard.initial_score
-        return self._cima_gate_qmax_cache
-
-    def _cima_normalized_gate_score_delta(self) -> Optional[float]:
-        """
-        The catalogue's P = 1000 * Q / Qmax normalization (see cima_score_normalization.py),
-        converted into a delta to apply to self.score in place of the raw per-event penalty
-        magnitude. self._cima_gate_component tracks the gate-crossing component's current
-        contribution to self.score (starting at scorecard.initial_score) so that only the
-        INCREMENTAL change from this one event is returned - self.score's other bookkeeping
-        (backtracking, procedure turns, ...) is untouched and keeps accumulating linearly as
-        before, only the GATE_SCORE_TYPE component is normalized.
-
-        Returns None (meaning: use the raw magnitude, unchanged from before this method existed)
-        when this task's subtype/route isn't eligible for gate-Qmax normalization, or when the
-        scorecard's own sort direction/initial_score no longer match the "start at a ceiling,
-        subtract" model this formula assumes. get_cima_gate_qmax only checks
-        effective_task_subtype - score_sorting_direction and initial_score are freely organizer-
-        editable independent of subtype (the scorecard editor's General group), so a CIMA task
-        whose scorecard was edited back to ascending, or to a 0/negative initial_score, must fall
-        back to the raw magnitude instead of computing a nonsensical result: initial_score <= 0
-        would make new_component always 0 regardless of actual performance (silently erasing all
-        scoring signal), and a non-desc direction means the "start at ceiling, subtract" shape
-        doesn't apply at all.
-        """
-        qmax = self._get_cima_gate_qmax()
-        if qmax is None:
-            return None
-        scorecard = self.contestant.navigation_task.scorecard
-        if scorecard.score_sorting_direction != "desc" or scorecard.initial_score <= 0:
-            return None
-        initial_score = scorecard.initial_score
-        gate_deficit = self.accumulated_scores.related_score.get(GATE_SCORE_TYPE, 0)
-        new_component = initial_score * (1 - gate_deficit / qmax)
-        delta = new_component - self._cima_gate_component
-        self._cima_gate_component = new_component
-        return delta
-
-    def _get_cima_achievement_qmax(self) -> Optional[float]:
-        # Same lazy-cache rationale as _get_cima_gate_qmax above. Starts the achievement
-        # component at 0, not scorecard.initial_score - 2.A6/2.B2 climb FROM 0, they don't
-        # start at a ceiling (see cima_task_type_definitions.CIMA_SCORING_BASELINE).
-        if not hasattr(self, "_cima_achievement_qmax_cache"):
-            self._cima_achievement_qmax_cache = get_cima_achievement_qmax(self.contestant)
-            self._cima_achievement_component = 0.0
-        return self._cima_achievement_qmax_cache
-
-    def _cima_normalized_achievement_score_delta(self) -> Optional[float]:
-        """
-        The catalogue's P = 1000 * Q / Qmax normalization applied to 2.A6/2.B2's achievement
-        component (turnpoint_hunt_target_value + turnpoint_hunt_sequence_bonus combined - see
-        get_cima_achievement_qmax) - converted into a delta the same way
-        _cima_normalized_gate_score_delta does for 2.A1-2.A5's gate component. Every other
-        turnpoint-hunt score_type (GATE_SCORE_TYPE, compulsory timing, fuel/duration deadlines)
-        is a genuine penalty and keeps accumulating linearly, untouched by this.
-
-        Returns None (meaning: use the raw achievement magnitude, un-normalized) when this
-        task's subtype/declaration isn't eligible for achievement-Qmax normalization, or when
-        the scorecard's own sort direction/initial_score no longer match the additive-desc-
-        from-0 model this assumes (see the analogous check in _cima_normalized_gate_score_delta
-        - both are freely organizer-editable independent of subtype). initial_score must be
-        exactly 0, not just non-positive: self._cima_achievement_component always starts at 0
-        (see _get_cima_achievement_qmax), so if self.score itself started somewhere else (e.g.
-        an organizer-set initial_score=100), the two would no longer track each other -
-        self.score += delta would land on initial_score + 1000 at full achievement instead of
-        the intended fixed 1000 ceiling.
-        """
-        qmax = self._get_cima_achievement_qmax()
-        if qmax is None:
-            return None
-        scorecard = self.contestant.navigation_task.scorecard
-        if scorecard.score_sorting_direction != "desc" or scorecard.initial_score != 0:
-            return None
-        achieved = self.accumulated_scores.related_score.get(
-            TURNPOINT_HUNT_TARGET_VALUE_SCORE_TYPE, 0
-        ) + self.accumulated_scores.related_score.get(TURNPOINT_HUNT_SEQUENCE_BONUS_SCORE_TYPE, 0)
-        new_component = 1000 * (achieved / qmax)
-        delta = new_component - self._cima_achievement_component
-        self._cima_achievement_component = new_component
-        return delta
-
     def update_score_from_thread(self, update_score_message: UpdateScoreMessage):
         """
         Constructs the score structures required to update the contestants score. Optionally cap the score if it has a
         maximum value.
+
+        What a message does to the score follows from its kind (see update_score_message.py): a penalty reduces it, an
+        achievement adds to it, a percentage penalty is a percentage of the final task score. For a task of the quality
+        model the entry's points are the signed contribution to the raw quality Q, and the task score P of every
+        contestant is derived afterwards by display.services.task_scoring; for the penalty model the sign follows the
+        scorecard's sort direction and the points are added to the contestant's score as always.
         """
         score, capped = self.accumulated_scores.set_and_update_score(
             update_score_message.score, update_score_message.score_type, update_score_message.maximum_score
         )
-        # The unsigned, pre-normalization magnitude for THIS one event - kept around so the
-        # normalization branches below can append a human-readable "raw -> normalized" note to
-        # update_score_message.message, the only place a viewer (the /gates/ page's per-gate
-        # score log, and the live map's ScoreLogTable - both just render ScoreLogEntry.message)
-        # can see how a CIMA-normalized score was actually arrived at. Without this, a viewer
-        # only ever sees the already-normalized delta with no way to tell it apart from a raw
-        # penalty, or to verify the arithmetic themselves.
-        raw_magnitude = score
-        # Every UpdateScoreMessage.score value is authored as a penalty magnitude (positive =
-        # worse) - true for every calculator, including CIMA ones (circle_calculator.py emits
-        # the deficit from Pmax, not the achieved value directly) - EXCEPT the two turnpoint-hunt
-        # achievement score_types in ACHIEVEMENT_SCORE_TYPES, which are genuine achievement
-        # values (positive = better) even though their scorecard is also "desc" - see that
-        # constant's comment. For an ascending scorecard (legacy default) a penalty magnitude is
-        # added as-is, same as always. For a descending CIMA scorecard using the "start at a
-        # ceiling, subtract" model, the contestant starts at scorecard.initial_score (a maximum)
-        # and each penalty must subtract from it instead - per the original CIMA design intent
-        # ("applying negative penalties",
-        # documentation/cima/CIMA_Task_catalogue_implementation_plan.md) which was never wired up.
-        # Applied here, once, after set_and_update_score's per-type capping (which itself must
-        # stay unsigned - maximum_score there is a positive ceiling on a penalty magnitude,
-        # independent of the scorecard's sort direction).
-        # Reads through self.contestant.navigation_task.scorecard, not self.scorecard - some
-        # tests construct a bare ContestantProcessor (object.__new__) that only sets the
-        # handful of attributes update_score_from_thread otherwise touches, without a cached
-        # self.scorecard (see e.g. test_idempotent_restart.py's replay test); self.contestant
-        # is always present, and __init__ reads the scorecard the same way (line ~134 above).
-        if (
-            self.contestant.navigation_task.scorecard.score_sorting_direction == "desc"
-            and update_score_message.score_type not in ACHIEVEMENT_SCORE_TYPES
-        ):
-            score = -score
-        if update_score_message.score_type == GATE_SCORE_TYPE:
-            normalized_delta = self._cima_normalized_gate_score_delta()
-            if normalized_delta is not None:
-                update_score_message.message += (
-                    f" [Qmax-normalized: {raw_magnitude:.1f} raw pts of Qmax "
-                    f"{self._cima_gate_qmax_cache:.15g} -> {normalized_delta:+.1f} pts]"
-                )
-                score = normalized_delta
-        elif update_score_message.score_type in ACHIEVEMENT_SCORE_TYPES:
-            normalized_delta = self._cima_normalized_achievement_score_delta()
-            if normalized_delta is not None:
-                update_score_message.message += (
-                    f" [Qmax-normalized: {raw_magnitude:.1f} raw pts of Qmax "
-                    f"{self._cima_achievement_qmax_cache:.15g} -> {normalized_delta:+.1f} pts]"
-                )
-                score = normalized_delta
-        # ANR_CATALOGUE only (see cima_task_type_definitions.CIMA_FIXED_SCALE_FACTORS): unlike
-        # the component-specific normalizations above, this applies uniformly to every score_type
-        # (backtracking/circling is one of ANR's own summed penalty terms, not excluded the way
-        # it is for 2.A1-2.A5), after the sign flip and the (mutually exclusive, since ANR isn't
-        # gate/achievement-Qmax-eligible) component normalizations above.
-        scale_factor = get_cima_fixed_scale_factor(self.contestant.navigation_task.effective_task_subtype)
-        if scale_factor is not None:
-            scaled_score = score * scale_factor
-            update_score_message.message += f" [x{scale_factor:g} scale: {score:+.1f} -> {scaled_score:+.1f} pts]"
-            score = scaled_score
+        kind = update_score_message.kind
+        is_percentage = kind == PERCENTAGE_PENALTY
+        # Reads through self.contestant.navigation_task.scorecard, not self.scorecard - some tests construct a bare
+        # ContestantProcessor (object.__new__) that only sets the handful of attributes update_score_from_thread
+        # otherwise touches.
+        scorecard = self.contestant.navigation_task.scorecard
+        parameters = scoring_parameters(self.contestant.navigation_task)
+        # The percentage itself is what the score log keeps for a percentage penalty; it does not move the score.
+        logged_points = score if is_percentage else signed_contribution(
+            kind, score, parameters, scorecard.score_sorting_direction == "desc"
+        )
+        score = 0.0 if is_percentage else logged_points
+        if is_percentage and "% of the task score" not in update_score_message.message:
+            update_score_message.message += f" ({logged_points:g}% of the task score)"
         if update_score_message.planned is not None and update_score_message.actual is not None:
             offset = (update_score_message.actual - update_score_message.planned).total_seconds()
             # Must use round, this is the same as used in the score calculation
@@ -973,7 +841,21 @@ class ContestantProcessor:
         )
         # Format score as float for consistency (0.0, 15.0, etc.)
         display_score = float(score)
-        string = "{}: {} points {}".format(update_score_message.gate.name, display_score, update_score_message.message)
+        if is_percentage:
+            string = "{}: {}".format(update_score_message.gate.name, update_score_message.message)
+        else:
+            # A measure (2.A3 V, 2.A4 S) is not points: "V +1", "S = 62.4 kt"
+            measure = (
+                measure_text(stored_task_type(self.contestant.navigation_task), update_score_message.score_type, logged_points)
+                if parameters.is_quality
+                else None
+            )
+            if measure:
+                string = "{}: {} {}".format(update_score_message.gate.name, measure, update_score_message.message)
+            else:
+                string = "{}: {} points {}".format(
+                    update_score_message.gate.name, display_score, update_score_message.message
+                )
         times_string = ""
         if update_score_message.planned and update_score_message.actual:
             times_string = "planned: {}\nactual: {}".format(planned_time, actual_time)
@@ -1011,12 +893,14 @@ class ContestantProcessor:
             gate=update_score_message.gate.name,
             type=update_score_message.annotation_type,
             message=update_score_message.message,
-            points=score,
+            points=logged_points,
             planned=update_score_message.planned,
             actual=update_score_message.actual,
             offset_string=offset_string,
             string=string,
             times_string=times_string,
+            score_type=update_score_message.score_type,
+            score_kind=kind,
         )
 
         if not created:
@@ -1067,5 +951,11 @@ class ContestantProcessor:
             time=update_score_message.time,
             score_log_entry=entry,
         )
-        if score != 0:
+        if parameters.is_quality:
+            # Q and the task score of every contestant follow from the score log. The first entry also counts, even
+            # without points: a flight with something in its log has flown, and one with an empty log has not.
+            if logged_points != 0 or not getattr(self, "_refreshed_for_first_entry", False):
+                self._refreshed_for_first_entry = True
+                refresh_contestant_quality(self.contestant)
+        elif score != 0:
             self.contestant_track.increment_score(score)

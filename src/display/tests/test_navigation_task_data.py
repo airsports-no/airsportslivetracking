@@ -252,6 +252,20 @@ class TestNavigationTaskCreationFlow(TestCase):
             },
         )
         route_data["route"]["features"][3]["properties"]["sequence"] = 2
+        # An unknown-leg point needs an extension waypoint after it.
+        route_data["route"]["features"].append(
+            {
+                "type": "Feature",
+                "properties": {
+                    "id": "ext-1",
+                    "name": "EXT1",
+                    "featureType": "dummy_branch_waypoint",
+                    "triggerPointId": "ul-1",
+                    "branchSequence": 0,
+                },
+                "geometry": {"type": "Point", "coordinates": [11.3, 60.2]},
+            }
+        )
         route_data["route"]["features"].append(
             {
                 "type": "Feature",
@@ -410,8 +424,28 @@ class TestNavigationTaskCreationFlow(TestCase):
         errors = response.json()["editable_route"][0]
         self.assertIn("no route backbone", errors)
 
+    def _route_data_with_landing_area(self):
+        """ROUTE_DATA with the landing area 2.B3 (duration) needs on its route."""
+        route_data = deepcopy(self.ROUTE_DATA)
+        route_data["route"]["features"].append(
+            {
+                "type": "Feature",
+                "properties": {
+                    "id": "landing-area-1",
+                    "name": "Landing area",
+                    "featureType": "zone",
+                    "polygonType": "duration_landing_area",
+                },
+                "geometry": {
+                    "type": "Polygon",
+                    "coordinates": [[[11.0, 60.0], [11.2, 60.0], [11.2, 60.2], [11.0, 60.2], [11.0, 60.0]]],
+                },
+            }
+        )
+        return route_data
+
     def test_post_navigation_task_with_duration_task_config(self, *args):
-        serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})
+        serialiser = EditableRouteSerialiser(data=self._route_data_with_landing_area(), context={"request": self.request})
         serialiser.is_valid()
         editable_route = serialiser.save()
         data = deepcopy(self.NAVIGATION_TASK_DATA(editable_route.pk))
@@ -433,7 +467,7 @@ class TestNavigationTaskCreationFlow(TestCase):
         self.assertEqual(payload["task_config"], {"duration_normalization_policy": "raw_minutes"})
 
     def test_post_navigation_task_with_duration_landing_area_polygon(self, *args):
-        serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})
+        serialiser = EditableRouteSerialiser(data=self._route_data_with_landing_area(), context={"request": self.request})
         serialiser.is_valid()
         editable_route = serialiser.save()
         data = deepcopy(self.NAVIGATION_TASK_DATA(editable_route.pk))
@@ -458,7 +492,7 @@ class TestNavigationTaskCreationFlow(TestCase):
         )
 
     def test_post_navigation_task_with_duration_residual_fuel_required(self, *args):
-        serialiser = EditableRouteSerialiser(data=self.ROUTE_DATA, context={"request": self.request})
+        serialiser = EditableRouteSerialiser(data=self._route_data_with_landing_area(), context={"request": self.request})
         serialiser.is_valid()
         editable_route = serialiser.save()
         data = deepcopy(self.NAVIGATION_TASK_DATA(editable_route.pk))

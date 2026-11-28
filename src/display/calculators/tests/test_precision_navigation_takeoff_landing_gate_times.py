@@ -21,8 +21,8 @@ from display.calculators.calculator_factory import calculator_factory
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Aeroplane, Contest, Contestant, Crew, EditableRoute, NavigationTask, Person, Scorecard, Team
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import PRECISION_NAVIGATION
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import PRECISION_NAVIGATION
+from display.utilities.task_types import PRECISION
 from utilities.mock_utilities import TraccarMock
 
 
@@ -57,6 +57,21 @@ class TestPrecisionNavigationTakeoffLandingGateTimes(TestCase):
                         "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
                     },
                     {
+                        # 2.A2 needs at least one hidden gate
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-hg",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 300,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.05, 60.05]},
+                    },
+                    {
                         "type": "Feature",
                         "properties": {
                             "id": "wp-2",
@@ -66,7 +81,7 @@ class TestPrecisionNavigationTakeoffLandingGateTimes(TestCase):
                             "width": 1852,
                             "isTiming": True,
                             "isPassing": True,
-                            "sequence": 1,
+                            "sequence": 2,
                         },
                         "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
                     },
@@ -80,7 +95,7 @@ class TestPrecisionNavigationTakeoffLandingGateTimes(TestCase):
                             "width": 1852,
                             "isTiming": True,
                             "isPassing": True,
-                            "sequence": 2,
+                            "sequence": 3,
                         },
                         "geometry": {"type": "Point", "coordinates": [11.2, 60.2]},
                     },

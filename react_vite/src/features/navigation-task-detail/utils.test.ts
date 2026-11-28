@@ -1,4 +1,4 @@
-import { formatDateKeyInZone, formatTimeInZone, formatWholeNumber, formatWindDirection } from './utils';
+import { formatDateKeyInZone, formatTimeInZone, formatWholeNumber, formatWindDirection, joinTmax, splitTmax } from './utils';
 
 describe('formatTimeInZone', () => {
   it('formats an ISO time in the given time zone as HH:MM:SS', () => {
@@ -38,5 +38,24 @@ describe('formatWholeNumber', () => {
   it('rounds to the nearest whole number', () => {
     expect(formatWholeNumber(74.6)).toBe('75');
     expect(formatWholeNumber(74.4)).toBe('74');
+  });
+});
+
+describe('Tmax of 2.A1', () => {
+  it('splits the stored seconds into minutes and seconds', () => {
+    expect(splitTmax(754)).toEqual({ minutes: '12', seconds: '34' });
+    expect(splitTmax(600)).toEqual({ minutes: '10', seconds: '0' });
+  });
+
+  it('shows no limit as empty fields', () => {
+    expect(splitTmax(undefined)).toEqual({ minutes: '', seconds: '' });
+    expect(splitTmax(0)).toEqual({ minutes: '', seconds: '' });
+  });
+
+  it('joins minutes and seconds into seconds, empty meaning no limit', () => {
+    expect(joinTmax('12', '34')).toBe(754);
+    expect(joinTmax('', '90')).toBe(90);
+    expect(joinTmax('', '')).toBeNull();
+    expect(joinTmax('0', '0')).toBeNull();
   });
 });

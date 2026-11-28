@@ -16,10 +16,11 @@ from display.calculators.calculator import (
 )
 from display.calculators.calculator_utilities import round_time_minute
 from display.calculators.positions_and_gates import Gate, MultiGate
+from display.calculators.speed_inferred_takeoff_landing_calculator import NEAR_ZERO_SPEED_THRESHOLD_KT
 from display.calculators.update_score_message import UpdateScoreMessage
 from display.models import ANOMALY, INFORMATION
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE
+from display.utilities.task_types import stored_task_type
 from display.utilities.route_building_utilities import calculate_extended_gate
 from websocket_channels import WebsocketFacade
 
@@ -27,6 +28,11 @@ logger = logging.getLogger(__name__)
 
 GATE_SCORE_TYPE = "gate_score"
 ANR_TAKEOFF_TIMING_SCORE_TYPE = "anr_takeoff_timing"
+# Where the landing gate is the only end of the flight (2.B3), a crossing counts as the landing only when the aircraft
+# comes to rest within this time of it. Speed at the crossing cannot tell an overflight from a landing: a microlight
+# approaches at 30-40 kt and may fly slower than that over the ground into wind. Coming to rest (the near-zero speed of
+# the speed-inferred landing) is what only a landing does; the window covers a long roll-out and slow taxiing.
+LANDING_GATE_ROLLOUT_WINDOW_S = 180
 
 
 class TakeoffAndLandingGateCalculator(Calculator):
@@ -56,6 +62,14 @@ class TakeoffAndLandingGateCalculator(Calculator):
 
         self.scored_takeoff = False
         self.scored_landing = False
+        # 2.B3 has no finish point, so its landing gate is looked for once the aircraft has taken off (from a take-off
+        # gate or inferred from the speed).
+        self._landing_gate_without_finish_point = stored_task_type(
+            contestant.navigation_task
+        ).landing_gate_without_finish_point
+        self._has_taken_off = False
+        # A crossing of the landing gate that waits for the aircraft to come to rest (2.B3 only).
+        self._pending_landing: Optional[Tuple[Gate, datetime.datetime]] = None
         self.websocket_facade = WebsocketFacade()
 
     def initiate_takeoff_and_landing_gates(self):
@@ -125,8 +139,11 @@ class TakeoffAndLandingGateCalculator(Calculator):
                     intersected_gate = self.takeoff_gate.intersected_gate
                     events.append(TakeoffPassedEvent(intersected_gate, track[-1], intersection_time))
 
-        # Handle landing gate after finish point
-        if state.has_passed_finishpoint:
+        # Handle landing gate after finish point, or after take-off where the task has no finish point to wait for
+        if self._landing_gate_without_finish_point:
+            if self._has_taken_off:
+                events.extend(self._check_landing_without_finish_point(track))
+        elif state.has_passed_finishpoint:
             if self.landing_gate is not None and not self.scored_landing:
                 if not self.landing_gate.has_been_passed():
                     intersection_time = self.landing_gate.get_gate_intersection_time(self.projector, track)
@@ -135,7 +152,31 @@ class TakeoffAndLandingGateCalculator(Calculator):
                         events.append(LandingPassedEvent(intersected_gate, track[-1], intersection_time))
         return events
 
+    def _check_landing_without_finish_point(self, track: Sequence[ContestantReceivedPosition]):
+        if self.landing_gate is None or self.scored_landing:
+            return []
+        position = track[-1]
+        intersection_time = self.landing_gate.get_gate_intersection_time(self.projector, track)
+        if intersection_time:
+            # A later crossing replaces an earlier one that was an overflight. The MultiGate marks the gate as passed
+            # when it finds a crossing; that is undone until the landing is confirmed (on_landing_passed passes it).
+            gate = self.landing_gate.intersected_gate
+            gate.passing_time = gate.extended_passing_time = gate.infinite_passing_time = None
+            gate.infinite_passing_position = None
+            self._pending_landing = (gate, intersection_time)
+        if self._pending_landing is None:
+            return []
+        gate, crossing_time = self._pending_landing
+        if (position.time - crossing_time).total_seconds() > LANDING_GATE_ROLLOUT_WINDOW_S:
+            self._pending_landing = None
+            return []
+        if position.time >= crossing_time and (position.speed or 0) < NEAR_ZERO_SPEED_THRESHOLD_KT:
+            self._pending_landing = None
+            return [LandingPassedEvent(gate, position, crossing_time)]
+        return []
+
     def on_takeoff_passed(self, event: TakeoffPassedEvent):
+        self._has_taken_off = True
         if self.scored_takeoff:
             return
         if not self.takeoff_gate:
@@ -154,7 +195,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
         self.transmit_actual_crossing(event.gate, event.position)
         score_type = GATE_SCORE_TYPE
         message = "passing takeoff gate"
-        if getattr(self.contestant.navigation_task, "task_subtype", None) == ANR_CATALOGUE:
+        if stored_task_type(self.contestant.navigation_task).scores_takeoff_timing:
             score_type = ANR_TAKEOFF_TIMING_SCORE_TYPE
             message = "ANR takeoff timing"
         self.update_score(
@@ -258,7 +299,7 @@ class TakeoffAndLandingGateCalculator(Calculator):
         score = self.scorecard.get_gate_timing_score_for_gate_type("to", g.expected_time, None)
         score_type = GATE_SCORE_TYPE
         message = "missing takeoff gate"
-        if getattr(self.contestant.navigation_task, "task_subtype", None) == ANR_CATALOGUE:
+        if stored_task_type(self.contestant.navigation_task).scores_takeoff_timing:
             score_type = ANR_TAKEOFF_TIMING_SCORE_TYPE
             message = "ANR takeoff timing missed"
         self.update_score(

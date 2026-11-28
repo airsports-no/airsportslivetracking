@@ -1,6 +1,7 @@
 import React, { forwardRef, useEffect, useState } from 'react';
 import { updateNavigationTaskDetails } from '../api';
 import { NavigationTaskDetail } from '../types';
+import { CURVE_NAVIGATION_SUBTYPE, joinTmax, splitTmax } from '../utils';
 import SimulatorPolicyChoice from '../../../components/common/SimulatorPolicyChoice';
 import { SimulatorPolicy } from '../../../utils/simulatorPolicy';
 
@@ -30,6 +31,8 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
   const [showLiveScoreInApp, setShowLiveScoreInApp] = useState(task.show_live_score_in_app);
     const [notifyOnStart, setNotifyOnStart] = useState(task.notify_managers_on_start ?? false);
     const [notifyOnFinish, setNotifyOnFinish] = useState(task.notify_managers_on_finish ?? false);
+    const [tmaxMinutes, setTmaxMinutes] = useState(splitTmax(task.task_config?.curve_navigation_tmax_seconds).minutes);
+    const [tmaxSeconds, setTmaxSeconds] = useState(splitTmax(task.task_config?.curve_navigation_tmax_seconds).seconds);
     const [busy, setBusy] = useState(false);
     const [error, setError] = useState<string | null>(null);
 
@@ -47,7 +50,11 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
       setShowLiveScoreInApp(task.show_live_score_in_app);
       setNotifyOnStart(task.notify_managers_on_start ?? false);
       setNotifyOnFinish(task.notify_managers_on_finish ?? false);
+      setTmaxMinutes(splitTmax(task.task_config?.curve_navigation_tmax_seconds).minutes);
+      setTmaxSeconds(splitTmax(task.task_config?.curve_navigation_tmax_seconds).seconds);
     }, [task]);
+
+    const hasTmax = task.task_subtype === CURVE_NAVIGATION_SUBTYPE;
 
     const handleSubmit = async (event: React.FormEvent) => {
       event.preventDefault();
@@ -66,6 +73,7 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
           show_live_score_in_app: showLiveScoreInApp,
           notify_managers_on_start: notifyOnStart,
           notify_managers_on_finish: notifyOnFinish,
+          ...(hasTmax ? { curve_navigation_tmax_seconds: joinTmax(tmaxMinutes, tmaxSeconds) } : {}),
         });
         (ref as React.RefObject<HTMLDialogElement>).current?.close();
         onUpdated();
@@ -136,6 +144,37 @@ const UpdateTaskDetailsModal = forwardRef<HTMLDialogElement, UpdateTaskDetailsMo
                 />
               </label>
             </div>
+            {hasTmax && (
+              <fieldset className="border border-base-300 rounded-lg p-3">
+                <legend className="text-xs px-1">Longest time from SP to FP (Tmax)</legend>
+                <p className="text-xs opacity-70 mb-1">
+                  A pilot who gives an FP time later than this after SP is told to give an earlier one. Leave both empty for no limit.
+                </p>
+                <div className="flex gap-2 items-end">
+                  <label className="form-control flex-1">
+                    <span className="label-text text-xs">Minutes</span>
+                    <input
+                      type="number"
+                      min={0}
+                      className="input input-bordered input-sm w-full"
+                      value={tmaxMinutes}
+                      onChange={(e) => setTmaxMinutes(e.target.value)}
+                    />
+                  </label>
+                  <label className="form-control flex-1">
+                    <span className="label-text text-xs">Seconds</span>
+                    <input
+                      type="number"
+                      min={0}
+                      max={59}
+                      className="input input-bordered input-sm w-full"
+                      value={tmaxSeconds}
+                      onChange={(e) => setTmaxSeconds(e.target.value)}
+                    />
+                  </label>
+                </div>
+              </fieldset>
+            )}
             <label className="label cursor-pointer justify-start gap-2">
               <input
                 type="checkbox"

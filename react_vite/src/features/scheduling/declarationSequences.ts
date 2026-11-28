@@ -28,6 +28,8 @@ export type ContestantDeclarationData = {
             catalogue_turnpoint?: string[];
         };
         waypoint_names?: string[];
+        // 2.A2: the points the pilot declares a time for (visible turn points and the finish point)
+        expected_prediction_names?: string[];
     };
 };
 
@@ -206,4 +208,46 @@ export const moveItemToInsertionIndex = (items: string[], fromIndex: number, ins
     const adjustedInsertionIndex = fromIndex < insertionIndex ? insertionIndex - 1 : insertionIndex;
     next.splice(Math.max(0, Math.min(adjustedInsertionIndex, next.length)), 0, item);
     return next;
+};
+
+const isRecord = (value: unknown): value is Record<string, any> => typeof value === 'object' && value !== null && !Array.isArray(value);
+
+/**
+ * The part of the declaration to send for the times [entries] (point name to a datetime-local value) under [key]. A declaration
+ * a pilot made in seconds after the start point (time_reference "start_point") stays that way: re-saving it with clock times
+ * would turn it into an absolute one, which is ignored once an adaptive start is flown. An entry that was not changed keeps
+ * its seconds; a changed one moves them by the change. Anything else (or a declaration that was in clock times) is sent as the
+ * clock times themselves.
+ */
+export const declarationTimesPayload = (
+    stored: Record<string, unknown> | undefined,
+    key: string,
+    entries: Record<string, string>,
+): Record<string, unknown> => {
+    const offsets = stored?.relative_times;
+    const times = stored?.[key];
+    if (stored?.time_reference !== 'start_point' || !isRecord(offsets) || !isRecord(times)) return { [key]: entries };
+    let anchor: number | null = null;
+    for (const name of Object.keys(offsets)) {
+        const time = Date.parse(String(times[name]));
+        if (!Number.isNaN(time) && typeof offsets[name] === 'number') {
+            anchor = time - offsets[name] * 1000;
+            break;
+        }
+    }
+    const result: Record<string, number> = {};
+    for (const [name, local] of Object.entries(entries)) {
+        const moment = new Date(local).getTime();
+        const previous = times[name];
+        if (typeof offsets[name] === 'number' && typeof previous === 'string') {
+            result[name] = toDatetimeLocalValue(previous) === local
+                ? offsets[name]
+                : Math.round(offsets[name] + (moment - Date.parse(previous)) / 1000);
+        } else if (anchor !== null && !Number.isNaN(moment)) {
+            result[name] = Math.round((moment - anchor) / 1000);
+        } else {
+            return { [key]: entries };
+        }
+    }
+    return { [key]: result, time_reference: 'start_point' };
 };

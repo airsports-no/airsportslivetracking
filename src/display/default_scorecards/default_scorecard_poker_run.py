@@ -3,7 +3,7 @@ import datetime
 
 from display.models import Scorecard
 from display.utilities.gate_definitions import GATE_TYPES
-from display.utilities.navigation_task_type_definitions import POKER
+from display.utilities.task_types import POKER
 
 
 def get_default_scorecard():

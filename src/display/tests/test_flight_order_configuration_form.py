@@ -15,7 +15,7 @@ from display.flight_order_and_maps.map_constants import A4, PORTRAIT, SCALE_TO_F
 from display.flight_order_and_maps.map_plotter_shared_utilities import resolve_map_source_definition
 from display.models import Contest, NavigationTask, Route
 from display.utilities.task_information import build_navigation_task_information
-from display.utilities.cima_task_type_definitions import UNKNOWN_LEGS
+from display.utilities.task_types import UNKNOWN_LEGS
 
 
 class FlightOrderConfigurationFormTests(TestCase):

@@ -2,10 +2,12 @@ import React, { useEffect, useState } from 'react';
 import { useSearchParams, useNavigate } from 'react-router-dom';
 import { fetchContest, fetchMyContestTeams } from './api';
 import { Contest, MyContestTeam } from './types';
+import { Contestant } from '../competition-map/types';
 import ScheduleFlightForm from './components/ScheduleFlightForm';
 import { Loading } from '../route-editor/components/basicComponents';
 import { generatePath, reverse } from '../../urls';
-import { isEmbeddedInApp, signalApp } from '../../utils/appBridge';
+import { isEmbeddedInApp } from '../../utils/appBridge';
+import { afterBooked } from '../pilot-declaration/bookingFlow';
 
 const ScheduleFlightPage = () => {
     const [searchParams] = useSearchParams();
@@ -69,15 +71,16 @@ const ScheduleFlightPage = () => {
                         if (isEmbeddedInApp()) navigate(-1);
                         else navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId, navigationTaskId }));
                     }}
-                    onRegistered={(warnings?: string[]) => {
+                    onRegistered={(warnings?: string[], contestant?: Contestant) => {
                         if (warnings && warnings.length > 0) {
                             // In a real app we might want to pass these back via state or toast
                             console.warn("Warnings from scheduling:", warnings);
                         }
-                        // In the app the pilot returns to the app's home page, which refreshes the upcoming flights;
-                        // on the website the live tracking map is the natural next page.
-                        if (isEmbeddedInApp()) signalApp('registered', { contestId, navigationTaskId });
-                        else navigate(generatePath('COMPETITION_MAP_DETAIL', { contestId, navigationTaskId }));
+                        const ids = { contestId, navigationTaskId };
+                        // A task with a declaration goes on to the declaration step, which ends the booking itself. Without
+                        // one the booking ends here: in the app the pilot returns to the app's home page (which refreshes the
+                        // upcoming flights), on the website the live tracking map is the natural next page.
+                        afterBooked(contestant, ids, navigate);
                     }}
                 />
             </div>

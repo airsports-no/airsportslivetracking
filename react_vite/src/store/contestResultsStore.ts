@@ -1,6 +1,7 @@
 import { create } from 'zustand';
 import { reverse } from '../urls';
 import { getCookie } from '../utils/csrf';
+import type { TaskScoring } from '../utils/taskScore';
 
 // DRF's default exception handler serializes a bare ValidationError("some string") (e.g.
 // TaskViewSet/TaskTestViewSet's "linked to a navigation task" guards) as a JSON array of
@@ -68,6 +69,11 @@ export interface Test {
   navigation_task: number | null;
   navigation_task_link: string | null;
   teamtestscore_set: TeamTestScore[];
+  /**
+   * How the score of a test linked to a navigation task is made (the same fields as the live map reads, and the teams
+   * that did not fly); null for a test that is not linked, absent from older servers.
+   */
+  scoring?: (TaskScoring & { not_flown_team_ids?: number[] | null }) | null;
 }
 
 export interface ContestTeam {
@@ -78,6 +84,14 @@ export interface ContestTeam {
 export interface ContestResults {
   summary_score_sorting_direction: string;
   autosum_scores?: boolean;
+  /** 'sum_of_scores' (default, absent from older servers) or 'standings_points' */
+  overall_result_method?: string;
+  /** Places and points per task when the overall result is made from standings points, else null */
+  standings_points?: {
+    points_table: number[];
+    ranks: Record<string, number>;
+    tasks: Record<string, Record<string, { place: number; points: number }>>;
+  } | null;
   contestsummary_set: ContestSummary[];
   task_set: Task[];
   contest_teams: ContestTeam[];
@@ -115,6 +129,7 @@ export interface ContestResultsState {
   setError: (error: string | null) => void;
   setWsConnected: (connected: boolean) => void;
   applyRealtimeMessage: (message: any) => void;
+  scheduleScoringRefresh: () => void;
   createOrUpdateTask: (contestId: number, task: Task) => Promise<void>;
   createOrUpdateTest: (contestId: number, taskId: number, test: Test) => Promise<void>;
   deleteTask: (contestId: number, taskId: number) => Promise<void>;
@@ -252,6 +267,51 @@ export const applyScoreUpdate = (results: ContestResults, message: ScoreUpdateMe
   return nextResults;
 };
 
+/**
+ * The scoring of the tests of `fresh` (a newly fetched copy of the results) in `results`, everything else of `results`
+ * left as it is: a score update says nothing about whether the scores are still provisional or who did not fly, so
+ * these are fetched again and merged in, without replacing the table the user is looking at.
+ */
+export const mergeTestScoring = (results: ContestResults, fresh: ContestResults): ContestResults => {
+  const scoringByTest = new Map<number, Test['scoring']>();
+  (fresh.task_set || []).forEach((task) => (task.tasktest_set || []).forEach((test) => scoringByTest.set(test.id, test.scoring)));
+  return {
+    ...results,
+    task_set: (results.task_set || []).map((task) => ({
+      ...task,
+      tasktest_set: (task.tasktest_set || []).map((test) =>
+        scoringByTest.has(test.id) ? { ...test, scoring: scoringByTest.get(test.id) } : test,
+      ),
+    })),
+  };
+};
+
+/**
+ * The standings points and overall results of `fresh` in `results`: a score changes the places of the other teams, which
+ * a score update does not say.
+ */
+export const mergeStandingsPoints = (results: ContestResults, fresh: ContestResults): ContestResults => ({
+  ...results,
+  overall_result_method: fresh.overall_result_method,
+  standings_points: fresh.standings_points,
+  contestsummary_set: fresh.standings_points ? fresh.contestsummary_set || results.contestsummary_set : results.contestsummary_set,
+});
+
+/** Whether the test of the results is linked to a task of the quality model, whose scores depend on the other flights. */
+export const isQualityTest = (results: ContestResults, testId: number | undefined): boolean =>
+  testId !== undefined &&
+  (results.task_set || []).some((task) =>
+    (task.tasktest_set || []).some((test) => test.id === testId && test.scoring?.scoring_model === 'quality'),
+  );
+
+const SCORING_REFRESH_DELAY_MS = 4000;
+let scoringRefreshTimer: ReturnType<typeof setTimeout> | undefined;
+
+const cancelScoringRefresh = () => {
+  clearTimeout(scoringRefreshTimer);
+  scoringRefreshTimer = undefined;
+};
+
 export const useContestResultsStore = create<ContestResultsState>((set, get) => ({
   contestId: null,
   results: null,
@@ -302,11 +362,43 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
     }
 
     if (message.type === 'score.update') {
-      set({ results: applyScoreUpdate(currentResults, message as ScoreUpdateMessage) });
+      const update = message as ScoreUpdateMessage;
+      set({ results: applyScoreUpdate(currentResults, update) });
+      if (
+        currentResults.overall_result_method === 'standings_points' ||
+        isQualityTest(currentResults, update.task_test_id ?? update.test_score?.task_test)
+      ) {
+        get().scheduleScoringRefresh();
+      }
     }
   },
 
+  scheduleScoringRefresh: () => {
+    // A flight of a quality task changes the scores of the others, and with the last one the scores stop being
+    // provisional: ask again once the updates of a moment have come in
+    clearTimeout(scoringRefreshTimer);
+    scoringRefreshTimer = setTimeout(async () => {
+      const current = get().results;
+      if (!current?.id) return;
+      try {
+        const response = await fetch(reverse('contests-results-details', current.id));
+        if (!response.ok) return;
+        const fresh = await response.json();
+        const latest = get().results;
+        // Another contest may have been loaded while this one was fetched: its scores are not these
+        if (latest && latest.id === current.id) {
+          const merged = mergeTestScoring(latest, fresh);
+          set({ results: latest.overall_result_method === 'standings_points' ? mergeStandingsPoints(merged, fresh) : merged });
+        }
+      } catch {
+        // The table is still right about the scores; only the provisional note may be a moment old
+      }
+    }, SCORING_REFRESH_DELAY_MS);
+  },
+
   fetchResults: async (id: number) => {
+    // A refresh scheduled for the contest that was shown must not land on the one that is loading
+    cancelScoringRefresh();
     set({ loading: true, error: null });
     try {
       const response = await fetch(reverse('contests-results-details', id));

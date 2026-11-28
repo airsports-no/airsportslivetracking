@@ -1,0 +1,111 @@
+"""Scenario tests: synthetic flights through the real calculators for CIMA 2.B3 (Duration).
+
+The catalogue: fly as long as possible on a limited amount of fuel; the longest flight scores the task value and the
+others in proportion (P = 1000 x Q / Qmax with Q the time airborne); landing outside the specified area is penalised as
+briefed; a quarantine breach or flight in a prohibited area costs 100%.
+
+The route has no backbone and no take-off or landing gate, the case the application handles by inferring take-off and
+landing from the speed (the aircraft stands still, flies, and stands still again). The application recognises
+touchdown after a minute at rest, so the duration it sees is the time airborne plus that minute, the same for every
+pilot (SPEED_INFERENCE_DELAY_S); the oracle is given the duration as recognised. The landing area is a rectangle
+2 km long on the line of flight.
+
+Tests marked xfail(strict=True) are known disagreements of the application, with the finding and the slice of
+docs/PLAN_task_scoring_reliability.md that will fix them.
+"""
+
+from display.calculators.tests import catalogue_oracle as oracle
+from display.calculators.tests.cima_scenario_support import CimaScenarioCase
+from display.calculators.tests.flight_simulator import (
+    add_contestant,
+    build_task,
+    duration_flight,
+    landing_area_feature,
+    local_point,
+    runway_gate_feature,
+)
+from display.utilities.task_types import DURATION
+
+START = (60.0, 11.0)
+LANDING_ALONG_M = 18000.0
+# The duration runs from the first fast sample (take-off) to the first stationary one (touchdown), so it is the time
+# airborne exactly: the application used to recognise touchdown at the 60th low-speed sample, a minute late (N3).
+SPEED_INFERENCE_DELAY_S = 0
+LONG_S, SHORT_S = 3600, 1800
+LANDING_AREA = landing_area_feature(START, (17000, 19000), (-500, 500))
+
+
+def build(landing_penalty_percent=None, features=(LANDING_AREA,)):
+    def configure(scorecard):
+        if landing_penalty_percent is not None:
+            scorecard.duration_landing_area_penalty_percent = landing_penalty_percent
+
+    return build_task(
+        {"type": "FeatureCollection", "features": list(features)},
+        task_subtype=DURATION,
+        scorecard_shortcut="CIMA Duration",
+        configure_scorecard=configure,
+    )
+
+
+def fly(task, airborne_s, across_m=0.0):
+    """Fly `airborne_s` seconds and land on the line of flight, `across_m` metres south of it (outside the landing area
+    beyond 500 m); the score of the flight."""
+    track = duration_flight(
+        START,
+        local_point(START, LANDING_ALONG_M, across_m),
+        takeoff_time=task.contestant.takeoff_time,
+        airborne_s=airborne_s,
+    )
+    return task.run(track)
+
+
+def recognised_duration(airborne_s):
+    return airborne_s + SPEED_INFERENCE_DELAY_S
+
+
+class DurationFlightsTest(CimaScenarioCase):
+    def test_the_application_sees_the_time_airborne(self):
+        result = fly(build(), LONG_S)
+        (message,) = result.messages_of_type("duration_airborne_time")
+        self.assertEqual((message.actual - message.planned).total_seconds(), recognised_duration(LONG_S))
+
+    def test_a_single_flight_scores_the_task_value(self):
+        task = build()
+        expected = oracle.final_scores([oracle.q_duration(recognised_duration(LONG_S))])
+        self.assertEqual(expected, [1000])
+        self.assertEqual(fly(task, LONG_S).score, expected[0])
+
+    def test_the_longer_flight_scores_higher_on_the_default_scorecard(self):
+        task = build()
+        second = add_contestant(task)
+        longer, shorter = fly(task, LONG_S).score, fly(second, SHORT_S).score
+        expected = oracle.final_scores([oracle.q_duration(recognised_duration(s)) for s in (LONG_S, SHORT_S)])
+        self.assertEqual(expected, [1000, 500])
+        self.assertEqual((longer, shorter), tuple(expected))
+
+    def test_landing_outside_the_area_costs_the_briefed_penalty(self):
+        task = build(landing_penalty_percent=50)
+        second = add_contestant(task)
+        inside, outside = fly(task, LONG_S), fly(second, LONG_S, across_m=800.0)
+        self.assertTrue(outside.messages_of_type("duration_landing_area_outside"))
+        self.assertFalse(inside.messages_of_type("duration_landing_area_outside"))
+        qs = [oracle.q_duration(recognised_duration(LONG_S))] * 2
+        expected = oracle.final_scores(qs, [[], [0.5]])
+        self.assertEqual(expected, [1000, 500])
+        self.assertEqual((inside.score, outside.score), tuple(expected))
+
+    def test_an_authored_landing_gate_is_recognised(self):
+        features = [
+            # The track stands on START and stops at LANDING_ALONG_M: gates on those lines are never crossed, so the
+            # take-off gate is 100 m after the start and the landing gate 500 m before the stop. The aircraft crosses
+            # the landing gate at 10 kt and comes to rest 100 s later, which is what a landing looks like to the guard
+            # against overflights.
+            runway_gate_feature("takeoff", START, 100.0),
+            runway_gate_feature("landing", START, LANDING_ALONG_M - 500.0, 1000.0),
+            LANDING_AREA,
+        ]
+        task = build(features=features)
+        result = fly(task, LONG_S)
+        self.assertTrue(result.messages_of_type("gate_score")[-1].message.startswith("passed landing gate"))
+        self.assertTrue(result.messages_of_type("duration_airborne_time"), "the duration was never scored")

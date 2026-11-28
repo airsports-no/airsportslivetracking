@@ -5,7 +5,6 @@ function makeStep(overrides: Partial<WizardStep> & { key: string; kind: WizardSt
   return {
     label: overrides.key,
     help: `Help for ${overrides.key}`,
-    minCount: 0,
     ...overrides,
   };
 }

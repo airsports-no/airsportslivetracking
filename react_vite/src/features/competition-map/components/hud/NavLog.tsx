@@ -2,6 +2,7 @@ import React from 'react';
 import { Crosshair } from 'lucide-react';
 import { ScoreLogEntry } from '../../types';
 import { shortScoreText } from '../../utils/scoreText';
+import { isQualityTask, logPointsText, provisionalHelp, RAW_POINTS_LEGEND, TaskScoring } from '../../../../utils/taskScore';
 
 interface Props {
     entries: ScoreLogEntry[];
@@ -15,6 +16,12 @@ interface Props {
     onSelect: (entry: ScoreLogEntry) => void;
     /** In a replay: entries after this time have not happened yet at the replay's time, and are dimmed. */
     dimAfter?: Date;
+    /** How the task's score is made: a quality task's log holds raw quality points, not points of the task score. */
+    scoring?: TaskScoring | null;
+    /** The scores can still change because of other flights. */
+    provisional?: boolean;
+    /** The contestant's score worked out step by step ("Q 812 of best 930 -> 873; -50% -> 437"). */
+    arithmetic?: string | null;
 }
 
 function clock(iso: string, timeZone?: string): string {
@@ -22,15 +29,27 @@ function clock(iso: string, timeZone?: string): string {
 }
 
 /** The selected contestant's score log, laid out like a navigation log: time, gate, what happened, points. */
-export default function NavLog({ entries, timeZone, pointsArePenalties, activeId, locatableIds, onSelect, dimAfter }: Props) {
+export default function NavLog({ entries, timeZone, pointsArePenalties, activeId, locatableIds, onSelect, dimAfter, scoring, provisional = false, arithmetic = null }: Props) {
+    const quality = isQualityTask(scoring);
+    // How the score came about, and what the points below are
+    const explanation = quality ? (
+        <div className="px-3 pt-2 pb-2 border-b hud-divider">
+            {arithmetic && <div className="hud-figure text-sm font-semibold" title="Raw quality score Q, scaled to the best flight in the task, less percentage penalties">{arithmetic}</div>}
+            <p className="hud-label normal-case mt-1">{RAW_POINTS_LEGEND}</p>
+            {provisional && <p className="hud-label normal-case mt-1" style={{ color: 'var(--hud-warn)' }}>{provisionalHelp(scoring)}</p>}
+        </div>
+    ) : null;
     if (entries.length === 0) {
-        return <p className="hud-muted text-sm px-4 py-6">Nothing has been scored yet. Entries appear here as the flight is scored.</p>;
+        return <>{explanation}<p className="hud-muted text-sm px-4 py-6">Nothing has been scored yet. Entries appear here as the flight is scored.</p></>;
     }
     return (
+        <>
+        {explanation}
         <ol className="flex flex-col" aria-label="Navigation log">
             {entries.map((e) => {
                 const locatable = locatableIds.has(e.id);
-                const penalty = pointsArePenalties ? e.points > 0 : e.points < 0;
+                const shown = logPointsText(e, scoring, pointsArePenalties);
+                const penalty = shown.penalty;
                 const ahead = dimAfter !== undefined && new Date(e.time) > dimAfter;
                 return (
                     <li
@@ -57,12 +76,14 @@ export default function NavLog({ entries, timeZone, pointsArePenalties, activeId
                         <span
                             className="hud-figure text-base text-right"
                             style={{ color: e.points === 0 ? 'var(--hud-muted)' : penalty ? 'var(--hud-red)' : 'var(--hud-ok)' }}
+                            title={shown.title || undefined}
                         >
-                            {e.points === 0 ? '0' : `${e.points > 0 ? '+' : ''}${e.points.toFixed(0)}`}
+                            {shown.text}
                         </span>
                     </li>
                 );
             })}
         </ol>
+        </>
     );
 }

@@ -156,13 +156,7 @@ from display.utilities.gate_definitions import (
     INTERMEDIARY_STARTINGPOINT,
     INTERMEDIARY_FINISHPOINT,
 )
-from display.utilities.navigation_task_type_definitions import (
-    PRECISION,
-    POKER,
-    ANR_CORRIDOR,
-    AIRSPORTS,
-    AIRSPORT_CHALLENGE,
-)
+from display.utilities.task_types import AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, POKER, PRECISION, stored_task_type
 from display.utilities.wind_utilities import (
     calculate_ground_speed_combined,
     calculate_wind_correction_angle,
@@ -1986,15 +1980,16 @@ def plot_route(
     # backbone waypoints as circles, with no connecting lines and no freeway
     # (catalogue) points. Once a contestant is selected the full declared
     # route renders normally via the branches below.
-    is_contract_navigation_general_view = task.task_subtype == "contract_navigation_time_controls" and contestant is None
+    task_type = stored_task_type(task)
+    is_contract_navigation_general_view = task_type.general_map_shows_backbone_only and contestant is None
     task_catalogue_targets = []
-    if task.task_subtype == "unknown_legs":
+    if task_type.has_unknown_legs:
         task_catalogue_targets = get_task_catalogue_targets(task, contestant=contestant)
         if contestant is not None and not task_catalogue_targets:
             task_catalogue_targets = get_task_catalogue_targets(task)
     elif contestant is None and not is_contract_navigation_general_view:
         task_catalogue_targets = get_task_catalogue_targets(task)
-    if task.task_subtype == "unknown_legs" and task_catalogue_targets:
+    if task_type.has_unknown_legs and task_catalogue_targets:
         render_waypoints = []
     if PRECISION in task.scorecard.task_type or POKER in task.scorecard.task_type:
         paths = plot_precision_track(
@@ -2010,7 +2005,7 @@ def plot_route(
             task_catalogue_targets=task_catalogue_targets,
             use_circle_markers=is_cima_task,
         )
-        if task.task_subtype == "unknown_legs" and task_catalogue_targets:
+        if task_type.has_unknown_legs and task_catalogue_targets:
             segment_lookup = {}
             for target in task_catalogue_targets:
                 if target.get("kind") == "catalogue_turnpoint" and target.get("segment_name"):

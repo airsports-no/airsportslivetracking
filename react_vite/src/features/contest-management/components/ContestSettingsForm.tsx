@@ -10,6 +10,7 @@ import { contestSettingsSchema, ContestSettingsFormValues } from '../schemas/con
 import { contestLocalTimeToIso } from '../navigationTaskFlow';
 import { updateContest, updateContestImages, shareContest } from '../../mission-dashboard/api';
 import LocationMapField from './LocationMapField';
+import { isValidPointsTable, parsePointsTable } from '../../contest-results/standingsPoints';
 
 interface Props {
     contest: Contest;
@@ -82,12 +83,18 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
             contest_website: contest.contest_website ?? '',
             summary_score_sorting_direction: (contest.summary_score_sorting_direction as 'asc' | 'desc') ?? 'desc',
             autosum_scores: contest.autosum_scores ?? false,
+            overall_result_method: contest.overall_result_method ?? 'sum_of_scores',
+            standings_points_table: contest.standings_points_table ?? [25, 20, 16, 13, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1],
         },
     });
     const timeZone = watch('time_zone');
     const location = watch('location');
     const organizingClub = watch('organizing_club');
     const sortingDirection = watch('summary_score_sorting_direction');
+    const overallMethod = watch('overall_result_method');
+    const [pointsText, setPointsText] = useState((contest.standings_points_table ?? [25, 20, 16, 13, 11, 10, 9, 8, 7, 6, 5, 4, 3, 2, 1]).join(', '));
+    const standingsPoints = overallMethod === 'standings_points';
+    const pointsTextValid = isValidPointsTable(parsePointsTable(pointsText));
 
     const onSubmit = async (values: ContestSettingsFormValues) => {
         setSubmitting(true);
@@ -272,12 +279,46 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
                 </label>
 
                 <label className="form-control w-full">
-                    <div className="label"><span className="label-text">Summary score sorting</span></div>
-                    <select className="select select-bordered w-full" value={sortingDirection} onChange={e => setValue('summary_score_sorting_direction', e.target.value as 'asc' | 'desc')}>
-                        <option value="desc">Highest score first</option>
-                        <option value="asc">Lowest score first</option>
+                    <div className="label"><span className="label-text">Overall result</span></div>
+                    <select className="select select-bordered w-full" {...register('overall_result_method')}>
+                        <option value="sum_of_scores">Sum of task scores</option>
+                        <option value="standings_points">Standings points per task placing</option>
                     </select>
                 </label>
+
+                {standingsPoints && (
+                    <label className="form-control w-full">
+                        <div className="label"><span className="label-text">Points for first, second, third… place in each task, separated by commas</span></div>
+                        <input
+                            className={`input input-bordered w-full ${pointsTextValid ? '' : 'input-error'}`}
+                            value={pointsText}
+                            onChange={e => {
+                                setPointsText(e.target.value);
+                                setValue('standings_points_table', parsePointsTable(e.target.value).filter(Number.isFinite), { shouldValidate: true });
+                            }}
+                        />
+                        <div className="label">
+                            <span className="label-text-alt">
+                                Each task gives these points for its places, and the points are added up. Later places get nothing. This works with the automatic sum of scores below. The table in FAI Annex 9 is only an example: your local rules decide.
+                            </span>
+                        </div>
+                        {(errors.standings_points_table || !pointsTextValid) && (
+                            <span className="text-error text-sm">{errors.standings_points_table?.message ?? 'Use numbers that are not negative, such as 25, 20, 16'}</span>
+                        )}
+                    </label>
+                )}
+
+                {standingsPoints ? (
+                    <p className="text-sm opacity-80">The highest total wins, so the sorting direction does not apply.</p>
+                ) : (
+                    <label className="form-control w-full">
+                        <div className="label"><span className="label-text">Summary score sorting</span></div>
+                        <select className="select select-bordered w-full" value={sortingDirection} onChange={e => setValue('summary_score_sorting_direction', e.target.value as 'asc' | 'desc')}>
+                            <option value="desc">Highest score first</option>
+                            <option value="asc">Lowest score first</option>
+                        </select>
+                    </label>
+                )}
 
                 <label className="label cursor-pointer justify-start gap-3">
                     <input type="checkbox" className="checkbox" {...register('autosum_scores')} />
@@ -285,7 +326,7 @@ const ContestSettingsForm: React.FC<Props> = ({ contest, onSaved }) => {
                 </label>
 
                 <div className="card-actions justify-end">
-                    <button type="submit" className="btn btn-primary" disabled={submitting}>
+                    <button type="submit" className="btn btn-primary" disabled={submitting || (standingsPoints && !pointsTextValid)}>
                         {submitting && <span className="loading loading-spinner"></span>}
                         Save settings
                     </button>

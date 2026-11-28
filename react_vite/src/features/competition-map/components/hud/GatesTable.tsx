@@ -1,5 +1,6 @@
 import React from 'react';
 import { GateResult, ScoreLogEntry } from '../../types';
+import { isQualityTask, trimmedNumber, TaskScoring } from '../../../../utils/taskScore';
 
 interface Props {
     /** The gates the viewer may see, in route order (gate_results). */
@@ -8,6 +9,8 @@ interface Props {
     entries: ScoreLogEntry[];
     timeZone?: string;
     pointsArePenalties: boolean;
+    /** How the task's score is made: a quality task's gate points are raw quality points (penalties negative). */
+    scoring?: TaskScoring | null;
     onSelect: (result: GateResult) => void;
     /** Contestants to compare with (others who have flown), the one compared now, and the switch. */
     compareOptions?: { id: number; name: string }[];
@@ -25,7 +28,7 @@ function clock(iso: string | null, timeZone?: string) {
  * landing, organizer penalties).
  */
 export default function GatesTable({
-    gateResults, entries, timeZone, pointsArePenalties, onSelect, compareOptions = [], compare = null, onCompare,
+    gateResults, entries, timeZone, pointsArePenalties, scoring, onSelect, compareOptions = [], compare = null, onCompare,
 }: Props) {
     if (gateResults.length === 0) return null;
     const timing = gateResults.reduce((sum, r) => sum + r.points, 0);
@@ -35,11 +38,15 @@ export default function GatesTable({
     const inGates = (e: ScoreLogEntry) =>
         shown.has(e.gate) && ((e.planned && e.actual) || e.message.startsWith('missing gate'));
     const other = entries
-        .filter(e => !inGates(e))
+        // A percentage penalty is a percentage of the task score, not raw points: it has no place in a sum of them
+        .filter(e => !inGates(e) && e.score_kind !== 'percentage_penalty')
         .reduce((sum, e) => sum + e.points, 0);
     const colour = (points: number) =>
-        points === 0 ? 'var(--hud-muted)' : (pointsArePenalties ? points > 0 : points < 0) ? 'var(--hud-red)' : 'var(--hud-ok)';
-    const signed = (points: number) => `${points > 0 ? '+' : ''}${points.toFixed(0)}`;
+        points === 0 ? 'var(--hud-muted)' : (quality ? points < 0 : pointsArePenalties ? points > 0 : points < 0) ? 'var(--hud-red)' : 'var(--hud-ok)';
+    const quality = isQualityTask(scoring);
+    const signed = (points: number) => quality
+        ? `${points > 0 ? '+' : points < 0 ? '\u2212' : ''}${trimmedNumber(Math.abs(points))}`
+        : `${points > 0 ? '+' : ''}${points.toFixed(0)}`;
     // "Missed" is said once: in the Actual column, or (side by side, where there is none) in the offset's place.
     const offsetText = (r: GateResult | undefined, sayMissed: boolean) => r?.missed
         ? (sayMissed ? <span style={{ color: 'var(--hud-red)' }}>Missed</span> : null)
@@ -56,11 +63,11 @@ export default function GatesTable({
             <div className="grid grid-cols-2 gap-2 mb-3">
                 <div className="rounded-md px-3 py-2" style={{ background: 'var(--hud-raised)' }}>
                     <div className="hud-figure text-2xl" style={{ color: colour(timing) }}>{signed(timing)}</div>
-                    <div className="hud-label">Gate timing</div>
+                    <div className="hud-label">Gate timing{quality ? ' (raw points)' : ''}</div>
                 </div>
                 <div className="rounded-md px-3 py-2" style={{ background: 'var(--hud-raised)' }}>
                     <div className="hud-figure text-2xl" style={{ color: colour(other) }}>{signed(other)}</div>
-                    <div className="hud-label">Other penalties</div>
+                    <div className="hud-label">Other penalties{quality ? ' (raw points)' : ''}</div>
                 </div>
             </div>
             {onCompare && compareOptions.length > 0 && (
@@ -84,9 +91,9 @@ export default function GatesTable({
                         <tr className="hud-label text-left">
                             <th scope="col" className="font-normal pb-1">Gate</th>
                             <th scope="col" className="font-normal pb-1 text-right">Offset</th>
-                            <th scope="col" className="font-normal pb-1 text-right">Points</th>
+                            <th scope="col" className="font-normal pb-1 text-right" title={quality ? 'Raw quality points' : undefined}>{quality ? 'Raw' : 'Points'}</th>
                             <th scope="col" className="font-normal pb-1 text-right truncate max-w-[6rem]" title={compare.name}>{compare.name}</th>
-                            <th scope="col" className="font-normal pb-1 text-right">Points</th>
+                            <th scope="col" className="font-normal pb-1 text-right" title={quality ? 'Raw quality points' : undefined}>{quality ? 'Raw' : 'Points'}</th>
                         </tr>
                     ) : (
                         <tr className="hud-label text-left">
@@ -94,7 +101,7 @@ export default function GatesTable({
                             <th scope="col" className="font-normal pb-1">Required</th>
                             <th scope="col" className="font-normal pb-1">Actual</th>
                             <th scope="col" className="font-normal pb-1 text-right">Offset</th>
-                            <th scope="col" className="font-normal pb-1 text-right">Points</th>
+                            <th scope="col" className="font-normal pb-1 text-right" title={quality ? 'Raw quality points' : undefined}>{quality ? 'Raw' : 'Points'}</th>
                         </tr>
                     )}
                 </thead>

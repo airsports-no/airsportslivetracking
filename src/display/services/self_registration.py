@@ -12,7 +12,8 @@ from rest_framework.exceptions import ValidationError
 
 from display.models import Contestant, ContestTeam, NavigationTask
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.cima_task_type_definitions import DECLARATION_REQUIRED_SUBTYPES
+from display.services.flight_order_status import MARKER_QUEUED, last_generation_failed, record_flight_order_state
+from display.utilities.task_types import DECLARATION_NOT_NEEDED, stored_task_type
 from display.utilities.simulator_policy import (
     FLIGHT_MODE_SIMULATOR,
     SIMULATOR_NOT_ALLOWED,
@@ -111,6 +112,7 @@ def send_self_registration_flight_order(contestant: Contestant, email: str, firs
         return
     from display.tasks import generate_and_maybe_notify_flight_order
 
+    record_flight_order_state(contestant.pk, MARKER_QUEUED)
     generate_and_maybe_notify_flight_order.apply_async((contestant.pk, email, first_name, True))
 
 
@@ -125,23 +127,29 @@ def stored_declaration(contestant: Contestant) -> Optional[dict]:
 def send_flight_order_after_declaration(contestant: Contestant, previous_declaration: Optional[dict]) -> None:
     """
     Called when a declaration has been saved; [previous_declaration] is stored_declaration from before. For a flight the
-    pilot booked themselves, in a task requiring a declaration, the flight order is generated and e-mailed to the pilot
-    once the declaration is valid, and again whenever it is changed, but not when it is saved again unchanged.
+    pilot booked themselves, in a task with a declaration (required or optional), the flight order is generated and e-mailed
+    to the pilot once the declaration is valid, and again whenever it is changed. Saved again unchanged it is left alone,
+    unless the last attempt failed: saving is then the way to try again. An incomplete declaration makes no flight order (the
+    old one is already removed when the declaration changes, see delete_flight_orders_of_changed_declaration).
     Flights added by a contest manager are left alone: the manager generates and sends their flight orders.
     """
     if not contestant.self_registered:
         return
-    if contestant.navigation_task.task_subtype not in DECLARATION_REQUIRED_SUBTYPES:
+    if stored_task_type(contestant.navigation_task).declaration_need == DECLARATION_NOT_NEEDED:
         return
     if contestant.awaits_required_declaration:
         return
-    if contestant.contestanttaskconfiguration.declaration_payload == previous_declaration:
+    config = contestant.contestanttaskconfiguration
+    if not config.is_valid:
+        return
+    if config.declaration_payload == previous_declaration and not last_generation_failed(contestant.pk):
         return
     pilot = contestant.team.crew.member1
     if not pilot.email:
         return
     from display.tasks import generate_and_maybe_notify_flight_order
 
+    record_flight_order_state(contestant.pk, MARKER_QUEUED)
     transaction.on_commit(
         lambda: generate_and_maybe_notify_flight_order.apply_async((contestant.pk, pilot.email, pilot.first_name, True))
     )

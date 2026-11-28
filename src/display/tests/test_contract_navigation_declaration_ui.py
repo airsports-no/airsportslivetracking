@@ -18,7 +18,7 @@ from display.models import (
     Scorecard,
     Team,
 )
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS, CURVE_NAVIGATION_TIME_ESTIMATION
+from display.utilities.task_types import CONTRACT_NAVIGATION_TIME_CONTROLS, CURVE_NAVIGATION_TIME_ESTIMATION
 from utilities.mock_utilities import TraccarMock
 
 
@@ -149,9 +149,11 @@ class TestContractNavigationDeclarationUI(TestCase):
             reverse("navigationtasks-detail", kwargs={"contest_pk": self.contest.pk, "pk": self.navigation_task.pk})
         )
         contestant_payload = detail_response.json()["contestant_set"][0]
+        status = contestant_payload["declaration_status"]
+        # Nothing is declared yet: the organiser's list shows what is missing, in words the pilot understands as well
+        self.assertEqual((True, False), (status["required"], status["complete"]))
         self.assertEqual(
-            contestant_payload["declaration_status"],
-            {"required": True, "complete": False, "errors": ["Contract navigation requires declared_t_seconds."]},
+            ["Give your period T: the time you will use from SP to MP, and again from MP to FP."], status["errors"]
         )
 
     def test_create_view_persists_empty_curve_navigation_predictions_until_editor_is_used(self):
@@ -256,4 +258,6 @@ class TestContractNavigationDeclarationUI(TestCase):
         )
 
         self.assertFalse(compiled.is_valid)
-        self.assertIn("Contract navigation requires declared_t_seconds.", compiled.validation_errors)
+        self.assertIn(
+            "Give your period T: the time you will use from SP to MP, and again from MP to FP.", compiled.validation_errors
+        )

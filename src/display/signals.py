@@ -22,11 +22,13 @@ from display.models import (
     Club,
     Contest,
     Contestant,
+    ContestantTaskConfiguration,
     ContestantTrack,
     ContestSummary,
     ContestTeam,
     ContestTokenAssignment,
     Crew,
+    EmailMapLink,
     EditableRoute,
     FlightOrderConfiguration,
     MyUser,
@@ -227,8 +229,46 @@ def auto_summarise_tasks(sender, instance: TaskSummary, **kwargs):
         pass
 
 
+@receiver(pre_save, sender=Contest)
+def remember_overall_result_settings(sender, instance: Contest, **kwargs):
+    instance._overall_result_before_save = (
+        Contest.objects.filter(pk=instance.pk).values_list("overall_result_method", "standings_points_table").first()
+        if instance.pk
+        else None
+    )
+
+
+@receiver(post_save, sender=Contest)
+def recompute_overall_result_on_contest_change(sender, instance: Contest, created=False, **kwargs):
+    """Changing the method or the points table changes every overall result, so they are all written again."""
+    if created or kwargs.get("raw"):
+        return
+    before = getattr(instance, "_overall_result_before_save", None)
+    now = (instance.overall_result_method, instance.standings_points_table)
+    if before is None or tuple(before) == now or not instance.autosum_scores:
+        return
+    if instance.overall_result_method == Contest.STANDINGS_POINTS:
+        from display.services.contest_standings_points import recompute_contest_summaries
+
+        recompute_contest_summaries(instance)
+        return
+    for contest_summary in ContestSummary.objects.filter(contest=instance):
+        contest_summary.contest = instance
+        contest_summary._skip_results_broadcast = True
+        contest_summary.update_sum()
+    from display.services.contest_standings_points import announce_results
+
+    announce_results(instance)
+
+
 @receiver(pre_delete, sender=Task)
 def update_contest_summary_on_task_delete(sender, instance: Task, **kwargs):
+    if instance.contest.overall_result_method == Contest.STANDINGS_POINTS:
+        # One recomputation for all teams (the task and its results are gone from it by the post_delete signals)
+        from display.services.contest_standings_points import recompute_contest_summaries
+
+        recompute_contest_summaries(instance.contest, exclude_task_id=instance.pk)
+        return
     for contest_summary in ContestSummary.objects.filter(contest=instance.contest):
         contest_summary.update_sum()
 
@@ -392,8 +432,10 @@ def push_test_change(sender, instance: TaskTest, **kwargs):
 
 @receiver(post_save, sender=Contestant)
 def create_contestant_track_if_not_exists(sender, instance: Contestant, **kwargs):
+    from display.services.task_scoring import initial_track_score
+
     ContestantTrack.objects.get_or_create(
-        contestant=instance, defaults={"score": instance.navigation_task.scorecard.initial_score}
+        contestant=instance, defaults={"score": initial_track_score(instance.navigation_task)}
     )
     from websocket_channels import WebsocketFacade
 
@@ -421,6 +463,20 @@ def delete_flight_order_and_gate_times_if_changed(sender, instance: Contestant, 
                 )
                 instance.predefined_gate_times = None
                 previous_version.emailmaplink_set.all().delete()
+
+
+@receiver(pre_save, sender=ContestantTaskConfiguration)
+def delete_flight_orders_of_changed_declaration(sender, instance: ContestantTaskConfiguration, **kwargs):
+    """
+    A flight order shows the declared route, so one made for an earlier declaration must not stay downloadable as if it were
+    current: it goes when the declaration changes (whoever changes it and whether or not the new one is complete). Where a new
+    one is due, the code that saved the declaration queues it (send_flight_order_after_declaration).
+    """
+    if not instance.pk:
+        return
+    previous = ContestantTaskConfiguration.objects.filter(pk=instance.pk).values_list("declaration_payload", flat=True).first()
+    if previous is not None and previous != instance.declaration_payload:
+        EmailMapLink.objects.filter(contestant_id=instance.contestant_id).delete()
 
 
 @receiver(pre_delete, sender=Contestant)
@@ -506,8 +562,39 @@ def update_contestant_initial_score(sender, instance: Scorecard, **kwargs):
         existing_initial_score = Scorecard.objects.get(pk=instance.pk).initial_score
         difference = instance.initial_score - existing_initial_score
         if difference != 0 and hasattr(instance, "navigation_task_override"):
-            for contestant in instance.navigation_task_override.contestant_set.all():
+            from display.services.task_scoring import scoring_parameters_for
+            from display.utilities.task_types import stored_task_type
+
+            task = instance.navigation_task_override
+            if scoring_parameters_for(instance, stored_task_type(task)).is_quality:
+                # A quality task starts nobody above zero: its scores are derived by display.services.task_scoring
+                return
+            for contestant in task.contestant_set.all():
                 contestant.contestanttrack.increment_score(difference)
+
+
+@receiver(post_save, sender=Scorecard)
+def rescore_quality_task_when_its_scorecard_changes(sender, instance: Scorecard, created, **kwargs):
+    """The scoring model, qmax policy and task value of a quality task decide every contestant's task score."""
+    if created or not hasattr(instance, "navigation_task_override"):
+        return
+    from display.services.task_scoring import recompute_task_scores
+
+    task = instance.navigation_task_override
+    # The task still holds its previous scorecard object when it is not the one just saved
+    task.scorecard = instance
+    # The theoretical maximum and the starting quality come from the scorecard as well
+    transaction.on_commit(lambda: recompute_task_scores(task, rebaseline=True))
+
+
+@receiver(post_delete, sender=Contestant)
+def rescore_quality_task_when_a_contestant_is_deleted(sender, instance: Contestant, **kwargs):
+    """The best Q of the task may have been the deleted contestant's: renormalise the others."""
+    from display.services.task_scoring import contestant_deleted
+
+    task_id = instance.navigation_task_id
+    # After the commit, so that a task deleted together with its contestants is gone by then
+    transaction.on_commit(lambda: contestant_deleted(task_id))
 
 
 @receiver(post_save, sender=NavigationTask)
@@ -679,9 +766,15 @@ def sync_scorecard_sorting_direction(sender, instance: Scorecard, **kwargs):
     if hasattr(instance, "navigation_task_override"):
         nt = instance.navigation_task_override
         if hasattr(nt, "tasktest"):
-            nt.tasktest.sorting = instance.score_sorting_direction
+            from display.services.task_scoring import scoring_parameters_for
+            from display.utilities.task_types import stored_task_type
+
+            # A quality task always sorts descending (see NavigationTask.score_sorting_direction)
+            quality = scoring_parameters_for(instance, stored_task_type(nt)).is_quality
+            direction = "desc" if quality else instance.score_sorting_direction
+            nt.tasktest.sorting = direction
             nt.tasktest.save(update_fields=["sorting"])
-            nt.tasktest.task.summary_score_sorting_direction = instance.score_sorting_direction
+            nt.tasktest.task.summary_score_sorting_direction = direction
             nt.tasktest.task.save(update_fields=["summary_score_sorting_direction"])
 
 

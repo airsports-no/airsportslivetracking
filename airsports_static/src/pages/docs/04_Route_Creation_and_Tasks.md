@@ -10,7 +10,7 @@ title: "Route Creation and Task Configuration"
 
 The most critical part of an air sports event is the **Route**. A route is more than just a list of waypoints; it is a complex mathematical structure that defines the scoring gates, the corridors, and the rules of the flight.
 
-> Running an **FAI CIMA** microlight task (2.A1–2.A8, 2.B2, 2.B3)? This guide covers the platform's original "Legacy" task types. See the dedicated [**CIMA Task Guide**](/docs/11_CIMA_Task_Guide) for task-by-task route editor steps, contestant declarations, and CIMA's max-score-minus-penalties scoring model.
+> Running an **FAI CIMA** microlight task (2.A1–2.A8, 2.B2, 2.B3)? This guide covers the platform's original "Legacy" task types. See the dedicated [**CIMA Task Guide**](/docs/11_CIMA_Task_Guide) for task-by-task route editor steps, contestant declarations, and CIMA's scoring model (raw points scaled against the best pilot).
 
 ---
 

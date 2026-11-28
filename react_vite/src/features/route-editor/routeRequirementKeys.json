@@ -1,0 +1,22 @@
+{
+  "_comment": "Every route requirement key a task type in display/utilities/task_types.py can declare. Shared by the Django test test_route_requirements.py and the vitest taskRequirements.test.ts: add a key here when a task type gets a new requirement, then map it in taskRequirements.ts.",
+  "requirementKeys": [
+    "catalogue_turnpoint",
+    "circle_center_marker",
+    "circle_entry_marker",
+    "circle_exit_marker",
+    "circle_start_marker",
+    "curved_leg",
+    "dummy_waypoint",
+    "duration_landing_area",
+    "hidden_gate",
+    "known_time_gate",
+    "landing_gate",
+    "route_path",
+    "route_waypoint",
+    "route_waypoint_order",
+    "route_waypoints",
+    "unknown_leg",
+    "unknown_leg_extension"
+  ]
+}

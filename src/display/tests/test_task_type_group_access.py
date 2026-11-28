@@ -16,8 +16,8 @@ from display.models import (
 )
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import assert_can_add_navigation_task
-from display.utilities.cima_task_type_definitions import CIRCLE, CONTRACT_NAVIGATION_TIME_CONTROLS, TURNPOINT_HUNT
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import CIRCLE, CONTRACT_NAVIGATION_TIME_CONTROLS, TURNPOINT_HUNT
+from display.utilities.task_types import PRECISION
 from display.utilities.task_type_group_definitions import CIMA_TASK_TYPE_GROUP, LEGACY_TASK_TYPE_GROUP
 
 

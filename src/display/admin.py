@@ -7,6 +7,8 @@ from guardian.admin import GuardedModelAdmin
 from guardian.shortcuts import assign_perm
 
 from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES, SCORECARD_CONFIG_FIELDS
+from display.services.task_scoring import validate_task_value
+from display.utilities.task_types import QMAX_POLICIES, SCORING_MODELS, SCORING_QUALITY
 from display.services.token_assignment import revert_token_assignment_for_support
 from display.models import (
     NavigationTask,
@@ -301,6 +303,7 @@ class ScorecardAdminForm(forms.ModelForm):
     backtracking_bearing_difference = forms.FloatField(required=False)
     backtracking_grace_time_seconds = forms.FloatField(required=False)
     backtracking_maximum_penalty = forms.FloatField(required=False)
+    backtracking_penalty_percentage = forms.FloatField(required=False, min_value=0, max_value=100)
     prohibited_zone_penalty = forms.FloatField(required=False)
     prohibited_zone_grace_time = forms.FloatField(required=False)
     prohibited_zone_maximum = forms.FloatField(required=False)
@@ -314,23 +317,43 @@ class ScorecardAdminForm(forms.ModelForm):
     anr_route_to_sp_penalty = forms.FloatField(required=False)
     anr_route_from_fp_penalty = forms.FloatField(required=False)
     compulsory_timing_tolerance_seconds = forms.IntegerField(required=False)
+    compulsory_timing_penalty_per_second = forms.FloatField(required=False, min_value=0)
+    turnpoint_hunt_time_gate_value = forms.FloatField(required=False, min_value=0)
     maximum_task_duration_minutes = forms.IntegerField(required=False)
     maximum_task_duration_penalty = forms.FloatField(required=False)
     fuel_deadline_penalty = forms.FloatField(required=False)
     duration_normalization_policy = forms.ChoiceField(choices=DURATION_NORMALIZATION_POLICIES, required=False)
     duration_residual_fuel_required = forms.BooleanField(required=False)
+    duration_landing_area_penalty_percent = forms.FloatField(required=False, min_value=0, max_value=100)
     circle_radius_min_m = forms.FloatField(required=False)
     circle_radius_max_m = forms.FloatField(required=False)
+    circle_altitude_band_ft = forms.FloatField(required=False, min_value=0)
+    circle_altitude_penalty_percent = forms.FloatField(required=False, min_value=0, max_value=100)
+    circle_centre_outside_penalty_percent = forms.FloatField(required=False, min_value=0, max_value=100)
+    speed_keeping_enabled = forms.BooleanField(required=False)
     speed_keeping_tolerance_kt = forms.FloatField(required=False)
     speed_keeping_penalty_per_kt = forms.FloatField(required=False)
+    speed_term_value = forms.FloatField(required=False, min_value=0)
     # min_value=0: GateCalculator._score_turnpoint_hunt_sequence_bonus adds this straight through
-    # as an achievement score (see contestant_processor.ACHIEVEMENT_SCORE_TYPES) - a negative
+    # as an achievement score (an ACHIEVEMENT message) - a negative
     # value would silently subtract from a contestant's score for completing the full sequence.
     turnpoint_hunt_sequence_bonus = forms.FloatField(required=False, min_value=0)
+    observation_hidden_gate_value = forms.FloatField(required=False, min_value=0)
     observation_photo_penalty = forms.FloatField(required=False, min_value=0)
     observation_photo_value = forms.FloatField(required=False, min_value=0)
     observation_photo_full_tolerance_mm = forms.FloatField(required=False, min_value=0)
     observation_photo_half_tolerance_mm = forms.FloatField(required=False, min_value=0)
+    scoring_model = forms.ChoiceField(choices=[("", "Task type default")] + list(SCORING_MODELS), required=False)
+    qmax_policy = forms.ChoiceField(choices=[("", "Task type default")] + list(QMAX_POLICIES), required=False)
+    task_value = forms.FloatField(required=False)
+
+    def clean(self):
+        cleaned_data = super().clean()
+        if cleaned_data.get("scoring_model") == SCORING_QUALITY and cleaned_data.get("task_value"):
+            problem = validate_task_value(cleaned_data["task_value"])
+            if problem:
+                self.add_error("task_value", problem)
+        return cleaned_data
 
     class Meta:
         model = Scorecard
@@ -364,6 +387,8 @@ class ScorecardAdminForm(forms.ModelForm):
         "maximum_task_duration_minutes",
         "observation_photo_full_tolerance_mm",
         "observation_photo_half_tolerance_mm",
+        "task_value",
+        "backtracking_penalty_percentage",
     }
 
     def save(self, commit=True):

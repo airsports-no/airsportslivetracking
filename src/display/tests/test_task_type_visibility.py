@@ -7,8 +7,8 @@ from display.forms import NavigationTaskForm
 from display.models import UserEntitlementGrant
 from display.services.task_templates import task_template_choices as _task_template_choices
 from display.services.task_type_visibility import can_user_see_cima_task_types, can_user_see_task_subtype
-from display.utilities.cima_task_type_definitions import CIRCLE, TURNPOINT_HUNT
-from display.utilities.navigation_task_type_definitions import PRECISION
+from display.utilities.task_types import CIRCLE, TURNPOINT_HUNT
+from display.utilities.task_types import PRECISION
 from display.utilities.task_type_group_definitions import LEGACY_TASK_TYPE_GROUP
 
 

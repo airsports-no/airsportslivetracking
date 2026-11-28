@@ -1,7 +1,7 @@
 """
 Regression tests for the non-negative constraint on turnpoint_hunt_sequence_bonus (CodeRabbit
 finding on #756): GateCalculator._score_turnpoint_hunt_sequence_bonus adds this value straight
-through as an achievement score (see contestant_processor.ACHIEVEMENT_SCORE_TYPES) - a negative
+through as an achievement score (an ACHIEVEMENT score message) - a negative
 configured value would silently subtract from a contestant's score for completing the full
 declared sequence, the opposite of what a "bonus" should ever do. All three writable surfaces
 (Django admin form, the legacy organizer-facing ScorecardForm, and the DRF serialiser the React

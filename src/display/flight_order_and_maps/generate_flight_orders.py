@@ -41,10 +41,10 @@ from display.models.route import Photo
 from display.services.photo_management import ordered_observation_photos
 from display.services.photo_observations import get_contestant_observation_photos
 from display.utilities.calculate_gate_times import PROCEDURE_TURN_DURATION
-from display.utilities.cima_task_type_definitions import CONTRACT_NAVIGATION_TIME_CONTROLS, UNKNOWN_LEGS
+from display.utilities.task_types import stored_task_type
 from display.utilities.coordinate_utilities import normalise_bearing, utm_from_lat_lon
 from display.utilities.gate_definitions import DUMMY, FINISHPOINT, SECRETPOINT, STARTINGPOINT, UNKNOWN_LEG
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
+from display.utilities.task_types import ANR_CORRIDOR
 from display.utilities.wind_utilities import (
     calculate_ground_speed,
     calculate_heading_for_ground_speed,
@@ -171,7 +171,7 @@ def get_flight_order_visual_waypoints(contestant: Contestant, include_contestant
     )
     waypoints = [waypoint for waypoint in effective_waypoints if waypoint.type != "dummy"]
     payload = getattr(getattr(contestant, "contestanttaskconfiguration", None), "compiled_effective_route_payload", {}) or {}
-    if contestant.navigation_task.task_subtype == "unknown_legs":
+    if stored_task_type(contestant.navigation_task).has_unknown_legs:
         actual_route_names = {
             item.get("name") for item in (payload.get("actual_route", {}) or {}).get("waypoints", []) if item.get("name")
         }
@@ -590,7 +590,7 @@ def _gate_times_table_rows(contestant: "Contestant", waypoints: List[Waypoint]) 
         add_row(["Takeoff gate", "-", "-", "-", "-", "-", "-", local_time])
         rows.append("table.hline()")
 
-    if contestant.navigation_task.task_subtype == UNKNOWN_LEGS:
+    if stored_task_type(contestant.navigation_task).has_unknown_legs:
         # The legs and times of the true route would tell where the unknown legs go: only the starting and finishing
         # points' times are given, the pilot plans the rest.
         for waypoint in waypoints:
@@ -603,7 +603,7 @@ def _gate_times_table_rows(contestant: "Contestant", waypoints: List[Waypoint]) 
     # Contract navigation: MP is T after SP and FP T after MP, whatever the legs' lengths. The gate times of the declared
     # turnpoints between them (not time checks) are those of a constant speed through each half, so the ground speed and
     # heading shown are what that takes, not the contestant's airspeed, and there is no procedure turn time in them.
-    contract_navigation = contestant.navigation_task.task_subtype == CONTRACT_NAVIGATION_TIME_CONTROLS
+    contract_navigation = stored_task_type(contestant.navigation_task).gate_times_from_declared_period
     accumulated_distance = 0
     last_record_distance = 0
     previous_waypoint = None

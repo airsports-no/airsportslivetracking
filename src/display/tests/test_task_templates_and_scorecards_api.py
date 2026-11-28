@@ -21,8 +21,8 @@ from rest_framework.test import APIClient
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import AccessGrant, Club, ClubManagerMembership, Contest, EditableRoute
-from display.utilities.cima_task_type_definitions import CIRCLE, CONTRACT_NAVIGATION_TIME_CONTROLS
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
+from display.utilities.task_types import CIRCLE, CONTRACT_NAVIGATION_TIME_CONTROLS
+from display.utilities.task_types import ANR_CORRIDOR, PRECISION
 
 
 class TestTaskTemplatesApi(TestCase):
@@ -120,9 +120,8 @@ class TestTaskTemplatesApi(TestCase):
 
     @override_settings(GATE_CIMA_TASK_VISIBILITY=True, DEFAULT_FREE_TASK_TYPE_GROUPS=["legacy"])
     def test_returns_explanatory_message_when_no_templates_are_compatible(self):
-        # An empty route is actually compatible with CIMA's DURATION subtype (its
-        # required_primitives is empty) - without gating CIMA visibility off for this user, groups
-        # would come back non-empty and the assertion below would never really run.
+        # CIMA visibility is gated off for this user so that only the legacy families are candidates, none of
+        # which an empty route suits.
         empty_route = EditableRoute.objects.create(name="Empty route", route={"features": []})
         assign_perm("change_editableroute", self.user, empty_route)
         response = self.client.get(f"/api/v1/editableroutes/task_templates/?editable_route={empty_route.pk}")

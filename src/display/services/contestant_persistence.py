@@ -3,7 +3,7 @@ import datetime
 import dateutil
 from django.db import transaction
 
-from display.models import ContestTeam, Contestant
+from display.models import ContestantTaskConfiguration, ContestTeam, Contestant
 from display.services.contestant_task_compiler import ContestantTaskCompiler
 
 
@@ -53,9 +53,19 @@ def _sync_contest_team(contestant: Contestant) -> None:
     )
 
 
-def _compile_contestant_configuration(contestant: Contestant, declaration_input) -> None:
+def _compile_contestant_configuration(contestant: Contestant, declaration_input, keep_stored: bool = False) -> None:
     compiler = ContestantTaskCompiler(contestant)
-    declaration_payload = compiler.build_declaration_payload_from_input(declaration_input)
+    stored = (
+        ContestantTaskConfiguration.objects.filter(contestant=contestant).first()
+        if keep_stored and declaration_input is None
+        else None
+    )
+    if stored is not None:
+        # A save that does not mention the declaration (the contestant form) leaves it as it is. Read from the database: the
+        # relation cached on [contestant] may be older (see below).
+        declaration_payload = stored.declaration_payload or {}
+    else:
+        declaration_payload = compiler.build_declaration_payload_from_input(declaration_input)
     if declaration_payload or contestant.navigation_task.task_subtype:
         config = compiler.compile(declaration_payload=declaration_payload, force=True)
         # Contestant.save() (called just above, in both create_contestant_with_related_state
@@ -119,6 +129,6 @@ def update_contestant_with_related_state(instance: Contestant, validated_data: d
         # gate-time payload instead of silently preserving stale values.
         instance.gate_times = parsed_gate_times
         instance.save()
-        _compile_contestant_configuration(instance, declaration_input)
+        _compile_contestant_configuration(instance, declaration_input, keep_stored=True)
         _sync_contest_team(instance)
     return instance

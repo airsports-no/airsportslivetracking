@@ -19,6 +19,7 @@ from django.template import Context, Template
 from guardian.shortcuts import get_users_with_perms
 
 from display.models import Contestant, NavigationTask
+from display.services.task_scoring import scoring_parameters
 from display.templatetags.frontend_urls import fe_url
 from display.utilities.email_templates import CONTESTANT_FINISHED_EMAIL, CONTESTANT_STARTED_EMAIL, EMAIL_SIGNATURE
 from display.utilities.welcome_emails import FOOTER, HEADER
@@ -109,6 +110,14 @@ def _format_score(score: float) -> str:
     return f"{score:.2f}".rstrip("0").rstrip(".")
 
 
+def _score_text(track, task) -> str:
+    """The score of the track: for a task with a normalised task score a whole number out of the task value."""
+    scoring = scoring_parameters(task)
+    if scoring.is_quality:
+        return f"{track.score:.0f} of {scoring.task_value:g}"
+    return _format_score(track.score)
+
+
 def _format_time(contestant: Contestant, moment) -> str:
     if moment is None:
         return ""
@@ -132,7 +141,7 @@ def send_manager_notification(contestant: Contestant, kind: str) -> int:
         "start_time": _format_time(contestant, contestant.starting_point_time),
         "finish_time": _format_time(contestant, contestant.finished_by_time),
         "crossed_finish": bool(track and track.passed_finish_gate),
-        "score": _format_score(track.score) if track else "",
+        "score": _score_text(track, task) if track else "",
         "state": track.current_state if track else "",
     }
     if kind == STARTED:

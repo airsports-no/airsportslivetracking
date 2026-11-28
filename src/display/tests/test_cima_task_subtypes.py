@@ -4,14 +4,14 @@ from django.test import TestCase
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import CompiledNavigationTask, Contest, NavigationTask, Route, Scorecard
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     ANR_CATALOGUE,
     CURVE_NAVIGATION_TIME_ESTIMATION,
     DURATION,
     LEGACY_ANR_CORRIDOR,
     LEGACY_PRECISION,
-    get_default_task_subtype_for_family,
-    get_task_subtype_definition,
+    default_task_type_key_for_family,
+    get_task_type,
     validate_subtype_family_compatibility,
 )
 from display.utilities.task_information import build_navigation_task_information, build_navigation_task_rules_latex
@@ -29,7 +29,7 @@ class TestCimaTaskSubtypes(TestCase):
         self.route = Route.objects.create(name="Subtype route", waypoints=[], takeoff_gates=[], landing_gates=[])
 
     def test_get_task_subtype_definition_returns_precision_mapping(self):
-        definition = get_task_subtype_definition(CURVE_NAVIGATION_TIME_ESTIMATION)
+        definition = get_task_type(CURVE_NAVIGATION_TIME_ESTIMATION)
         self.assertEqual(definition.coarse_family, "precision")
         self.assertTrue(definition.requires_contestant_configuration)
 
@@ -59,15 +59,15 @@ class TestCimaTaskSubtypes(TestCase):
         self.assertEqual(task.subtype_definition.key, CURVE_NAVIGATION_TIME_ESTIMATION)
 
     def test_duration_subtype_definition_maps_to_precision_family(self):
-        definition = get_task_subtype_definition(DURATION)
+        definition = get_task_type(DURATION)
         self.assertEqual(definition.coarse_family, "precision")
         self.assertFalse(definition.requires_contestant_configuration)
 
     def test_default_legacy_subtype_for_precision_family_is_available(self):
-        self.assertEqual(get_default_task_subtype_for_family("precision"), LEGACY_PRECISION)
+        self.assertEqual(default_task_type_key_for_family("precision"), LEGACY_PRECISION)
 
     def test_default_legacy_subtype_for_anr_family_is_available(self):
-        self.assertEqual(get_default_task_subtype_for_family("anr_corridor"), LEGACY_ANR_CORRIDOR)
+        self.assertEqual(default_task_type_key_for_family("anr_corridor"), LEGACY_ANR_CORRIDOR)
 
     def test_legacy_precision_task_gets_default_subtype_definition(self):
         scorecard = Scorecard.get_originals().get(shortcut_name="FAI Precision")

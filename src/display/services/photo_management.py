@@ -6,6 +6,7 @@ from typing import Any, Sequence
 
 from display.models import Photo
 from display.utilities.gate_definitions import DUMMY, SECRETPOINT, UNKNOWN_LEG
+from display.utilities.task_types import stored_task_type
 
 
 def get_observation_photo_names(navigation_task) -> set[str]:
@@ -43,7 +44,7 @@ def ordered_observation_photos(contestant, photos: Sequence) -> list:
 def get_unknown_leg_photo_names(navigation_task) -> set[str]:
     """Names of the unknown-leg waypoints of a 2.A5 task, whose photos the flight order prints for the crews to find."""
     editable_route = navigation_task.editable_route
-    if getattr(navigation_task, "task_subtype", None) != "unknown_legs" or editable_route is None:
+    if not stored_task_type(navigation_task).has_unknown_legs or editable_route is None:
         return set()
     return {
         point["properties"]["name"]
@@ -91,7 +92,7 @@ def get_navigation_task_photo_targets(navigation_task) -> list[dict[str, Any]]:
     if editable_route is None:
         return targets
     add_features(editable_route.get_catalogue_turnpoints(), "catalogue_turnpoint")
-    if getattr(navigation_task, "task_subtype", None) == "unknown_legs":
+    if stored_task_type(navigation_task).has_unknown_legs:
         add_features(editable_route.get_unknown_leg_waypoints(), "unknown_leg")
     add_features(editable_route.get_observation_photos(), "observation")
     return targets

@@ -23,7 +23,7 @@ from display.calculators.poker_calculator import PokerCalculator
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 from display.calculators.penalty_zone_calculator import PenaltyZoneCalculator
 from display.models.contestant_utility_models import ContestantReceivedPosition
-from display.utilities.cima_task_type_definitions import ANR_CATALOGUE
+from display.utilities.task_types import ANR_CATALOGUE
 from display.utilities.coordinate_utilities import Projector
 from display.waypoint import Waypoint
 

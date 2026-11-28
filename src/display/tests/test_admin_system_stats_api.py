@@ -8,7 +8,7 @@ from rest_framework.test import APIClient
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Aeroplane, Contest, Contestant, ContestantTrack, Crew, NavigationTask, Person, Route, Scorecard, Team
 from display.services.admin_system_stats import get_country_stats, get_overview_stats, get_retention_stats, get_task_type_popularity
-from display.utilities.cima_task_type_definitions import PRECISION_NAVIGATION, TURNPOINT_HUNT
+from display.utilities.task_types import PRECISION_NAVIGATION, TURNPOINT_HUNT
 
 
 class AdminSystemStatsTestBase(TestCase):

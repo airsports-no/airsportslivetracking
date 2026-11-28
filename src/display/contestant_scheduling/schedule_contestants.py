@@ -10,7 +10,7 @@ from display.utilities.calculate_gate_times import calculate_and_get_relative_ga
 from display.contestant_scheduling.contestant_scheduler import TeamDefinition, Solver
 from display.models import NavigationTask, ContestTeam, Contestant
 from display.services.contestant_task_compiler import ContestantTaskCompiler
-from display.utilities.navigation_task_type_definitions import LANDING
+from display.utilities.task_types import LANDING
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +259,7 @@ def schedule_and_create_contestants_navigation_tasks(
             flight_duration = gate_times[-1][1]
         else:
             # No route backbone (2.A6 Turnpoint hunt/2.B2 Limited fuel turnpoint hunt explicitly
-            # forbid one - see cima_task_type_definitions.py - so route.waypoints is empty and
+            # forbid one - see TaskTypeDefinition.has_backbone - so route.waypoints is empty and
             # there's no route_waypoint chain to compute a flight duration from). Fall back to
             # the scorecard's configured maximum task duration instead: the contestant is
             # allotted this much time to hunt turnpoints, not a fixed route to fly.

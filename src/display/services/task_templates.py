@@ -16,8 +16,12 @@ from display.services.route_compatibility import (
     get_compatible_task_subtypes,
 )
 from display.services.task_type_visibility import can_user_see_task_subtype
-from display.utilities.cima_task_type_definitions import LEGACY_DEFAULT_SUBTYPE_BY_FAMILY, TASK_SUBTYPE_DEFINITIONS
-from display.utilities.navigation_task_type_definitions import NAVIGATION_TASK_TYPES
+from display.utilities.task_types import (
+    FAMILY_CHOICES,
+    TASK_TYPE_REGISTRY,
+    default_task_type_key_for_family,
+    find_task_type,
+)
 
 
 def task_template_choices(user=None, editable_route=None):
@@ -31,12 +35,12 @@ def task_template_choices(user=None, editable_route=None):
     """
     compatible = set(get_compatible_task_subtypes(editable_route)) if editable_route is not None else None
     grouped = {"Legacy": [], "CIMA": []}
-    for key, label in NAVIGATION_TASK_TYPES:
-        if compatible is not None and LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(key) not in compatible:
+    for key, label in FAMILY_CHOICES:
+        if compatible is not None and default_task_type_key_for_family(key) not in compatible:
             continue
         grouped["Legacy"].append((key, label))
-    for definition in TASK_SUBTYPE_DEFINITIONS.values():
-        if definition.key.startswith("legacy_"):
+    for definition in TASK_TYPE_REGISTRY.values():
+        if definition.is_legacy:
             continue
         if not can_user_see_task_subtype(user, task_subtype=definition.key):
             continue
@@ -54,13 +58,13 @@ def no_compatible_task_types_message(user, editable_route) -> str | None:
     """
     primitives = extract_route_primitives(editable_route)
     candidates = []
-    for key, label in NAVIGATION_TASK_TYPES:
-        legacy_key = LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(key)
+    for key, label in FAMILY_CHOICES:
+        legacy_key = default_task_type_key_for_family(key)
         if legacy_key is None:
             continue
         candidates.append((label, get_blocking_reasons(primitives, legacy_key, editable_route)))
-    for definition in TASK_SUBTYPE_DEFINITIONS.values():
-        if definition.key.startswith("legacy_"):
+    for definition in TASK_TYPE_REGISTRY.values():
+        if definition.is_legacy:
             continue
         if not can_user_see_task_subtype(user, task_subtype=definition.key):
             continue
@@ -79,9 +83,9 @@ def normalize_task_template_selection(value):
     (task_type, task_subtype) pair the rest of the codebase expects."""
     if not value:
         return None, None
-    if value in dict(NAVIGATION_TASK_TYPES):
+    if value in dict(FAMILY_CHOICES):
         return value, ""
-    definition = TASK_SUBTYPE_DEFINITIONS.get(value)
+    definition = find_task_type(value)
     if definition is None:
         raise ValidationError("Select a valid task type.")
     return definition.coarse_family, definition.key

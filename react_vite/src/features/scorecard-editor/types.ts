@@ -35,6 +35,8 @@ export interface ScorecardData {
     backtracking_bearing_difference?: number;
     backtracking_grace_time_seconds?: number;
     backtracking_maximum_penalty?: number;
+    // Percentage of the task score one backtrack costs (2.A1-2.A5). Blank: the task type's own.
+    backtracking_penalty_percentage?: number | null;
     prohibited_zone_penalty?: number;
     prohibited_zone_grace_time?: number;
     prohibited_zone_maximum?: number;
@@ -48,25 +50,46 @@ export interface ScorecardData {
     anr_route_to_sp_penalty?: number;
     anr_route_from_fp_penalty?: number;
     compulsory_timing_tolerance_seconds?: number;
+    compulsory_timing_penalty_per_second?: number;
+    turnpoint_hunt_time_gate_value?: number;
     maximum_task_duration_minutes?: number | null;
     maximum_task_duration_penalty?: number;
     fuel_deadline_penalty?: number;
     duration_normalization_policy?: string;
     duration_residual_fuel_required?: boolean;
+    duration_landing_area_penalty_percent?: number;
     circle_radius_min_m?: number;
     circle_radius_max_m?: number;
+    circle_altitude_band_ft?: number;
+    circle_altitude_penalty_percent?: number;
+    circle_centre_outside_penalty_percent?: number;
+    // 2.A4: the speed-keeping deviation penalty is off unless enabled; speed_term_value is Vs of Qv = Vs x S / Smax.
+    speed_keeping_enabled?: boolean;
     speed_keeping_tolerance_kt?: number;
     speed_keeping_penalty_per_kt?: number;
+    speed_term_value?: number;
     turnpoint_hunt_sequence_bonus?: number;
+    observation_hidden_gate_value?: number;
     observation_photo_penalty?: number;
     observation_photo_value?: number;
     observation_photo_full_tolerance_mm?: number | null;
     observation_photo_half_tolerance_mm?: number | null;
+    // How the task score is made (see utils/taskScore.ts). Blank: the task type's default.
+    scoring_model?: string | null;
+    qmax_policy?: string | null;
+    task_value?: number | null;
 
     // Merged in by the scorecard action (viewsets.py), not part of the plain serializer shape.
     applicable_gate_types: string[];
     applicable_scalar_groups: string[];
     original_scorecard: ScorecardData | null;
+    // Whether the task type can use the quality model at all, its default, and what the task scores with now
+    // (absent from older servers: the three scoring fields are then left out).
+    can_use_quality_scoring?: boolean;
+    default_scoring_model?: string;
+    effective_scoring_model?: string;
+    effective_qmax_policy?: string;
+    effective_task_value?: number;
 }
 
 export type ScalarFieldName = Exclude<
@@ -81,6 +104,11 @@ export type ScalarFieldName = Exclude<
     | 'applicable_gate_types'
     | 'applicable_scalar_groups'
     | 'original_scorecard'
+    | 'can_use_quality_scoring'
+    | 'default_scoring_model'
+    | 'effective_scoring_model'
+    | 'effective_qmax_policy'
+    | 'effective_task_value'
 >;
 
 // Client-side editing state: only fields the user has actually touched are ever sent back to

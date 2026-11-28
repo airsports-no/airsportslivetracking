@@ -29,13 +29,14 @@ from display.utilities.gate_definitions import (
     STARTINGPOINT,
     UNKNOWN_LEG,
 )
-from display.utilities.navigation_task_type_definitions import (
-    AIRSPORT_CHALLENGE,
+from display.utilities.task_types import (
     AIRSPORTS,
+    AIRSPORT_CHALLENGE,
     ANR_CORRIDOR,
     LANDING,
     POKER,
     PRECISION,
+    task_type_or_unspecified,
 )
 from display.waypoint import Waypoint
 
@@ -139,6 +140,22 @@ class EditableRoute(models.Model):
 
         self.compatible_task_types = get_compatible_task_subtypes(self)
         self.compatibility_ruleset_version = ROUTE_COMPATIBILITY_RULESET_VERSION
+
+    def get_current_compatible_task_types(self) -> list[str]:
+        """
+        compatible_task_types, recomputed (and stored) first when it was computed under an older ruleset, so a change of
+        the ruleset reaches routes that have not been saved since.
+        """
+        from display.services.route_compatibility import ROUTE_COMPATIBILITY_RULESET_VERSION
+
+        if self.pk is not None and self.compatibility_ruleset_version != ROUTE_COMPATIBILITY_RULESET_VERSION:
+            self.refresh_compatible_task_types()
+            # A queryset update leaves updated_at alone: the route's content did not change.
+            EditableRoute.objects.filter(pk=self.pk).update(
+                compatible_task_types=self.compatible_task_types,
+                compatibility_ruleset_version=self.compatibility_ruleset_version,
+            )
+        return self.compatible_task_types
 
     def calculate_number_of_waypoints(self):
         if track := self.get_track():
@@ -294,6 +311,19 @@ class EditableRoute(models.Model):
             and item.get("properties", {}).get("featureType") == "route_waypoint"
         ]
         return sorted(waypoints, key=lambda x: x["properties"].get("sequence", 0))
+
+    def get_curved_leg_waypoints(self) -> list[dict]:
+        """
+        The route waypoints that end a curved leg: not the first waypoint, which ends no leg, and only those whose curve
+        has a control point (the route builder draws no curve without one).
+        """
+        return [
+            item
+            for item in self.get_ordered_track_waypoints()[1:]
+            if item["properties"].get("segmentType") == "curved"
+            and item["properties"].get("controlLat") is not None
+            and item["properties"].get("controlLng") is not None
+        ]
 
     def get_takeoff_gates(self) -> list:
         return self.get_features_type("takeoff_gate")
@@ -463,7 +493,9 @@ class EditableRoute(models.Model):
         self.amend_route_with_additional_features(route)
         return route
 
-    def create_anr_route(self, rounded_corners: bool, corridor_width: float, scorecard: "Scorecard") -> "Route|None":
+    def create_anr_route(
+        self, rounded_corners: bool, corridor_width: float, scorecard: "Scorecard", task_subtype: str | None = None
+    ) -> "Route|None":
         """
         Build a Route object self as a ANR route using the provided scorecard.
         """
@@ -487,7 +519,12 @@ class EditableRoute(models.Model):
         # waypoint_list[-1].width = scorecard.get_extended_gate_width_for_gate_type(FINISHPOINT)
 
         route = create_anr_corridor_route_from_waypoint_list(
-            self.name, waypoint_list, rounded_corners, scorecard, corridor_width=corridor_width
+            self.name,
+            waypoint_list,
+            rounded_corners,
+            scorecard,
+            corridor_width=corridor_width,
+            time_gate_width_nm=task_type_or_unspecified(task_subtype).start_finish_gate_width_nm,
         )
         self.amend_route_with_additional_features(route)
         return route
@@ -762,13 +799,12 @@ class EditableRoute(models.Model):
     ) -> "Route":
         from display.models import Route
         from display.services.photo_management import observation_photo_name_problems
-        from display.utilities.cima_task_type_definitions import NO_BACKBONE_TASK_SUBTYPES
 
         # A route saved before names were checked may still have photos of one name: not a task from it until it is fixed
         if problems := observation_photo_name_problems(self):
             raise ValidationError(" ".join(problems))
         if task_type in (PRECISION, POKER):
-            if task_subtype in NO_BACKBONE_TASK_SUBTYPES:
+            if not task_type_or_unspecified(task_subtype).has_backbone:
                 # These subtypes have no authored route backbone: the route
                 # is entirely free-map markers, so there is no track to turn
                 # into Route.waypoints.
@@ -788,7 +824,7 @@ class EditableRoute(models.Model):
                 raise ValidationError(f"Missing 'rounded_corners' for task type {task_type}")
             if corridor_width is None:
                 raise ValidationError(f"Missing 'corridor_width' for task type {task_type}")
-            route = self.create_anr_route(rounded_corners, corridor_width, scorecard)
+            route = self.create_anr_route(rounded_corners, corridor_width, scorecard, task_subtype)
         elif task_type in (AIRSPORTS, AIRSPORT_CHALLENGE):
             if rounded_corners is None:
                 raise ValidationError(f"Missing 'rounded_corners' for task type {task_type}")

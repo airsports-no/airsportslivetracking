@@ -49,6 +49,8 @@ def serialize_score_log_entry(entry: "ScoreLogEntry") -> dict:
         "offset_string": entry.offset_string,
         "times_string": entry.times_string,
         "type": entry.type,
+        "score_type": entry.score_type,
+        "score_kind": entry.score_kind,
     }
 
 
@@ -99,7 +101,10 @@ def serialize_gate_cumulative_score(gs: "GateCumulativeScore") -> dict:
 
 
 def serialize_contestant_track(ct: "ContestantTrack") -> dict:
+    from display.services.task_scoring import quality_track_fields
+
     return {
+        **quality_track_fields(ct),
         "id": ct.id,
         "contestant": ct.contestant_id,
         "score": ct.score,

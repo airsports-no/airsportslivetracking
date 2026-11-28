@@ -10,6 +10,7 @@ import {
 } from './types';
 import { ContestCreationFormValues } from './schemas/contestCreationSchema';
 import { Contest } from '../mission-dashboard/types';
+import { ScoringExplanation } from '../../utils/taskScore';
 
 type ErrorMessage = string | string[];
 
@@ -55,6 +56,25 @@ export const fetchScorecardChoices = async (taskType?: string, taskSubtype?: str
     const response = await fetch(url);
     if (!response.ok) {
         throw new Error(`Failed to fetch scorecards: ${await getErrorMessages(response)}`);
+    }
+    return response.json();
+};
+
+/**
+ * How a task of this type is scored with this scorecard, in plain language, before the task exists (the creation flow).
+ * `overrides` previews a choice that is not saved yet (qmax_policy).
+ */
+export const fetchTaskTypeExplanation = async (
+    taskSubtype: string,
+    scorecard?: string,
+    overrides: { qmax_policy?: string } = {}
+): Promise<ScoringExplanation> => {
+    const params = new URLSearchParams({ task_subtype: taskSubtype });
+    if (scorecard) params.set('scorecard', scorecard);
+    if (overrides.qmax_policy) params.set('qmax_policy', overrides.qmax_policy);
+    const response = await fetch(`${reverse('scorecards-explanation')}?${params.toString()}`);
+    if (!response.ok) {
+        throw new Error(`Failed to fetch the scoring explanation: ${await getErrorMessages(response)}`);
     }
     return response.json();
 };

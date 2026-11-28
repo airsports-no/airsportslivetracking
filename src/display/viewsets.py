@@ -172,6 +172,7 @@ from display.serialisers import (
     TodaysNavigationSerialiser,
     TrackAnnotationSerialiser,
 )
+from display.services.flight_order_status import flight_order_status
 from display.services.gate_results import gate_results_for
 from display.services.map_access import can_view_task_map, map_path_for
 from display.services.people_search import user_identities
@@ -231,9 +232,27 @@ from display.services.photo_management import (
     revert_photo_to_satellite,
     sync_navigation_task_photo_targets,
 )
-from display.services.route_compatibility import effective_subtype_key, extract_route_primitives, get_blocking_reasons
+from display.services.route_compatibility import (
+    effective_subtype_key,
+    evaluate_route_requirements,
+    extract_route_primitives,
+    get_blocking_reasons,
+)
 from display.services.scorecard_gate_applicability import get_applicable_gate_types, get_applicable_scalar_groups
+from display.services.scoring_explanation import (
+    explain_navigation_task,
+    explain_task_type,
+    parse_preview_overrides,
+)
 from display.services.task_compiler import TaskCompiler
+from display.services.task_scoring import (
+    measure_text,
+    quality_track_fields,
+    score_measures,
+    scoring_parameters,
+    scoring_parameters_for,
+    task_scores_are_provisional,
+)
 from display.services.task_templates import (
     no_compatible_task_types_message,
     normalize_task_template_selection,
@@ -252,7 +271,14 @@ from display.tasks import (
 )
 from display.utilities.calculator_running_utilities import is_calculator_running, is_dispatch_pending
 from display.utilities.calculator_termination_utilities import cancel_termination_request
-from display.utilities.cima_task_type_definitions import TASK_SUBTYPE_DEFINITIONS, scorecard_suits_task_subtype
+from display.utilities.task_types import (
+    DEFAULT_SCORECARD_SHORTCUT_NAMES,
+    SCORING_QUALITY,
+    TASK_TYPE_REGISTRY,
+    find_task_type,
+    scorecard_suits_task_subtype,
+    stored_task_type,
+)
 from display.utilities.show_slug_choices import ShowChoicesMetadata
 from display.utilities.tracking_definitions import TrackingService
 from live_tracking_map import settings
@@ -503,7 +529,9 @@ class UserPersonViewSet(GenericViewSet):
                 .order_by("takeoff_time")
                 .distinct()
                 .select_related("navigation_task__contest", "team__crew__member1")
-                .prefetch_related("emailmaplink_set")
+                .prefetch_related(
+                    Prefetch("emailmaplink_set", queryset=EmailMapLink.objects.only("id", "contestant_id", "created_at"))
+                )
             )
             return Response(
                 FutureContestantNestedTeamSerialiser(contestants, many=True, context={"request": request}).data
@@ -511,7 +539,9 @@ class UserPersonViewSet(GenericViewSet):
         contestants = (
             contestants.order_by("takeoff_time")
             .distinct()
-            .select_related("navigation_task__contest", "team__crew__member1")
+            .select_related(
+                "navigation_task__contest", "team__crew__member1", "team__crew__member2", "contestanttaskconfiguration"
+            )
             # The orders PDF itself (a binary column) is not needed for the list, only that one exists and which is newest.
             .prefetch_related(Prefetch("emailmaplink_set", queryset=EmailMapLink.objects.only("id", "contestant_id", "created_at")))
         )
@@ -551,7 +581,9 @@ class UserPersonViewSet(GenericViewSet):
                 ).data
             )
         contestants = (
-            contestants.select_related("navigation_task__contest")
+            contestants.select_related(
+                "navigation_task__contest", "team__crew__member1", "team__crew__member2", "contestanttaskconfiguration"
+            )
             .prefetch_related(Prefetch("emailmaplink_set", queryset=EmailMapLink.objects.only("id", "contestant_id", "created_at")))
             .order_by("-takeoff_time")
             .distinct()
@@ -668,6 +700,7 @@ class UserPersonViewSet(GenericViewSet):
         last_received = last_received_position_time(device_name)
 
         tasks_map = {}
+        task_score_context = {}  # per task: the scale and provisional state of the score (one query at most)
         map_viewable = {}  # per task: the permission check can hit the database
         for contestant, is_simulator in contestants_data:
             task = contestant.navigation_task
@@ -699,8 +732,10 @@ class UserPersonViewSet(GenericViewSet):
                     # positions, which the task's calculation delay holds back) this is not delayed.
                     "last_received_time": last_received.isoformat() if last_received else None,
                     "calculation_delay_minutes": task.calculation_delay_minutes,
-                    "score": own_score_for(contestant, task, map_viewable[task.pk]),
+                    "score": (score := own_score_for(contestant, task, map_viewable[task.pk])),
+                    **score_context_for(contestant, score, task_score_context),
                     "flight_order_path": flight_order_path_for(contestant),
+                    "flight_order_status": flight_order_status(contestant, request.user),
                     "training_available": training_available_for(contestant),
                     "training_feedback": training_feedback_for(contestant),
                     # Whether the positions of this device are used for the flight (the task's simulator policy and the flight
@@ -748,6 +783,32 @@ def own_score_for(contestant, task, may_view):
         return None
     track = getattr(contestant, "contestanttrack", None)
     return track.score if track is not None else None
+
+
+def score_context_for(contestant, score, cache: dict) -> dict:
+    """
+    What the pilot's app needs to read ``score``: ``score_scale`` (what it is out of; null for a legacy task and where there
+    is no score), ``scores_provisional`` (a better flight of another pilot can still lower it) and
+    ``provisional_explanation`` (the short text of the scoring explanation, only while provisional). The same functions as the
+    contest results' ``scoring`` block. ``cache`` is per request and task: a legacy task or a flight without a score costs no
+    query, any other task one (the unfinished flights) and, while provisional, the explanation.
+    """
+    empty = {"score_scale": None, "scores_provisional": False, "provisional_explanation": None}
+    if score is None:
+        return empty
+    task = contestant.navigation_task
+    if task.pk not in cache:
+        parameters = scoring_parameters(task)
+        if not parameters.is_quality:
+            cache[task.pk] = empty
+        else:
+            provisional = task_scores_are_provisional(task)
+            cache[task.pk] = {
+                "score_scale": parameters.score_scale,
+                "scores_provisional": provisional,
+                "provisional_explanation": explain_navigation_task(task)["provisional"]["short"] if provisional else None,
+            }
+    return cache[task.pk]
 
 
 def flight_order_path_for(contestant):
@@ -909,18 +970,21 @@ class EditableRouteViewSet(ModelViewSet):
         primitives = extract_route_primitives(unsaved_route)
         subtypes = []
         compatible_task_types = []
-        for definition in TASK_SUBTYPE_DEFINITIONS.values():
+        for definition in TASK_TYPE_REGISTRY.values():
             missing_reasons = get_blocking_reasons(primitives, definition.key, unsaved_route)
+            requirements = evaluate_route_requirements(primitives, definition, unsaved_route)
             if not missing_reasons:
                 compatible_task_types.append(definition.key)
             subtypes.append(
                 {
                     "key": definition.key,
                     "display_name": definition.display_name,
-                    "group": "Legacy" if definition.key.startswith("legacy_") else "CIMA",
+                    "group": "Legacy" if definition.is_legacy else "CIMA",
                     "coarse_family": definition.coarse_family,
                     "compatible": not missing_reasons,
                     "missing_reasons": missing_reasons,
+                    # Every route requirement of the task type with what the route has, for the route editor guide.
+                    "requirements": [requirement.as_dict() for requirement in requirements],
                 }
             )
         return Response({"compatible_task_types": compatible_task_types, "subtypes": subtypes})
@@ -1502,7 +1566,7 @@ class ContestViewSet(DeleteWhileCalculatorsRunMixin, ContestSquadronsMixin, Mode
             "team", "team__crew__member1", "team__crew__member2"
         ).order_by("points")
 
-        if contest.summary_score_sorting_direction == Contest.DESCENDING:
+        if contest.overall_sorting_direction == Contest.DESCENDING:
             summaries = summaries.order_by("-points")
         else:
             summaries = summaries.order_by("points")
@@ -1987,12 +2051,38 @@ class GetScorecardsViewSet(ReadOnlyModelViewSet):
                 if task_type in scorecard.task_type
                 and scorecard_suits_task_subtype(scorecard.shortcut_name, task_subtype)
             ]
+            # The family's default scorecard first: the picker preselects the first entry.
+            default_shortcut_name = DEFAULT_SCORECARD_SHORTCUT_NAMES.get(task_type)
+            scorecards.sort(key=lambda scorecard: scorecard.shortcut_name != default_shortcut_name)
         return Response(
             [
                 {"shortcut_name": scorecard.shortcut_name, "name": scorecard.name, "task_type": scorecard.task_type}
                 for scorecard in scorecards
             ]
         )
+
+    @action(detail=False, methods=["get"], url_path="explanation", permission_classes=[permissions.IsAuthenticated])
+    def explanation(self, request, *args, **kwargs):
+        """
+        How a task of a type is scored with a scorecard, in plain language, before any task exists (the task creation
+        flow). ?task_subtype=<task type key> is required; ?scorecard=<shortcut_name> defaults to the scorecard the task
+        type is created from. The scoring values of the scorecard editor (?qmax_policy=...) preview unsaved choices.
+        """
+        task_subtype = request.query_params.get("task_subtype")
+        definition = find_task_type(task_subtype)
+        if definition is None:
+            raise ValidationError({"task_subtype": "Choose a task type."})
+        shortcut_name = request.query_params.get("scorecard") or definition.scorecard_shortcut_name
+        if not shortcut_name:
+            shortcut_name = DEFAULT_SCORECARD_SHORTCUT_NAMES.get(definition.coarse_family)
+        scorecard = get_object_or_404(Scorecard.get_originals(), shortcut_name=shortcut_name) if shortcut_name else None
+        if scorecard is None:
+            raise ValidationError({"scorecard": "Choose a scorecard."})
+        try:
+            overrides = parse_preview_overrides(request.query_params)
+        except ValueError as exc:
+            raise ValidationError(str(exc))
+        return Response(explain_task_type(definition.key, scorecard, overrides))
 
 
 class AdminFlightStatsViewSet(ViewSet):
@@ -2224,7 +2314,28 @@ class NavigationTaskViewSet(DeleteWhileCalculatorsRunMixin, ModelViewSet):
             if navigation_task.original_scorecard_id
             else None
         )
+        # Whether the task type can use the quality scoring model at all (the scoring_model/qmax_policy/task_value
+        # fields apply only then), and what the task scores with now (a blank stored value is the task type's default)
+        parameters = scoring_parameters_for(navigation_task.scorecard, stored_task_type(navigation_task))
+        data["can_use_quality_scoring"] = stored_task_type(navigation_task).scoring_model == SCORING_QUALITY
+        data["default_scoring_model"] = stored_task_type(navigation_task).scoring_model
+        data["effective_scoring_model"] = parameters.model
+        data["effective_qmax_policy"] = parameters.qmax_policy
+        data["effective_task_value"] = parameters.task_value
         return data
+
+    @action(detail=True, methods=["get"], url_path="scoring_explanation")
+    def scoring_explanation(self, request, *args, **kwargs):
+        """
+        How the task is scored, in plain language (the same text as the scoring_explanation field of the task).
+        The scoring values of the scorecard editor (?qmax_policy=...) preview choices that are not saved yet.
+        """
+        navigation_task = self.get_object()  # This is where the object permissions are checked
+        try:
+            overrides = parse_preview_overrides(request.query_params)
+        except ValueError as exc:
+            raise ValidationError(str(exc))
+        return Response(explain_navigation_task(navigation_task, overrides))
 
     @action(
         detail=True,
@@ -2288,7 +2399,7 @@ class NavigationTaskViewSet(DeleteWhileCalculatorsRunMixin, ModelViewSet):
                 contestant = navigation_task.contestant_set.get(pk=contestant_id)
             except Contestant.DoesNotExist:
                 raise ValidationError({"contestant": "Contestant not found for this navigation task."})
-            if navigation_task.task_subtype in {"known_circuit", "unknown_legs"}:
+            if stored_task_type(navigation_task).observation_photos_award_points:
                 # A crew's photos on a 2.A4/2.A5 task are the observation photos, not the route's waypoint photos
                 names = get_observation_photo_names(navigation_task)
                 photos = [photo for photo in photos if photo.name in names]
@@ -3209,6 +3320,8 @@ def generate_score_data(contestant_pk):
                 "offset_string": entry.offset_string,
                 "times_string": entry.times_string,
                 "contestant": entry.contestant_id,
+                "score_type": entry.score_type,
+                "score_kind": entry.score_kind,
             }
         )
     administrative_penalties = []
@@ -3252,6 +3365,7 @@ def generate_score_data(contestant_pk):
 
     ct = contestant.contestanttrack
     track_data = {
+        **quality_track_fields(ct),
         "id": ct.id,
         "score": ct.score,
         "current_state": ct.current_state,
@@ -4263,6 +4377,12 @@ class ContestantViewSet(ModelViewSet):
         category = serialiser.validated_data["category"]
         category_config = ADMINISTRATIVE_PENALTY_CATEGORIES[category]
         reason = serialiser.validated_data["reason"].strip() or category_config["default_reason"]
+        if serialiser.validated_data.get("percentage") is not None and not scoring_parameters(
+            contestant.navigation_task
+        ).is_quality:
+            raise ValidationError(
+                {"percentage": ["A percentage penalty needs a task with a normalised (quality) task score."]}
+            )
 
         entry = AdministrativePenaltyService.apply_contestant_penalty(
             contestant=contestant,
@@ -4271,6 +4391,7 @@ class ContestantViewSet(ModelViewSet):
             gate=category_config["gate"],
             category=category_config["category"],
             actor=request.user,
+            percentage=serialiser.validated_data.get("percentage"),
         )
         return Response(ScoreLogEntrySerialiser(entry).data, status=status.HTTP_201_CREATED)
 
@@ -4305,14 +4426,21 @@ class ContestantViewSet(ModelViewSet):
         )
         distances = {waypoint.name: waypoint.distance_previous / 1852 for waypoint in rendered_waypoints}
         log: dict[str, list] = {}
+        task_type = stored_task_type(contestant.navigation_task)
         for item in contestant.scorelogentry_set.all().order_by("time"):
+            # A measure (2.A3 V, 2.A4 S) is not points: "V +1", "S = 62.4 kt"
+            measure = measure_text(task_type, item.score_type, item.points)
             log.setdefault(item.gate, []).append(
                 {
                     "pk": item.pk,
-                    "text": f"{item.points} points {item.message}",
+                    "text": f"{measure} {item.message}" if measure else f"{item.points} points {item.message}",
+                    "points": item.points,
+                    "score_kind": item.score_kind,
+                    "score_type": item.score_type,
                 }
             )
         actual_times = {item.gate: item.time for item in contestant.actualgatetime_set.all()}
+        scoring = scoring_parameters(contestant.navigation_task)
         planned_times = contestant.gate_times
         can_apply_quarantine_penalty = "change_contest" in get_user_perms(
             request.user, contestant.navigation_task.contest
@@ -4343,6 +4471,10 @@ class ContestantViewSet(ModelViewSet):
                 "can_apply_quarantine_penalty": can_apply_quarantine_penalty,
                 "administrative_penalty_categories": ADMINISTRATIVE_PENALTY_CATEGORIES,
                 "compiled_fuel_review": compiled_fuel_review,
+                "scoring_model": scoring.model,
+                "qmax_policy": scoring.qmax_policy,
+                "task_value": scoring.task_value,
+                "score_measures": score_measures(task_type),
             }
         )
 

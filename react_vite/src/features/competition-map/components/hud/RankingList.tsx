@@ -1,5 +1,7 @@
 import React, { useEffect, useRef } from 'react';
 import { formatStartsIn } from '../../utils/startsIn';
+import { DNF_LABEL, DNF_TITLE, formatTaskScore, isQualityTask, provisionalHelp, scoreHeading, TaskScoring } from '../../../../utils/taskScore';
+import ProvisionalBadge from '../../../../components/common/ProvisionalBadge';
 
 export interface RankingRow {
     id: number;
@@ -24,6 +26,21 @@ interface Props {
     compact?: boolean;
     /** Keep the leaders in view instead of scrolling to the selected contestant (an airfield screen). */
     keepTop?: boolean;
+    /** How the task's score is made (utils/taskScore.ts): a quality task shows whole numbers out of its value. */
+    scoring?: TaskScoring | null;
+    /** The scores can still change because of other flights (a quality task until every flight is finished). */
+    provisional?: boolean;
+}
+
+/** The heading of a quality task's scores: what they are out of, and that they can still change. */
+export function ScoreHeading({ scoring, provisional, className = 'hud-label px-4 pt-2 pb-1 flex items-center justify-between gap-2' }: { scoring?: TaskScoring | null; provisional?: boolean; className?: string }) {
+    if (!isQualityTask(scoring)) return null;
+    return (
+        <div className={className}>
+            <span>{scoreHeading(scoring)}</span>
+            {provisional && <ProvisionalBadge variant="hud" text={provisionalHelp(scoring)} />}
+        </div>
+    );
 }
 
 
@@ -39,7 +56,7 @@ function statusLine(r: RankingRow): string | null {
  * The standings as a rack of flight strips, the same way the apps list flights. On a phone each contestant takes one
  * line (rank, colour, name, score), so twice as many fit; the status line shows from tablet width up.
  */
-export default function RankingList({ rows, selectedId, onSelect, dividerIndex = -1, compact = false, keepTop = false }: Props) {
+export default function RankingList({ rows, selectedId, onSelect, dividerIndex = -1, compact = false, keepTop = false, scoring, provisional = false }: Props) {
     // Opening the list while following someone shows their row, however long the list is.
     const selectedRef = useRef<HTMLLIElement>(null);
     useEffect(() => {
@@ -50,6 +67,8 @@ export default function RankingList({ rows, selectedId, onSelect, dividerIndex =
         return <p className="hud-muted text-sm px-4 py-6">No contestants have been added to this task yet.</p>;
     }
     return (
+        <>
+        <ScoreHeading scoring={scoring} provisional={provisional} />
         <ol className="flex flex-col" aria-label="Ranking">
             {rows.map((r, idx) => {
                 const waiting = r.state === 'Waiting...';
@@ -96,7 +115,7 @@ export default function RankingList({ rows, selectedId, onSelect, dividerIndex =
                                     <span className="sm:hidden hud-figure text-base hud-muted">Starts {formatStartsIn(r.countdown)}</span>
                                 )}
                                 <span className={r.countdown && r.countdown > 0 ? 'hidden sm:inline' : undefined}>
-                                    {typeof r.score === 'number' ? r.score.toFixed(0) : <span className="hud-label">{r.score}</span>}
+                                    {typeof r.score === 'number' ? formatTaskScore(r.score, scoring) : <span className="hud-label" title={r.score === DNF_LABEL ? DNF_TITLE : undefined}>{r.score}</span>}
                                 </span>
                             </span>
                         </li>
@@ -104,5 +123,6 @@ export default function RankingList({ rows, selectedId, onSelect, dividerIndex =
                 );
             })}
         </ol>
+        </>
     );
 }

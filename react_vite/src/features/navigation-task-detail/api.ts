@@ -118,10 +118,16 @@ export interface GateTimesResponse {
   rendered_waypoints: string[];
   distances: Record<string, number>;
   total_distance: number;
-  log: Record<string, { pk: number; text: string }[]>;
+  log: Record<string, { pk: number; text: string; points?: number; score_kind?: string; score_type?: string }[]>;
   planned_times: Record<string, string>;
   actual_times: Record<string, string>;
   can_apply_quarantine_penalty: boolean;
+  /** How the task score is made (utils/taskScore.ts); absent from older servers. */
+  scoring_model?: string;
+  qmax_policy?: string;
+  task_value?: number;
+  /** The score types whose entries are a measure (V, S) and not points of Q; see utils/taskScore.ts. */
+  score_measures?: Record<string, { symbol: string; unit: string; is_change: boolean }>;
   administrative_penalty_categories: Record<string, AdministrativePenaltyCategory>;
   compiled_fuel_review: {
     declared_endurance_minutes?: number;
@@ -217,7 +223,7 @@ export async function applyQuarantinePenalty(
   contestId: number,
   navigationTaskId: number,
   contestantId: number,
-  payload: { points: number; reason: string; category: string }
+  payload: { points: number; reason: string; category: string; percentage?: number }
 ): Promise<void> {
   const url = reverse('contestants-apply-quarantine-penalty', contestId, navigationTaskId, contestantId);
   const response = await fetch(url, {
@@ -311,6 +317,8 @@ export interface NavigationTaskDetailsUpdate {
   calculation_delay_minutes?: number;
   notify_managers_on_start?: boolean;
   notify_managers_on_finish?: boolean;
+  /** 2.A1 only: Tmax in seconds, null for no limit. */
+  curve_navigation_tmax_seconds?: number | null;
 }
 
 export async function updateNavigationTaskDetails(

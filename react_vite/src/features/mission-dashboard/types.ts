@@ -37,6 +37,8 @@ export interface Contest {
     organizing_club?: number | null;
     summary_score_sorting_direction: string;
     autosum_scores: boolean;
+    overall_result_method?: 'sum_of_scores' | 'standings_points';
+    standings_points_table?: number[];
     name: string;
     location: string;
     start_time: string;
@@ -97,6 +99,15 @@ export interface NavigationTask {
     future_contestants?: any[];
     contestant_set: ContestantResult[];
     score_sorting_direction: 'asc' | 'desc';
+    /** How the task score is made (see utils/taskScore.ts); absent from older payloads. */
+    scoring_model?: string | null;
+    qmax_policy?: string | null;
+    task_value?: number | null;
+    scores_provisional?: boolean | null;
+    scoring_explanation?: import('../../utils/taskScore').ScoringExplanation | null;
+    qmax_absolute_reference?: number | null;
+    score_scale?: number | null;
+    score_measures?: Record<string, { symbol: string; unit: string; is_change: boolean }> | null;
     user_has_change_permission: boolean;
     calculation_delay_minutes?: number;
     contest: Contest;
@@ -244,6 +255,10 @@ export interface ContestantTrack {
     calculator_finished: boolean;
     calculator_started: boolean;
     contestant: number;
+    /** A quality task (utils/taskScore.ts): `score` is the task score, and these are what it is made from. */
+    raw_quality?: number | null;
+    quality_theoretical_maximum?: number | null;
+    percentage_penalty?: number | null;
 }
 
 export interface ContestantResult {
@@ -306,6 +321,9 @@ export interface Contestant {
     has_been_tracked_by_simulator: boolean;
     team: Team;
     overlap_warnings?: string[];
+    /** The own-flight lists (OwnFlightSerialiser) say what the pilot has to declare and where the flight order stands */
+    declaration_status?: import('../pilot-declaration/types').DeclarationStatus;
+    flight_order_status?: import('../pilot-declaration/types').FlightOrderStatus | null;
 }
 
 export interface OngoingNavigation {

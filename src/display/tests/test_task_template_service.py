@@ -12,8 +12,8 @@ from django.test import SimpleTestCase
 
 from display.services.route_compatibility import effective_subtype_key, no_compatible_routes_message
 from display.services.task_templates import normalize_task_template_selection
-from display.utilities.cima_task_type_definitions import CIRCLE, LEGACY_ANR_CORRIDOR
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR, PRECISION
+from display.utilities.task_types import CIRCLE, LEGACY_ANR_CORRIDOR
+from display.utilities.task_types import ANR_CORRIDOR, PRECISION
 
 
 class TestNormalizeTaskTemplateSelection(SimpleTestCase):

@@ -8,6 +8,9 @@ export interface FieldMeta {
     unit?: string;
     min?: number;
     step?: number;
+    max?: number;
+    /** Plain-words explanation shown under the field. */
+    help?: string;
     choices?: { value: string; label: string }[];
 }
 
@@ -17,7 +20,7 @@ export interface FieldMeta {
 export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[] = [
     {
         title: 'General',
-        fields: ['score_sorting_direction', 'initial_score'],
+        fields: ['score_sorting_direction', 'initial_score', 'scoring_model', 'qmax_policy', 'task_value'],
     },
     {
         title: 'Backtracking',
@@ -26,6 +29,7 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
             'backtracking_bearing_difference',
             'backtracking_grace_time_seconds',
             'backtracking_maximum_penalty',
+            'backtracking_penalty_percentage',
         ],
     },
     {
@@ -56,21 +60,27 @@ export const SCALAR_FIELD_GROUPS: { title: string; fields: ScalarFieldName[] }[]
         title: 'Duration',
         fields: [
             'compulsory_timing_tolerance_seconds',
+            'compulsory_timing_penalty_per_second',
+            'turnpoint_hunt_time_gate_value',
             'maximum_task_duration_minutes',
             'maximum_task_duration_penalty',
             'fuel_deadline_penalty',
-            'duration_normalization_policy',
+            'duration_landing_area_penalty_percent',
             'duration_residual_fuel_required',
             'turnpoint_hunt_sequence_bonus',
         ],
     },
     {
         title: 'Circle',
-        fields: ['circle_radius_min_m', 'circle_radius_max_m'],
+        fields: ['circle_radius_min_m', 'circle_radius_max_m', 'circle_altitude_band_ft', 'circle_altitude_penalty_percent', 'circle_centre_outside_penalty_percent'],
     },
     {
         title: 'Speed keeping',
-        fields: ['speed_keeping_tolerance_kt', 'speed_keeping_penalty_per_kt'],
+        fields: ['speed_term_value', 'speed_keeping_enabled', 'speed_keeping_tolerance_kt', 'speed_keeping_penalty_per_kt'],
+    },
+    {
+        title: 'Hidden gates',
+        fields: ['observation_hidden_gate_value'],
     },
     {
         title: 'Observation photos',
@@ -96,10 +106,57 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
         label: 'Initial score',
         kind: 'number',
     },
+    scoring_model: {
+        label: 'Scoring model',
+        kind: 'choice',
+        choices: [
+            { value: '', label: 'Task type default' },
+            { value: 'quality', label: 'Quality score (CIMA): scaled to the best flight' },
+            { value: 'penalties', label: 'Penalty points: penalties add up' },
+        ],
+        help:
+            'Quality score: every pilot earns a raw quality score, and the task score is scaled so that the best flight in the ' +
+            'task gets the full task value. The highest task score wins, and it can change until all flights are finished. ' +
+            'Penalty points: penalties are added up, as in the older scorecards.',
+    },
+    qmax_policy: {
+        label: 'Scaled to',
+        kind: 'choice',
+        choices: [
+            { value: '', label: 'Task type default' },
+            { value: 'best_in_task', label: 'The best flight in the task' },
+            { value: 'theoretical', label: "Each pilot's theoretical maximum" },
+            { value: 'absolute', label: 'An absolute scale (no comparison with the others)' },
+        ],
+        help:
+            'What a pilot\'s raw quality score is divided by. The best flight in the task (the CIMA rule) gives the best pilot ' +
+            'the full task value. The theoretical maximum compares each pilot with the most they could have scored. An absolute ' +
+            'scale does not depend on the other pilots (the circle and the ANR task use it). Only used with the quality score.',
+    },
+    task_value: {
+        label: 'Task value',
+        kind: 'number',
+        unit: 'points',
+        min: 500,
+        max: 1500,
+        help:
+            'The task score of the best flight, announced before the task. It must be between 500 and 1500 points ' +
+            '(1000 if you leave it as it is). Only used with the quality score.',
+    },
     backtracking_penalty: { label: 'Backtracking penalty', kind: 'number', min: 0 },
     backtracking_bearing_difference: { label: 'Backtracking bearing difference', kind: 'number', unit: '°', min: 0 },
     backtracking_grace_time_seconds: { label: 'Backtracking grace time', kind: 'number', unit: 's', min: 0 },
     backtracking_maximum_penalty: { label: 'Backtracking maximum penalty', kind: 'number', min: 0 },
+    backtracking_penalty_percentage: {
+        label: 'Backtracking penalty (% of the task score)',
+        kind: 'number',
+        unit: '%',
+        min: 0,
+        max: 100,
+        help:
+            'CIMA tasks 2.A1-2.A5 take this share of the final task score for backtracking (50% in the catalogue). ' +
+            'Leave it blank for the task type\'s own value; 0 uses the flat backtracking penalty above instead.',
+    },
     prohibited_zone_penalty: { label: 'Prohibited zone penalty', kind: 'number', min: 0 },
     prohibited_zone_grace_time: { label: 'Prohibited zone grace time', kind: 'number', unit: 's', min: 0 },
     prohibited_zone_maximum: { label: 'Prohibited zone maximum', kind: 'number' },
@@ -113,23 +170,81 @@ export const SCALAR_FIELD_META: Record<ScalarFieldName, FieldMeta> = {
     anr_route_to_sp_penalty: { label: 'ANR route to SP penalty', kind: 'number', min: 0 },
     anr_route_from_fp_penalty: { label: 'ANR route from FP penalty', kind: 'number', min: 0 },
     compulsory_timing_tolerance_seconds: { label: 'Compulsory timing tolerance', kind: 'integer', unit: 's', min: 0 },
+    compulsory_timing_penalty_per_second: {
+        label: 'Compulsory timing penalty per second beyond the tolerance',
+        kind: 'number',
+        min: 0,
+    },
+    turnpoint_hunt_time_gate_value: { label: 'Time gate value', kind: 'number', min: 0 },
     maximum_task_duration_minutes: { label: 'Maximum task duration', kind: 'integer', unit: 'min', min: 0 },
-    maximum_task_duration_penalty: { label: 'Maximum task duration penalty', kind: 'number', min: 0 },
+    maximum_task_duration_penalty: { label: 'Maximum task duration penalty per second over', kind: 'number', min: 0 },
     fuel_deadline_penalty: { label: 'Fuel deadline penalty', kind: 'number', min: 0 },
+    // No longer read: the duration (2.B3) is always an achievement scaled against the best flight of the task.
     duration_normalization_policy: {
-        label: 'Duration normalization policy',
+        label: 'Duration normalization policy (not used)',
         kind: 'choice',
         choices: [
             { value: '', label: '---------' },
             { value: 'raw_minutes', label: 'Raw minutes' },
         ],
     },
+    duration_landing_area_penalty_percent: {
+        label: 'Landing outside the area penalty',
+        kind: 'number',
+        unit: '%',
+        min: 0,
+        max: 100,
+        help: 'Duration (2.B3): the percentage of the task score lost when the aircraft lands outside the specified landing area. The catalogue leaves the penalty to the briefing.',
+    },
     duration_residual_fuel_required: { label: 'Duration residual fuel required', kind: 'boolean' },
     circle_radius_min_m: { label: 'Circle radius min', kind: 'number', unit: 'm', min: 0 },
     circle_radius_max_m: { label: 'Circle radius max', kind: 'number', unit: 'm', min: 0 },
+    circle_altitude_band_ft: {
+        label: 'Circle altitude band',
+        kind: 'number',
+        unit: 'ft',
+        min: 0,
+        help: 'Circle (2.A7): the most the aircraft may climb or descend between the lowest and the highest point of the scored circle (200 ft / 61 m).',
+    },
+    circle_altitude_penalty_percent: {
+        label: 'Circle altitude penalty',
+        kind: 'number',
+        unit: '%',
+        min: 0,
+        max: 100,
+        help: 'Circle (2.A7): the percentage of the task score lost when the altitude band is exceeded (20%).',
+    },
+    circle_centre_outside_penalty_percent: {
+        label: 'Circle centre outside penalty',
+        kind: 'number',
+        unit: '%',
+        min: 0,
+        max: 100,
+        help: 'Circle (2.A7): the percentage of the task score lost when CM, the centre mark, is outside the circle the pilot flew (100%).',
+    },
+    speed_term_value: {
+        label: 'Speed term value (Vs)',
+        kind: 'number',
+        unit: 'points',
+        min: 0,
+        help:
+            'Navigation over a known circuit (2.A4): the points the fastest pilot of the task earns for the speed term ' +
+            '(Qv = Vs x S / Smax, S being the ground speed between the first and the last time gate). 0 leaves the speed term out.',
+    },
+    speed_keeping_enabled: {
+        label: 'Penalise deviation from the declared speed',
+        kind: 'boolean',
+        help: 'Not part of the catalogue: penalises every leg flown faster or slower than the declared speed. Off by default.',
+    },
     speed_keeping_tolerance_kt: { label: 'Speed keeping tolerance', kind: 'number', unit: 'kt', min: 0 },
     speed_keeping_penalty_per_kt: { label: 'Speed keeping penalty per kt', kind: 'number', min: 0 },
     turnpoint_hunt_sequence_bonus: { label: 'Turnpoint hunt sequence bonus', kind: 'number', min: 0 },
+    observation_hidden_gate_value: {
+        label: 'Points per hidden gate (2.A4, 2.A5)',
+        kind: 'number',
+        min: 0,
+        help: 'Known circuit and unknown legs (Vh): what a hidden gate crossed once, in order and in the right direction is worth (typically 100).',
+    },
     observation_photo_penalty: { label: 'Penalty per missed observation (legacy)', kind: 'number', min: 0 },
     observation_photo_value: { label: 'Points per observation (CIMA)', kind: 'number', min: 0 },
     observation_photo_full_tolerance_mm: { label: 'Full score within (blank: 1 mm legacy, 2 mm CIMA)', kind: 'number', unit: 'mm', min: 0 },

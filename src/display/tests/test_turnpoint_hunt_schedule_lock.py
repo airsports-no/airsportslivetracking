@@ -34,7 +34,7 @@ from display.models import (
 from display.tests.test_curve_precision_navigation_declaration_ui import (
     CurvePrecisionNavigationDeclarationTestBase,
 )
-from display.utilities.cima_task_type_definitions import (
+from display.utilities.task_types import (
     KNOWN_CIRCUIT,
     LIMITED_FUEL_TURNPOINT_HUNT,
     PRECISION_NAVIGATION,
@@ -235,10 +235,12 @@ class TestLimitedFuelTurnpointHuntDeclarationOptional(TestTurnpointHuntScheduleL
 
         response = self.client.get(self._detail_url(contestant))
         self.assertEqual(200, response.status_code)
+        status = response.json()["declaration_status"]
         self.assertEqual(
-            response.json()["declaration_status"],
+            {key: status[key] for key in ("required", "complete", "errors")},
             {"required": False, "complete": True, "errors": []},
         )
+        self.assertEqual(("optional", "missing"), (status["need"], status["state"]))
 
         # Nothing was ever declared, so the takeoff/finish window is free to move.
         response = self.client.patch(
@@ -293,7 +295,8 @@ class TestPrecisionNavigationScheduleLock(CurvePrecisionNavigationDeclarationTes
 
     def test_declaring_a_prediction_outside_the_flight_window_is_rejected(self):
         contestant = self._create_contestant()
-        waypoint_names = [wp.name for wp in self.route.waypoints]
+        # 2.A2 declares the turn points and the finish point (not the start point)
+        waypoint_names = [wp.name for wp in self.route.waypoints if wp.type in ("tp", "fp")]
 
         response = self.client.patch(
             self._contestant_detail_url(contestant),
@@ -302,6 +305,22 @@ class TestPrecisionNavigationScheduleLock(CurvePrecisionNavigationDeclarationTes
             content_type="application/json",
         )
         self.assertEqual(400, response.status_code, response.content)
+        contestant.refresh_from_db()
+        self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
+
+    def test_a_time_for_the_start_point_is_ignored_even_outside_the_flight_window(self):
+        contestant = self._create_contestant()
+
+        response = self.client.patch(
+            self._contestant_detail_url(contestant),
+            {
+                "declaration_payload": {
+                    "known_time_gate_predictions": {self.route.waypoints[0].name: "2026-08-01T12:00:00Z"}
+                }
+            },
+            content_type="application/json",
+        )
+        self.assertEqual(200, response.status_code, response.content)
         contestant.refresh_from_db()
         self.assertEqual(contestant.contestanttaskconfiguration.declaration_payload, {})
 

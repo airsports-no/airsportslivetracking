@@ -14,7 +14,7 @@ from display.default_scorecards.default_scorecard_fai_precision_2020 import (
 )
 from display.default_scorecards.default_scorecard_landing import get_default_scorecard as get_landing_scorecard
 from display.models import Contest, EditableRoute, NavigationTask
-from display.utilities.cima_task_type_definitions import CIRCLE
+from display.utilities.task_types import CIRCLE
 
 LANDING_GATE_FEATURE = {
     "type": "Feature",

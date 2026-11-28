@@ -6,6 +6,7 @@ import { Route, Contest, NavigationTask } from '../types';
 import TaskStatistics from './TaskStatistics';
 import { formatDateInterval } from '../../../utils';
 import { generatePath } from '../../../urls';
+import FlightDeclarationSummary from '../../pilot-declaration/FlightDeclarationSummary';
 
 interface UpcomingFlightCardProps {
     flight: Contestant;
@@ -75,7 +76,13 @@ const UpcomingFlightCard: React.FC<UpcomingFlightCardProps> = ({ flight, contest
                     ) : (
                         <p>Take-off: {new Date(flight.takeoff_time).toLocaleString('en-GB', { year: 'numeric', month: 'numeric', day: 'numeric', hour: '2-digit', minute: '2-digit', hour12: false, timeZone: contest.time_zone })}</p>
                     )}
-                    {flight.latest_emaillink && (
+                    {flight.flight_order_status !== undefined || flight.declaration_status ? (
+                        <FlightDeclarationSummary
+                            flightId={flight.id}
+                            declarationStatus={flight.declaration_status}
+                            flightOrderStatus={flight.flight_order_status}
+                        />
+                    ) : flight.latest_emaillink && (
                         <div className="text-sm mt-2">
                             <p className="font-semibold">Latest Flight Order:</p>
                             <a href={flight.latest_emaillink.url} className="link link-primary" target="_blank" rel="noopener noreferrer">

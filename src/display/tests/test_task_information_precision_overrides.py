@@ -13,7 +13,7 @@ from django.test import TestCase
 
 from display.default_scorecards.create_scorecards import create_scorecards
 from display.models import Contest, EditableRoute, NavigationTask, Scorecard
-from display.utilities.cima_task_type_definitions import PRECISION_NAVIGATION
+from display.utilities.task_types import PRECISION_NAVIGATION
 from display.utilities.task_information import build_navigation_task_information
 
 

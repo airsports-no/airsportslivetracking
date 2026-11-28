@@ -34,6 +34,42 @@ describe('countWizardStepMatches', () => {
     expect(countWizardStepMatches(dummyStep!, routePoints, standalonePoints, [], [], [])).toBe(1);
     expect(countWizardStepMatches(hiddenGateStep!, routePoints, standalonePoints, [], [], [])).toBe(1);
   });
+
+  it('counts curved legs locally for the curved-leg guide step', () => {
+    const step = getTaskTemplateById('cima_a1')!.steps.find((item) => item.key === 'curved_leg')!;
+    const points: RoutePoint[] = [
+      { id: '1', name: 'SP', type: 'sp', featureType: 'route_waypoint', lat: 60, lng: 11, width: 1852, isTiming: true, isPassing: true, segmentType: 'curved' },
+      { id: '2', name: 'FP', type: 'fp', featureType: 'route_waypoint', lat: 60.1, lng: 11.1, width: 1852, isTiming: true, isPassing: true, segmentType: 'straight' },
+    ];
+    expect(countWizardStepMatches(step, points, [], [], [], [])).toBe(1);
+  });
+});
+
+describe('task template steps carry no requirement numbers', () => {
+  it('has no minCount or maxCount on any step: those come from the backend requirements', () => {
+    for (const template of TASK_TEMPLATES) {
+      for (const step of template.steps) {
+        expect(step).not.toHaveProperty('minCount');
+        expect(step).not.toHaveProperty('maxCount');
+      }
+    }
+  });
+
+  it('gives every template the registry key of its task type', () => {
+    for (const template of TASK_TEMPLATES) {
+      expect(template.backendKey).toBeTruthy();
+      if (template.subtype) expect(template.backendKey).toBe(template.subtype);
+    }
+  });
+
+  it('tells the organiser plainly what 2.A1, 2.A2, 2.A5, 2.A7 and 2.B3 need', () => {
+    const steps = (id: string) => getTaskTemplateById(id)!.steps;
+    expect(steps('cima_a1').find((s) => s.key === 'curved_leg')?.help).toMatch(/at least one leg .* curved/i);
+    expect(steps('cima_a2')[0].help).toMatch(/SP\).*first.*FP\).*last/);
+    expect(steps('cima_a5').find((s) => s.key === 'dummy')?.help).toMatch(/at least one extension waypoint/);
+    expect(steps('cima_a7').every((s) => /exactly one/.test(s.help))).toBe(true);
+    expect(steps('cima_b3').find((s) => s.key === 'duration_landing_area')?.help).toMatch(/Required/);
+  });
 });
 
 describe('getVisibleTaskTemplates', () => {
@@ -100,7 +136,7 @@ describe('getTaskTemplateById', () => {
 });
 
 describe('getWizardRouteInsertLabel', () => {
-  const baseStep: WizardStep = { key: 'k', label: 'L', help: 'H', kind: 'point', minCount: 0 };
+  const baseStep: WizardStep = { key: 'k', label: 'L', help: 'H', kind: 'point' };
 
   it('gives the hidden-gate-specific instruction for a hidden_gate step key', () => {
     expect(getWizardRouteInsertLabel({ ...baseStep, key: 'hidden_gate', pointType: 'secret' })).toBe(

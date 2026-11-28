@@ -1,5 +1,5 @@
 """
-Regression test for the calculator_factory.py -> task_type_registry.py refactor (Phase 0 of the
+Regression test for the calculator_factory.py -> task type registry refactor (Phase 0 of the
 scorecard-system review roadmap). Asserts the registry-driven dispatch produces exactly the same
 calculator lists the old if/elif chain did, for every task type and PRECISION's two
 subtype-conditional branches, plus the unknown-calculator-value fallback.
@@ -21,15 +21,8 @@ from display.calculators.poker_calculator import PokerCalculator
 from display.calculators.prohibited_zone_calculator import ProhibitedZoneCalculator
 from display.calculators.speed_inferred_takeoff_landing_calculator import SpeedInferredTakeoffLandingCalculator
 from display.calculators.takeoff_and_landing_gate_calculator import TakeoffAndLandingGateCalculator
-from display.utilities.cima_task_type_definitions import CIRCLE, DURATION
-from display.utilities.navigation_task_type_definitions import (
-    AIRSPORT_CHALLENGE,
-    AIRSPORTS,
-    ANR_CORRIDOR,
-    LANDING,
-    POKER,
-    PRECISION,
-)
+from display.utilities.task_types import CIRCLE, DURATION
+from display.utilities.task_types import AIRSPORTS, AIRSPORT_CHALLENGE, ANR_CORRIDOR, LANDING, POKER, PRECISION
 
 
 def _mock_contestant(calculator, task_subtype=None):

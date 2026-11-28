@@ -17,22 +17,24 @@ never drift apart - the compiler's persisted, task-scoped payload is a strict su
 primitives computed here.
 """
 
+from dataclasses import dataclass
+
 from django.core.exceptions import ValidationError
 
-from display.utilities.cima_task_type_definitions import (
-    CONTRACT_NAVIGATION_TIME_CONTROLS,
-    LEGACY_DEFAULT_SUBTYPE_BY_FAMILY,
-    LIMITED_FUEL_TURNPOINT_HUNT,
-    TASK_SUBTYPE_DEFINITIONS,
-    TURNPOINT_HUNT,
-    get_task_subtype_definition,
+from display.utilities import route_requirements as rr
+from display.utilities.gate_definitions import UNKNOWN_LEG
+from display.utilities.route_requirements import RouteRequirement
+from display.utilities.task_types import (
+    TASK_TYPE_REGISTRY,
+    default_task_type_key_for_family,
+    find_task_type,
+    get_task_type,
 )
-from display.utilities.gate_definitions import FINISHPOINT, STARTINGPOINT, TURNPOINT
 
-# Bump whenever the ruleset (required/forbidden primitives, or the primitive extraction itself)
+# Bump whenever the ruleset (the task types' route requirements, or the primitive extraction itself)
 # changes in a way that could change the outcome for an already-saved route, so callers can tell a
 # stale EditableRoute.compatible_task_types apart from a freshly computed one.
-ROUTE_COMPATIBILITY_RULESET_VERSION = 2
+ROUTE_COMPATIBILITY_RULESET_VERSION = 4
 
 # The keys TaskCompiler._build_compiled_primitives has historically returned, in that order. Kept
 # here so the compiler can subset extract_route_primitives() without changing its persisted
@@ -91,7 +93,125 @@ def extract_route_primitives(editable_route) -> dict[str, list]:
             if item.get("properties", {}).get("name")
         ],
         "observation_photo": [item["properties"].get("name") for item in editable_route.get_observation_photos()],
+        "curved_leg": [item["properties"].get("name") for item in editable_route.get_curved_leg_waypoints()],
+        "duration_landing_area": [
+            item.get("properties", {}).get("name") for item in editable_route.get_duration_landing_area_polygons()
+        ],
     }
+
+
+@dataclass(frozen=True)
+class RequirementResult:
+    """One route requirement evaluated against a route: what was found and whether that satisfies it."""
+
+    key: str
+    label: str
+    minimum: int
+    maximum: int | None
+    found: int
+    satisfied: bool
+    # What is wrong when the requirement is not met.
+    message: str
+
+    def as_dict(self) -> dict:
+        return {
+            "key": self.key,
+            "label": self.label,
+            "minimum": self.minimum,
+            "maximum": self.maximum,
+            "found": self.found,
+            "satisfied": self.satisfied,
+            "message": self.message,
+        }
+
+
+def _is_authored(editable_route) -> bool:
+    # Mirrors the guard in extract_route_primitives/EditableRoute.save(): a brand new/unsaved route (model default is
+    # an empty list, not {"features": []}) crashes the feature accessors otherwise.
+    return editable_route is not None and isinstance(editable_route.route, dict) and "features" in editable_route.route
+
+
+def _count_fact(fact: str, primitives: dict[str, list], editable_route) -> int:
+    """The number of [fact] in the route: a primitive's count or a fact derived from the route."""
+    if fact == rr.NAMED_KNOWN_TIME_GATE:
+        return len([name for name in primitives.get(rr.KNOWN_TIME_GATE, []) if name])
+    if fact == rr.NAMED_CATALOGUE_TURNPOINT:
+        return len([name for name in primitives.get(rr.CATALOGUE_TURNPOINT, []) if name])
+    if fact == rr.NAMED_UNKNOWN_LEG:
+        return len([name for name in primitives.get(rr.UNKNOWN_LEG, []) if name])
+    if fact == rr.FREE_CATALOGUE_TURNPOINT:
+        return len([name for name in primitives.get(rr.CATALOGUE_TURNPOINT, []) if name not in {"SP", "MP", "FP"}])
+    if fact == rr.UNKNOWN_LEG_WITHOUT_EXTENSION:
+        return _unknown_legs_without_extension(editable_route)
+    return len(primitives.get(fact, []))
+
+
+def _unknown_legs_without_extension(editable_route) -> int:
+    """How many unknown-leg points have no extension (dummy branch) waypoint triggered from them."""
+    if not _is_authored(editable_route):
+        return 0
+    triggered = {
+        feature.get("properties", {}).get("triggerPointId")
+        for feature in editable_route.get_features_type("dummy_branch_waypoint")
+    }
+    return sum(
+        1
+        for waypoint in editable_route.get_ordered_track_waypoints()
+        if waypoint.get("properties", {}).get("pointType") == UNKNOWN_LEG
+        and (not waypoint.get("properties", {}).get("id") or waypoint["properties"]["id"] not in triggered)
+    )
+
+
+def _count_ordering_violations(requirement: RouteRequirement, editable_route) -> int:
+    if not _is_authored(editable_route):
+        return 0
+    waypoints = [
+        (item.get("properties", {}).get("pointType"), item.get("properties", {}).get("name"))
+        for item in editable_route.get_ordered_track_waypoints()
+    ]
+    return requirement.ordering.violations(waypoints)
+
+
+def evaluate_route_requirements(
+    primitives: dict[str, list], definition, editable_route=None
+) -> list[RequirementResult]:
+    """
+    Evaluate every route requirement of the task type [definition] against a route whose primitives are [primitives]
+    (as returned by extract_route_primitives). [editable_route] is needed for the requirements that look at more than
+    the primitives (the order of the waypoints, the extension waypoints of unknown legs); without it those count as met.
+    A requirement that depends on another (see RouteRequirement.depends_on) counts as met until that one is.
+
+    This is the one place that decides whether a route suits a task type: the route editor's compatibility check, the
+    persisted EditableRoute.compatible_task_types, the API that creates a task and TaskCompiler's validation all use it.
+    """
+    results: dict[str, RequirementResult] = {}
+    for requirement in definition.route_requirements:
+        if any(key in results and not results[key].satisfied for key in requirement.depends_on):
+            found = 0
+        elif requirement.ordering is not None:
+            found = _count_ordering_violations(requirement, editable_route)
+        else:
+            found = _count_fact(requirement.fact, primitives, editable_route)
+        satisfied = requirement.is_met_by(found)
+        # A met requirement still carries the message it would fail with, for the route editor to show as its hint.
+        failing_count = found if not satisfied else (requirement.minimum - 1 if requirement.minimum else found + 1)
+        results[requirement.key] = RequirementResult(
+            key=requirement.key,
+            label=requirement.label,
+            minimum=requirement.minimum,
+            maximum=requirement.maximum,
+            found=found,
+            satisfied=satisfied,
+            message=requirement.failure_message(failing_count),
+        )
+    return list(results.values())
+
+
+def get_unmet_requirements(editable_route, subtype_key: str) -> list[RequirementResult]:
+    """The route requirements of the task type [subtype_key] that [editable_route] does not meet."""
+    definition = get_task_type(subtype_key)
+    results = evaluate_route_requirements(extract_route_primitives(editable_route), definition, editable_route)
+    return [result for result in results if not result.satisfied]
 
 
 def get_blocking_reasons(primitives: dict[str, list], subtype_key: str, editable_route=None) -> list[str]:
@@ -100,31 +220,22 @@ def get_blocking_reasons(primitives: dict[str, list], subtype_key: str, editable
     primitives are ``primitives`` (as returned by extract_route_primitives). Empty list means
     compatible.
 
-    ``editable_route``, when given, additionally applies subtype-specific structural rules beyond
-    mere primitive presence (currently just turnpoint_hunt_structural_errors, for
-    TURNPOINT_HUNT/LIMITED_FUEL_TURNPOINT_HUNT) - this is the single canonical compatibility
-    calculation, consulted by get_compatible_task_subtypes (route editor compatibility API,
-    persisted EditableRoute.compatible_task_types, task-template picker) and
-    assert_route_compatible_with_task_type (the API creation path) alike, so they can't drift
-    apart. Optional (defaulting to None, skipping the structural checks) only so existing callers
-    that only have primitives on hand keep working; every caller that has the route available
-    should pass it.
+    The reasons are the failure messages of the task type's unmet route requirements
+    (evaluate_route_requirements). This is the single canonical compatibility calculation, consulted by
+    get_compatible_task_subtypes (route editor compatibility API, persisted EditableRoute.compatible_task_types,
+    task-template picker), assert_route_compatible_with_task_type (the API creation path) and TaskCompiler alike, so
+    they can't drift apart. ``editable_route`` is optional only so callers that only have primitives on hand keep
+    working; every caller that has the route available should pass it, as the order of the waypoints and the
+    extension waypoints of unknown legs can only be checked with it.
     """
-    definition = TASK_SUBTYPE_DEFINITIONS.get(subtype_key)
+    definition = find_task_type(subtype_key)
     if definition is None:
         return [f"Unknown task subtype '{subtype_key}'"]
-    reasons = []
-    for primitive in definition.required_primitives:
-        if not primitives.get(primitive):
-            reasons.append(f"Missing required route feature: {primitive}")
-    for primitive in definition.forbidden_primitives:
-        if primitives.get(primitive):
-            reasons.append(f"Route feature not allowed for this task type: {primitive}")
-    if subtype_key in (TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT):
-        reasons = reasons + turnpoint_hunt_structural_errors(editable_route, primitives)
-    if subtype_key == CONTRACT_NAVIGATION_TIME_CONTROLS:
-        reasons = reasons + contract_navigation_structural_errors(editable_route, primitives)
-    return reasons
+    return [
+        result.message
+        for result in evaluate_route_requirements(primitives, definition, editable_route)
+        if not result.satisfied
+    ]
 
 
 def get_compatible_task_subtypes(editable_route) -> list[str]:
@@ -134,7 +245,7 @@ def get_compatible_task_subtypes(editable_route) -> list[str]:
     filter task type / route choices against.
     """
     primitives = extract_route_primitives(editable_route)
-    return [key for key in TASK_SUBTYPE_DEFINITIONS if not get_blocking_reasons(primitives, key, editable_route)]
+    return [key for key in TASK_TYPE_REGISTRY if not get_blocking_reasons(primitives, key, editable_route)]
 
 
 def infer_intended_task_subtypes(editable_route, active_template_subtype: str | None = None) -> list[str]:
@@ -155,7 +266,7 @@ def infer_intended_task_subtypes(editable_route, active_template_subtype: str | 
 def effective_subtype_key(task_type: str, task_subtype: str | None) -> str:
     """The task subtype key the compatibility ruleset should be checked against: the explicit
     CIMA subtype if one was chosen, otherwise the legacy shim for the coarse task_type family."""
-    return task_subtype or LEGACY_DEFAULT_SUBTYPE_BY_FAMILY.get(task_type, task_type)
+    return task_subtype or default_task_type_key_for_family(task_type) or task_type
 
 
 def no_compatible_routes_message(subtype_key: str) -> str:
@@ -163,88 +274,25 @@ def no_compatible_routes_message(subtype_key: str) -> str:
     Explain why the internal_route/editable_route picker is empty for the already-chosen task
     type, instead of just rendering an empty dropdown with no explanation.
     """
-    definition = get_task_subtype_definition(subtype_key)
+    definition = get_task_type(subtype_key)
+    # The requirements on how the route is arranged are not features it has or lacks.
+    features = [requirement for requirement in definition.route_requirements if requirement.ordering is None]
+    required = [requirement.key for requirement in features if requirement.minimum > 0]
+    forbidden = [
+        requirement.key
+        for requirement in features
+        if requirement.maximum == 0 and requirement.fact != rr.UNKNOWN_LEG_WITHOUT_EXTENSION
+    ]
     parts = []
-    if definition.required_primitives:
-        parts.append("requires: " + ", ".join(definition.required_primitives))
-    if definition.forbidden_primitives:
-        parts.append("must not have: " + ", ".join(definition.forbidden_primitives))
+    if required:
+        parts.append("requires: " + ", ".join(dict.fromkeys(required)))
+    if forbidden:
+        parts.append("must not have: " + ", ".join(dict.fromkeys(forbidden)))
     requirement_text = "; ".join(parts) if parts else "no specific route features"
     return (
         "None of the routes you can edit currently support this task type "
         f"(it {requirement_text}). Edit an existing route to add what's missing, or create a new one."
     )
-
-
-def turnpoint_hunt_structural_errors(editable_route, primitives: dict) -> list[str]:
-    """
-    Structural rules for TURNPOINT_HUNT/LIMITED_FUEL_TURNPOINT_HUNT beyond mere primitive
-    presence: no route backbone (2.A6/2.B2 are standalone markers only, no authored route_path),
-    and exactly three timed compulsory points.
-
-    Shared by TaskCompiler._validate_primitives (which validates a compiled, already-persisted
-    NavigationTask) and assert_route_compatible_with_task_type (which validates before a
-    NavigationTask exists) so the two validation layers can't drift apart - before this, the API
-    creation path only checked get_blocking_reasons' required/forbidden primitive presence, so it
-    could accept and persist (201) a route with a route backbone, or with the wrong number of
-    known_time_gate markers, that TaskCompiler's stricter check would then reject anyway once the
-    task actually tried to compile.
-    """
-    # Mirrors the guard in extract_route_primitives/EditableRoute.save(): a brand new/unsaved
-    # route (model default is an empty list, not {"features": []}) crashes get_track() otherwise
-    # (EditableRoute.get_features_type indexes self.route["features"] unconditionally).
-    if editable_route is None or not isinstance(editable_route.route, dict) or "features" not in editable_route.route:
-        return []
-    errors = []
-    if editable_route.get_track() is not None:
-        errors.append(
-            "Turnpoint hunt requires no route backbone. Place the compulsory points as standalone timed turnpoints instead."
-        )
-    compiled_known_time_gates = [name for name in primitives.get("known_time_gate", []) if name]
-    if len(compiled_known_time_gates) != 3:
-        errors.append("Turnpoint hunt requires exactly three compulsory (timed) points.")
-    free_targets = [name for name in primitives.get("catalogue_turnpoint", []) if name]
-    if len(free_targets) < 1:
-        errors.append("Turnpoint hunt requires at least one free catalogue target.")
-    return errors
-
-
-def contract_navigation_structural_errors(editable_route, primitives: dict) -> list[str]:
-    """
-    Structural rules for CONTRACT_NAVIGATION_TIME_CONTROLS beyond mere primitive presence: exactly
-    three route waypoints, authored in order as SP, MP, FP, plus at least one free catalogue
-    waypoint.
-
-    Shared by TaskCompiler._validate_contract_navigation_structure (which validates a compiled,
-    already-persisted NavigationTask) and get_blocking_reasons (which validates before a
-    NavigationTask exists) so the two validation layers can't drift apart - before this, the
-    pre-creation compatibility check only looked at required_primitives presence (a track, at
-    least one route waypoint, at least one catalogue turnpoint), so it could offer/accept a route
-    with the wrong number or ordering of route waypoints that TaskCompiler's stricter check would
-    then reject anyway once a contestant's declaration tried to compile.
-    """
-    if editable_route is None or not isinstance(editable_route.route, dict) or "features" not in editable_route.route:
-        return []
-    errors = []
-    authored_waypoints = editable_route.get_ordered_track_waypoints()
-    if len(authored_waypoints) != 3:
-        errors.append("Contract navigation requires exactly three route waypoints: SP, MP, and FP.")
-    else:
-        expected = [
-            (STARTINGPOINT, "SP"),
-            (TURNPOINT, "MP"),
-            (FINISHPOINT, "FP"),
-        ]
-        for waypoint, (expected_type, expected_name) in zip(authored_waypoints, expected):
-            point_type = waypoint.get("properties", {}).get("pointType")
-            point_name = waypoint.get("properties", {}).get("name")
-            if point_type != expected_type or point_name != expected_name:
-                errors.append("Contract navigation route waypoints must be authored in order as SP, MP, and FP.")
-                break
-    free_waypoints = [name for name in primitives.get("catalogue_turnpoint", []) if name not in {"SP", "MP", "FP"}]
-    if len(free_waypoints) < 1:
-        errors.append("Contract navigation requires at least one free catalogue waypoint.")
-    return errors
 
 
 def assert_route_compatible_with_task_type(editable_route, task_type: str, task_subtype: str | None):

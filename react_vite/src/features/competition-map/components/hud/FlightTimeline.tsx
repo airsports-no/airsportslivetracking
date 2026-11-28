@@ -2,6 +2,7 @@ import React, { useEffect, useMemo, useRef } from 'react';
 import { Check, X } from 'lucide-react';
 import { GateResult, ScoreAnnotation, ScoreLogEntry, Waypoint } from '../../types';
 import { shortScoreText } from '../../utils/scoreText';
+import { logPointsText, TaskScoring } from '../../../../utils/taskScore';
 import { gateStates, inCrossingOrder } from '../../utils/gateStates';
 
 interface Props {
@@ -24,6 +25,8 @@ interface Props {
     crossingOrder?: boolean;
     timeZone?: string;
     pointsArePenalties: boolean;
+    /** How the task's score is made: a quality task's log holds raw quality points. */
+    scoring?: TaskScoring | null;
     onSelectEntry: (entry: ScoreLogEntry) => void;
     onSelectAnnotation: (annotation: ScoreAnnotation) => void;
     onSelectGate: (waypoint: Waypoint) => void;
@@ -45,7 +48,7 @@ function inMinutes(seconds: number) {
  * map on it.
  */
 export default function FlightTimeline({
-    gateResults, waypoints, timesKnown, entries, annotations, showSecrets, now, missesKnown, crossingOrder = false, timeZone, pointsArePenalties,
+    gateResults, waypoints, timesKnown, entries, annotations, showSecrets, now, missesKnown, crossingOrder = false, timeZone, pointsArePenalties, scoring,
     onSelectEntry, onSelectAnnotation, onSelectGate,
 }: Props) {
     const rows = useMemo(() => {
@@ -118,7 +121,8 @@ export default function FlightTimeline({
                             </span>
                         </li>
                         {penalties.map(e => {
-                            const penalty = pointsArePenalties ? e.points > 0 : e.points < 0;
+                            const shown = logPointsText(e, scoring, pointsArePenalties);
+                            const penalty = shown.penalty;
                             return (
                                 <li key={`e${e.id}`} tabIndex={0} role="button"
                                     onClick={() => onSelectEntry(e)}
@@ -126,8 +130,8 @@ export default function FlightTimeline({
                                     className="hud-row grid grid-cols-[1.25rem_1fr_auto] gap-x-2 pl-9 pr-3 py-1 items-baseline">
                                     <span aria-hidden="true" />
                                     <span className="text-xs hud-muted truncate" title={e.message}>{shortScoreText(e.message)}</span>
-                                    <span className="hud-figure text-sm" style={{ color: penalty ? 'var(--hud-red)' : 'var(--hud-ok)' }}>
-                                        {e.points > 0 ? '+' : ''}{e.points.toFixed(0)}
+                                    <span className="hud-figure text-sm" style={{ color: penalty ? 'var(--hud-red)' : 'var(--hud-ok)' }} title={shown.title || undefined}>
+                                        {shown.text}
                                     </span>
                                 </li>
                             );

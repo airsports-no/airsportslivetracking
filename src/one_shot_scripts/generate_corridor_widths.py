@@ -10,7 +10,7 @@ os.environ.setdefault("DJANGO_SETTINGS_MODULE", "live_tracking_map.settings")
 django.setup()
 
 from display.models import NavigationTask
-from display.utilities.navigation_task_type_definitions import ANR_CORRIDOR
+from display.utilities.task_types import ANR_CORRIDOR
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.gate_definitions import FINISHPOINT
 

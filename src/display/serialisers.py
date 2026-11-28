@@ -72,6 +72,8 @@ from display.flight_order_and_maps.map_plotter_shared_utilities import (
     get_available_map_source_definitions_for_navigation_task,
     validate_map_zoom_level,
 )
+from display.models.contest import validate_points_table
+from display.services.contest_standings_points import standings_points_details
 from display.models.scorecard_and_gate_score import DURATION_NORMALIZATION_POLICIES
 from display.services.access_resolver import resolve_contest_access
 from display.services.capacity_enforcement import (
@@ -91,9 +93,29 @@ from display.services.contestant_persistence import (
     update_contestant_with_related_state,
 )
 from display.services.contestant_task_compiler import ContestantTaskCompiler
+from display.services.declaration_access import declaration_status
+from display.services.flight_order_status import flight_order_status
 from display.services.route_compatibility import assert_route_compatible_with_task_type
+from display.services.scoring_explanation import explain_navigation_task, offered_qmax_policies
 from display.services.task_compiler import TaskCompiler
-from display.utilities.cima_task_type_definitions import describe_task_subtype
+from display.services.task_scoring import (
+    score_measures,
+    scoring_parameters,
+    scores_depend_on_other_pilots,
+    task_scores_are_provisional,
+    unfinished_flights_exist,
+    validate_task_value,
+)
+from display.utilities.task_types import (
+    CURVE_NAVIGATION_TIME_ESTIMATION,
+    find_task_type,
+    QMAX_POLICIES,
+    SCORING_MODELS,
+    SCORING_PENALTIES,
+    SCORING_QUALITY,
+    describe_task_subtype,
+    stored_task_type,
+)
 from display.utilities.coordinate_utilities import calculate_distance_lat_lon
 from display.utilities.country_code_utilities import CountryNotFoundException, get_country_code_from_location
 from display.utilities.route_building_utilities import create_precision_route_from_gpx
@@ -1036,6 +1058,12 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
             )
         except:
             pass
+        method = validated_data.get("overall_result_method", getattr(self.instance, "overall_result_method", None))
+        table = validated_data.get("standings_points_table", getattr(self.instance, "standings_points_table", None))
+        if method == Contest.STANDINGS_POINTS and not table:
+            raise serializers.ValidationError(
+                {"standings_points_table": "An overall result by standings points needs a points table."}
+            )
         return validated_data
 
     class Meta:
@@ -1046,6 +1074,13 @@ class ContestSerialiser(ObjectPermissionsAssignmentMixin, CountryFieldMixin, ser
     def validate_is_public(self, value):
         if not value and self.instance is not None:
             assert_contest_can_be_private(self.instance)
+        return value
+
+    def validate_standings_points_table(self, value):
+        try:
+            validate_points_table(value)
+        except CoreValidationError as e:
+            raise serializers.ValidationError(e.messages)
         return value
 
     def get_permissions_map(self, created):
@@ -1512,6 +1547,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     backtracking_bearing_difference = serializers.FloatField(required=False)
     backtracking_grace_time_seconds = serializers.FloatField(required=False)
     backtracking_maximum_penalty = serializers.FloatField(required=False)
+    backtracking_penalty_percentage = serializers.FloatField(required=False, allow_null=True, min_value=0, max_value=100)
     prohibited_zone_penalty = serializers.FloatField(required=False)
     prohibited_zone_grace_time = serializers.FloatField(required=False)
     prohibited_zone_maximum = serializers.FloatField(required=False)
@@ -1525,6 +1561,8 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     anr_route_to_sp_penalty = serializers.FloatField(required=False)
     anr_route_from_fp_penalty = serializers.FloatField(required=False)
     compulsory_timing_tolerance_seconds = serializers.IntegerField(required=False)
+    compulsory_timing_penalty_per_second = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    turnpoint_hunt_time_gate_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     maximum_task_duration_minutes = serializers.IntegerField(required=False, allow_null=True)
     maximum_task_duration_penalty = serializers.FloatField(required=False)
     fuel_deadline_penalty = serializers.FloatField(required=False)
@@ -1532,12 +1570,25 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
         choices=DURATION_NORMALIZATION_POLICIES, required=False, allow_blank=True
     )
     duration_residual_fuel_required = serializers.BooleanField(required=False)
+    duration_landing_area_penalty_percent = serializers.FloatField(
+        required=False, validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
     circle_radius_min_m = serializers.FloatField(required=False)
     circle_radius_max_m = serializers.FloatField(required=False)
+    circle_altitude_band_ft = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    circle_altitude_penalty_percent = serializers.FloatField(
+        required=False, validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    circle_centre_outside_penalty_percent = serializers.FloatField(
+        required=False, validators=[MinValueValidator(0), MaxValueValidator(100)]
+    )
+    speed_keeping_enabled = serializers.BooleanField(required=False)
     speed_keeping_tolerance_kt = serializers.FloatField(required=False)
     speed_keeping_penalty_per_kt = serializers.FloatField(required=False)
+    speed_term_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     # min_value=0: see the matching comment in admin.py's ScorecardAdminForm.
     turnpoint_hunt_sequence_bonus = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
+    observation_hidden_gate_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     observation_photo_penalty = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     observation_photo_value = serializers.FloatField(required=False, validators=[MinValueValidator(0)])
     observation_photo_full_tolerance_mm = serializers.FloatField(
@@ -1546,6 +1597,23 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
     observation_photo_half_tolerance_mm = serializers.FloatField(
         required=False, allow_null=True, validators=[MinValueValidator(0)]
     )
+    # How the task score is made (display.services.task_scoring). Blank/null: the default of the task's type.
+    scoring_model = serializers.ChoiceField(choices=SCORING_MODELS, required=False, allow_blank=True, allow_null=True)
+    qmax_policy = serializers.ChoiceField(choices=QMAX_POLICIES, required=False, allow_blank=True, allow_null=True)
+    task_value = serializers.FloatField(required=False, allow_null=True)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+        instance = getattr(self, "instance", None)
+        task = getattr(instance, "navigation_task_override", None) if instance is not None else None
+        default_model = stored_task_type(task).scoring_model if task is not None else SCORING_PENALTIES
+        model = attrs.get("scoring_model") or (instance.scoring_model if instance is not None else None) or default_model
+        task_value = attrs.get("task_value", instance.task_value if instance is not None else None)
+        if model == SCORING_QUALITY and task_value is not None:
+            problem = validate_task_value(task_value)
+            if problem:
+                raise serializers.ValidationError({"task_value": problem})
+        return attrs
 
     class Meta:
         model = Scorecard
@@ -1564,6 +1632,7 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "backtracking_bearing_difference",
             "backtracking_grace_time_seconds",
             "backtracking_maximum_penalty",
+            "backtracking_penalty_percentage",
             "prohibited_zone_penalty",
             "prohibited_zone_grace_time",
             "prohibited_zone_maximum",
@@ -1577,20 +1646,32 @@ class ScorecardNestedSerialiser(serializers.ModelSerializer):
             "anr_route_to_sp_penalty",
             "anr_route_from_fp_penalty",
             "compulsory_timing_tolerance_seconds",
+            "compulsory_timing_penalty_per_second",
+            "turnpoint_hunt_time_gate_value",
             "maximum_task_duration_minutes",
             "maximum_task_duration_penalty",
             "fuel_deadline_penalty",
             "duration_normalization_policy",
             "duration_residual_fuel_required",
+            "duration_landing_area_penalty_percent",
             "circle_radius_min_m",
             "circle_radius_max_m",
+            "circle_altitude_band_ft",
+            "circle_altitude_penalty_percent",
+            "circle_centre_outside_penalty_percent",
+            "speed_keeping_enabled",
             "speed_keeping_tolerance_kt",
             "speed_keeping_penalty_per_kt",
+            "speed_term_value",
             "turnpoint_hunt_sequence_bonus",
+            "observation_hidden_gate_value",
             "observation_photo_penalty",
             "observation_photo_value",
             "observation_photo_full_tolerance_mm",
             "observation_photo_half_tolerance_mm",
+            "scoring_model",
+            "qmax_policy",
+            "task_value",
         )
 
     def get_task_type(self, instance) -> list:
@@ -1743,6 +1824,16 @@ class ApplyQuarantinePenaltySerialiser(serializers.Serializer):
         default="quarantine",
         choices=["quarantine", "fuel", "instructions", "observation", "map"],
     )
+    percentage = serializers.FloatField(
+        write_only=True,
+        required=False,
+        allow_null=True,
+        default=None,
+        min_value=0,
+        max_value=100,
+        help_text="Instead of points: a percentage (50 is 50%) of the final task score, for tasks with a normalised "
+        "(quality) task score. A quarantine breach is 100.",
+    )
 
 
 class AssignPlayingCardSerialiser(serializers.Serializer):
@@ -1790,11 +1881,38 @@ class NavigationTaskDetailsUpdateSerialiser(serializers.ModelSerializer):
     excluding original_scorecard (disabled once the task exists, same as the classic form) and
     task_subtype (the form gates its choices by the user's visible task-type families - not worth
     replicating here until this action needs to support changing it).
+
+    The task type's own settings kept in NavigationTask.task_config are set here as well: today only 2.A1's Tmax, the
+    longest time allowed from SP to FP, in seconds (null removes the limit).
     """
+
+    curve_navigation_tmax_seconds = serializers.IntegerField(
+        required=False, allow_null=True, min_value=1, write_only=True
+    )
+
+    def validate(self, attrs):
+        if "curve_navigation_tmax_seconds" in attrs and self.instance is not None:
+            if self.instance.effective_task_subtype != CURVE_NAVIGATION_TIME_ESTIMATION:
+                raise serializers.ValidationError(
+                    {"curve_navigation_tmax_seconds": "Tmax is only set for curve navigation with time estimation."}
+                )
+        return super().validate(attrs)
+
+    def update(self, instance, validated_data):
+        if "curve_navigation_tmax_seconds" in validated_data:
+            tmax_seconds = validated_data.pop("curve_navigation_tmax_seconds")
+            task_config = dict(instance.task_config or {})
+            if tmax_seconds:
+                task_config["curve_navigation_tmax_seconds"] = tmax_seconds
+            else:
+                task_config.pop("curve_navigation_tmax_seconds", None)
+            validated_data["task_config"] = task_config
+        return super().update(instance, validated_data)
 
     class Meta:
         model = NavigationTask
         fields = (
+            "curve_navigation_tmax_seconds",
             "name",
             "start_time",
             "finish_time",
@@ -2081,12 +2199,10 @@ class ContestantSerialiser(serializers.ModelSerializer):
         Lets the frontend highlight contestants missing a required declaration - e.g. a regular
         ANR task never requires one, but turnpoint hunt/contract navigation/curve/precision
         navigation (CIMA task types) do, and ContestantTaskCompilerStrategy.validate_declaration
-        is a no-op for every other subtype. See DECLARATION_REQUIRED_SUBTYPES for
-        which subtypes require one.
+        is a no-op for every other subtype. See TaskTypeDefinition.declaration_required for
+        which task types require one.
         """
-        from display.utilities.cima_task_type_definitions import DECLARATION_REQUIRED_SUBTYPES
-
-        required = contestant.navigation_task.task_subtype in DECLARATION_REQUIRED_SUBTYPES
+        required = stored_task_type(contestant.navigation_task).declaration_required
         config = getattr(contestant, "contestanttaskconfiguration", None)
         complete = bool(config and config.is_valid)
         # Without this, a contestant who saved a declaration that's still invalid for a reason
@@ -2095,7 +2211,14 @@ class ContestantSerialiser(serializers.ModelSerializer):
         # generic "Missing required declaration" tooltip either way, with no way to tell why a
         # just-saved declaration didn't fix it.
         errors = list(config.validation_errors or []) if config else []
-        return {"required": required, "complete": complete, "errors": errors}
+        # The rest says who may change it and until when; filled in for the flight's own crew and for organisers only
+        status = declaration_status(
+            contestant,
+            getattr(self.context.get("request"), "user", None),
+            role_cache=self.context.setdefault("_declaration_roles", {}),
+        )
+        extra = {key: status[key] for key in ("need", "state", "can_edit", "edit_until", "edit_url")}
+        return {"required": required, "complete": complete, "errors": errors, **extra}
 
     def get_first_position_time(self, contestant) -> Optional[datetime.datetime]:
         first = contestant.contestantreceivedposition_set.order_by("time").first()
@@ -2337,7 +2460,8 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
     """
     One of the signed-in pilot's own flights, for the mobile app's lists. An explicit list of fields on purpose: a crew
     member may fly in a contest they may not view, so this carries the flight's schedule and the contest/task METADATA
-    (names, images, venue, type) but nothing about the route, the gates, the declarations or the results. It is also
+    (names, images, venue, type) but nothing about the route, the gates, the declared times or the results (only whether a
+    declaration is needed and made, see declaration_status). It is also
     cheap: no nested team, no track and no compilation of the route, which the full contestant payload does per flight.
     """
 
@@ -2353,6 +2477,8 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
     contest_website = serializers.SerializerMethodField()
     map_viewable = serializers.SerializerMethodField()
     flight_order_path = serializers.SerializerMethodField()
+    flight_order_status = serializers.SerializerMethodField()
+    declaration_status = serializers.SerializerMethodField()
 
     class Meta:
         model = Contestant
@@ -2378,8 +2504,26 @@ class OwnFlightSerialiser(serializers.ModelSerializer):
             "wind_direction",
             "adaptive_start",
             "flight_order_path",
+            "flight_order_status",
+            "declaration_status",
         )
         read_only_fields = fields
+
+    def get_flight_order_status(self, obj: Contestant) -> Optional[dict]:
+        """Where the flight order of the flight stands, for its crew and organisers (display.services.flight_order_status)."""
+        return flight_order_status(
+            obj,
+            getattr(self.context.get("request"), "user", None),
+            role_cache=self.context.setdefault("_declaration_roles", {}),
+        )
+
+    def get_declaration_status(self, obj: Contestant) -> dict:
+        """What the crew has to declare for this flight and until when they may (see display.services.declaration_access)."""
+        return declaration_status(
+            obj,
+            getattr(self.context.get("request"), "user", None),
+            role_cache=self.context.setdefault("_declaration_roles", {}),
+        )
 
     def get_flight_order_path(self, obj: Contestant) -> Optional[str]:
         """The download page of the newest generated flight order (map and orders PDF), if one has been made."""
@@ -2502,6 +2646,45 @@ class NavigationTaskNestedTeamRouteSerialiser(serializers.ModelSerializer):
     guest_capacity_status = serializers.SerializerMethodField()
     is_poker_run = serializers.BooleanField(read_only=True)
     tracking_link = serializers.CharField(read_only=True)
+    # How the task score is made (display.services.task_scoring): the contestants' track `score` is the task score P
+    # for the "quality" scoring model, and `raw_quality` / `percentage_penalty` of the track are its parts.
+    scoring_model = serializers.SerializerMethodField()
+    qmax_policy = serializers.SerializerMethodField()
+    task_value = serializers.SerializerMethodField()
+    scores_provisional = serializers.SerializerMethodField()
+    qmax_absolute_reference = serializers.SerializerMethodField()
+    score_scale = serializers.SerializerMethodField()
+    score_measures = serializers.SerializerMethodField()
+    scoring_explanation = serializers.SerializerMethodField()
+
+    def get_scoring_explanation(self, obj) -> dict:
+        """How the task is scored, in plain language, for the organiser and for the "Provisional" explanation."""
+        return explain_navigation_task(obj)
+
+    def get_score_measures(self, obj) -> dict:
+        """The score types whose log entries are a measure (V, S) and not points of Q, and how to show them."""
+        return score_measures(stored_task_type(obj))
+
+    def get_score_scale(self, obj) -> Optional[float]:
+        """What the task score is out of (the task value, but 250 for the circle, whose score ignores it); null if unknown."""
+        return scoring_parameters(obj).score_scale
+
+    def get_qmax_absolute_reference(self, obj) -> Optional[float]:
+        """For the absolute policy: the raw quality that scores the whole task value (P = task value x Q / this)."""
+        return scoring_parameters(obj).absolute_reference
+
+    def get_scoring_model(self, obj) -> str:
+        return scoring_parameters(obj).model
+
+    def get_qmax_policy(self, obj) -> str:
+        return scoring_parameters(obj).qmax_policy
+
+    def get_task_value(self, obj) -> float:
+        return scoring_parameters(obj).task_value
+
+    def get_scores_provisional(self, obj) -> bool:
+        """True while a flight of a normalised-score task is not finished: a later, better flight lowers the others."""
+        return task_scores_are_provisional(obj)
 
     def get_flown_contestants_count(self, obj) -> int:
         return obj.contestant_set.filter(contestanttrack__calculator_started=True).count()
@@ -2644,6 +2827,17 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
         read_only=True,
         help_text="Non-fatal advisory warnings about the created route (e.g. corridor geometry issues).",
     )
+    qmax_policy = serializers.ChoiceField(
+        choices=QMAX_POLICIES,
+        write_only=True,
+        required=False,
+        allow_null=True,
+        allow_blank=True,
+        help_text=(
+            "CIMA tasks only: what the pilots' raw points are divided by to get the task score (the task type's own "
+            "default when left out). Stored in the task's own copy of the scorecard."
+        ),
+    )
 
     class Meta:
         model = NavigationTask
@@ -2657,7 +2851,7 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
         subtype = attrs.get("task_subtype")
         original_scorecard = attrs.get("original_scorecard")
         if original_scorecard is not None:
-            from display.utilities.cima_task_type_definitions import validate_subtype_family_compatibility
+            from display.utilities.task_types import validate_subtype_family_compatibility
 
             try:
                 validate_subtype_family_compatibility(subtype, original_scorecard.calculator)
@@ -2672,6 +2866,13 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
                     assert_route_compatible_with_task_type(editable_route, original_scorecard.calculator, subtype)
                 except CoreValidationError as e:
                     raise ValidationError({"editable_route": str(e)})
+        qmax_policy = attrs.get("qmax_policy")
+        if qmax_policy:
+            definition = find_task_type(subtype)
+            if definition is None or qmax_policy not in offered_qmax_policies(definition):
+                raise ValidationError(
+                    {"qmax_policy": "This way of scaling the task score is not available for the task type."}
+                )
         return attrs
 
     def create(self, validated_data):
@@ -2706,7 +2907,12 @@ class NavigationTaskEditableRoutReferenceSerialiser(serializers.ModelSerializer)
             assign_perm("display.view_route", user, route)
             assign_perm("display.delete_route", user, route)
             assign_perm("display.change_route", user, route)
+            qmax_policy = validated_data.pop("qmax_policy", None)
             navigation_task = NavigationTask.create(**validated_data)
+            if qmax_policy:
+                # Stored with the task's other scoring values, in its own copy of the scorecard
+                navigation_task.scorecard.config["qmax_policy"] = qmax_policy
+                navigation_task.scorecard.save(update_fields=["config"])
             navigation_task._creation_warnings = warnings
         return navigation_task
 
@@ -2745,7 +2951,7 @@ class ExternalNavigationTaskNestedTeamSerialiser(serializers.ModelSerializer):
         subtype = attrs.get("task_subtype")
         original_scorecard = attrs.get("original_scorecard")
         if original_scorecard is not None:
-            from display.utilities.cima_task_type_definitions import validate_subtype_family_compatibility
+            from display.utilities.task_types import validate_subtype_family_compatibility
 
             try:
                 validate_subtype_family_compatibility(subtype, original_scorecard.calculator)
@@ -2842,6 +3048,36 @@ class TaskSummarySerialiser(serializers.ModelSerializer):
 class TaskTestNestedSerialiser(serializers.ModelSerializer):
     teamtestscore_set = TeamTestScoreSerialiser(many=True)
     navigation_task_link = serializers.CharField()
+    # How the score of a test that is linked to a navigation task is made, for the results table (null for a test that
+    # is not): the same fields the live map reads, and the teams whose flight never started (DNF).
+    scoring = serializers.SerializerMethodField()
+
+    def get_scoring(self, test) -> Optional[dict]:
+        navigation_task = test.navigation_task
+        if navigation_task is None:
+            return None
+        parameters = scoring_parameters(navigation_task)
+        if not parameters.is_quality:
+            return {"scoring_model": parameters.model}
+        tracks = list(
+            ContestantTrack.objects.filter(contestant__navigation_task=navigation_task).values_list(
+                "contestant__team_id", "calculator_started"
+            )
+        )
+        return {
+            "scoring_model": parameters.model,
+            "qmax_policy": parameters.qmax_policy,
+            "task_value": parameters.task_value,
+            "qmax_absolute_reference": parameters.absolute_reference,
+            "score_scale": parameters.score_scale,
+            # Only where a flight of another pilot can change the score of this one
+            "scores_provisional": scores_depend_on_other_pilots(
+                navigation_task.scorecard, stored_task_type(navigation_task), parameters
+            )
+            and unfinished_flights_exist(navigation_task),
+            "provisional_explanation": explain_navigation_task(navigation_task)["provisional"]["short"],
+            "not_flown_team_ids": [team_id for team_id, started in tracks if not started],
+        }
 
     class Meta:
         model = TaskTest
@@ -2864,6 +3100,18 @@ class ContestResultsDetailsSerialiser(CountryFieldMixin, serializers.ModelSerial
     time_zone = TimeZoneSerializerField(required=True)
     permission_change_contest = serializers.BooleanField(read_only=True)
     country = CountryField(required=False)
+    # The place and the points of each team in each task when the overall result is made from standings points; null
+    # for a contest that sums its task scores
+    standings_points = serializers.SerializerMethodField()
+
+    def get_standings_points(self, contest) -> Optional[dict]:
+        return standings_points_details(contest)
+
+    def to_representation(self, instance):
+        data = super().to_representation(instance)
+        # Whatever the contest says, the highest total of standings points wins
+        data["summary_score_sorting_direction"] = instance.overall_sorting_direction
+        return data
 
     class Meta:
         model = Contest
@@ -2974,6 +3222,7 @@ class TaskTestSerialiser(serializers.ModelSerializer):
 class EditableRouteLightSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     editors = serializers.SerializerMethodField("get_editors", read_only=True)
     is_editor = serializers.SerializerMethodField("get_is_editor", read_only=True)
+    compatible_task_types = serializers.SerializerMethodField()
     number_of_waypoints = serializers.IntegerField(read_only=True)
     route_length = serializers.FloatField(read_only=True)
 
@@ -3001,7 +3250,10 @@ class EditableRouteLightSerialiser(ObjectPermissionsAssignmentMixin, serializers
             "intended_task_types",
             "compatible_task_types",
         )
-        read_only_fields = ("compatible_task_types",)
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_compatible_task_types(self, editable_route) -> list[str]:
+        return editable_route.get_current_compatible_task_types()
 
     def get_is_editor(self, editable_route) -> bool:
         return editable_route.id in self.context.get("editable_route_ids", set())
@@ -3144,7 +3396,11 @@ Prohibited, penalty, information zones
         return UserSerialiser(editors, many=True).data
 
     validation_errors = serializers.ListField(child=serializers.CharField(), read_only=True)
-    compatible_task_types = serializers.ListField(child=serializers.CharField(), read_only=True)
+    compatible_task_types = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_compatible_task_types(self, editable_route) -> list[str]:
+        return editable_route.get_current_compatible_task_types()
 
     class Meta:
         model = EditableRoute
