@@ -565,10 +565,73 @@ class TestCompiledNavigationTask(TestCase):
         self.assertEqual(compiled.compiled_payload["compiled_primitives"]["unknown_leg"], ["UL1"])
 
     def test_task_compiler_allows_known_circuit_without_observation_photo(self):
-        # Observation photos are optional evidence, not a structural prerequisite.
+        # A hidden gate is evidence enough: a photo is not needed as well.
         self.navigation_task.task_subtype = KNOWN_CIRCUIT
         self.navigation_task.editable_route = EditableRoute.objects.create(
-            name="Missing observation photos",
+            name="Hidden gate and no observation photos",
+            route={
+                "type": "FeatureCollection",
+                "features": [
+                    {
+                        "type": "Feature",
+                        "properties": {"featureType": "route_path"},
+                        "geometry": {"type": "LineString", "coordinates": [[11.0, 60.0], [11.1, 60.1]]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-1",
+                            "name": "SP",
+                            "pointType": "sp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 0,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "hg-1",
+                            "name": "HG1",
+                            "pointType": "secret",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": False,
+                            "isPassing": True,
+                            "sequence": 1,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.05, 60.05]},
+                    },
+                    {
+                        "type": "Feature",
+                        "properties": {
+                            "id": "wp-2",
+                            "name": "FP",
+                            "pointType": "fp",
+                            "featureType": "route_waypoint",
+                            "width": 1852,
+                            "isTiming": True,
+                            "isPassing": True,
+                            "sequence": 2,
+                        },
+                        "geometry": {"type": "Point", "coordinates": [11.1, 60.1]},
+                    },
+                ],
+            },
+        )
+        self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
+
+        compiled = TaskCompiler(self.navigation_task).compile(force=True)
+        self.assertTrue(compiled.compiled_payload["is_valid"], compiled.compiled_payload["validation_errors"])
+
+    def test_task_compiler_marks_a_bare_known_circuit_invalid(self):
+        # Without a known time gate, hidden gate or photo there is nothing to score besides the start and finish.
+        self.navigation_task.task_subtype = KNOWN_CIRCUIT
+        self.navigation_task.editable_route = EditableRoute.objects.create(
+            name="Bare known circuit",
             route={
                 "type": "FeatureCollection",
                 "features": [
@@ -611,7 +674,14 @@ class TestCompiledNavigationTask(TestCase):
         self.navigation_task.save(update_fields=["task_subtype", "editable_route"])
 
         compiled = TaskCompiler(self.navigation_task).compile(force=True)
-        self.assertTrue(compiled.compiled_payload["is_valid"], compiled.compiled_payload["validation_errors"])
+        self.assertFalse(compiled.compiled_payload["is_valid"])
+        self.assertEqual(
+            compiled.compiled_payload["validation_errors"],
+            [
+                "A known circuit needs at least one known time gate, hidden gate or photo: without one there is "
+                "nothing to score besides the start and finish."
+            ],
+        )
 
     def test_task_compiler_marks_unknown_legs_missing_unknown_leg_waypoint_invalid(self):
         # The defining feature of an unknown-legs route is a backbone waypoint of pointType

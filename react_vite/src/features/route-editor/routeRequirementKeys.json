@@ -10,12 +10,15 @@
     "dummy_waypoint",
     "duration_landing_area",
     "hidden_gate",
+    "known_circuit_evidence",
     "known_time_gate",
     "landing_gate",
+    "observation_photo",
     "route_path",
     "route_waypoint",
     "route_waypoint_order",
     "route_waypoints",
+    "takeoff_gate",
     "unknown_leg",
     "unknown_leg_extension"
   ]

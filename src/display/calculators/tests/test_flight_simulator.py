@@ -813,7 +813,11 @@ class WizardTaskHelpersTest(TestCase):
             {"turnpoint_time_overrides": {"TP2": (task.gate_times["TP2"] + datetime.timedelta(seconds=36)).isoformat()}}
         )
         self.assertTrue(all(time.microsecond == 0 for time in declared.gate_times.values()))
-        rough = build_task(precision_route_geojson(), task_subtype=KNOWN_CIRCUIT, scorecard_shortcut="CIMA Precision")
+        rough = build_task(
+            precision_route_geojson(hidden_gates={1: [0.5]}),
+            task_subtype=KNOWN_CIRCUIT,
+            scorecard_shortcut="CIMA Precision",
+        )
         self.assertTrue(any(time.microsecond for time in rough.gate_times.values()))
 
     def test_an_adaptive_start_pilot_has_gate_times_counted_from_midnight_until_the_start(self):

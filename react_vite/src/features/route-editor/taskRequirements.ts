@@ -1,4 +1,4 @@
-import type { RouteRequirementResult, TaskCompatibilityResult } from './api';
+import type { RouteRequirementResult, TaskCompatibilityResult, TaskCompatibilitySubtype, TaskTypeRouteEditorFlags } from './api';
 import type { TaskTemplate, WizardStep } from './taskTemplates';
 
 // The wizard's guidance (titles, help text, which tool to use, optional steps) lives in
@@ -31,7 +31,32 @@ export const REQUIREMENT_STEP_KEYS: Record<string, string> = {
   duration_landing_area: 'duration_landing_area',
   landing_gate: 'landing_gate',
   hidden_gate: 'hidden_gate',
+  observation_photo: 'observation_photo',
+  takeoff_gate: 'takeoff_gate',
 };
+
+// An optional requirement (no minimum, no maximum) is always satisfied: it only describes a step of the guide, so it is
+// not part of the checklist, which shows what the route must meet.
+export const isOptionalRequirement = (requirement: RouteRequirementResult): boolean => (
+  requirement.minimum === 0 && requirement.maximum === null
+);
+
+export const NO_ROUTE_EDITOR_FLAGS: TaskTypeRouteEditorFlags = {
+  three_point_backbone: false,
+  standalone_timed_turnpoints: false,
+  circle_markers: false,
+  curve_required: false,
+  extension_waypoints: false,
+};
+
+// The special behaviour of the task type [subtypeKey] (the selected template's subtype), from the backend's registry.
+// All false for a task type without a subtype (the legacy templates), an unknown one, or before the backend answered.
+export const getRouteEditorFlags = (
+  subtypes: TaskCompatibilitySubtype[] | null | undefined,
+  subtypeKey: string | null | undefined,
+): TaskTypeRouteEditorFlags => (
+  subtypes?.find((subtype) => subtype.key === subtypeKey)?.flags ?? NO_ROUTE_EDITOR_FLAGS
+);
 
 // Which requirement carries the counts shown on a step when several share it.
 const COUNT_REQUIREMENT_KEYS = ['route_waypoints', 'route_waypoint'];
@@ -91,6 +116,7 @@ export const buildWizardChecklist = (
   const byStep = new Map<string, RouteRequirementResult[]>();
   const generic: RouteRequirementResult[] = [];
   for (const requirement of requirements ?? []) {
+    if (isOptionalRequirement(requirement)) continue;
     const stepKey = REQUIREMENT_STEP_KEYS[requirement.key];
     const belongsToStep = stepKey
       && stepKeys.has(stepKey)

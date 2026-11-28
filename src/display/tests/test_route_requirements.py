@@ -27,12 +27,15 @@ from display.models import EditableRoute
 from display.services.route_compatibility import (
     ROUTE_COMPATIBILITY_RULESET_VERSION,
     assert_route_compatible_with_task_type,
+    evaluate_route_requirements,
     extract_route_primitives,
     get_blocking_reasons,
     get_compatible_task_subtypes,
     get_unmet_requirements,
+    no_compatible_routes_message,
 )
 from display.services.task_compiler import TaskCompiler
+from display.utilities import route_requirements as rr
 from display.utilities.task_types import (
     ANR_CATALOGUE,
     ANR_CORRIDOR,
@@ -225,10 +228,11 @@ CASES = {
         },
     ),
     KNOWN_CIRCUIT: (
-        PRECISION_ROUTE,
+        HIDDEN_GATE_ROUTE,
         {
-            "route_path": [without(PRECISION_ROUTE, feature_type="route_path")],
-            "route_waypoint": [without(PRECISION_ROUTE, feature_type="route_waypoint")],
+            "route_path": [without(HIDDEN_GATE_ROUTE, feature_type="route_path")],
+            "route_waypoint": [without(HIDDEN_GATE_ROUTE, feature_type="route_waypoint")],
+            "known_circuit_evidence": [PRECISION_ROUTE, without(HIDDEN_GATE_ROUTE, name="HG1")],
         },
     ),
     UNKNOWN_LEGS: (
@@ -292,6 +296,8 @@ for _legacy_corridor in (LEGACY_ANR_CORRIDOR, LEGACY_AIRSPORTS, LEGACY_AIRSPORT_
 ALSO_UNMET = {
     (CURVE_NAVIGATION_TIME_ESTIMATION, "route_waypoint"): {"curved_leg"},
     (PRECISION_NAVIGATION, "route_waypoints"): {"hidden_gate"},
+    # The hidden gate of the minimal known circuit is a route waypoint too.
+    (KNOWN_CIRCUIT, "route_waypoint"): {"known_circuit_evidence"},
 }
 
 
@@ -315,7 +321,11 @@ class TestEveryTaskTypeHasCases(TestCase):
         for key, definition in TASK_TYPE_REGISTRY.items():
             requirement_keys = [requirement.key for requirement in definition.route_requirements]
             self.assertEqual(len(requirement_keys), len(set(requirement_keys)), f"{key} repeats a requirement key")
-            self.assertEqual(set(CASES[key][1]), set(requirement_keys), key)
+            # An optional requirement is always satisfied, so no route breaks it.
+            breakable = [
+                requirement.key for requirement in definition.route_requirements if not requirement.is_optional
+            ]
+            self.assertEqual(set(CASES[key][1]), set(breakable), key)
             for requirement in definition.route_requirements:
                 for dependency in requirement.depends_on:
                     self.assertIn(dependency, requirement_keys[: requirement_keys.index(requirement.key)])
@@ -378,8 +388,11 @@ class TestTheGapsThisSliceCloses(TestCase):
     def test_a_route_without_a_curved_leg_is_not_curve_navigation(self):
         straight = route_of(PRECISION_ROUTE)
         compatible = get_compatible_task_subtypes(straight)
-        for key in (LEGACY_PRECISION, KNOWN_CIRCUIT, ANR_CATALOGUE):
+        for key in (LEGACY_PRECISION, ANR_CATALOGUE):
             self.assertIn(key, compatible)
+        # A known circuit needs a known time gate, a hidden gate or a photo as well.
+        self.assertNotIn(KNOWN_CIRCUIT, compatible)
+        self.assertIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route_of(HIDDEN_GATE_ROUTE)))
         self.assertNotIn(PRECISION_NAVIGATION, compatible)
         self.assertIn(PRECISION_NAVIGATION, get_compatible_task_subtypes(route_of(HIDDEN_GATE_ROUTE)))
         self.assertNotIn(CURVE_NAVIGATION_TIME_ESTIMATION, compatible)
@@ -449,7 +462,6 @@ class TestTheGapsThisSliceCloses(TestCase):
             LEGACY_ANR_CORRIDOR,
             LEGACY_AIRSPORTS,
             LEGACY_POKER,
-            KNOWN_CIRCUIT,
             ANR_CATALOGUE,
         ):
             self.assertIn(key, get_compatible_task_subtypes(route))
@@ -531,6 +543,10 @@ class TestTaskCompatibilityApiRequirements(TestCase):
                 "found": 1,
                 "satisfied": True,
                 "message": "Missing required route feature: circle_start_marker",
+                "required": True,
+                "help": TASK_TYPE_REGISTRY[CIRCLE].route_requirements[0].help,
+                "tool": "circle_start",
+                "other_tools": [],
             },
         )
 
@@ -551,13 +567,58 @@ class TestTaskCompatibilityApiRequirements(TestCase):
                 "found": 0,
                 "satisfied": False,
                 "message": "Curve navigation requires at least one curved leg.",
+                "required": True,
+                "help": by_key["curved_leg"]["help"],
+                "tool": "curved_leg",
+                "other_tools": [],
             },
         )
+        self.assertTrue(by_key["curved_leg"]["help"])
         self.assertEqual(
             subtypes[CURVE_NAVIGATION_TIME_ESTIMATION]["missing_reasons"],
             ["Curve navigation requires at least one curved leg."],
         )
         self.assertTrue(by_key["route_path"]["satisfied"])
+
+    def test_an_optional_requirement_is_listed_as_not_required_and_is_always_satisfied(self):
+        subtypes = self.post(PRECISION_ROUTE)
+        by_key = {requirement["key"]: requirement for requirement in subtypes[DURATION]["requirements"]}
+        for key in ("takeoff_gate", "landing_gate"):
+            entry = by_key[key]
+            self.assertEqual((entry["required"], entry["satisfied"], entry["found"]), (False, True, 0))
+        self.assertTrue(by_key["duration_landing_area"]["required"])
+        self.assertFalse(by_key["duration_landing_area"]["satisfied"])
+
+    def test_the_flags_come_with_each_subtype(self):
+        subtypes = self.post(PRECISION_ROUTE)
+        for key, entry in subtypes.items():
+            self.assertEqual(entry["flags"], TASK_TYPE_REGISTRY[key].route_editor_flags)
+        self.assertEqual(
+            {key for key, entry in subtypes.items() if entry["flags"]["three_point_backbone"]},
+            {CONTRACT_NAVIGATION_TIME_CONTROLS},
+        )
+        self.assertEqual(
+            {key for key, entry in subtypes.items() if entry["flags"]["standalone_timed_turnpoints"]},
+            {TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT},
+        )
+        self.assertEqual({key for key, entry in subtypes.items() if entry["flags"]["circle_markers"]}, {CIRCLE})
+        self.assertEqual(
+            {key for key, entry in subtypes.items() if entry["flags"]["curve_required"]},
+            {CURVE_NAVIGATION_TIME_ESTIMATION},
+        )
+        self.assertEqual(
+            {key for key, entry in subtypes.items() if entry["flags"]["extension_waypoints"]}, {UNKNOWN_LEGS}
+        )
+
+    def test_the_known_circuit_lists_the_tools_that_satisfy_its_evidence_requirement(self):
+        subtypes = self.post(PRECISION_ROUTE)
+        evidence = {requirement["key"]: requirement for requirement in subtypes[KNOWN_CIRCUIT]["requirements"]}[
+            "known_circuit_evidence"
+        ]
+        self.assertEqual((evidence["required"], evidence["satisfied"], evidence["found"]), (True, False, 0))
+        self.assertEqual((evidence["tool"], evidence["other_tools"]), ("hidden_gate", ["known_time_gate", "photo"]))
+        self.assertFalse(subtypes[KNOWN_CIRCUIT]["compatible"])
+        self.assertTrue(self.post(HIDDEN_GATE_ROUTE)[KNOWN_CIRCUIT]["compatible"])
 
     def test_unsaved_route_without_features_is_not_compatible_with_duration(self):
         subtypes = self.post({"type": "FeatureCollection", "features": []})
@@ -583,12 +644,15 @@ class TestRequirementKeysSharedWithTheRouteEditor(TestCase):
         "dummy_waypoint",
         "duration_landing_area",
         "hidden_gate",
+        "known_circuit_evidence",
         "known_time_gate",
         "landing_gate",
+        "observation_photo",
         "route_path",
         "route_waypoint",
         "route_waypoint_order",
         "route_waypoints",
+        "takeoff_gate",
         "unknown_leg",
         "unknown_leg_extension",
     }
@@ -615,3 +679,146 @@ class TestRequirementKeysSharedWithTheRouteEditor(TestCase):
         if fixture is None:
             self.skipTest("react_vite/ is not visible from this environment")
         self.assertEqual(set(json.loads(fixture.read_text())["requirementKeys"]), self.WIZARD_REQUIREMENT_KEYS)
+
+
+class TestGuideFieldsOfTheRegistry(TestCase):
+    """What the route editor's guide reads from each requirement: a help text and the tool that satisfies it."""
+
+    def requirements(self):
+        return [
+            (key, requirement)
+            for key, definition in TASK_TYPE_REGISTRY.items()
+            for requirement in definition.route_requirements
+        ]
+
+    def test_every_required_or_optional_requirement_has_a_help_text(self):
+        for key, requirement in self.requirements():
+            if requirement.is_required or requirement.is_optional:
+                with self.subTest(task_type=key, requirement=requirement.key):
+                    self.assertTrue(requirement.help.strip())
+                    self.assertTrue(requirement.help.endswith("."))
+
+    def test_tools_are_from_the_enumeration(self):
+        for key, requirement in self.requirements():
+            with self.subTest(task_type=key, requirement=requirement.key):
+                for tool in (requirement.tool, *requirement.other_tools):
+                    self.assertTrue(tool is None or tool in rr.TOOLS)
+                if requirement.other_tools:
+                    self.assertIsNotNone(requirement.tool)
+                # A requirement that no tool satisfies is not something the guide can start a tool for.
+                if requirement.is_required and requirement.ordering is None:
+                    self.assertIsNotNone(requirement.tool)
+        self.assertEqual(len(rr.TOOLS), len(set(rr.TOOLS)))
+
+    def test_a_requirement_without_a_tool_is_an_ordering_or_a_forbidden_feature(self):
+        for key, requirement in self.requirements():
+            if requirement.tool is None:
+                with self.subTest(task_type=key, requirement=requirement.key):
+                    self.assertTrue(requirement.ordering is not None or requirement.maximum == 0)
+
+    def test_hidden_gate_texts_do_not_send_the_user_to_view_mode(self):
+        for key, requirement in self.requirements():
+            self.assertNotIn("View mode", requirement.help, f"{key} {requirement.key}")
+            if requirement.tool == rr.TOOL_HIDDEN_GATE:
+                self.assertIn(
+                    "Hidden gate tool and click a leg of the route where the gate should be.", requirement.help
+                )
+
+    def test_the_optional_steps_of_the_guide_are_optional_requirements(self):
+        optional = {
+            key: {requirement.key for requirement in definition.route_requirements if requirement.is_optional}
+            for key, definition in TASK_TYPE_REGISTRY.items()
+        }
+        self.assertEqual(optional[CURVE_NAVIGATION_TIME_ESTIMATION], {"hidden_gate"})
+        self.assertEqual(optional[CONTRACT_NAVIGATION_TIME_CONTROLS], {"observation_photo"})
+        self.assertEqual(optional[UNKNOWN_LEGS], {"hidden_gate", "observation_photo"})
+        self.assertEqual(optional[TURNPOINT_HUNT], {"observation_photo"})
+        self.assertEqual(optional[LIMITED_FUEL_TURNPOINT_HUNT], {"observation_photo"})
+        self.assertEqual(optional[DURATION], {"takeoff_gate", "landing_gate"})
+        self.assertEqual({key for key, found in optional.items() if found}, set(optional) - {
+            LEGACY_PRECISION, LEGACY_ANR_CORRIDOR, LEGACY_AIRSPORTS, LEGACY_AIRSPORT_CHALLENGE, LEGACY_POKER,
+            LEGACY_LANDING, PRECISION_NAVIGATION, KNOWN_CIRCUIT, CIRCLE, ANR_CATALOGUE,
+        })
+
+    def test_an_optional_requirement_never_changes_the_outcome(self):
+        # Every route that is compatible with a task type stays so with the optional requirements removed, and the other
+        # way round: they are always satisfied.
+        for key, (valid, violations) in CASES.items():
+            definition = TASK_TYPE_REGISTRY[key]
+            for geojson in [valid] + [route for routes in violations.values() for route in routes]:
+                route = route_of(geojson)
+                primitives = extract_route_primitives(route)
+                results = evaluate_route_requirements(primitives, definition, route)
+                for requirement, result in zip(definition.route_requirements, results):
+                    if requirement.is_optional:
+                        self.assertTrue(result.satisfied)
+                self.assertEqual(
+                    [result.message for result in results if not result.satisfied],
+                    get_blocking_reasons(primitives, key, route),
+                )
+
+    def test_any_of_counts_the_sum_of_its_facts(self):
+        requirement = TASK_TYPE_REGISTRY[KNOWN_CIRCUIT].route_requirements[-1]
+        self.assertEqual(requirement.fact, (rr.KNOWN_TIME_GATE, rr.HIDDEN_GATE, rr.OBSERVATION_PHOTO))
+        photo = {
+            "type": "Feature",
+            "properties": {"id": "obs-1", "name": "Photo 1", "featureType": "observation_photo"},
+            "geometry": {"type": "Point", "coordinates": [11.0, 60.0]},
+        }
+        time_gate = hunt_route_geojson(compulsory={"CP1": (2000.0, 0.0)})["features"][0]
+        for geojson, expected in (
+            (PRECISION_ROUTE, False),
+            (HIDDEN_GATE_ROUTE, True),
+            (with_features(PRECISION_ROUTE, photo), True),
+            (with_features(PRECISION_ROUTE, time_gate), True),
+        ):
+            route = route_of(geojson)
+            self.assertEqual(KNOWN_CIRCUIT in get_compatible_task_subtypes(route), expected)
+        reasons = get_blocking_reasons(extract_route_primitives(route_of(PRECISION_ROUTE)), KNOWN_CIRCUIT)
+        self.assertEqual(
+            reasons,
+            [
+                "A known circuit needs at least one known time gate, hidden gate or photo: without one there is "
+                "nothing to score besides the start and finish."
+            ],
+        )
+
+    def test_the_task_creation_check_gives_the_same_message(self):
+        route = route_of(PRECISION_ROUTE)
+        with self.assertRaisesMessage(ValidationError, "A known circuit needs at least one known time gate"):
+            assert_route_compatible_with_task_type(route, PRECISION, KNOWN_CIRCUIT)
+
+    def test_the_no_route_message_still_reads_right_with_optional_requirements(self):
+        message = no_compatible_routes_message(DURATION)
+        self.assertIn("requires: duration_landing_area", message)
+        self.assertNotIn("takeoff_gate", message)
+        self.assertIn("known_circuit_evidence", no_compatible_routes_message(KNOWN_CIRCUIT))
+
+
+class TestRouteEditorFlags(TestCase):
+    def flagged(self, flag: str) -> set[str]:
+        return {key for key, definition in TASK_TYPE_REGISTRY.items() if getattr(definition, flag)}
+
+    def test_each_flag_is_set_for_the_task_types_the_route_editor_used_to_name_by_id(self):
+        self.assertEqual(self.flagged("three_point_backbone"), {CONTRACT_NAVIGATION_TIME_CONTROLS})
+        self.assertEqual(self.flagged("standalone_timed_turnpoints"), {TURNPOINT_HUNT, LIMITED_FUEL_TURNPOINT_HUNT})
+        self.assertEqual(self.flagged("circle_markers"), {CIRCLE})
+        self.assertEqual(self.flagged("curve_required"), {CURVE_NAVIGATION_TIME_ESTIMATION})
+        self.assertEqual(self.flagged("extension_waypoints"), {UNKNOWN_LEGS})
+
+    def test_the_flags_agree_with_the_facts_they_are_derived_from(self):
+        for key, definition in TASK_TYPE_REGISTRY.items():
+            self.assertEqual(definition.circle_markers, definition.scores_circle, key)
+            self.assertEqual(definition.extension_waypoints, definition.has_unknown_legs, key)
+            if definition.standalone_timed_turnpoints:
+                self.assertFalse(definition.has_backbone, key)
+        self.assertEqual(
+            set(TASK_TYPE_REGISTRY[CIRCLE].route_editor_flags),
+            {
+                "three_point_backbone",
+                "standalone_timed_turnpoints",
+                "circle_markers",
+                "curve_required",
+                "extension_waypoints",
+            },
+        )

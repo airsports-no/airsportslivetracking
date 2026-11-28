@@ -1,6 +1,6 @@
 import requirementKeys from './routeRequirementKeys.json';
-import type { RouteRequirementResult, TaskCompatibilityResult } from './api';
-import { buildWizardChecklist, REQUIREMENT_STEP_KEYS } from './taskRequirements';
+import { ROUTE_REQUIREMENT_TOOLS, type RouteRequirementResult, type TaskCompatibilityResult } from './api';
+import { buildWizardChecklist, getRouteEditorFlags, NO_ROUTE_EDITOR_FLAGS, REQUIREMENT_STEP_KEYS } from './taskRequirements';
 import { getTaskTemplateById, TASK_TEMPLATES } from './taskTemplates';
 
 const requirement = (key: string, overrides: Partial<RouteRequirementResult> = {}): RouteRequirementResult => ({
@@ -11,6 +11,10 @@ const requirement = (key: string, overrides: Partial<RouteRequirementResult> = {
   found: 0,
   satisfied: false,
   message: `Message of ${key}`,
+  required: true,
+  help: `Help of ${key}`,
+  tool: null,
+  other_tools: [],
   ...overrides,
 });
 
@@ -39,7 +43,7 @@ describe('requirement keys', () => {
       if (stepKey !== undefined) expect(stepKeys.has(stepKey), `${key} -> ${stepKey}`).toBe(true);
     }
     // Keys without a step are the generic rows.
-    expect(requirementKeys.requirementKeys.filter((key) => !(key in REQUIREMENT_STEP_KEYS)).sort()).toEqual(['dummy_waypoint']);
+    expect(requirementKeys.requirementKeys.filter((key) => !(key in REQUIREMENT_STEP_KEYS)).sort()).toEqual(['dummy_waypoint', 'known_circuit_evidence']);
   });
 
   it('never maps a key that the registry does not produce', () => {
@@ -155,5 +159,41 @@ describe('buildWizardChecklist', () => {
     };
     const result = buildWizardChecklist(template, compat, 'ready', () => 0);
     expect(result.steps.every((state) => !state.required)).toBe(true);
+  });
+});
+
+describe('optional requirements', () => {
+  it('are not part of the checklist: they are always satisfied and only describe a step of the guide', () => {
+    const optional = requirement('hidden_gate', { minimum: 0, maximum: null, required: false, satisfied: true });
+    const result = checklist('cima_a1', [requirement('route_path'), optional]);
+    const shown = [...result.steps.flatMap((state) => state.requirements), ...result.generic].map((item) => item.key);
+    expect(shown).toEqual(['route_path']);
+    const hiddenGateStep = result.steps.find((state) => state.step.key === 'hidden_gate')!;
+    expect(hiddenGateStep.required).toBe(false);
+    expect(hiddenGateStep.satisfied).toBeNull();
+  });
+
+  it('knows the tools the backend can name', () => {
+    expect(new Set(ROUTE_REQUIREMENT_TOOLS).size).toBe(ROUTE_REQUIREMENT_TOOLS.length);
+    expect(ROUTE_REQUIREMENT_TOOLS).toContain('hidden_gate');
+  });
+});
+
+describe('route editor flags', () => {
+  const flags = { ...NO_ROUTE_EDITOR_FLAGS, circle_markers: true };
+  const subtypes = [
+    { key: 'circle', display_name: 'Circle', group: 'CIMA' as const, coarse_family: 'precision', compatible: false, missing_reasons: [], flags },
+    { key: 'duration', display_name: 'Duration', group: 'CIMA' as const, coarse_family: 'precision', compatible: false, missing_reasons: [] },
+  ];
+
+  it('are looked up through the subtype of the selected template', () => {
+    expect(getRouteEditorFlags(subtypes, getTaskTemplateById('cima_a7')!.subtype).circle_markers).toBe(true);
+    expect(getRouteEditorFlags(subtypes, getTaskTemplateById('cima_a1')!.subtype).circle_markers).toBe(false);
+  });
+
+  it('are all false for a template without a subtype, a subtype without flags, or before the backend answered', () => {
+    expect(getRouteEditorFlags(subtypes, getTaskTemplateById('precision')!.subtype)).toEqual(NO_ROUTE_EDITOR_FLAGS);
+    expect(getRouteEditorFlags(subtypes, 'duration')).toEqual(NO_ROUTE_EDITOR_FLAGS);
+    expect(getRouteEditorFlags(null, 'circle')).toEqual(NO_ROUTE_EDITOR_FLAGS);
   });
 });

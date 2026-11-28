@@ -130,8 +130,9 @@ class TestRouteCompatibilityRuleset(TestCase):
         ):
             self.assertNotIn(subtype, compatible)
 
-    def test_hidden_gate_is_only_required_by_precision_navigation(self):
-        # Hidden gates are optional evidence on the other task types; 2.A2 is scored on them, so it needs one.
+    def test_hidden_gate_is_required_by_precision_navigation_and_counts_as_evidence_for_a_known_circuit(self):
+        # Hidden gates are optional on the other task types; 2.A2 is scored on them, so it needs one. A known circuit
+        # needs a known time gate, a hidden gate or a photo, so a plain route is not one.
         route = EditableRoute.objects.create(
             name="Plain precision route",
             route={
@@ -144,13 +145,24 @@ class TestRouteCompatibilityRuleset(TestCase):
                 ],
             },
         )
-        self.assertEqual(get_blocking_reasons(extract_route_primitives(route), KNOWN_CIRCUIT), [])
-        self.assertIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route))
+        self.assertEqual(
+            get_blocking_reasons(extract_route_primitives(route), KNOWN_CIRCUIT),
+            [
+                "A known circuit needs at least one known time gate, hidden gate or photo: without one there is "
+                "nothing to score besides the start and finish."
+            ],
+        )
+        self.assertNotIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route))
         self.assertNotIn(PRECISION_NAVIGATION, get_compatible_task_subtypes(route))
         self.assertEqual(
             ["Precision navigation needs at least one hidden gate: the task is scored on them."],
             get_blocking_reasons(extract_route_primitives(route), PRECISION_NAVIGATION),
         )
+        hidden_gate = waypoint_feature("secret", "HG1")
+        hidden_gate["properties"]["sequence"] = 3
+        route.route["features"].append(hidden_gate)
+        self.assertEqual(get_blocking_reasons(extract_route_primitives(route), KNOWN_CIRCUIT), [])
+        self.assertIn(KNOWN_CIRCUIT, get_compatible_task_subtypes(route))
 
     def test_circle_requires_all_four_markers(self):
         route = EditableRoute.objects.create(

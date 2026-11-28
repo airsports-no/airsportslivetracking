@@ -5,7 +5,14 @@ import Toolbar from '../components/Toolbar';
 import GateWidthModal from '../components/GateWidthModal';
 import MapCanvas from '../components/MapCanvas';
 import WizardActionBanner from '../components/WizardActionBanner';
-import { fetchRoute, fetchTaskCompatibility, saveRoute, TaskCompatibilityResult } from '../api';
+import {
+  fetchRoute,
+  fetchTaskCompatibility,
+  fetchTaskSubtypeCatalog,
+  saveRoute,
+  TaskCompatibilityResult,
+  TaskCompatibilitySubtype,
+} from '../api';
 import { SavePayload } from '../types';
 import { generatePath } from '../../../urls';
 import {
@@ -17,7 +24,7 @@ import {
 import { getQuadraticBezierPoints } from '../../../utils/bezierPoints';
 import { RoutePoint, Gate, ObservationMarker, Polygon, LatLng, SelectionType, Mode } from '../../../types';
 import { Map } from 'leaflet';
-import { buildWizardChecklist, type CompatibilityStatus } from '../taskRequirements';
+import { buildWizardChecklist, type CompatibilityStatus, getRouteEditorFlags } from '../taskRequirements';
 import { getTaskTemplateById, getWizardRouteInsertLabel, isTaskSubtypeVisible } from '../taskTemplates';
 import { createStandalonePointTypeSet, parseRouteEditorFeatureCollection } from '../routeDataParsing';
 import {
@@ -120,17 +127,30 @@ export default function RouteEditor() {
     return document.configuration.showCimaTaskTypes ? ['legacy', 'cima'] : ['legacy'];
   }, []);
 
-  const isThreePointBackboneTask = useMemo(
-    () => ['cima_a3'].includes(selectedTaskTemplateId || ''),
-    [selectedTaskTemplateId],
+  // What is special about the selected task type comes from the backend's registry (the flags of the template's
+  // subtype), not from the template's id. The compatibility answer carries them; until it arrives the subtype catalog,
+  // fetched once, does.
+  const [subtypeCatalog, setSubtypeCatalog] = useState<TaskCompatibilitySubtype[] | null>(null);
+  useEffect(() => {
+    fetchTaskSubtypeCatalog()
+      .then(setSubtypeCatalog)
+      .catch((err) => console.error('Failed to fetch the task types', err));
+  }, []);
+  const routeEditorFlags = useMemo(
+    () => getRouteEditorFlags(taskCompatibility?.subtypes ?? subtypeCatalog, getTaskTemplateById(selectedTaskTemplateId)?.subtype),
+    [taskCompatibility, subtypeCatalog, selectedTaskTemplateId],
   );
 
-  const isCircleStandaloneTask = selectedTaskTemplateId === 'cima_a7';
+  // 2.A3: the route is exactly SP, MP and FP.
+  const isThreePointBackboneTask = routeEditorFlags.three_point_backbone;
+  const isCircleStandaloneTask = routeEditorFlags.circle_markers;
   // 2.A6 and 2.B2 have no route backbone at all: the route is exactly three
   // free-map timed turnpoints (known_time_gate markers) plus any number of
   // untimed catalogue turnpoints, all as standalone points.
-  const isTimedTurnpointStandaloneTask = selectedTaskTemplateId === 'cima_a6' || selectedTaskTemplateId === 'cima_b2';
-  const isCurveRequiredTask = selectedTaskTemplateId === 'cima_a1';
+  const isTimedTurnpointStandaloneTask = routeEditorFlags.standalone_timed_turnpoints;
+  const isCurveRequiredTask = routeEditorFlags.curve_required;
+  // 2.A5: unknown-leg points are followed by extension waypoints.
+  const hasExtensionWaypoints = routeEditorFlags.extension_waypoints;
   const standalonePointTypes = useMemo(() => {
     return createStandalonePointTypeSet(isCircleStandaloneTask);
   }, [isCircleStandaloneTask]);
@@ -164,7 +184,7 @@ export default function RouteEditor() {
   // rendering, once per change of the points (https://react.dev/learn/you-might-not-need-an-effect), not in an effect.
   const [namedPoints, setNamedPoints] = useState<{ routePoints: RoutePoint[]; standalonePoints: RoutePoint[] } | null>(null);
   if (
-    selectedTaskTemplateId === 'cima_a5'
+    hasExtensionWaypoints
     && (namedPoints?.routePoints !== routePoints || namedPoints?.standalonePoints !== standalonePoints)
   ) {
     const named = nameUnknownLegsRoutePoints(routePoints, standalonePoints);
@@ -823,7 +843,7 @@ export default function RouteEditor() {
   ).concat(
     observationPhotoNameProblems(routePoints, standalonePoints, observationMarkers),
   ).concat(
-    selectedTaskTemplateId === 'cima_a5'
+    hasExtensionWaypoints
       ? routePoints
           .filter((point) => point.type === 'ul')
           .flatMap((triggerPoint) => (
@@ -832,7 +852,7 @@ export default function RouteEditor() {
               : [`Unknown-leg trigger "${triggerPoint.name}" must have at least one dummy-branch waypoint.`]
           ))
       : []
-  ), [routePoints, standalonePoints, observationMarkers, isThreePointBackboneTask, isCircleStandaloneTask, isTimedTurnpointStandaloneTask, isCurveRequiredTask, selectedTaskTemplateId]);
+  ), [routePoints, standalonePoints, observationMarkers, isThreePointBackboneTask, isCircleStandaloneTask, isTimedTurnpointStandaloneTask, isCurveRequiredTask, hasExtensionWaypoints]);
 
   const stopWizardAction = useCallback(() => {
     setMode('view');

@@ -985,6 +985,8 @@ class EditableRouteViewSet(ModelViewSet):
                     "missing_reasons": missing_reasons,
                     # Every route requirement of the task type with what the route has, for the route editor guide.
                     "requirements": [requirement.as_dict() for requirement in requirements],
+                    # What the route editor reads from the task type instead of testing for one.
+                    "flags": definition.route_editor_flags,
                 }
             )
         return Response({"compatible_task_types": compatible_task_types, "subtypes": subtypes})

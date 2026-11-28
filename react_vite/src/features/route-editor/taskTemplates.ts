@@ -209,13 +209,13 @@ export const TASK_TEMPLATES: TaskTemplate[] = [
     label: '2.A4 Navigation over a known circuit',
     group: 'CIMA',
     subtype: 'known_circuit',
-    description: 'Known circuit route. Hidden gates and observation/photo evidence are both optional but recommended - the task typically uses at least one form of evidence.',
+    description: 'Known circuit route. It needs at least one known time gate, hidden gate or observation photo as evidence: without one there is nothing to score besides the start and finish.',
     guideOnly: true,
-    guideSummary: 'Build the known circuit first. Neither hidden gates nor observation/photo markers are required, but consider adding at least one of the two as evidence for scoring.',
+    guideSummary: 'Build the known circuit first. Then add at least one known time gate, hidden gate or photo as evidence for scoring.',
     steps: [
       routeStep('Build the known circuit route first.'),
-      pointStep('hidden_gate', 'Hidden gates (optional)', 'Not required, but consider inserting a few hidden gates on the circuit as evidence for scoring.', 'secret', 'route_waypoint', 'route_insert'),
-      observationStep('Not required, but consider adding a few observation/photo markers as evidence for scoring.'),
+      pointStep('hidden_gate', 'Hidden gates', 'You need at least one known time gate, hidden gate or photo. For a hidden gate, use the Hidden gate tool and click a leg of the route where the gate should be.', 'secret', 'route_waypoint', 'route_insert'),
+      observationStep('You need at least one known time gate, hidden gate or photo. For a photo, use the Photo tool and click the map where the photo was taken.'),
     ],
   },
   {

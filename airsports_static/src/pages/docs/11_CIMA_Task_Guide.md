@@ -55,7 +55,7 @@ What each task needs of its route:
 | 2.A1 Curve navigation | A route path from SP to FP with at least one **curved leg**. Hidden gates are optional. |
 | 2.A2 Precision navigation | A route path with at least three route waypoints: **SP first, FP last**, visible turn points between. At least one **hidden gate**. |
 | 2.A3 Contract navigation | Exactly three route waypoints, in this order: **SP, MP, FP**. At least one free **catalogue turnpoint** besides them. |
-| 2.A4 Known circuit | A route path with its waypoints. Hidden gates and observation photos are optional. |
+| 2.A4 Known circuit | A route path with its waypoints, and at least one **known time gate**, **hidden gate** or **observation photo**. |
 | 2.A5 Unknown legs | A route path with at least three route waypoints (SP first, FP last). At least one **unknown-leg point**, and at least one **extension waypoint** after each one. |
 | 2.A6 Turnpoint hunt | **No route path.** Exactly three standalone **timed turnpoints**. At least one **catalogue turnpoint** as a target. |
 | 2.A7 Circle | Exactly one each of **circle start (SP), circle centre (CM), circle entry (X)** and **circle exit (WP)**. |
@@ -278,7 +278,7 @@ Declaring more points can earn more. Each declared point that you then fail to f
 
 **What the pilot does.** The pilot flies a circuit that is known beforehand. The pilot may declare a time for single turn points. It replaces the time calculated from the flight's airspeed and wind. If you allow it, the pilot marks observation photos in the app while flying. An optional speed term rewards the fastest pilot.
 
-**What the route needs.** A route path with its waypoints. Hidden gates and observation photos are optional. Most tasks use at least one of them as evidence.
+**What the route needs.** A route path with its waypoints, and at least one known time gate, hidden gate or observation photo. Without one there is nothing to score besides the start and finish.
 
 **What is declared (optional).** A time for any turn point or FP. Points left empty use the calculated time.
 
