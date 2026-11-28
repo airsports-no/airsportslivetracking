@@ -748,8 +748,20 @@ class ContestantTaskCompiler:
             config.validation_errors = validation_errors
             config.is_valid = is_valid
             config.save()
+            self._rebaseline_quality()
         self._lock_if_needed(config)
         return config
+
+    def _rebaseline_quality(self) -> None:
+        """A quality task's starting quality and theoretical maximum come from the declaration (2.A3's subset of
+        points, 2.A6's targets), and were built once at the start of the flight: build them again from this one."""
+        from display.models import ContestantTrack
+        from display.services.task_scoring import is_quality_task, refresh_contestant_quality
+
+        if not is_quality_task(self.contestant.navigation_task):
+            return
+        if ContestantTrack.objects.filter(contestant=self.contestant, quality_start__isnull=False).exists():
+            refresh_contestant_quality(self.contestant, rebaseline=True)
 
     def _validate_declaration(self, declaration_payload: dict, compiled_task) -> list[str]:
         if not isinstance(declaration_payload, dict):

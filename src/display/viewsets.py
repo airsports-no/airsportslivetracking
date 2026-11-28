@@ -529,7 +529,9 @@ class UserPersonViewSet(GenericViewSet):
                 .order_by("takeoff_time")
                 .distinct()
                 .select_related("navigation_task__contest", "team__crew__member1")
-                .prefetch_related("emailmaplink_set")
+                .prefetch_related(
+                    Prefetch("emailmaplink_set", queryset=EmailMapLink.objects.only("id", "contestant_id", "created_at"))
+                )
             )
             return Response(
                 FutureContestantNestedTeamSerialiser(contestants, many=True, context={"request": request}).data
@@ -4375,6 +4377,12 @@ class ContestantViewSet(ModelViewSet):
         category = serialiser.validated_data["category"]
         category_config = ADMINISTRATIVE_PENALTY_CATEGORIES[category]
         reason = serialiser.validated_data["reason"].strip() or category_config["default_reason"]
+        if serialiser.validated_data.get("percentage") is not None and not scoring_parameters(
+            contestant.navigation_task
+        ).is_quality:
+            raise ValidationError(
+                {"percentage": ["A percentage penalty needs a task with a normalised (quality) task score."]}
+            )
 
         entry = AdministrativePenaltyService.apply_contestant_penalty(
             contestant=contestant,

@@ -427,7 +427,11 @@ class TestIdempotentRestartOfAQualityTask(TestIdempotentRestart):
             wind_speed=8,
         )
         ContestantTrack.objects.filter(contestant=other).update(
-            calculator_started=True, quality_start=quality, quality_theoretical_maximum=quality, raw_quality=quality
+            calculator_started=True,
+            calculator_finished=True,
+            quality_start=quality,
+            quality_theoretical_maximum=quality,
+            raw_quality=quality,
         )
         return other
 

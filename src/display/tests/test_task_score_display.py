@@ -67,7 +67,7 @@ class TestLiveMapPayloads(TaskScoringTestCase):
 
     def test_the_task_is_provisional_until_all_flights_are_finished(self):
         a, _, _ = self.contestants
-        self.fly(a, 1200)
+        self.fly(a, 1200, finished=False)
         self.assertTrue(task_scores_are_provisional(self.task))
 
 
@@ -87,7 +87,13 @@ class TestFlightFacts(TaskScoringTestCase):
     def test_a_quality_flight_is_a_whole_number_out_of_the_task_value_and_says_how_to_read_the_log(self):
         a, b, _ = self.contestants
         self.fly(a, 1200)
-        self.fly(b, 1200, {"points": -325}, {"points": 20, "kind": "percentage_penalty", "score_type": "altitude"})
+        self.fly(
+            b,
+            1200,
+            {"points": -325},
+            {"points": 20, "kind": "percentage_penalty", "score_type": "altitude"},
+            finished=False,
+        )
         facts = flight_facts(type(b).objects.get(pk=b.pk))
         # 1000 x 875/1200 = 729.17, less 20% = 583.3 -> 583
         self.assertEqual(583, facts["final_score"])

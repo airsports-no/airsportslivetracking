@@ -43,7 +43,7 @@ class TestScoreScaleOnTheNowEndpoint(TaskScoringTestCase):
     def test_a_best_in_task_cima_score_is_out_of_the_task_value_and_provisional_until_every_flight_is_finished(self):
         a, b, _ = self.contestants
         self.fly(a, 1200)
-        self.fly(b, 1200, {"points": -300})
+        self.fly(b, 1200, {"points": -300}, finished=False)
         entry = self.now_entry(b)
         self.assertEqual(750, entry["score"])
         self.assertEqual(1000, entry["score_scale"])

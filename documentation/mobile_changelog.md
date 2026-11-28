@@ -15,6 +15,7 @@ that says what a pilot, an organiser or an admin gets.
 
 ### 2026-11-28
 #### Backend
+- **Provisional flag and scores of flights in progress (no API change):** `scores_provisional` is no longer held `true` by a contestant who never flew once their `finished_by_time` has passed, and in a best-in-task CIMA task a flight that is still in progress no longer sets the best score while a flight is finished (its own score is capped at the task value; 0 until its first score log entry), so the score of a pilot still flying may change when they land.
 - **Overall result by standings points (additive):** a contest has `overall_result_method` (`sum_of_scores` default, `standings_points`) and `standings_points_table` (points for first, second, third… place in a task); with standings points `ContestSummary.points` is the sum of the points for the place in each task (highest total wins, `summary_score_sorting_direction` is then reported as `desc`), and `results_details` gains `standings_points` (`null` otherwise; else `points_table`, `ranks` by team id with countback, and `tasks` by task id then team id with `place` and `points`); contests left on the default are unchanged (migration `0219`).
 
 ### 2026-11-27

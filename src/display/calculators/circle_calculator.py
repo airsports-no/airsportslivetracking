@@ -177,6 +177,10 @@ class CircleCalculator(Calculator):
         """A flight that never reached the exit (or never completed the circle) still gets its result here."""
         if self.result_emitted:
             return
+        if not self._frame_ready:
+            # The route has no usable circle (no SP, CM or X, or SP on CM): that is the route's fault, not the pilot's
+            logger.warning("%s: the route has no usable circle, so nothing is scored for it", self.contestant)
+            return
         if not (self.started or self.entered or track):
             return
         last = track[-1] if track else None
@@ -582,6 +586,8 @@ class CircleCalculator(Calculator):
     def _emit(
         self, anchor: _Anchor, score: float, message: str, annotation_type: str, score_type: str, kind: str = PENALTY
     ):
+        if kind == PERCENTAGE_PENALTY:
+            kind, score = self.percentage_penalty_fields(score)
         self.update_score(
             UpdateScoreMessage(
                 anchor.time,

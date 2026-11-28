@@ -952,8 +952,10 @@ class ContestantProcessor:
             score_log_entry=entry,
         )
         if parameters.is_quality:
-            # Q and the task score of every contestant follow from the score log
-            if logged_points != 0:
+            # Q and the task score of every contestant follow from the score log. The first entry also counts, even
+            # without points: a flight with something in its log has flown, and one with an empty log has not.
+            if logged_points != 0 or not getattr(self, "_refreshed_for_first_entry", False):
+                self._refreshed_for_first_entry = True
                 refresh_contestant_quality(self.contestant)
         elif score != 0:
             self.contestant_track.increment_score(score)

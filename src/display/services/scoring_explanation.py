@@ -546,7 +546,10 @@ def _provisional(definition: TaskTypeDefinition, scorecard, parameters) -> dict:
             "text": (
                 "Scores are provisional until every flight in the task is finished. The task score is scaled against "
                 "the best pilot in the task, so when a later pilot flies better, the bar goes up and the scores of the "
-                "pilots who have already landed go down. A pilot's score can therefore fall after landing."
+                "pilots who have already landed go down. A pilot's score can therefore fall after landing. A pilot who never "
+                "flew does not hold the scores open once the end of their flight window has passed, and a pilot who is "
+                "still flying does not raise the bar until they have landed: until then their own score is a preview "
+                "that is never above the task value."
             ),
             "short": (
                 "Provisional: scores are scaled against the best pilot in the task, so a better flight later in the "

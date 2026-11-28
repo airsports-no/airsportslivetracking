@@ -23,6 +23,8 @@ class TestDurationCalculator(TestCase):
         self.contestant = MagicMock()
         self.contestant.navigation_task.task_subtype = DURATION
         self.contestant.navigation_task.editable_route = None
+        # A scorecard that stores no scoring model: the task type's own (quality) model applies
+        self.contestant.navigation_task.scorecard.config = {}
         # No compiled ContestantTaskConfiguration / Route-level Prohibited zone
         # in this mock-driven suite - explicit None/empty so
         # DurationCalculator's snapshot/route fallbacks correctly cascade down

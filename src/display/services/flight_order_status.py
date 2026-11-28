@@ -83,8 +83,11 @@ def last_generation_failed(contestant_pk: int) -> bool:
 
 
 def _newest_link(contestant: Contestant):
-    links = list(contestant.emailmaplink_set.all())
-    return max(links, key=lambda link: link.created_at) if links else None
+    if "emailmaplink_set" in getattr(contestant, "_prefetched_objects_cache", {}):
+        links = list(contestant.emailmaplink_set.all())
+        return max(links, key=lambda link: link.created_at) if links else None
+    # Not prefetched: never load `orders`, the PDF of every flight order of the flight
+    return contestant.emailmaplink_set.only("id", "created_at").order_by("-created_at").first()
 
 
 def _declaration_blocks_flight_order(declaration: dict) -> bool:

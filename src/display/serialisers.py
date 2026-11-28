@@ -103,6 +103,7 @@ from display.services.task_scoring import (
     scoring_parameters,
     scores_depend_on_other_pilots,
     task_scores_are_provisional,
+    unfinished_flights_exist,
     validate_task_value,
 )
 from display.utilities.task_types import (
@@ -3060,7 +3061,7 @@ class TaskTestNestedSerialiser(serializers.ModelSerializer):
             return {"scoring_model": parameters.model}
         tracks = list(
             ContestantTrack.objects.filter(contestant__navigation_task=navigation_task).values_list(
-                "contestant__team_id", "calculator_started", "calculator_finished"
+                "contestant__team_id", "calculator_started"
             )
         )
         return {
@@ -3073,9 +3074,9 @@ class TaskTestNestedSerialiser(serializers.ModelSerializer):
             "scores_provisional": scores_depend_on_other_pilots(
                 navigation_task.scorecard, stored_task_type(navigation_task), parameters
             )
-            and any(not finished for _, _, finished in tracks),
+            and unfinished_flights_exist(navigation_task),
             "provisional_explanation": explain_navigation_task(navigation_task)["provisional"]["short"],
-            "not_flown_team_ids": [team_id for team_id, started, _ in tracks if not started],
+            "not_flown_team_ids": [team_id for team_id, started in tracks if not started],
         }
 
     class Meta:

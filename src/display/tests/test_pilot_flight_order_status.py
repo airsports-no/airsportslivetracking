@@ -80,6 +80,26 @@ class TestFlightOrderStatus(FlightOrderTestBase):
         self.assertEqual(flight_order_path_for(Contestant.objects.get(pk=self.contestant.pk)), result["path"])
         self.assertEqual(link.created_at.isoformat(), result["created_at"])
 
+    def test_the_pdf_of_the_flight_order_is_not_loaded_to_tell_that_it_is_ready(self):
+        from django.db import connection
+        from django.db.models import Prefetch
+        from django.test.utils import CaptureQueriesContext
+
+        link = self.make_link()
+        contestant = Contestant.objects.get(pk=self.contestant.pk)
+        with CaptureQueriesContext(connection) as queries:
+            self.assertEqual(f"/display/maplink/{link.pk}/", flight_order_status(contestant, self.pilot_user)["path"])
+        link_queries = [q["sql"] for q in queries if "display_emailmaplink" in q["sql"]]
+        self.assertEqual(1, len(link_queries))
+        self.assertNotIn("orders", link_queries[0])
+        # Prefetched by the caller: no further query for the links
+        contestant = Contestant.objects.prefetch_related(
+            Prefetch("emailmaplink_set", queryset=EmailMapLink.objects.only("id", "contestant_id", "created_at"))
+        ).get(pk=self.contestant.pk)
+        with CaptureQueriesContext(connection) as queries:
+            self.assertEqual("ready", flight_order_status(contestant, self.pilot_user)["state"])
+        self.assertEqual([], [q for q in queries if "display_emailmaplink" in q["sql"]])
+
     def test_failed_says_why_in_words_for_the_pilot(self):
         self.complete_declaration()
         with patch(CONNECTIONS), patch(GENERATE, side_effect=RuntimeError("secret internal detail")):

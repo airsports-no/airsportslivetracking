@@ -4,7 +4,7 @@ from shapely.geometry import Point, Polygon
 
 from display.calculators.calculator import Calculator, LandingPassedEvent, TakeoffPassedEvent
 from display.models import ANOMALY, INFORMATION
-from display.calculators.update_score_message import ACHIEVEMENT, PERCENTAGE_PENALTY, UpdateScoreMessage
+from display.calculators.update_score_message import ACHIEVEMENT, UpdateScoreMessage
 
 
 DURATION_SCORE_TYPE = "duration_score"
@@ -121,17 +121,18 @@ class DurationCalculator(Calculator):
         inside = Polygon(self.landing_area_ring).covers(Point(lon, lat))
         if inside:
             return
+        kind, points = self.percentage_penalty_fields(float(self.cima_config.duration_landing_area_penalty_percent))
         self.update_score(
             UpdateScoreMessage(
                 event.intersection_time,
                 event.gate,
-                float(self.cima_config.duration_landing_area_penalty_percent),
+                points,
                 "landed outside the specified landing area",
                 event.position.latitude,
                 event.position.longitude,
                 ANOMALY,
                 LANDING_AREA_SCORE_TYPE,
-                kind=PERCENTAGE_PENALTY,
+                kind=kind,
             )
         )
 

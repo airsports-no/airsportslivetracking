@@ -547,7 +547,7 @@ class TestResultsPayload(TaskScoringTestCase):
     def test_a_quality_test_says_how_its_score_is_made_who_did_not_fly_and_that_it_is_provisional(self):
         a, b, c = self.contestants
         self.fly(a, 1200)
-        self.fly(b, 1200, {"points": -300})
+        self.fly(b, 1200, {"points": -300}, finished=False)
         (test,) = self.linked_tests(self.results(), self.task)
         scoring = test["scoring"]
         self.assertEqual("quality", scoring["scoring_model"])

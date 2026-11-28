@@ -583,7 +583,8 @@ def rescore_quality_task_when_its_scorecard_changes(sender, instance: Scorecard,
     task = instance.navigation_task_override
     # The task still holds its previous scorecard object when it is not the one just saved
     task.scorecard = instance
-    transaction.on_commit(lambda: recompute_task_scores(task))
+    # The theoretical maximum and the starting quality come from the scorecard as well
+    transaction.on_commit(lambda: recompute_task_scores(task, rebaseline=True))
 
 
 @receiver(post_delete, sender=Contestant)

@@ -1522,6 +1522,13 @@ def run_flight(contestant, positions: Sequence[SimPosition], projector: Optional
     if positions:
         orchestrator.finished_processing()
         apply_queued_messages()
+        if quality:
+            # What the processor does when the flight ends (ContestantTrack.set_calculator_finished)
+            from display.models import ContestantTrack
+            from display.services.task_scoring import refresh_contestant_quality
+
+            ContestantTrack.objects.filter(contestant=contestant).update(calculator_finished=True)
+            refresh_contestant_quality(contestant)
 
     passing_times = {}
     missed = []

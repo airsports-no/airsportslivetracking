@@ -410,11 +410,17 @@ class ContestForm(forms.ModelForm):
         exclude = ("contest_teams", "is_featured", "is_public", "latitude", "longitude", "country")
 
     def clean_overall_result_method(self):
-        return self.cleaned_data.get("overall_result_method") or Contest.SUM_OF_SCORES
+        # A post that leaves it out keeps what an existing contest has; only a new contest gets the default
+        method = self.cleaned_data.get("overall_result_method")
+        if method:
+            return method
+        return self.instance.overall_result_method if self.instance.pk else Contest.SUM_OF_SCORES
 
     def clean_standings_points_table(self):
         table = self.cleaned_data.get("standings_points_table")
-        return default_standings_points_table() if table is None else table
+        if table is not None:
+            return table
+        return self.instance.standings_points_table if self.instance.pk else default_standings_points_table()
 
     def __init__(self, *args, **kwargs):
         token_grant_queryset = kwargs.pop("token_grant_queryset", UserTokenGrant.objects.none())

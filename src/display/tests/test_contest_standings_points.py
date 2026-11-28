@@ -225,3 +225,50 @@ class TestContestOverallResult(TestCase):
     def test_a_task_summary_exists_per_team_and_task(self):
         self.fill()
         self.assertEqual(TaskSummary.objects.filter(task__contest=self.contest).count(), 6)
+
+
+class TestContestFormKeepsTheOverallResult(TestCase):
+    def setUp(self):
+        now = datetime.datetime.now(datetime.timezone.utc)
+        self.contest = Contest.objects.create(
+            name="Race",
+            start_time=now,
+            finish_time=now + datetime.timedelta(days=1),
+            location="60, 11",
+            time_zone="Europe/Oslo",
+            overall_result_method=Contest.STANDINGS_POINTS,
+            standings_points_table=[30, 20, 10],
+        )
+
+    def form_data(self, *omitted):
+        data = {
+            "name": "Race",
+            "start_time": "2026-11-28T10:00",
+            "finish_time": "2026-11-29T10:00",
+            "location": "60, 11",
+            "time_zone": "Europe/Oslo",
+        }
+        for key in omitted:
+            data.pop(key, None)
+        return data
+
+    def test_a_post_without_the_overall_result_keeps_an_existing_contest_as_it_is(self):
+        from display.forms import ContestForm
+
+        contest = Contest.objects.get(pk=self.contest.pk)
+        form = ContestForm(self.form_data(), instance=contest)
+        self.assertTrue(form.is_valid(), form.errors)
+        saved = form.save()
+        saved.refresh_from_db()
+        self.assertEqual(Contest.STANDINGS_POINTS, saved.overall_result_method)
+        self.assertEqual([30, 20, 10], saved.standings_points_table)
+
+    def test_a_new_contest_gets_the_defaults(self):
+        from display.forms import ContestForm
+
+        data = self.form_data()
+        data["name"] = "Another race"
+        form = ContestForm(data)
+        self.assertTrue(form.is_valid(), form.errors)
+        self.assertEqual(Contest.SUM_OF_SCORES, form.cleaned_data["overall_result_method"])
+        self.assertEqual(default_standings_points_table(), form.cleaned_data["standings_points_table"])

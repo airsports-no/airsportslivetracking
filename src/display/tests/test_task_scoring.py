@@ -8,9 +8,11 @@ The expected numbers are worked out by hand in the tests, independently of the c
 
 import datetime
 import threading
+from unittest import mock
 
 from django.db import connection
 from django.test import TestCase, TransactionTestCase
+from django.utils import timezone
 
 from display.calculators.tests.test_score_message_kinds import MessageTestCase
 from display.calculators.update_score_message import ACHIEVEMENT, PENALTY, PERCENTAGE_PENALTY
@@ -32,6 +34,7 @@ from display.utilities.task_types import (
     CURVE_NAVIGATION_TIME_ESTIMATION,
     CONTRACT_NAVIGATION_TIME_CONTROLS,
     CONTRACT_POINTS_SCORE_TYPE,
+    DURATION,
     KNOWN_CIRCUIT,
     PRECISION_NAVIGATION,
     SPEED_TERM_SCORE_TYPE,
@@ -150,13 +153,14 @@ class TaskScoringTestCase(MessageTestCase):
             score_kind=kind,
         )
 
-    def fly(self, contestant, start, *entries, theoretical=None, started=True):
+    def fly(self, contestant, start, *entries, theoretical=None, started=True, finished=True):
         """The contestant flew a flight with Q starting at `start` and the given log entries (kwargs of `log`), and
-        the task is renormalised."""
+        the task is renormalised. The flight is finished unless `finished` is False (in progress)."""
         ContestantTrack.objects.filter(contestant=contestant).update(
             quality_start=start,
             quality_theoretical_maximum=start if theoretical is None else theoretical,
             calculator_started=started,
+            calculator_finished=started and finished,
         )
         for index, entry in enumerate(entries):
             self.log(contestant, minute=10 + index, **entry)
@@ -307,13 +311,37 @@ class TestRecomputeTaskScores(TaskScoringTestCase):
         self.fly(a, 1200)
         self.fly(b, 1200, {"points": -300})
         self.task.scorecard.config["task_value"] = 1500
-        with self.captureOnCommitCallbacks(execute=True):
-            self.task.scorecard.save(update_fields=["config"])
+        with mock.patch("display.services.task_scoring.quality_baseline", return_value=(1200.0, 1200.0)):
+            with self.captureOnCommitCallbacks(execute=True):
+                self.task.scorecard.save(update_fields=["config"])
         self.assertEqual([1500, 1125, 0], self.scores())
+
+    def test_changing_the_scorecard_rebuilds_the_baselines_of_the_flights(self):
+        a, b, c = self.contestants
+        self.fly(a, 1200)
+        self.fly(b, 1200, {"points": -300})
+        self.task.scorecard.config["task_value"] = 1500
+        # the scorecard now makes a perfect flight worth 1000 instead of 1200
+        with mock.patch("display.services.task_scoring.quality_baseline", return_value=(1000.0, 1000.0)):
+            with self.captureOnCommitCallbacks(execute=True):
+                self.task.scorecard.save(update_fields=["config"])
+        self.assertEqual([1000, 700], [self.track(x).raw_quality for x in (a, b)])
+        self.assertEqual(1000, self.track(a).quality_theoretical_maximum)
+        self.assertIsNone(self.track(c).quality_start)  # never flown: built when it starts
+        self.assertEqual([1500, 1050, 0], self.scores())
+
+    def test_a_declaration_recompile_rebuilds_the_baseline_of_that_contestant(self):
+        a, b, _ = self.contestants
+        self.fly(a, 1200)
+        self.fly(b, 1200)
+        with mock.patch("display.services.task_scoring.quality_baseline", return_value=(900.0, 900.0)):
+            refresh_contestant_quality(b, rebaseline=True)
+        self.assertEqual([1200, 900], [self.track(x).raw_quality for x in (a, b)])
+        self.assertEqual([1000, 750], self.scores()[:2])
 
     def test_scores_are_provisional_until_every_flight_has_finished(self):
         a, b, _ = self.contestants
-        self.fly(a, 1200)
+        self.fly(a, 1200, finished=False)
         self.assertTrue(task_scores_are_provisional(self.task))
         ContestantTrack.objects.filter(contestant__navigation_task=self.task).update(calculator_finished=True)
         self.assertFalse(task_scores_are_provisional(self.task))
@@ -325,6 +353,84 @@ class TestRecomputeTaskScores(TaskScoringTestCase):
         self.assertEqual(0, recompute_task_scores(legacy, refresh=[contestant]))
         self.assertEqual(42, self.track(contestant).score)
         self.assertFalse(task_scores_are_provisional(legacy))
+
+
+class TestFlightsInProgress(TaskScoringTestCase):
+    def test_a_flight_in_progress_that_has_scored_nothing_is_not_the_best_of_the_task(self):
+        a, b, _ = self.contestants
+        self.fly(a, 1200, {"points": -300})
+        self.fly(b, 1200, finished=False)  # started, nothing scored, gates ahead not yet swept
+        self.assertEqual([1000, 0, 0], self.scores())
+        self.assertEqual(900, self.track(a).raw_quality)
+
+    def test_a_flight_in_progress_does_not_set_qmax_while_a_flight_is_finished(self):
+        a, b, _ = self.contestants
+        self.fly(a, 1200, {"points": -300})
+        self.fly(b, 1200, {"points": -100, "gate": "TP2"}, finished=False)
+        # b's Q (1100) is an upper bound: a's finished 900 is Qmax, b's provisional score is capped at the task value
+        self.assertEqual([1000, 1000, 0], self.scores())
+        self.fly(c := self.contestants[2], 1200, {"points": -100}, finished=False)
+        self.assertEqual([1000, 1000, 1000], self.scores())
+
+    def test_the_finished_flights_set_qmax_when_the_flight_in_progress_ends(self):
+        a, b, _ = self.contestants
+        self.fly(a, 1200, {"points": -300})
+        self.fly(b, 1200, {"points": -100}, {"points": -500, "gate": "TP3"}, finished=False)
+        self.assertEqual([1000, 667, 0], self.scores())
+        ContestantTrack.objects.filter(contestant=b).update(calculator_finished=True)
+        refresh_contestant_quality(b)
+        self.assertEqual([1000, 667, 0], self.scores())
+
+    def test_a_flight_that_ends_counts_as_a_result_at_once(self):
+        a, b, _ = self.contestants
+        self.fly(a, 1200, {"points": -300})
+        self.fly(b, 1200, {"points": -100}, finished=False)
+        self.assertEqual([1000, 1000, 0], self.scores())
+        self.track(b).set_calculator_finished()  # what the processor does when the flight is over
+        self.assertEqual([818, 1000, 0], self.scores())  # b's 1100 is Qmax now
+
+    def test_flights_in_progress_share_the_best_between_them_while_nothing_is_finished(self):
+        a, b, _ = self.contestants
+        self.fly(a, 1200, {"points": -300}, finished=False)
+        self.fly(b, 1200, {"points": -600}, finished=False)
+        self.assertEqual([1000, 667, 0], self.scores())
+
+
+class TestPercentagePenaltiesInThePenaltiesModel(MessageTestCase):
+    """A percentage of the task score means nothing without a task score: the penalties model charges flat points."""
+
+    def penalties_task(self, subtype):
+        task = self.make_task(subtype)
+        task.scorecard.config["scoring_model"] = "penalties"
+        task.scorecard.save(update_fields=["config"])
+        return task
+
+    @staticmethod
+    def fields(contestant, percentage):
+        from types import SimpleNamespace
+
+        from display.calculators.calculator import Calculator
+
+        return Calculator.percentage_penalty_fields(SimpleNamespace(contestant=contestant), percentage)
+
+    def test_backtracking_costs_the_flat_points_not_a_percentage(self):
+        from display.services.task_scoring import backtracking_penalty_percentage_for
+        from display.utilities.task_types import stored_task_type
+
+        quality = self.make_task(PRECISION_NAVIGATION)
+        self.assertEqual(50.0, backtracking_penalty_percentage_for(quality.scorecard, stored_task_type(quality)))
+        penalties = self.penalties_task(PRECISION_NAVIGATION)
+        self.assertEqual(0.0, backtracking_penalty_percentage_for(penalties.scorecard, stored_task_type(penalties)))
+
+    def test_other_percentage_penalties_become_the_same_share_of_the_task_value_as_points(self):
+        circle = self.penalties_task(CIRCLE)
+        self.assertEqual((PENALTY, 50.0), self.fields(self.make_contestant(circle), 20))  # 20% of the circle's 250
+        duration = self.penalties_task(DURATION)
+        self.assertEqual((PENALTY, 100.0), self.fields(self.make_contestant(duration), 10))  # 10% of 1000
+
+    def test_the_quality_model_is_unchanged(self):
+        circle = self.make_task(CIRCLE)
+        self.assertEqual((PERCENTAGE_PENALTY, 20), self.fields(self.make_contestant(circle), 20))
 
 
 class TestContractPointsShareOfTheBest(TaskScoringTestCase):
@@ -497,7 +603,8 @@ class TestProvisionalMeansDependingOnOtherPilots(MessageTestCase):
         if policy:
             task.scorecard.config["qmax_policy"] = policy
             task.scorecard.save(update_fields=["config"])
-        self.make_contestant(task, 1)  # a flight that is not finished
+        contestant = self.make_contestant(task, 1)  # a flight that is not finished, and can still happen
+        Contestant.objects.filter(pk=contestant.pk).update(finished_by_time=timezone.now() + datetime.timedelta(hours=1))
         return task_scores_are_provisional(task)
 
     def test_the_circle_and_the_anr_task_are_fixed_scales_and_never_provisional(self):
@@ -517,10 +624,27 @@ class TestProvisionalMeansDependingOnOtherPilots(MessageTestCase):
 
     def test_it_ends_with_the_last_flight(self):
         task = self.make_task(CURVE_NAVIGATION_TIME_ESTIMATION)
-        self.make_contestant(task, 1)
+        contestant = self.make_contestant(task, 1)
+        Contestant.objects.filter(pk=contestant.pk).update(finished_by_time=timezone.now() + datetime.timedelta(hours=1))
         self.assertTrue(task_scores_are_provisional(task))
         ContestantTrack.objects.filter(contestant__navigation_task=task).update(calculator_finished=True)
         self.assertFalse(task_scores_are_provisional(task))
+
+    def test_a_no_show_past_finished_by_time_does_not_hold_the_task_provisional(self):
+        task = self.make_task(CURVE_NAVIGATION_TIME_ESTIMATION)
+        flown, no_show = self.make_contestant(task, 1), self.make_contestant(task, 2)
+        now = timezone.now()
+        Contestant.objects.filter(pk=flown.pk).update(finished_by_time=now - datetime.timedelta(hours=1))
+        ContestantTrack.objects.filter(contestant=flown).update(calculator_started=True, calculator_finished=True)
+        # the other one has not started but still can: provisional
+        Contestant.objects.filter(pk=no_show.pk).update(finished_by_time=now + datetime.timedelta(hours=1))
+        self.assertTrue(task_scores_are_provisional(task))
+        # and is past finished_by_time without ever flying: final
+        Contestant.objects.filter(pk=no_show.pk).update(finished_by_time=now - datetime.timedelta(minutes=1))
+        self.assertFalse(task_scores_are_provisional(task))
+        # a flight that has started and is not finished is open whatever the time says
+        ContestantTrack.objects.filter(contestant=no_show).update(calculator_started=True)
+        self.assertTrue(task_scores_are_provisional(task))
 
     def test_the_explanation_agrees(self):
         from display.services.scoring_explanation import explain_navigation_task

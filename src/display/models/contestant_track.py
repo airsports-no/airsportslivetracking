@@ -209,6 +209,18 @@ class ContestantTrack(models.Model):
         self.current_state = "Finished"
         self.__push_change()
         self.__notify_managers("finished")
+        self.__rescore_quality_task()
+
+    def __rescore_quality_task(self):
+        """A flight that ends has its missed gates swept and stops being an upper bound: it counts as a result for the
+        best score of a quality task now (task_scoring.QualityEntry.in_progress)."""
+        from display.services.task_scoring import is_quality_task, refresh_contestant_quality
+
+        try:
+            if is_quality_task(self.contestant.navigation_task):
+                refresh_contestant_quality(self.contestant)
+        except Exception:
+            logger.exception("Could not rescore the task of contestant %s at the end of the flight", self.contestant_id)
 
     def set_calculator_started(self):
         from django.db import transaction

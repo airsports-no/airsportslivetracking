@@ -307,6 +307,11 @@ export const isQualityTest = (results: ContestResults, testId: number | undefine
 const SCORING_REFRESH_DELAY_MS = 4000;
 let scoringRefreshTimer: ReturnType<typeof setTimeout> | undefined;
 
+const cancelScoringRefresh = () => {
+  clearTimeout(scoringRefreshTimer);
+  scoringRefreshTimer = undefined;
+};
+
 export const useContestResultsStore = create<ContestResultsState>((set, get) => ({
   contestId: null,
   results: null,
@@ -380,7 +385,8 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
         if (!response.ok) return;
         const fresh = await response.json();
         const latest = get().results;
-        if (latest) {
+        // Another contest may have been loaded while this one was fetched: its scores are not these
+        if (latest && latest.id === current.id) {
           const merged = mergeTestScoring(latest, fresh);
           set({ results: latest.overall_result_method === 'standings_points' ? mergeStandingsPoints(merged, fresh) : merged });
         }
@@ -391,6 +397,8 @@ export const useContestResultsStore = create<ContestResultsState>((set, get) => 
   },
 
   fetchResults: async (id: number) => {
+    // A refresh scheduled for the contest that was shown must not land on the one that is loading
+    cancelScoringRefresh();
     set({ loading: true, error: null });
     try {
       const response = await fetch(reverse('contests-results-details', id));

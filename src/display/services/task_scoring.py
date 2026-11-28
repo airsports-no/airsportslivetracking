@@ -35,7 +35,7 @@ the log, derives every P from the stored values and writes only the P that chang
 import logging
 import math
 from dataclasses import dataclass
-from typing import Iterable, Optional, Sequence
+from typing import Iterable, Optional, Sequence, Union
 
 from django.db import transaction
 
@@ -125,10 +125,12 @@ def scoring_parameters_for(scorecard, definition: TaskTypeDefinition) -> Scoring
 def backtracking_penalty_percentage_for(scorecard, definition: TaskTypeDefinition) -> float:
     """
     The percentage of the task score one backtrack costs, 0 where it costs the scorecard's flat points. Only a task type
-    that has a percentage (2.A1-2.A5: 50) can use one. A scorecard that stores none (a task created before the setting
-    existed) gets the task type's, like scoring_model; a stored 0 chooses the flat points.
+    that has a percentage (2.A1-2.A5: 50) can use one, and only in the quality model: a task of the penalties model has
+    no task score to take a percentage from, so it always costs the scorecard's flat points. A scorecard that stores
+    none (a task created before the setting existed) gets the task type's, like scoring_model; a stored 0 chooses the
+    flat points.
     """
-    if not definition.backtracking_penalty_percentage:
+    if not definition.backtracking_penalty_percentage or not scoring_parameters_for(scorecard, definition).is_quality:
         return 0.0
     stored = scorecard.config.get("backtracking_penalty_percentage") if scorecard is not None else None
     percentage = definition.backtracking_penalty_percentage if stored is None else float(stored)
@@ -344,6 +346,9 @@ class QualityEntry:
     raw_quality: float
     theoretical_maximum: float = 0.0
     percentage_penalty: float = 0.0
+    # The flight has started and is not finished: its Q still has gates ahead that are not yet swept as missed, so it
+    # is an upper bound and not a result.
+    in_progress: bool = False
 
 
 def round_half_up(value: float) -> int:
@@ -352,8 +357,14 @@ def round_half_up(value: float) -> int:
 
 
 def best_quality(entries: Sequence[QualityEntry]) -> float:
-    """Qmax of the best-in-task policy: the best Q of the contestants who flew (0 when nobody scored above it)."""
-    return max((entry.raw_quality for entry in entries if entry.flown), default=0.0)
+    """
+    Qmax of the best-in-task policy: the best Q of the contestants who flew (0 when nobody scored above it). A flight
+    that is still in progress has not had its remaining gates swept as missed, so its Q is only an upper bound: it sets
+    Qmax only while no flight is finished.
+    """
+    flown = [entry for entry in entries if entry.flown]
+    finished = [entry for entry in flown if not entry.in_progress]
+    return max((entry.raw_quality for entry in finished or flown), default=0.0)
 
 
 def compute_task_scores(parameters: ScoringParameters, entries: Sequence[QualityEntry]) -> list[int]:
@@ -374,6 +385,9 @@ def compute_task_scores(parameters: ScoringParameters, entries: Sequence[Quality
         else:
             qmax = entry.theoretical_maximum if parameters.qmax_policy == QMAX_THEORETICAL else best
             task_score = parameters.task_value * entry.raw_quality / qmax if qmax > 0 else 0.0
+            if entry.in_progress:
+                # Provisional: never above the task value, whatever the finished flights have scored so far
+                task_score = min(task_score, parameters.task_value)
         penalty = min(100.0, max(0.0, entry.percentage_penalty)) / 100.0
         scores.append(max(0, round_half_up(task_score * (1.0 - penalty))))
     return scores
@@ -407,7 +421,9 @@ def _predates_quality_log(rows: Sequence[tuple[str, str, float]]) -> bool:
     return any(not score_kind and points for _, score_kind, points in rows)
 
 
-def _rebuild_track(track, contestant, relative_types: frozenset = frozenset()) -> bool:
+def _rebuild_track(
+    track, contestant, relative_types: frozenset = frozenset(), refresh_baseline: bool = False
+) -> bool:
     """Rebuilds the raw values of `track` from the score log and the task type (the caller holds the lock on the track
     row); returns whether anything changed. A track whose log predates the quality model is left as it is. The log
     entries of the relative terms hold measures, not points: they are left out here, see _apply_relative_terms."""
@@ -416,7 +432,7 @@ def _rebuild_track(track, contestant, relative_types: frozenset = frozenset()) -
     rows = list(ScoreLogEntry.objects.filter(contestant=contestant).values_list("score_type", "score_kind", "points"))
     if _predates_quality_log(rows):
         return False
-    if track.quality_start is None or track.quality_theoretical_maximum is None:
+    if refresh_baseline or track.quality_start is None or track.quality_theoretical_maximum is None:
         track.quality_start, track.quality_theoretical_maximum = quality_baseline(contestant)
     contributions, percentage, breakdown = summarise_score_log(rows)
     for score_type in relative_types:
@@ -490,17 +506,20 @@ def _is_legacy_track(track) -> bool:
     return track.calculator_started and track.quality_start is None
 
 
-def recompute_task_scores(navigation_task, refresh: Iterable = ()) -> int:
+def recompute_task_scores(navigation_task, refresh: Iterable = (), rebaseline: Union[bool, Iterable] = ()) -> int:
     """
     Rebuilds the raw values of the contestants in `refresh` (Contestant objects or primary keys) from their score
     logs, then derives the task score of every contestant of the task from the stored raw values and writes the ones
     that changed (through ContestantTrack.update_score, so the task test score, the leaderboard and the websocket stay
     consistent). Does nothing for a task of the penalty model. Returns the number of task scores written.
+    `rebaseline` also recomputes the starting quality and the theoretical maximum of those contestants (True: of every
+    contestant whose baselines were built) because the scorecard or their declaration changed since.
     """
     if not is_quality_task(navigation_task):
         return 0
     refresh_ids = {getattr(item, "pk", item) for item in refresh}
-    to_push, written = _recompute(navigation_task.pk, refresh_ids)
+    rebaseline_ids = True if rebaseline is True else {getattr(item, "pk", item) for item in rebaseline}
+    to_push, written = _recompute(navigation_task.pk, refresh_ids, rebaseline_ids)
     # Pushed after the transaction: a websocket round trip must not hold the row locks
     for track in to_push:
         track.push_change()
@@ -508,8 +527,10 @@ def recompute_task_scores(navigation_task, refresh: Iterable = ()) -> int:
 
 
 @retry_on_lock_timeout()
-def _recompute(navigation_task_id: int, refresh_ids: set) -> tuple[list, int]:
-    from display.models import Contestant, ContestantTrack, NavigationTask
+def _recompute(
+    navigation_task_id: int, refresh_ids: set, rebaseline_ids: Union[bool, set] = frozenset()
+) -> tuple[list, int]:
+    from display.models import Contestant, ContestantTrack, NavigationTask, ScoreLogEntry
 
     with transaction.atomic():
         # Lock first, in primary key order; every later read in this transaction sees what was committed before it.
@@ -537,8 +558,11 @@ def _recompute(navigation_task_id: int, refresh_ids: set) -> tuple[list, int]:
         }
         for track in tracks:
             track.contestant.navigation_task = navigation_task
-            if track.contestant_id in refresh_ids:
-                _rebuild_track(track, track.contestant, relative_types)
+            rebaseline = track.quality_start is not None and (
+                rebaseline_ids is True or track.contestant_id in rebaseline_ids
+            )
+            if rebaseline or track.contestant_id in refresh_ids:
+                _rebuild_track(track, track.contestant, relative_types, refresh_baseline=rebaseline)
         if relative_types:
             _apply_relative_terms(
                 [track for track in tracks if not _is_legacy_track(track)],
@@ -548,15 +572,31 @@ def _recompute(navigation_task_id: int, refresh_ids: set) -> tuple[list, int]:
         rebuilt = {
             track.pk
             for track in tracks
-            if track.contestant_id in refresh_ids
+            if (track.contestant_id in refresh_ids or rebaseline_ids is True or track.contestant_id in rebaseline_ids)
             and before[track.pk] != (track.raw_quality, track.percentage_penalty, track.quality_breakdown)
         }
         scorable = [track for track in tracks if not _is_legacy_track(track)]
+        # A flight in progress that has scored nothing yet has not flown anything: its Q is the whole theoretical
+        # quality, which is no result and must not become the best of the task.
+        scoring_started = set(
+            ScoreLogEntry.objects.filter(
+                contestant_id__in=[
+                    track.contestant_id
+                    for track in scorable
+                    if track.calculator_started and not track.calculator_finished
+                ]
+            )
+            .order_by()
+            .values_list("contestant_id", flat=True)
+            .distinct()
+        )
         scores = compute_task_scores(
             parameters,
             [
                 QualityEntry(
-                    flown=track.calculator_started,
+                    in_progress=track.calculator_started and not track.calculator_finished,
+                    flown=track.calculator_started
+                    and (track.calculator_finished or track.contestant_id in scoring_started),
                     raw_quality=track.raw_quality,
                     theoretical_maximum=track.quality_theoretical_maximum or 0.0,
                     percentage_penalty=track.percentage_penalty,
@@ -574,10 +614,12 @@ def _recompute(navigation_task_id: int, refresh_ids: set) -> tuple[list, int]:
     return to_push, written
 
 
-def refresh_contestant_quality(contestant) -> int:
+def refresh_contestant_quality(contestant, rebaseline: bool = False) -> int:
     """The raw values of `contestant` changed (a score log entry was added or removed, the calculator started):
-    rebuild them and renormalise the task."""
-    return recompute_task_scores(contestant.navigation_task, refresh=[contestant])
+    rebuild them and renormalise the task. `rebaseline`: their declaration changed, so the baselines are too."""
+    return recompute_task_scores(
+        contestant.navigation_task, refresh=[contestant], rebaseline=[contestant] if rebaseline else ()
+    )
 
 
 def quality_track_fields(track) -> dict:
@@ -612,15 +654,29 @@ def scores_depend_on_other_pilots(scorecard, definition: TaskTypeDefinition, par
     return parameters.qmax_policy == QMAX_BEST_IN_TASK or bool(relative_term_values(scorecard, definition))
 
 
-def task_scores_are_provisional(navigation_task) -> bool:
-    """The scores of a quality task are provisional while a better flight of another pilot can still lower them: until
-    every contestant's flight is finished, and only where the scores depend on the other pilots at all."""
+def unfinished_flights_exist(navigation_task) -> bool:
+    """
+    Whether a flight of the task can still produce a score: a contestant whose calculator has started and not finished,
+    or one who has not started but still can (finished_by_time is in the future). A contestant who never flew and is
+    past finished_by_time is done and does not hold the task open.
+    """
+    from django.db.models import Q
+    from django.utils import timezone
+
     from display.models import ContestantTrack
 
+    return ContestantTrack.objects.filter(
+        Q(calculator_started=True) | Q(contestant__finished_by_time__gt=timezone.now()),
+        contestant__navigation_task=navigation_task,
+        calculator_finished=False,
+    ).exists()
+
+
+def task_scores_are_provisional(navigation_task) -> bool:
+    """The scores of a quality task are provisional while a better flight of another pilot can still lower them: until
+    every flight that can still happen is finished, and only where the scores depend on the other pilots at all."""
     if not scores_depend_on_other_pilots(
         navigation_task.scorecard, stored_task_type(navigation_task), scoring_parameters(navigation_task)
     ):
         return False
-    return ContestantTrack.objects.filter(
-        contestant__navigation_task=navigation_task, calculator_finished=False
-    ).exists()
+    return unfinished_flights_exist(navigation_task)

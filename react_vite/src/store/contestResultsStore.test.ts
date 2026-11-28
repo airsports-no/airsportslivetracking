@@ -372,4 +372,34 @@ describe('a score update of a quality task', () => {
     await vi.advanceTimersByTimeAsync(5000);
     expect(fetchMock).not.toHaveBeenCalled();
   });
+
+  it('does not merge the answer for one contest into another that was loaded meanwhile', async () => {
+    vi.useFakeTimers();
+    let answer: (value: unknown) => void = () => undefined;
+    const fetchMock = vi.fn().mockReturnValue(new Promise((resolve) => (answer = resolve)));
+    vi.stubGlobal('fetch', fetchMock);
+    useContestResultsStore.setState({ results: { id: 5, task_set: tests(true) } as unknown as ContestResults });
+    useContestResultsStore.getState().applyRealtimeMessage(message(10));
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fetchMock).toHaveBeenCalledTimes(1);
+    // contest 6 is shown while the answer for contest 5 is on its way
+    useContestResultsStore.setState({ results: { id: 6, task_set: tests(true) } as unknown as ContestResults });
+    answer({ ok: true, json: async () => ({ id: 5, task_set: tests(false) }) });
+    await vi.advanceTimersByTimeAsync(0);
+    const shown = useContestResultsStore.getState().results!;
+    expect(shown.id).toBe(6);
+    expect(shown.task_set[0].tasktest_set[0].scoring?.scores_provisional).toBe(true);
+  });
+
+  it('drops a refresh that is waiting when another contest is loaded', async () => {
+    vi.useFakeTimers();
+    const fetchMock = vi.fn().mockResolvedValue({ ok: true, json: async () => ({ id: 6, task_set: [] }) });
+    vi.stubGlobal('fetch', fetchMock);
+    useContestResultsStore.setState({ results: { id: 5, task_set: tests(true) } as unknown as ContestResults });
+    useContestResultsStore.getState().applyRealtimeMessage(message(10));
+    await useContestResultsStore.getState().fetchResults(6);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // the load of contest 6
+    await vi.advanceTimersByTimeAsync(5000);
+    expect(fetchMock).toHaveBeenCalledTimes(1); // the refresh of contest 5 never fires
+  });
 });

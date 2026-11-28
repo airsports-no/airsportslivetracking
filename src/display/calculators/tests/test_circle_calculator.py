@@ -499,6 +499,15 @@ class TestCircleCalculator(TestCase):
         calculator.finalise([])  # no positions, nothing to explain
         self.assertEqual([], self._messages(calculator))
 
+    def test_a_route_without_a_usable_circle_does_not_blame_the_pilot_at_finalise(self):
+        calculator = self._calculator()
+        position = self._frame_position(calculator, -800.0, 0.0)
+        calculator.center_lat = None
+        calculator._frame_ready = False
+        calculator.finalise([position])
+        self.assertEqual([], self._messages(calculator))
+        self.assertFalse(calculator.result_emitted)
+
     def test_entry_beside_cm_loses_the_whole_task(self):
         calculator = self._calculator()
         self._start_and_straight_run(calculator, run_to=500, straight=False)
