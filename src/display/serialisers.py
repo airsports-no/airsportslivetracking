@@ -3258,11 +3258,6 @@ class EditableRouteLightSerialiser(ObjectPermissionsAssignmentMixin, serializers
     def get_is_editor(self, editable_route) -> bool:
         return editable_route.id in self.context.get("editable_route_ids", set())
 
-    def to_representation(self, instance):
-        ret = super().to_representation(instance)
-        ret["intended_task_types"] = instance.declared_task_types
-        return ret
-
 
 class EditableRouteSerialiser(ObjectPermissionsAssignmentMixin, serializers.ModelSerializer):
     route = serializers.JSONField(
@@ -3420,8 +3415,6 @@ Prohibited, penalty, information zones
 
     def to_representation(self, instance):
         ret = super().to_representation(instance)
-        # Reads see only what the author chose; writes keep storing what the client sends.
-        ret["intended_task_types"] = instance.declared_task_types
         if "route" in ret and isinstance(ret["route"], dict) and "features" in ret["route"]:
             filtered_features = []
             for feature in ret["route"]["features"]:

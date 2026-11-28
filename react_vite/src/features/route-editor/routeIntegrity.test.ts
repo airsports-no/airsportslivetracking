@@ -210,6 +210,33 @@ describe('hidden gates on curved legs', () => {
     expect(plan.points.map((item) => item.id)).toEqual(['SP', 'FP']);
   });
 
+  it('measures a photo against the curve as it is joined, not against the halves with the gate left out', () => {
+    const split = withGates([0.5]);
+    const [gate] = split.filter((item) => item.type === 'secret');
+    const onGate = photo('P', gate.lat, gate.lng);
+    const reshape = (points: RoutePoint[]) => points.map((item) => (item.id === gate.id ? { ...item, controlLat: (item.controlLat as number) + 0.02 } : item));
+    const plan = planRouteChange(split, reshape, [onGate], 1200);
+    expect(plan.removal.hiddenGates.map((item) => item.id)).toEqual([gate.id]);
+    // The photo is in range of the joined route that is kept, so it stays (and the notice does not report it)
+    expect(getMinimumObservationDistance(onGate, plan.points)).toBeLessThanOrEqual(1200);
+    expect(plan.removal.photos).toEqual([]);
+  });
+
+  it('joins a curve whose control point lies on the equator or the prime meridian', () => {
+    const start = point('SP', 1, -2, 'sp');
+    const end = point('FP', 1, 1, 'fp', { segmentType: 'curved', controlLat: 2, controlLng: -1 });
+    const middle = curvePointAt(start, { lat: 2, lng: -1 }, end, 0.5);
+    const action = legClickAction([start, end], middle, 'secret');
+    if (action.kind !== 'insert') throw new Error('expected an insert');
+    const split = applyLegInsert([start, end], action);
+    expect(split[2].controlLng).toBeCloseTo(0, 9); // the second half has its control on the meridian
+    const gate = split[1];
+    const plan = planRouteChange(split, (points) => points.filter((item) => item.id !== gate.id), [], MAX);
+    expect(plan.points.map((item) => item.id)).toEqual(['SP', 'FP']);
+    expect(plan.points[1].controlLat).toBeCloseTo(2, 6);
+    expect(plan.points[1].controlLng).toBeCloseTo(-1, 6);
+  });
+
   it('keeps everything when the route is reversed', () => {
     const split = withGates([0.3, 0.7]);
     expect(removedIds(split, reverseRoutePoints(split, false)).gates).toEqual([]);

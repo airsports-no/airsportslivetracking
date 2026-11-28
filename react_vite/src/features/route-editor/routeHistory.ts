@@ -56,6 +56,7 @@ export const recordSnapshot = <T>(history: History<T>, snapshot: T, options: Rec
   const joins = key !== undefined
     && history.present.key === key
     && history.past.length > 0
+    && history.present.time !== -Infinity // not onto a restored step, window or not
     && (windowMs === undefined || now - history.present.time <= windowMs);
   if (joins) {
     const before = history.past[history.past.length - 1];

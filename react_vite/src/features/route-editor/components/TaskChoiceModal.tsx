@@ -1,4 +1,4 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { Wand2, X } from 'lucide-react';
 import { getVisibleTaskTemplates, groupTemplates } from '../taskTemplates';
 
@@ -13,9 +13,45 @@ interface TaskChoiceModalProps {
 // What a new route opens with: the task to build the route for, over the map. Closing it leaves the editor as it is
 // without a guide.
 const TaskChoiceModal: React.FC<TaskChoiceModalProps> = ({ visibleTaskTypeGroups, onChoose, onClose }) => {
+  const dialogRef = useRef<HTMLDivElement>(null);
+
+  // Focus goes into the dialog when it opens and back to where it was when it closes.
+  useEffect(() => {
+    const previous = document.activeElement as HTMLElement | null;
+    dialogRef.current?.focus();
+    return () => {
+      if (previous && previous.isConnected) previous.focus();
+    };
+  }, []);
+
   useEffect(() => {
     const onKeyDown = (event: KeyboardEvent) => {
-      if (event.key === 'Escape') onClose();
+      if (event.key === 'Escape') {
+        onClose();
+        return;
+      }
+      if (event.key !== 'Tab') return;
+      // Tab goes round within the dialog
+      const dialog = dialogRef.current;
+      if (!dialog) return;
+      const focusable = [...dialog.querySelectorAll<HTMLElement>('button:not([disabled]), [href], input, select, textarea, [tabindex]:not([tabindex="-1"])')];
+      if (focusable.length === 0) {
+        event.preventDefault();
+        return;
+      }
+      const first = focusable[0];
+      const last = focusable[focusable.length - 1];
+      const active = document.activeElement;
+      if (!dialog.contains(active) || active === dialog) {
+        event.preventDefault();
+        (event.shiftKey ? last : first).focus();
+      } else if (event.shiftKey && active === first) {
+        event.preventDefault();
+        last.focus();
+      } else if (!event.shiftKey && active === last) {
+        event.preventDefault();
+        first.focus();
+      }
     };
     document.addEventListener('keydown', onKeyDown);
     return () => document.removeEventListener('keydown', onKeyDown);
@@ -26,10 +62,12 @@ const TaskChoiceModal: React.FC<TaskChoiceModalProps> = ({ visibleTaskTypeGroups
   return (
     <div className="fixed inset-0 z-[2000] flex items-center justify-center bg-black/40 p-4">
       <div
+        ref={dialogRef}
+        tabIndex={-1}
         role="dialog"
         aria-modal="true"
         aria-labelledby="task-choice-title"
-        className="relative flex max-h-full w-full max-w-2xl flex-col rounded-box bg-base-100 p-5 shadow-xl"
+        className="relative flex max-h-full w-full max-w-2xl flex-col rounded-box bg-base-100 p-5 shadow-xl outline-none"
       >
         <button
           type="button"

@@ -157,19 +157,6 @@ class EditableRoute(models.Model):
             )
         return self.compatible_task_types
 
-    @property
-    def declared_task_types(self) -> list[str]:
-        """
-        The task types the author chose to make this route for, as clients should see them (the API field
-        ``intended_task_types``). Routes saved before the intent was only what the author chose had it pre-filled with
-        every compatible type; a stored intent that equals the compatible set (as sets) with more than one entry is
-        read as "not chosen". A single type that equals the compatible set is kept: it is a plausible choice.
-        """
-        intended = list(self.intended_task_types or [])
-        if len(intended) > 1 and set(intended) == set(self.get_current_compatible_task_types()):
-            return []
-        return intended
-
     def calculate_number_of_waypoints(self):
         if track := self.get_track():
             return len(track["geometry"]["coordinates"])
@@ -442,7 +429,7 @@ class EditableRoute(models.Model):
                 control_lat = props.get("controlLat")
                 control_lng = props.get("controlLng")
 
-                if control_lat:
+                if control_lat is not None and control_lng is not None:
                     prev_item = track_waypoints[index - 1]
                     prev_lon, prev_lat = prev_item["geometry"]["coordinates"]
 

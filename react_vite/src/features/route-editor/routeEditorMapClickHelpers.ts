@@ -1,4 +1,5 @@
 import { getDestinationPoint, getBearing, getDistance, getDistanceFromLine } from '../../utils/geoUtils';
+import { hasControl } from './curveControl';
 import { curvePointAt, MIN_CURVE_END_FRACTION, nearestCurveParameter, splitCurve, TOO_CLOSE_TO_LEG_END_NOTICE } from './curveSplit';
 import { Gate, LatLng, Mode, ObservationMarker, RoutePoint } from '../../types';
 
@@ -262,7 +263,7 @@ export type LegClickAction =
   // A point inserted at [index]; [endControl] is the new control point of the point after it, when the point splits a curve
   | { kind: 'insert'; index: number; point: RoutePoint; endControl?: ControlPatch };
 
-const isCurvedLeg = (end: RoutePoint): boolean => end.segmentType === 'curved' && !!end.controlLat && !!end.controlLng;
+const isCurvedLeg = (end: RoutePoint): boolean => end.segmentType === 'curved' && hasControl(end);
 
 // The route with the point of [action] inserted, and the curve it splits cut in two.
 export function applyLegInsert(routePoints: RoutePoint[], action: Extract<LegClickAction, { kind: 'insert' }>): RoutePoint[] {

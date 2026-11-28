@@ -1,4 +1,5 @@
 import L from 'leaflet';
+import { hasControl } from '../../curveControl';
 import {
   getDistance,
   getBearing,
@@ -133,6 +134,13 @@ interface HitAreaOptions {
   lockMapWhileHovered?: { mode: Mode; dragRef: React.MutableRefObject<any> };
 }
 
+// Stops a mouse event on a layer from going on to the map (whose click clears the selection). Leaflet decides that from
+// the flag it sets on the original event, which stopping the DOM event alone does not set.
+export const stopMapEvent = (e: L.LeafletMouseEvent): void => {
+  L.DomEvent.stopPropagation(e);
+  e.originalEvent?.stopPropagation?.();
+};
+
 // Adds the invisible hit area for [target] to [parent] and returns it. The visible mark is not interactive itself.
 export const addHitArea = (
   registry: HitRegistry,
@@ -147,18 +155,19 @@ export const addHitArea = (
     fill: true,
     fillOpacity: 0,
     className: 'route-hit',
+    bubblingMouseEvents: false,
   }).addTo(parent as L.Map);
 
   if (options.tooltip) area.bindTooltip(options.tooltip.text, options.tooltip.options);
 
   area.on('click', (e: L.LeafletMouseEvent) => {
-    L.DomEvent.stopPropagation(e.originalEvent || e);
+    stopMapEvent(e);
     resolveHitTarget(registry, e, target).select();
   });
   area.on('mousedown', (e: L.LeafletMouseEvent) => {
     const resolved = resolveHitTarget(registry, e, target);
     if (!resolved.startDrag) return;
-    L.DomEvent.stopPropagation(e.originalEvent);
+    stopMapEvent(e);
     resolved.startDrag(e);
   });
   const lock = options.lockMapWhileHovered;
@@ -238,7 +247,7 @@ export const drawRouteLine = (
       continue;
     }
 
-    if (point.segmentType === 'curved' && point.controlLat && point.controlLng) {
+    if (point.segmentType === 'curved' && hasControl(point)) {
       const curvePoints = getQuadraticBezierPoints(previous, point, { lat: point.controlLat, lng: point.controlLng });
       latlngs.push(...curvePoints);
     } else {
@@ -256,7 +265,7 @@ export const drawRouteLine = (
     // on the map
     const action = legClickAction(routePoints, { lat: e.latlng.lat, lng: e.latlng.lng }, legInsertType);
     if (action.kind === 'none') return;
-    L.DomEvent.stopPropagation(e.originalEvent);
+    stopMapEvent(e);
     if (action.kind === 'notice') {
       onNotice?.(action.message);
       return;
@@ -288,19 +297,28 @@ export const drawRouteLine = (
 
       ghost.bindTooltip('Drag to add a waypoint here', { direction: 'top' });
       ghost.on('mousedown', (e: L.LeafletMouseEvent) => {
-        L.DomEvent.stopPropagation(e.originalEvent);
+        stopMapEvent(e);
         const pressed = e.containerPoint;
 
-        // Nothing is inserted until the pointer has moved past the threshold: a press and release does nothing but hint
+        // Nothing is inserted until the pointer has moved past the threshold: a press and release does nothing but hint.
+        // The release is watched on the document (it can come outside the map), and the wait ends with the dot: any change
+        // of the route redraws it, so what is inserted into is always the route as the dot was drawn for.
         const stopWaiting = () => {
           map.off('mousemove', onMoveOrRelease);
-          map.off('mouseup', onRelease);
+          document.removeEventListener('mouseup', onRelease, true);
+          ghost.off('remove', stopWaiting);
         };
         const onRelease = () => {
           stopWaiting();
           onNotice?.(MID_LEG_DOT_HINT);
         };
         const onMoveOrRelease = (move: L.LeafletMouseEvent) => {
+          const buttons = (move.originalEvent as MouseEvent | undefined)?.buttons;
+          if (buttons !== undefined && (buttons & 1) === 0) {
+            // The button was let go without us seeing it
+            stopWaiting();
+            return;
+          }
           if (!hasDraggedPastThreshold(pressed, move.containerPoint)) return;
           stopWaiting();
           onGestureStart?.();
@@ -336,7 +354,8 @@ export const drawRouteLine = (
           map.on('mouseup', handleDragEnd);
         };
         map.on('mousemove', onMoveOrRelease);
-        map.on('mouseup', onRelease);
+        document.addEventListener('mouseup', onRelease, true);
+        ghost.on('remove', stopWaiting);
       });
 
       polylinesRef.current.push(ghost);
@@ -351,7 +370,7 @@ export const drawRouteLine = (
     const branchLatLngs: L.LatLng[] = [];
     group.points.forEach((point, index) => {
       const previous = group.points[index - 1];
-      if (previous && point.segmentType === 'curved' && point.controlLat && point.controlLng) {
+      if (previous && point.segmentType === 'curved' && hasControl(point)) {
         branchLatLngs.push(...getQuadraticBezierPoints(previous, point, { lat: point.controlLat, lng: point.controlLng }));
       } else {
         branchLatLngs.push(L.latLng(point.lat, point.lng));
@@ -373,7 +392,7 @@ export const drawRouteLine = (
       let dist = 0;
       let mid: L.LatLng | null = null;
 
-      if (p2.segmentType === 'curved' && p2.controlLat && p2.controlLng) {
+      if (p2.segmentType === 'curved' && hasControl(p2)) {
         const curvePoints = getQuadraticBezierPoints(p1, p2, { lat: p2.controlLat, lng: p2.controlLng });
         for (let j = 0; j < curvePoints.length - 1; j++) {
           dist += getDistance(curvePoints[j], curvePoints[j + 1]);
@@ -524,7 +543,7 @@ export const drawPoints = (
     markersRef.current[`point-${p.id}`] = pointGroup;
 
     const prev = previousOf(p, index);
-    if (selectedId === p.id && p.segmentType === 'curved' && prev && p.controlLat && p.controlLng) {
+    if (selectedId === p.id && p.segmentType === 'curved' && prev && hasControl(p)) {
       const controlLatLng: L.LatLngTuple = [p.controlLat, p.controlLng];
 
       const dashLine = L.polyline([[prev.lat, prev.lng], controlLatLng, [p.lat, p.lng]], {
@@ -536,10 +555,10 @@ export const drawPoints = (
         radius: 5, color: '#64748b', fillColor: '#fff', fillOpacity: 1, className: 'cursor-move',
       }).addTo(map);
 
-      controlHandle.on('click', (e: L.LeafletMouseEvent) => L.DomEvent.stopPropagation(e.originalEvent || e));
+      controlHandle.on('click', (e: L.LeafletMouseEvent) => stopMapEvent(e));
       controlHandle.on('mousedown', (e: L.LeafletMouseEvent) => {
         if (mode !== 'view') return;
-        L.DomEvent.stopPropagation(e.originalEvent);
+        stopMapEvent(e);
         map.dragging.disable();
         dragRef.current = {
           type: 'curve_control',
@@ -572,7 +591,7 @@ export const drawGates = (map: L.Map, gates: Gate[], polylinesRef: React.Mutable
     line.bindTooltip(g.name, { permanent: !hideLabels, direction: 'center', className: 'bg-transparent border-0 shadow-none text-black font-bold' });
 
     line.on('click', (e) => {
-      L.DomEvent.stopPropagation(e);
+      stopMapEvent(e);
       setSelectedId(g.id);
       setSelectionType('gate');
       setMode('view');
@@ -637,7 +656,7 @@ export const drawPolygons = (
 
     polygonLayer.on('click', (e: L.LeafletMouseEvent) => {
       if (mode !== 'view') return;
-      L.DomEvent.stopPropagation(e.originalEvent);
+      stopMapEvent(e);
       // The click that ends a drag of the zone is not a click on it
       if (dragRef.current?.hasMoved) return;
 
@@ -682,7 +701,7 @@ export const drawPolygons = (
     // Dragging the zone moves all of it
     polygonLayer.on('mousedown', (e: L.LeafletMouseEvent) => {
       if (mode !== 'view') return;
-      L.DomEvent.stopPropagation(e.originalEvent);
+      stopMapEvent(e);
       map.dragging.disable();
       dragRef.current = {
         type: 'poly_body',
@@ -785,7 +804,7 @@ export const drawPolygonHandles = (
     }).addTo(map);
 
     ghost.on('mousedown', (e: L.LeafletMouseEvent) => {
-      L.DomEvent.stopPropagation(e.originalEvent);
+      stopMapEvent(e);
       options.onGestureStart?.();
 
       const nextPoints = [...poly.points];

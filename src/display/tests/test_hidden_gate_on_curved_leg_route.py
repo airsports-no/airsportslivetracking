@@ -103,3 +103,30 @@ class HiddenGateOnCurvedLegRouteTest(TestCase):
                 angle_from_square, 3.0, f"{gate}: the gate line is {angle_from_square:.1f} degrees off square"
             )
             self.assertAlmostEqual(math.hypot(*line), waypoint.width * 1852, delta=waypoint.width * 1852 * 0.01)
+
+
+class FixtureAndZeroControlTest(TestCase):
+    def test_extensions_of_unknown_legs_follow_the_renumbered_waypoints(self):
+        geojson = curve_with_hidden_gates_route_geojson(CURVE_PARAMETERS, unknown_legs={"TP1": [(30, 3000)]})
+        waypoints = {
+            item["properties"]["id"]: item["properties"]["name"]
+            for item in geojson["features"]
+            if item["properties"].get("featureType") == "route_waypoint"
+        }
+        extension = next(
+            item["properties"] for item in geojson["features"] if item["properties"].get("featureType") == "dummy_branch_waypoint"
+        )
+        self.assertEqual("TP1", waypoints[extension["triggerPointId"]])
+
+    def test_a_curve_with_a_control_point_at_latitude_zero_is_still_a_curve(self):
+        from display.calculators.tests.flight_simulator import precision_route_geojson
+
+        geojson = precision_route_geojson(curved=["TP1"])
+        for item in geojson["features"]:
+            if item["properties"].get("name") == "TP1":
+                item["properties"]["controlLat"] = 0.0
+        route = EditableRoute.objects.create(name="Zero control", route=geojson)
+
+        names = [waypoint.name for waypoint in route._create_waypoint_list()]
+
+        self.assertEqual(19, len([name for name in names if name.startswith("Curve ")]))

@@ -437,7 +437,7 @@ class TestTaskCompilerPrimitivesContractUnchanged(TestCase):
 
 
 class TestDeclaredTaskTypes(TestCase):
-    """EditableRoute.declared_task_types: what the API shows as intended_task_types."""
+    """EditableRoute.intended_task_types is what the author chose, as stored."""
 
     def make_route(self, intended):
         route = EditableRoute.objects.create(
@@ -448,15 +448,37 @@ class TestDeclaredTaskTypes(TestCase):
         self.assertGreater(len(route.compatible_task_types), 1)
         return route
 
-    def test_intent_equal_to_the_compatible_set_with_several_entries_reads_as_not_chosen(self):
+    def test_an_explicit_declaration_of_every_compatible_type_survives_a_save_and_read(self):
         route = self.make_route([])
         route.intended_task_types = list(reversed(route.compatible_task_types))
         route.save()
 
-        self.assertEqual([], route.declared_task_types)
-        # The stored value is left alone.
-        route.refresh_from_db()
+        route = EditableRoute.objects.get(pk=route.pk)
         self.assertEqual(set(route.compatible_task_types), set(route.intended_task_types))
+        self.assertGreater(len(route.intended_task_types), 1)
+
+    def test_the_migration_clears_a_prefilled_intent_only(self):
+        import importlib
+
+        from django.apps import apps
+
+        clear = importlib.import_module("display.migrations.0220_clear_prefilled_intended_task_types")
+        prefilled = self.make_route([])
+        EditableRoute.objects.filter(pk=prefilled.pk).update(
+            intended_task_types=list(reversed(prefilled.compatible_task_types))
+        )
+        subset = self.make_route([])
+        EditableRoute.objects.filter(pk=subset.pk).update(intended_task_types=subset.compatible_task_types[:2])
+        single = self.make_route([])
+        EditableRoute.objects.filter(pk=single.pk).update(
+            intended_task_types=single.compatible_task_types[:1], compatible_task_types=single.compatible_task_types[:1]
+        )
+
+        clear.clear_prefilled_intent(apps, None)
+
+        self.assertEqual([], EditableRoute.objects.get(pk=prefilled.pk).intended_task_types)
+        self.assertEqual(subset.compatible_task_types[:2], EditableRoute.objects.get(pk=subset.pk).intended_task_types)
+        self.assertEqual(single.compatible_task_types[:1], EditableRoute.objects.get(pk=single.pk).intended_task_types)
 
     def test_a_real_subset_is_kept(self):
         route = self.make_route([])
@@ -464,7 +486,7 @@ class TestDeclaredTaskTypes(TestCase):
         route.intended_task_types = subset
         route.save()
 
-        self.assertEqual(subset, route.declared_task_types)
+        self.assertEqual(subset, EditableRoute.objects.get(pk=route.pk).intended_task_types)
 
     def test_a_single_type_equal_to_the_only_compatible_type_is_kept(self):
         route = EditableRoute.objects.create(name="Empty route", route={"type": "FeatureCollection", "features": []})
@@ -472,13 +494,13 @@ class TestDeclaredTaskTypes(TestCase):
         route.compatible_task_types = only
         route.intended_task_types = only
 
-        self.assertEqual(only, route.declared_task_types)
+        self.assertEqual(only, route.intended_task_types)
 
     def test_intent_that_the_route_does_not_meet_yet_is_kept(self):
         route = self.make_route([PRECISION_NAVIGATION])
 
         self.assertNotIn(PRECISION_NAVIGATION, route.compatible_task_types)
-        self.assertEqual([PRECISION_NAVIGATION], route.declared_task_types)
+        self.assertEqual([PRECISION_NAVIGATION], route.intended_task_types)
 
     def test_infer_follows_only_a_satisfied_template(self):
         from display.services.route_compatibility import infer_intended_task_subtypes

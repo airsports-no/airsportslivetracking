@@ -5,7 +5,7 @@ import { Route } from "../../../types";
 import { MoreVertical, Plus, Copy, Shield, Trash2, TriangleAlert } from "lucide-react";
 import { fetchEditableRoutes, fetchTaskSubtypeCatalog, TaskCompatibilitySubtype } from "../api";
 import { COARSE_FAMILY_BADGE_CLASS, COARSE_FAMILY_LABELS, COARSE_FAMILY_ORDER, isTaskSubtypeVisible } from "../taskTemplates";
-import { buildRouteTags, routeMatchesTaskFilter, RouteTagGroup, TaskFilterMode, taskTypeKeysInUse, unmetRequirementsTooltip } from "../routeTags";
+import { buildRouteTags, filterControlsShown, routeMatchesTaskFilter, RouteTagGroup, TaskFilterMode, taskTypeKeysInUse, unmetRequirementsTooltip } from "../routeTags";
 import { reverse, generatePath } from "../../../urls";
 import routes from "../../../routes.json";
 import NavigationTaskCreationFlow from "../../contest-management/components/NavigationTaskCreationFlow";
@@ -209,6 +209,8 @@ export const EditableRouteList = () => {
     // A type that the other mode offered may not be in use in this one.
     const activeTaskTypeFilter = taskTypeFilterOptions.some((subtype) => subtype.key === taskTypeFilter) ? taskTypeFilter : '';
 
+    const filterControls = filterControlsShown(taskTypeFilterOptions.length, taskFilterMode, activeTaskTypeFilter);
+
     const trimmedSearchQuery = searchQuery.trim().toLowerCase();
 
     const filteredData = useMemo(() => {
@@ -263,9 +265,9 @@ export const EditableRouteList = () => {
                                 </label>
                             </div>
                         )}
-                        {taskTypeFilterOptions.length > 1 && (
+                        {(filterControls.mode || filterControls.taskType) && (
                             <div className="flex items-center gap-2">
-                                <select
+                                {filterControls.mode && <select
                                     id="task-filter-mode"
                                     aria-label="Match routes by"
                                     value={taskFilterMode}
@@ -274,8 +276,8 @@ export const EditableRouteList = () => {
                                 >
                                     <option value="suitable">Suitable for</option>
                                     <option value="made_for">Made for</option>
-                                </select>
-                                <select
+                                </select>}
+                                {filterControls.taskType && <select
                                     id="task-type-filter"
                                     aria-label="Task type"
                                     value={activeTaskTypeFilter}
@@ -288,7 +290,7 @@ export const EditableRouteList = () => {
                                             {subtype.group === 'CIMA' ? 'CIMA: ' : ''}{subtype.display_name}
                                         </option>
                                     ))}
-                                </select>
+                                </select>}
                             </div>
                         )}
                     </div>

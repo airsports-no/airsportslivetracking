@@ -109,4 +109,36 @@ describe('task choice', () => {
     expect(onChoose).not.toHaveBeenCalled();
     expect(dialog()).toBeNull();
   });
+
+  it('takes the focus when it opens, keeps Tab inside, and gives the focus back when it closes', () => {
+    const opener = document.createElement('button');
+    opener.textContent = 'opener';
+    document.body.appendChild(opener);
+    opener.focus();
+
+    render({});
+    const inside = dialog() as HTMLElement;
+    expect(document.activeElement).toBe(inside);
+
+    const tab = (shiftKey = false) => {
+      const event = new KeyboardEvent('keydown', { key: 'Tab', shiftKey, bubbles: true, cancelable: true });
+      act(() => { document.dispatchEvent(event); });
+      return event;
+    };
+    const buttons = [...inside.querySelectorAll('button')];
+    const first = buttons[0];
+    const last = buttons[buttons.length - 1];
+
+    expect(tab().defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+    last.focus();
+    expect(tab().defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(first);
+    expect(tab(true).defaultPrevented).toBe(true);
+    expect(document.activeElement).toBe(last);
+
+    act(() => button('Build without a guide').click());
+    expect(document.activeElement).toBe(opener);
+    opener.remove();
+  });
 });

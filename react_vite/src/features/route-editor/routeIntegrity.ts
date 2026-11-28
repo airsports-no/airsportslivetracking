@@ -1,4 +1,5 @@
 import type { SetStateAction } from 'react';
+import { hasControl } from './curveControl';
 import type { ObservationMarker, RoutePoint } from '../../types';
 import { type CurveSegment, joinCurveRun } from './curveSplit';
 import { getMinimumObservationDistance } from './routeEditorMapClickHelpers';
@@ -28,7 +29,7 @@ export interface Leg {
   exact: boolean;
 }
 
-const hasCurve = (point: RoutePoint): boolean => point.segmentType === 'curved' && !!point.controlLat && !!point.controlLng;
+const hasCurve = (point: RoutePoint): boolean => point.segmentType === 'curved' && hasControl(point);
 
 // The curves of the run of points [chain] (a leg: its two end points and the hidden gates between them). Consecutive
 // curved segments are joined into one curve (see joinCurveRun), so a curve with hidden gates on it has the control point
@@ -171,7 +172,10 @@ export const createRouteIntegrityCheck = (before: RoutePoint[], photos: Observat
     // The photos are measured against the route that is left: the removed hidden gates no longer bend it. Without a
     // route (fewer than two points) there is nothing to measure against: the photos stay.
     const removedIds = new Set(hiddenGates.map((gate) => gate.id));
-    const remaining = removedIds.size > 0 ? after.filter((point) => !removedIds.has(point.id)) : after;
+    // Joined the way the final route is (see planRouteChange): the range is of the route that is kept.
+    const remaining = removedIds.size > 0
+      ? joinCurvesOverRemovedGates(after.filter((point) => !removedIds.has(point.id)), after, removedIds)
+      : after;
     const removedPhotos = remaining.length < 2
       ? []
       : inRangeBefore.filter((photo) => distanceToRoute(photo, remaining) > maxObsDist);

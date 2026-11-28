@@ -1073,10 +1073,18 @@ def curve_with_hidden_gates_route_geojson(
         segment_start, control, done = middle, second_control, parameter
     end["properties"]["controlLat"], end["properties"]["controlLng"] = control
     ordered = [waypoints[0], *gates, *waypoints[1:]]
+    new_ids = {}
     for sequence, feature in enumerate(ordered):
+        if feature in waypoints:  # the gates have no id of an earlier numbering
+            new_ids[feature["properties"]["id"]] = f"wp-{sequence}"
         feature["properties"]["sequence"] = sequence
         feature["properties"]["id"] = f"wp-{sequence}"
     others = [item for item in route["features"] if item not in waypoints]
+    # The extensions of unknown legs refer to the waypoint they leave from
+    for item in others:
+        trigger = item["properties"].get("triggerPointId")
+        if trigger in new_ids:
+            item["properties"]["triggerPointId"] = new_ids[trigger]
     return {"type": "FeatureCollection", "features": [*others, *ordered]}
 
 

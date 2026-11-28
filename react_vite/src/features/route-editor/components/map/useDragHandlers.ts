@@ -1,4 +1,5 @@
 import { useRef } from 'react';
+import { hasControl } from '../../curveControl';
 import L from 'leaflet';
 import { getQuadraticBezierPoints } from '../../../../utils/bezierPoints';
 import { RoutePoint, Polygon, ObservationMarker, SelectionType, Mode } from '../../../../types';
@@ -62,7 +63,7 @@ export default function useDragHandlers({
     const latLngs: L.LatLng[] = [];
     points.forEach((p, i) => {
       if (i === 0) latLngs.push(L.latLng(p.lat, p.lng));
-      else if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
+      else if (p.segmentType === 'curved' && hasControl(p)) {
         latLngs.push(...getQuadraticBezierPoints(points[i - 1], p, { lat: p.controlLat, lng: p.controlLng }));
       } else {
         latLngs.push(...greatCircleLatLngs(points[i - 1], p));
@@ -213,7 +214,7 @@ export default function useDragHandlers({
             const next = moved ? nextOnDummyBranch(moved, prev) : undefined;
             return prev.map((p: RoutePoint) => {
               // The curve handles of the legs into and out of a dummy point move along with it
-              const shifted = (p.id === id || p.id === next?.id) && p.segmentType === 'curved' && p.controlLat && p.controlLng
+              const shifted = (p.id === id || p.id === next?.id) && p.segmentType === 'curved' && hasControl(p)
                 ? { ...p, controlLat: p.controlLat + latDiff, controlLng: p.controlLng + lngDiff }
                 : p;
               return p.id === id ? { ...shifted, lat: newLatLng.lat, lng: newLatLng.lng } : shifted;
@@ -246,7 +247,7 @@ export default function useDragHandlers({
         setStandalonePoints(prev => {
           const moved = initialPoints.find((p: RoutePoint) => p.id === id);
           const first = moved ? nextOnDummyBranch(moved, prev) : undefined;
-          if (!first || first.segmentType !== 'curved' || !first.controlLat || !first.controlLng) return prev;
+          if (!first || first.segmentType !== 'curved' || !hasControl(first)) return prev;
           return prev.map((p) => (p.id === first.id
             ? { ...p, controlLat: p.controlLat! + latDiff, controlLng: p.controlLng! + lngDiff }
             : p));

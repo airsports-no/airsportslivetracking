@@ -135,7 +135,7 @@ class TestEditableRouteIntendedTaskTypesApi(TestCase):
             ],
         }
 
-    def test_writes_store_what_is_sent_and_reads_hide_a_prefilled_intent(self):
+    def test_writes_store_what_is_sent_and_reads_return_it(self):
         response = self.client.post(
             "/api/v1/editableroutes/",
             {"name": "Intent route", "settings": {}, "route": self.route_data, "intended_task_types": []},
@@ -147,14 +147,14 @@ class TestEditableRouteIntendedTaskTypesApi(TestCase):
         compatible = list(route.compatible_task_types)
         self.assertGreater(len(compatible), 1)
 
-        # An old pre-filled intent is stored as sent but read as not chosen.
+        # An explicit declaration of every compatible type is kept, and read back as declared.
         route.intended_task_types = compatible
         route.save()
         route.refresh_from_db()
         self.assertEqual(set(compatible), set(route.intended_task_types))
         detail = self.client.get(f"/api/v1/editableroutes/{route.pk}/")
         self.assertEqual(200, detail.status_code, detail.content)
-        self.assertEqual([], detail.json()["intended_task_types"])
+        self.assertEqual(set(compatible), set(detail.json()["intended_task_types"]))
 
         # A deliberate choice round-trips through a save.
         patch = self.client.patch(

@@ -105,6 +105,19 @@ describe('joining two curves', () => {
     expect(distance(joined.control, C)).toBeLessThan(1e-9);
   });
 
+  it('is not exact when the middle point is off the line between the controls', () => {
+    const joined = joinCurves(
+      { lat: 60, lng: 11 },
+      { lat: 60, lng: 11.0625 },
+      { lat: 60.03125, lng: 11.125 },
+      { lat: 60, lng: 11.1875 },
+      { lat: 60, lng: 11.25 },
+    );
+    expect(joined.exact).toBe(false);
+    // The joined curve follows the moved shape: it leaves latitude 60
+    expect(Math.abs(joined.control.lat - 60)).toBeGreaterThan(0.01);
+  });
+
   it('does not fail on a middle point that is not between the controls', () => {
     const joined = joinCurves(P0, { lat: 60.02, lng: 11.05 }, { lat: 60.1, lng: 11.0 }, { lat: 60.02, lng: 11.05 }, P2);
     expect(joined.exact).toBe(false);

@@ -49,7 +49,8 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
           <ul className="list-disc pl-3 text-xs space-y-1">
             <li>Each step is something the task needs. Its button starts the tool that places it, and the step is ticked when the route meets it.</li>
             <li>A step with a fixed number of elements ends by itself when the last one is placed, and the next unmet step starts.</li>
-            <li>A step without a fixed number shows <strong>Done, next step</strong>. Press it when you have placed enough.</li>
+            <li>A step that places a single thing (a zone such as the 2.B3 landing area, or a gate line) ends by itself when you have drawn it.</li>
+            <li>Any other step without a fixed number shows <strong>Done, next step</strong>. Press it when you have placed enough.</li>
             <li>Optional steps are only started from the list.</li>
             <li>The guide helps, it does not lock: you can still edit any point by hand.</li>
           </ul>
@@ -59,7 +60,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
           <ul className="list-disc pl-3 text-xs space-y-1">
             <li><strong>Select</strong> is the normal mode. Click a point to select it, drag it to move it. The cursor is an arrow.</li>
             <li>In every placing mode (waypoints, hidden gate, photos, zones, gates, and the guide's tools) a banner over the map says what a click does, and the cursor is a crosshair.</li>
-            <li>Press <strong>Esc</strong>, or the stop button in the banner, to go back to Select.</li>
+            <li>Press <strong>Esc</strong>, or the stop button in the banner, to go back to Select. Esc is ignored while a text field has focus: then choose Select in the toolbar or use the banner's stop button.</li>
           </ul>
         </HelpSection>
 
@@ -103,7 +104,7 @@ const HelpView: React.FC<HelpViewProps> = ({ onClose }) => {
             Choose "Photo" and click the map where the photo was taken.
           </p>
           <Constraint>
-            A photo must be within <strong>Max Obs Dist</strong> (0.5 NM unless you change it in the settings) of the route. If a change to the route leaves a photo farther away than that, the photo is removed and the editor tells you.
+            A photo must be within <strong>Max Obs Dist</strong> (0.5 NM unless you change it in the settings) of the route. If a change to the route makes a photo farther away than that, the photo is removed and the editor tells you. A photo that was already out of range before the change is left where it is.
           </Constraint>
         </HelpSection>
 

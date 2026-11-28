@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { buildRouteTags, routeMatchesTaskFilter, routesMadeForFirst, taskTypeKeysInUse } from './routeTags';
+import { buildRouteTags, filterControlsShown, routeMatchesTaskFilter, routesMadeForFirst, taskTypeKeysInUse } from './routeTags';
 
 const subtypes = {
   a1: { coarse_family: 'precision', display_name: 'Precision' },
@@ -70,5 +70,25 @@ describe('routesMadeForFirst', () => {
       { id: 4, intended_task_types: ['a1', 'a2'] },
     ];
     expect(routesMadeForFirst(routes, 'a1').map((route) => route.id)).toEqual([2, 4, 1, 3]);
+  });
+});
+
+describe('filterControlsShown', () => {
+  it('hides both with one type or none on offer and nothing in use', () => {
+    expect(filterControlsShown(1, 'suitable', '')).toEqual({ mode: false, taskType: false });
+    expect(filterControlsShown(0, 'suitable', '')).toEqual({ mode: false, taskType: false });
+  });
+
+  it('shows both with several types', () => {
+    expect(filterControlsShown(2, 'suitable', '')).toEqual({ mode: true, taskType: true });
+  });
+
+  it('keeps the mode selector in the made-for mode with one type or none, so the user can switch back', () => {
+    expect(filterControlsShown(1, 'made_for', '').mode).toBe(true);
+    expect(filterControlsShown(0, 'made_for', '').mode).toBe(true);
+  });
+
+  it('keeps the task selector while a filter is active, so the user can clear it', () => {
+    expect(filterControlsShown(1, 'made_for', 'a1')).toEqual({ mode: true, taskType: true });
   });
 });

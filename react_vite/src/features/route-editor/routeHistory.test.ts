@@ -91,6 +91,15 @@ describe('route history', () => {
     expect(history.past).toHaveLength(2);
   });
 
+  it('does not join an edit onto a restored step when there is no window', () => {
+    let history = record(createHistory(0), 1, { key: 'a' });
+    history = record(history, 2, { key: 'b' });
+    history = undo(history);
+    history = record(history, 3, { key: 'a' });
+    expect(history.past.map((entry) => entry.snapshot)).toEqual([0, 1]);
+    expect(undo(history).present.snapshot).toBe(1);
+  });
+
   it('undoes one step by its key, with the later steps staying redoable', () => {
     let history = createHistory(0);
     history = record(history, 1, { key: 'a' });

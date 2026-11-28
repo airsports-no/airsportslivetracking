@@ -1,8 +1,9 @@
 // @vitest-environment jsdom
+import { vi } from 'vitest';
 import L from 'leaflet';
 import type { Mode, RoutePoint } from '../../../../types';
 import { HIT_RADIUS_PX } from '../../routeEditorMapClickHelpers';
-import { createHitRegistry, drawGates, drawPoints } from './renderers';
+import { createHitRegistry, drawGates, drawPoints, drawRouteLine } from './renderers';
 
 const point = (id: string, lat: number, lng: number): RoutePoint => ({
   id, name: id, lat, lng, type: 'tp', width: 0, isTiming: true, isPassing: true, segmentType: 'straight',
@@ -84,5 +85,69 @@ describe('the hit areas of the route editor points', () => {
     expect(areas).toHaveLength(2);
     areas[1].fire('click', { latlng: L.latLng(60.01, 11), containerPoint: map.latLngToContainerPoint(L.latLng(60.01, 11)), originalEvent: new MouseEvent('click') });
     expect(selected).toEqual(['g']);
+  });
+});
+
+describe('a click on a hit area', () => {
+  it('does not go on to the map, whose click would clear the selection', () => {
+    const { map, areaOf, selected } = draw([point('a', 60, 11)]);
+    const onMapClick = vi.fn();
+    map.on('click', onMapClick);
+    const element = areaOf('a').getElement() as Element;
+    element.dispatchEvent(new MouseEvent('click', { bubbles: true, clientX: 0, clientY: 0 }));
+    expect(selected).toEqual(['a']);
+    expect(onMapClick).not.toHaveBeenCalled();
+  });
+});
+
+describe('the dot in the middle of a leg', () => {
+  const setup = () => {
+    const container = document.createElement('div');
+    document.body.appendChild(container);
+    const map = L.map(container).setView([60, 11], 10);
+    const polylinesRef = { current: [] as L.Layer[] };
+    const routeLineRef = { current: null as L.Polyline | null };
+    const setRoutePoints = vi.fn();
+    const onNotice = vi.fn();
+    drawRouteLine(
+      map, [point('a', 60, 11), point('b', 60, 11.1)], [], routeLineRef, polylinesRef, 'view', setRoutePoints, () => {}, () => {}, true,
+      { current: null }, () => {}, () => {}, null, undefined, onNotice,
+    );
+    const ghost = polylinesRef.current.find((layer) => (layer as any).options?.className === 'cursor-copy') as L.CircleMarker;
+    const press = () => ghost.fire('mousedown', { latlng: ghost.getLatLng(), containerPoint: L.point(100, 100), originalEvent: new MouseEvent('mousedown') });
+    const move = (buttons: number, dx = 20) => map.fire('mousemove', { latlng: ghost.getLatLng(), containerPoint: L.point(100 + dx, 100), originalEvent: new MouseEvent('mousemove', { buttons }) });
+    return { map, ghost, setRoutePoints, onNotice, press, move };
+  };
+
+  it('inserts a point when it is dragged with the button held', () => {
+    const { press, move, setRoutePoints } = setup();
+    press();
+    move(1);
+    expect(setRoutePoints).toHaveBeenCalledTimes(1);
+  });
+
+  it('notices a release outside the map, and then inserts nothing when the pointer comes back', () => {
+    const { press, move, setRoutePoints, onNotice } = setup();
+    press();
+    document.body.dispatchEvent(new MouseEvent('mouseup', { bubbles: true }));
+    expect(onNotice).toHaveBeenCalledTimes(1);
+    move(0);
+    expect(setRoutePoints).not.toHaveBeenCalled();
+  });
+
+  it('inserts nothing when the pointer comes back without the button held', () => {
+    const { press, move, setRoutePoints } = setup();
+    press();
+    move(0);
+    move(1);
+    expect(setRoutePoints).not.toHaveBeenCalled();
+  });
+
+  it('stops waiting when the dot is removed by a redraw', () => {
+    const { map, ghost, press, move, setRoutePoints } = setup();
+    press();
+    map.removeLayer(ghost);
+    move(1);
+    expect(setRoutePoints).not.toHaveBeenCalled();
   });
 });

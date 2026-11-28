@@ -134,7 +134,11 @@ const exactHalvesControl = (
     lat: (secondControl.lat - t * end.lat) / (1 - t),
     lng: (secondControl.lng - t * end.lng) / (1 - t),
   };
-  return length(fromFirst, fromSecond) <= EXACT_TOLERANCE * chord ? lerp(fromFirst, fromSecond, 0.5) : null;
+  // Genuine halves have the middle on the line between their controls, at t. A middle moved off that line gives the same
+  // t and controls, but is no longer where the original curve passes.
+  const onLine = lerp(firstControl, secondControl, t);
+  const exact = length(fromFirst, fromSecond) <= EXACT_TOLERANCE * chord && length(middle, onLine) <= EXACT_TOLERANCE * chord;
+  return exact ? lerp(fromFirst, fromSecond, 0.5) : null;
 };
 
 const PATH_SAMPLES_PER_SEGMENT = 64;

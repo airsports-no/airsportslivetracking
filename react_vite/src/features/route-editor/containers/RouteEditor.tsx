@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useMemo, useCallback } from 'react';
+import { hasControl } from '../curveControl';
 import { useParams, Link, useNavigate } from 'react-router-dom';
 import Sidebar from '../components/Sidebar';
 import Toolbar from '../components/Toolbar';
@@ -162,7 +163,7 @@ export default function RouteEditor() {
     for (let i = 0; i < routePoints.length - 1; i++) {
       const p1 = routePoints[i];
       const p2 = routePoints[i + 1];
-      if (p2.segmentType === 'curved' && p2.controlLat && p2.controlLng) {
+      if (p2.segmentType === 'curved' && hasControl(p2)) {
         const curvePoints = getQuadraticBezierPoints(p1, p2, { lat: p2.controlLat, lng: p2.controlLng });
         for (let j = 0; j < curvePoints.length - 1; j++) {
           dist += getDistance(curvePoints[j], curvePoints[j + 1]);
@@ -869,6 +870,11 @@ export default function RouteEditor() {
 
   // Starts the tool of a guide step: the toolbar mode or wizard action it stands for (see TOOL_ACTIONS).
   const startWizardStep = useCallback((tool: RouteRequirementTool) => {
+    // A half-placed gate or zone belongs to the tool that started it: only a restart of the same tool keeps it
+    if (tool !== activeGuideTool) {
+      setTempGatePoint(null);
+      setTempPolygonPoints([]);
+    }
     const state = findStep(wizardChecklist?.steps ?? [], tool);
     const action = getToolAction(tool);
     const label = state?.label ?? action.shortLabel;
@@ -920,7 +926,7 @@ export default function RouteEditor() {
     if (transition.mode) {
       setMode(transition.mode);
     }
-  }, [beginDummyBranchStep, routePoints, selectedId, stopWizardAction, wizardChecklist]);
+  }, [activeGuideTool, beginDummyBranchStep, routePoints, selectedId, stopWizardAction, wizardChecklist]);
 
   // The step ended (by the user or by itself): start the next unmet required step, or stop. All required steps met is
   // said in the panel and, for a guide that is closed, in a toast.
@@ -942,6 +948,17 @@ export default function RouteEditor() {
     applyStepEnd(resolveStepEnd(wizardChecklist, activeGuideTool), true);
   }, [activeGuideTool, applyStepEnd, stopWizardAction, wizardChecklist]);
 
+  // The button of the active step. A step with a fixed count ends by itself, so its button ("Stop") stops placing and
+  // does not go on to the next step; an open-ended step's ("Done, next step") ends the step.
+  const endWizardStep = useCallback(() => {
+    const step = findStep(wizardChecklist?.steps ?? [], activeGuideTool);
+    if (step && doneButtonLabel(step) === 'Stop') {
+      stopPlacing();
+      return;
+    }
+    finishWizardStep();
+  }, [activeGuideTool, finishWizardStep, stopPlacing, wizardChecklist]);
+
   // A step with a fixed count ends when its last one is placed; a single-shot tool (a polygon, a gate) when the mode
   // is back to select.
   // Done while rendering rather than in an effect; ending the step makes the condition false, so it runs once.
@@ -953,7 +970,7 @@ export default function RouteEditor() {
   // A task was chosen (in the task choice or the guide's own list): the guide opens on it with its first unmet
   // required step active, as soon as the steps are known (the catalogue or the compatibility answer).
   const chooseTask = useCallback((id: string) => {
-    stopWizardAction();
+    stopPlacing();
     setSelectedTaskTemplateId(id);
     // The chosen task is part of the route's intent, even while the route does not meet it yet.
     setIntent((previous) => applyGuideChoice(previous, getTaskTemplateById(id)?.subtype));
@@ -962,22 +979,28 @@ export default function RouteEditor() {
     setSelectedId(null);
     setSelectionType('wizard');
     setStartFirstStep(true);
+  }, [stopPlacing]);
+
+  // A tool picked in the toolbar replaces what the guide had started: no guide step or insert type is left behind.
+  const pickToolbarTool = useCallback((next: Mode) => {
+    stopWizardAction();
+    setMode(next);
   }, [stopWizardAction]);
 
   const leaveTask = useCallback(() => {
-    stopWizardAction();
+    stopPlacing();
     setSelectedTaskTemplateId(null);
     setIntent((previous) => applyGuideChoice(previous, null));
     setIsDirty(true);
     setStartFirstStep(false);
-  }, [stopWizardAction]);
+  }, [stopPlacing]);
 
   // Closing the guide never changes the route; it only stops the active step.
   const closeWizard = useCallback(() => {
-    stopWizardAction();
+    stopPlacing();
     setSelectedId(null);
     setSelectionType(null);
-  }, [stopWizardAction]);
+  }, [stopPlacing]);
 
   // Also while rendering; starting clears the flag.
   if (startFirstStep && wizardChecklist && wizardChecklist.steps.length > 0) {
@@ -1223,7 +1246,7 @@ export default function RouteEditor() {
           wizardChecklist={wizardChecklist}
           activeGuideTool={activeGuideTool}
           startWizardStep={startWizardStep}
-          finishWizardStep={finishWizardStep}
+          finishWizardStep={endWizardStep}
           closeWizard={closeWizard}
           visibleTaskTypeGroups={visibleTaskTypeGroups}
         />
@@ -1232,7 +1255,7 @@ export default function RouteEditor() {
       <div className="flex-1 flex flex-col relative">
         <Toolbar
           mode={mode}
-          setMode={setMode}
+          setMode={pickToolbarTool}
           setTempGatePoint={setTempGatePoint}
           setTempPolygonPoints={setTempPolygonPoints}
           onSelect={stopPlacing}
@@ -1261,7 +1284,7 @@ export default function RouteEditor() {
             guideAction={activeGuideTool
               ? {
                 label: activeStepState ? doneButtonLabel(activeStepState) : 'Done, next step',
-                onDone: finishWizardStep,
+                onDone: endWizardStep,
                 description: currentWizardActionLabel ?? undefined,
               }
               : null}

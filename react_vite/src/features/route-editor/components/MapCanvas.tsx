@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, forwardRef, useState } from 'react';
+import { hasControl } from '../curveControl';
 import L from 'leaflet';
 import {
   getBearing,
@@ -457,7 +458,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
         }
 
         const prev = routePoints[i - 1];
-        if (p.segmentType === 'curved' && p.controlLat && p.controlLng) {
+        if (p.segmentType === 'curved' && hasControl(p)) {
           const curve = getQuadraticBezierPoints(prev, p, { lat: p.controlLat, lng: p.controlLng });
           curve.forEach((cp, idx) => {
             // Avoid duplicate start point
@@ -697,7 +698,7 @@ const MapCanvas = forwardRef<L.Map, MapCanvasProps>(({
           };
           hits.targets.push({ key: 'temp-polygon-start', kind: 'temp_polygon_start', latlng: L.latLng(p.lat, p.lng), select: closePolygon });
           marker.on('click', (e) => {
-            L.DomEvent.stopPropagation(e);
+            Renderers.stopMapEvent(e);
             closePolygon();
           });
         }

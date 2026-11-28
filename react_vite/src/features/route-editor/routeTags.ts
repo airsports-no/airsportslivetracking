@@ -98,3 +98,15 @@ export const routesMadeForFirst = <T extends RouteTagSource>(routes: T[], taskTy
   const made = (route: T) => ((route.intended_task_types ?? []).includes(taskTypeKey) ? 0 : 1);
   return routes.map((route, index) => ({ route, index })).sort((a, b) => made(a.route) - made(b.route) || a.index - b.index).map(({ route }) => route);
 };
+
+// Which of the list's filter controls to show. A filter by a single type is no help, so with at most one type on offer
+// they are hidden, unless one is in use (a filter that is on, or the "made for" mode): then they stay so that the user
+// can clear it and switch back.
+export const filterControlsShown = (
+  optionCount: number,
+  mode: TaskFilterMode,
+  activeTaskType: string,
+): { mode: boolean; taskType: boolean } => ({
+  mode: optionCount > 1 || mode !== 'suitable' || activeTaskType !== '',
+  taskType: optionCount > 1 || activeTaskType !== '',
+});
